@@ -14,18 +14,6 @@
  * limitations under the License.
  */
 
-rootProject.name = 'janitor'
+dependencies {
 
-include 'janitor-core'
-include 'janitor-web'
-
-def setBuildFile(project) {
-  project.buildFileName = "${project.name}.gradle"
-  project.children.each {
-    setBuildFile(it)
-  }
-}
-
-rootProject.children.each {
-  setBuildFile(it)
 }

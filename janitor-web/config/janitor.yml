@@ -1,0 +1,22 @@
+server:
+  port: 7002
+  ssl:
+    enabled: false
+
+redis:
+  connection: redis://localhost:6379
+
+services:
+  front50:
+    baseUrl: http://localhost:8080
+
+swagger:
+  enabled: true
+  title: Spinnaker Front50 API
+  description:
+  contact:
+  patterns:
+    - /resources.*
+
+aws:
+  enabled: ${AWS_ENABLED:false}

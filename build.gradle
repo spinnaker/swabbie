@@ -117,3 +117,5 @@ subprojects { project ->
     spinnaker.group('test')
   }
 }
+
+defaultTasks ':janitor-web:bootRun'

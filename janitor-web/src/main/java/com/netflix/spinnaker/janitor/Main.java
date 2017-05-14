@@ -23,27 +23,29 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 @Import({ WebConfig.class })
-@ComponentScan({ "com.netflix.spinnaker.config"})
 @EnableAutoConfiguration
 public class Main extends SpringBootServletInitializer {
-  private static final Map<String, Object> DEFAULT_PROPS = new HashMap<String, Object>() {
-    {
-      put("netflix.environment", "test");
-      put("netflix.account", "${netflix.environment}");
-      put("netflix.stack", "test");
-      put("spring.config.location", "${user.home}/.spinnaker/");
-      put("spring.application.name", "janitor");
-      put("spring.config.name", "spinnaker,${spring.application.name}");
-      put("spring.profiles.active", "${netflix.environment},local");
-    }
-  };
+  private static final Map<String, Object> DEFAULT_PROPS = defaults();
 
-  static void main(String[] args) {
+  private static Map<String, Object> defaults() {
+    Map<String, String> defaults = new HashMap<>();
+    defaults.put("netflix.environment", "test");
+    defaults.put("netflix.account", "${netflix.environment}");
+    defaults.put("netflix.stack", "test");
+    defaults.put("spring.config.location", "${user.home}/.spinnaker/");
+    defaults.put("spring.application.name", "janitor");
+    defaults.put("spring.config.name", "spinnaker,${spring.application.name}");
+    defaults.put("spring.profiles.active", "${netflix.environment},local");
+    return Collections.unmodifiableMap(defaults);
+  }
+
+  public static void main(String... args) {
     new SpringApplicationBuilder().properties(DEFAULT_PROPS).sources(Main.class).run(args);
   }
 

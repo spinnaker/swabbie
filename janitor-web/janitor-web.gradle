@@ -31,6 +31,7 @@ springBoot {
 }
 
 dependencies {
+  compile project(':janitor-core')
   spinnaker.group("bootWeb")
 
 //  Replace below with this line when fiat becomes stable.
@@ -42,10 +43,12 @@ dependencies {
   compile "org.springframework.security:spring-security-config:3.2.9.RELEASE"
   compile "org.springframework.security:spring-security-core:3.2.9.RELEASE"
   compile "org.springframework.security:spring-security-web:3.2.9.RELEASE"
+  compile 'org.springframework.data:spring-data-redis:1.7.1.RELEASE'
 
   runtime spinnaker.dependency("kork")
   compile spinnaker.dependency("korkStackdriver")
   compile spinnaker.dependency("korkWeb")
+  compile spinnaker.dependency("jedis")
   spinnaker.group('test')
 
   //this brings in the jetty GzipFilter which boot will autoconfigure

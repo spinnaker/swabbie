@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.janitor;
 
 import com.netflix.spectator.api.Registry;
+import com.netflix.spinnaker.config.RedisConfig;
 import com.netflix.spinnaker.filters.AuthenticatedRequestFilter;
 import com.netflix.spinnaker.kork.web.interceptors.MetricsInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,7 @@ import org.springframework.boot.context.embedded.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -37,6 +39,7 @@ import java.util.Collections;
 
 @Configuration
 @ComponentScan
+@Import({ RedisConfig.class })
 public class WebConfig extends WebMvcConfigurerAdapter {
   @Autowired
   private Registry registry;

@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.resource;
+package com.netflix.spinnaker.janitor;
 
-import java.time.LocalDate;
-
-public interface Markable {
-  LocalDate getMarkedAt();
-  LocalDate getUnMarkedAt();
+public interface Resource {
+  String getResourceType();
+  String getId();
 }

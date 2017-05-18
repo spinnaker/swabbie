@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-
 package com.netflix.spinnaker.janitor.controllers;
 
-import com.netflix.spinnaker.DataProvider;
-import com.netflix.spinnaker.janitor.resource.Resource;
+import com.netflix.spinnaker.janitor.DataProvider;
+import com.netflix.spinnaker.janitor.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -32,8 +31,10 @@ import java.util.Map;
 @RequestMapping("/janitor")
 public class JanitorController {
   @Autowired
-  private DataProvider<Resource> resourceProvider;
+  private DataProvider<Resource> resourceProvider; //TODO: configure this
 
+
+  //TODO: jchabu: resources should be fetched from front50
   @RequestMapping(
     method = RequestMethod.GET
   )
@@ -44,4 +45,6 @@ public class JanitorController {
 
     return resourceProvider.filter(params);
   }
+
+  //TODO: add an entrypoint endpoint
 }

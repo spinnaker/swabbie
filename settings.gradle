@@ -17,6 +17,7 @@
 rootProject.name = 'janitor'
 
 include 'janitor-core'
+include 'janitor-aws'
 include 'janitor-web'
 
 def setBuildFile(project) {

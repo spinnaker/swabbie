@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.10'
-  compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.1.3'
-  compile group: 'ch.qos.logback', name: 'logback-core', version: '1.1.3'
+package com.netflix.spinnaker.janitor.rulesengine;
+
+import com.netflix.spinnaker.janitor.Resource;
+import com.netflix.spinnaker.janitor.Rule;
+
+public interface RuleListener {
+  void onRuleEvaluated(Rule rule, Resource resource);
+  void onRuleNotEvaluated(Rule rule, Resource resource);
+  void onComplete(Resource resource);
 }

@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.resource;
+package com.netflix.spinnaker.janitor;
 
-public interface Resource extends Markable {
+import java.util.List;
+import java.util.Map;
 
+public interface DataProvider<T extends Resource> {
+  List<T> findAll();
+  T update(T resource);
+  List<Resource> filter(Map<String, String> parameters);
 }

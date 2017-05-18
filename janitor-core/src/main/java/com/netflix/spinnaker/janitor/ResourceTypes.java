@@ -14,14 +14,8 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker;
+package com.netflix.spinnaker.janitor;
 
-import com.netflix.spinnaker.janitor.resource.Resource;
-import java.util.List;
-import java.util.Map;
-
-public interface DataProvider<T extends Resource> {
-  List<T> findAll();
-  T update(T resource);
-  List<Resource> filter(Map<String, String> parameters);
+public interface ResourceTypes {
+  String LOADBALANCER = "LoadBalancer";
 }

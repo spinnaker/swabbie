@@ -31,7 +31,7 @@ springBoot {
 }
 
 dependencies {
-  compile project(':janitor-core')
+  compile project(':janitor-aws')
   spinnaker.group("bootWeb")
 
 //  Replace below with this line when fiat becomes stable.

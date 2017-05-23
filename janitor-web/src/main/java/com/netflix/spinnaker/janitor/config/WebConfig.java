@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor;
+package com.netflix.spinnaker.janitor.config;
 
 import com.netflix.spectator.api.Registry;
 import com.netflix.spinnaker.filters.AuthenticatedRequestFilter;
+import com.netflix.spinnaker.janitor.aws.config.AwsConfiguration;
 import com.netflix.spinnaker.kork.web.interceptors.MetricsInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.embedded.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
@@ -36,7 +39,14 @@ import java.io.IOException;
 import java.util.Collections;
 
 @Configuration
-@ComponentScan
+@ComponentScan("com.netflix.spinnaker.janitor")
+@EnableScheduling
+@Import({
+  RetrofitConfig.class,
+  QueueConfig.class,
+  AwsConfiguration.class,
+  JanitorConfig.class
+})
 public class WebConfig extends WebMvcConfigurerAdapter {
   @Autowired
   private Registry registry;

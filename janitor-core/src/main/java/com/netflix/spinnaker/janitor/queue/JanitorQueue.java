@@ -14,19 +14,35 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
+package com.netflix.spinnaker.janitor.queue;
 
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+import java.time.temporal.TemporalAmount;
 
 /**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
+ * A work queue for Janitor
  */
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public interface JanitorQueue {
+  /**
+   * Put a message on the queue with a delay
+   * @param message message to be placed on the queue
+   * @param delay when the message will be delivered
+   */
+
+  void push(Message message, TemporalAmount delay);
+
+  /**
+   * Polls queue for a message
+   * @param callback action on each polled message
+   * @throws Exception
+   */
+
+  void poll(MessageCallback callback) throws Exception;
+
+  /**
+   * Queue size
+   * @return queue size
+   */
+
+  int size();
 }

@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
+package com.netflix.spinnaker.janitor.services.internal;
 
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+import retrofit.http.Body;
+import retrofit2.Call;
+import retrofit2.http.Headers;
+import retrofit2.http.POST;
 
-/**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
- */
+import java.util.Map;
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public interface OrcaService {
+  @Headers("Content-type: application/context+json")
+  @POST("/ops")
+  Call<Map> doOperation(@Body Map<String, ?> body);
 }

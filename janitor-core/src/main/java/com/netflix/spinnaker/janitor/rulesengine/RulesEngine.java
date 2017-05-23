@@ -16,9 +16,10 @@
 
 package com.netflix.spinnaker.janitor.rulesengine;
 
-import com.netflix.spinnaker.janitor.Resource;
-import com.netflix.spinnaker.janitor.Rule;
+import com.netflix.spinnaker.janitor.model.Resource;
+import com.netflix.spinnaker.janitor.model.Rule;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -40,7 +41,7 @@ public interface RulesEngine {
    * Fires all rules in the engine
    */
 
-  void run(Resource resource);
+  Result run(Resource resource);
 
   /**
    * Gets the list of current rules
@@ -54,4 +55,11 @@ public interface RulesEngine {
    */
 
   void sortRules();
+
+  /**
+   * Adds a  list of rules
+   * @param rules
+   */
+
+  void addRules(final List<Rule> rules);
 }

@@ -14,19 +14,21 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
+package com.netflix.spinnaker.janitor.model;
 
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+import java.io.IOException;
 
 /**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
+ * A generic action interface
+ * @param <T>
  */
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public interface Action<T> {
+  /**
+   * performs an action on an arbitrary object
+   * @param item object to perform the action on
+   * @throws IOException
+   */
+
+  void invoke(T item) throws IOException;
 }

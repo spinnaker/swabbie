@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor;
+package com.netflix.spinnaker.janitor.model;
 
 /**
  * The rule implementing a logic to decide if a resource should be considered as a candidate of cleanup.
@@ -23,33 +23,26 @@ package com.netflix.spinnaker.janitor;
 public interface Rule extends Comparable<Rule> {
 
   /**
-   * getter for rule name
+   * Getter for rule name
    * @return rule name
    */
 
   String getName();
 
   /**
-   * getter for rule description
+   * Getter for rule description
    * @return rule description
    */
 
   String getDescription();
 
   /**
-   * determines if this rule will be applied
-   * @return
-   * @param resource
+   * Determines if this rule evaluates
+   * @return true if Rule evaluates and false otherwise
+   * @param resource cloud resource to apply the rule on
    */
 
   boolean checkResource(Resource resource);
-
-  /**
-   * The priority of this rule in the engine
-   * @return
-   */
-
-  int getPriority();
 
   /**
    * Checks if this rule applies
@@ -59,15 +52,12 @@ public interface Rule extends Comparable<Rule> {
 
   boolean supports(String name);
 
-
   @Override
   default int compareTo(final Rule rule) {
-    if (getPriority() > rule.getPriority()) {
-      return 1;
-    } else if (getPriority() < rule.getPriority()) {
-      return -1;
-    } else {
+    if (rule.getName().equalsIgnoreCase(getName()) && rule.getDescription().equalsIgnoreCase(getDescription())) {
       return 0;
     }
+
+    return -1;
   }
 }

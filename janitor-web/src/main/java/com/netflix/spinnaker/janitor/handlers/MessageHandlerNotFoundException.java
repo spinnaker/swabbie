@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor;
+package com.netflix.spinnaker.janitor.handlers;
 
-public interface ResourceTypes {
-  String LOADBALANCER = "LoadBalancer";
+public class MessageHandlerNotFoundException extends IllegalArgumentException {
+  public MessageHandlerNotFoundException(String message) {
+    super(message);
+  }
 }

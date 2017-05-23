@@ -14,19 +14,25 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
-
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+package com.netflix.spinnaker.janitor.queue;
 
 /**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
+ * A message with resource marking semantics
+ * Each message contains the granularity for each resource mark
  */
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public class MarkMessage extends Message {
+  public MarkMessage(String cloudProvider, String resourceType, String account) {
+    super(cloudProvider, resourceType, account);
+  }
+
+  @Override
+  void match(Janitor visitor) {
+    visitor.mark(this);
+  }
+
+  @Override
+  String getAction() {
+    return "mark";
+  }
 }

@@ -14,19 +14,33 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
-
+package com.netflix.spinnaker.janitor.provider;
 import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+
+import java.util.List;
 
 /**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
+ * A resource data provider
+ * @param <T>
  */
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public interface DataProvider<T extends Resource> {
+
+  /**
+   * Gets resources by account
+   * @param account the account the resource belongs in
+   * @return a list of resources
+   */
+
+  List<T> findByAccount(String account);
+
+  /**
+   * Deletes a resource
+   * @param cloudProvider (aws|...)
+   * @param account target account
+   * @param region target region
+   * @param name the name of the resource
+   */
+
+  void remove(String cloudProvider, String account, String region, String name);
 }

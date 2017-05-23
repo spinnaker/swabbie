@@ -14,19 +14,26 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
-
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+package com.netflix.spinnaker.janitor.queue;
 
 /**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
+ * An abstract janitor that can mark and cleanup a resource
  */
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public interface Janitor {
+
+  /**
+   * Marks resources
+   * @param message contains instructions on how to mark resources
+   */
+
+  void mark(Message message);
+
+  /**
+   * Cleans a resource
+   * @param message contains instructions on how to clean a single resource
+   * A clean message has information on what resource to clean
+   */
+
+  void cleanup(Message message);
 }

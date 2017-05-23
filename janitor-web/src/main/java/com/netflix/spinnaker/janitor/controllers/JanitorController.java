@@ -16,35 +16,73 @@
 
 package com.netflix.spinnaker.janitor.controllers;
 
-import com.netflix.spinnaker.janitor.DataProvider;
-import com.netflix.spinnaker.janitor.Resource;
+import com.netflix.spinnaker.janitor.services.AccountService;
+import com.netflix.spinnaker.janitor.queue.MarkMessage;
+import com.netflix.spinnaker.janitor.queue.Message;
+import com.netflix.spinnaker.janitor.queue.JanitorQueue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import javax.annotation.Resource;
+import java.time.Duration;
+import java.util.*;
 
 @RestController
 @RequestMapping("/janitor")
 public class JanitorController {
+
   @Autowired
-  private DataProvider<Resource> resourceProvider; //TODO: configure this
+  private AccountService accountService;
 
+  @Autowired
+  private JanitorQueue janitorQueue;
 
-  //TODO: jchabu: resources should be fetched from front50
+  @Resource
+  private Map<String, Integer> resourceTypeToRetentionDays;
+
+  /**
+   * The role of this endpoint is to create work by placing items on the work queue
+   * Messages will then be picked of the queue for processing
+   */
+
   @RequestMapping(
-    method = RequestMethod.GET
+    value = "/mark",
+    method = RequestMethod.POST
   )
-  public List<Resource> getResources(@RequestParam Map<String, String> params) {
-    if (params.isEmpty()) {
-      return resourceProvider.findAll();
-    }
+  public void mark() {
+    List<String> accounts = getAccounts();
+    List<Message> messages = buildMessages(
+      accounts,
+      new ArrayList<>(resourceTypeToRetentionDays.keySet()),
+      "aws"
+    );
 
-    return resourceProvider.filter(params);
+    messages.forEach(message -> janitorQueue.push(message, Duration.ofSeconds(0)));
   }
 
-  //TODO: add an entrypoint endpoint
+  private List<String> getAccounts() {
+    return accountService.getAccounts();
+  }
+
+  /**
+   * Builds a mark message with a specific granularity
+   * @param accounts list of target accounts
+   * @param resourceTypes list of supported resource types
+   * @param cloudProvider a cloud provider
+   * @return a list of mark messages
+   */
+
+  static List<Message> buildMessages(List<String> accounts,
+                                     List<String> resourceTypes,
+                                     String cloudProvider) {
+    List<Message> messages = new ArrayList<>();
+    accounts
+      .forEach(account -> resourceTypes.forEach(resourceType -> messages.add(
+        new MarkMessage(cloudProvider, resourceType, account)
+      )));
+
+    return messages;
+  }
 }

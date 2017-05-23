@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
-
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+package com.netflix.spinnaker.janitor.model;
 
 /**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
+ * Represents a cloud resource
  */
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public interface Resource {
+  String getCloudProvider();
+  String getId();
+  String getResourceType();
+  String getAccount();
+  String getRegion();
+  String getName();
 }

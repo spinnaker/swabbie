@@ -14,51 +14,38 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.config;
+package com.netflix.spinnaker.janitor.aws.config;
 
-import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 @ConfigurationProperties("aws")
-public class AWSProperties {
-  private Boolean enabled = true;
-  private List<ResourceType> resourceTypes;
+public class AwsConfigurationProperties {
+  @NestedConfigurationProperty
+  private LoadBalancer loadBalancer;
 
-  public Boolean getEnabled() {
-    return enabled;
+  public LoadBalancer getLoadBalancer() {
+    return loadBalancer;
   }
 
-  public void setEnabled(Boolean enabled) {
-    this.enabled = enabled;
+  public void setLoadBalancer(LoadBalancer loadBalancer) {
+    this.loadBalancer = loadBalancer;
   }
 
-  public List<ResourceType> getResourceTypes() {
-    return resourceTypes;
+  public Integer getLoadBalancerRetentionDays() {
+    return this.loadBalancer.getRetentionDays();
   }
 
-  public void setResourceTypes(List<ResourceType> resourceTypes) {
-    this.resourceTypes = resourceTypes;
-  }
-
-  public static class ResourceType {
-    private String name;
-    private Integer retention;
+  public static class ResourceTypeConfig {
+    private Integer retentionDays;
     private Boolean enabled = true;
 
-    public String getName() {
-      return name;
+    public Integer getRetentionDays() {
+      return retentionDays;
     }
 
-    public void setName(String name) {
-      this.name = name;
-    }
-
-    public Integer getRetention() {
-      return retention;
-    }
-
-    public void setRetention(Integer retention) {
-      this.retention = retention;
+    public void setRetentionDays(Integer retentionDays) {
+      this.retentionDays = retentionDays;
     }
 
     public Boolean getEnabled() {
@@ -69,4 +56,6 @@ public class AWSProperties {
       this.enabled = enabled;
     }
   }
+
+  public static class LoadBalancer extends ResourceTypeConfig {}
 }

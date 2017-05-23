@@ -14,31 +14,23 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.aws.loadbalancer;
+package com.netflix.spinnaker.janitor.aws.model;
 
-import com.netflix.spinnaker.janitor.Resource;
+import com.netflix.spinnaker.janitor.model.LoadBalancer;
+
 import java.util.List;
 
-
-//TODO: not sure about the structure of this POJO. Probably wouldnt have to create one for each resource type
-//TODO: revisit
-public class LoadBalancer implements Resource {
+public class AmazonLoadBalancer implements LoadBalancer {
   private String name;
   private String account;
-  private String cloudProvider;
+  private String cloudProvider = "aws";
   private String region;
-  private List<String> serverGroups;
-
-  @Override
-  public String getResourceType() {
-    return "LoadBalancer";
-  }
+  private List<LoadBalancer.LoadBalancerServerGroup> serverGroups;
 
   @Override
   public String getId() {
-    return cloudProvider + ":LoadBalancer:" + getName() + ":" + getAccount() + ":" + getRegion();
+    return cloudProvider + ":loadbalancer:" + name + ":" + account + ":" + region;
   }
-
 
   public String getName() {
     return name;
@@ -72,11 +64,23 @@ public class LoadBalancer implements Resource {
     this.region = region;
   }
 
-  public List<String> getServerGroups() {
+  public List<LoadBalancer.LoadBalancerServerGroup> getServerGroups() {
     return serverGroups;
   }
 
-  public void setServerGroups(List<String> serverGroups) {
+  public void setServerGroups(List<LoadBalancer.LoadBalancerServerGroup> serverGroups) {
     this.serverGroups = serverGroups;
+  }
+
+  public boolean equals(Object obj) {
+    if (obj instanceof AmazonLoadBalancer) {
+      AmazonLoadBalancer that = (AmazonLoadBalancer) obj;
+      return that.getAccount().equals(account)
+        && that.getName().equals(name)
+        && that.getCloudProvider().equals(cloudProvider)
+        && that.getRegion().equals(region);
+    }
+
+    return false;
   }
 }

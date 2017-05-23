@@ -14,13 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor;
+package com.netflix.spinnaker.janitor.queue;
 
-import java.util.List;
-import java.util.Map;
+import java.util.function.Function;
 
-public interface DataProvider<T extends Resource> {
-  List<T> findAll();
-  T update(T resource);
-  List<Resource> filter(Map<String, String> parameters);
+/**
+ * A functional interface that takes a message & an ack function
+ */
+
+public interface MessageCallback {
+
+  /**
+   * @param message message to ack
+   * @param ack ack function on a message
+   */
+
+  void accept(Message message, Function<Message, Boolean> ack);
 }

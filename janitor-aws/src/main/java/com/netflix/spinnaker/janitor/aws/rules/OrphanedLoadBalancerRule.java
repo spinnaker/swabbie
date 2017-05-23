@@ -14,12 +14,18 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.aws.loadbalancer;
+package com.netflix.spinnaker.janitor.aws.rules;
 
-import com.netflix.spinnaker.janitor.Resource;
-import com.netflix.spinnaker.janitor.Rule;
-import com.netflix.spinnaker.janitor.ResourceTypes;
+import com.netflix.spinnaker.janitor.aws.model.AmazonLoadBalancer;
+import com.netflix.spinnaker.janitor.model.LoadBalancer;
+import com.netflix.spinnaker.janitor.model.Resource;
+import com.netflix.spinnaker.janitor.model.Rule;
+import com.netflix.spinnaker.janitor.model.ResourceTypes;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.stereotype.Component;
 
+@ConditionalOnExpression("${aws.LoadBalancer.enabled:true}")
+@Component
 public class OrphanedLoadBalancerRule implements Rule {
   private final String NAME = "Orphaned Load Balancer";
   private final String DESCRIPTION = "Load balancer not referenced by any Server Group";
@@ -36,7 +42,7 @@ public class OrphanedLoadBalancerRule implements Rule {
 
   @Override
   public boolean checkResource(Resource resource) {
-    if (resource instanceof LoadBalancer) { //TODO: might not be needed, just an experiment for now
+    if (resource instanceof AmazonLoadBalancer) {
       LoadBalancer loadBalancer = (LoadBalancer) resource;
       return loadBalancer.getServerGroups().isEmpty();
     }
@@ -45,12 +51,7 @@ public class OrphanedLoadBalancerRule implements Rule {
   }
 
   @Override
-  public int getPriority() {
-    return 0; //TODO: revisit the concept of priority.
-  }
-
-  @Override
   public boolean supports(String type) {
-    return ResourceTypes.LOADBALANCER.equals(type);
+    return ResourceTypes.LOADBALANCER.equalsIgnoreCase(type);
   }
 }

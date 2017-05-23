@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
+package com.netflix.spinnaker.janitor.services.internal;
+import com.netflix.spinnaker.janitor.model.Account;
+import com.netflix.spinnaker.janitor.model.LoadBalancer;
+import retrofit.http.GET;
+import retrofit.http.Query;
+import retrofit2.Call;
 
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
+import java.util.List;
 
-/**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
- */
+public interface ClouddriverService {
+  @GET("/loadbalancers")
+  Call<List<LoadBalancer>> getLoadBalancers(@Query("account") String account);
 
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+  @GET("/credentials")
+  Call<List<Account>> getAccounts();
 }

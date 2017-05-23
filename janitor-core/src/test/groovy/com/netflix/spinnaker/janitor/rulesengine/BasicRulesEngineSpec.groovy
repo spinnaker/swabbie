@@ -16,9 +16,9 @@
 
 package com.netflix.spinnaker.janitor.rulesengine
 
-import com.netflix.spinnaker.janitor.BasicResource
-import com.netflix.spinnaker.janitor.Resource
-import com.netflix.spinnaker.janitor.Rule
+import com.netflix.spinnaker.janitor.model.Resource
+import com.netflix.spinnaker.janitor.model.Rule
+import com.netflix.spinnaker.janitor.model.ResourceTypes
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -27,42 +27,47 @@ class BasicRulesEngineSpec extends Specification {
   @Subject
   BasicRulesEngine rulesEngine
 
-  def "should sort rules in the order they will be applied"() {
+  def "should aggregate evaluated rules summaries"() {
     given:
     def (first, second, third) = [
-      createRule('test rule 1', 0, true),
-      createRule('test rule 2', 1, false),
-      createRule('test rule 3', 2, true)
+      createRule('test rule 1',true),
+      createRule('test rule 2',false),
+      createRule('test rule 3', true)
     ]
 
-    and:
-    rulesEngine = new BasicRulesEngine([])
+    rulesEngine = new BasicRulesEngine([], 15, ["resourceToExclude"] as Set)
       .addRule(third)
       .addRule(first)
       .addRule(second)
 
+    and:
+    def resource = Mock(Resource)
+    resource.getName() >> "app-elb"
+    resource.getResourceType() >> ResourceTypes.LOADBALANCER
+
     when:
-    rulesEngine.sortRules()
+    Result result = rulesEngine.run(resource)
 
     then:
-    rulesEngine.rules.size() == 3
-    rulesEngine.rules[0] == first
-    rulesEngine.rules[1] == second
-    rulesEngine.rules[2] == third
+    !result.valid
+    result.summaries.size() == 2
+    result.summaries*.description.contains("test rule 1")
+    result.summaries*.description.contains("test rule 3")
+    !result.summaries*.description.contains("test rule 2")
   }
 
   def "should trigger rule listeners when a rule evaluates"() {
     given:
-    def resource = new BasicResource()
+    def resource = Mock(Resource)
     def (first, second, third) = [
-      createRule('test rule 1', 0, true),
-      createRule('test rule 2', 1, false),
-      createRule('test rule 3', 2, true)
+      createRule('test rule 1',true),
+      createRule('test rule 2',false),
+      createRule('test rule 3', true)
     ]
 
     and:
     def listener = Mock(RuleListener)
-    rulesEngine = new BasicRulesEngine([listener])
+    rulesEngine = new BasicRulesEngine([listener], 15, ["resourceToExclude"] as Set)
       .addRule(third)
       .addRule(first)
       .addRule(second)
@@ -72,9 +77,6 @@ class BasicRulesEngineSpec extends Specification {
 
     then: "rules should be sorted"
     rulesEngine.rules.size() == 3
-    rulesEngine.rules[0] == first
-    rulesEngine.rules[1] == second
-    rulesEngine.rules[2] == third
 
     and:
     1 * listener.onRuleNotEvaluated(second, resource)
@@ -83,7 +85,7 @@ class BasicRulesEngineSpec extends Specification {
     1 * listener.onComplete(resource)
   }
 
-  private static Rule createRule(String name, int priority, boolean evaluates = false) {
+  private static Rule createRule(String name, boolean evaluates = false) {
     return new Rule() {
       @Override
       String getName() {
@@ -100,15 +102,9 @@ class BasicRulesEngineSpec extends Specification {
         return evaluates
       }
 
-
-      @Override
-      int getPriority() {
-        return priority;
-      }
-
       @Override
       boolean supports(String type) {
-        return true;
+        return true
       }
     }
   }

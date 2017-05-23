@@ -14,19 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor.rulesengine;
+package com.netflix.spinnaker.janitor.services.internal;
 
-import com.netflix.spinnaker.janitor.model.Resource;
-import com.netflix.spinnaker.janitor.model.Rule;
-
-/**
- * A listener of the rules engine
- * Implementations of this interface can decide how to treat each of called methods
- * Best for instrumentation and logging
- */
-
-public interface RuleListener {
-  void onRuleEvaluated(Rule rule, Resource resource);
-  void onRuleNotEvaluated(Rule rule, Resource resource);
-  void onComplete(Resource resource);
+public interface Front50Service {
 }

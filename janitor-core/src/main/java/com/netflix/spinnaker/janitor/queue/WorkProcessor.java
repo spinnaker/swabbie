@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.janitor;
+package com.netflix.spinnaker.janitor.queue;
 
-public interface Resource {
-  String getResourceType();
-  String getId();
+import java.util.function.Function;
+
+/**
+ * A processor of messages delivered via a queue
+ */
+
+public interface WorkProcessor {
+  void process(Message message, Function<Message, Boolean> ack);
 }

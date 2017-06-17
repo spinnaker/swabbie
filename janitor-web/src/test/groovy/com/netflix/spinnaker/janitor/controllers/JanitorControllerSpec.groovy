@@ -52,7 +52,7 @@ class JanitorControllerSpec extends Specification {
     def mockmvc = MockMvcBuilders.standaloneSetup(controller).build()
 
     and:
-    accountService.getAccounts() >> ["accountId1", "accountId2"]
+    accountService.getAccounts("aws") >> ["accountId1", "accountId2"]
 
     when:
     mockmvc.perform(

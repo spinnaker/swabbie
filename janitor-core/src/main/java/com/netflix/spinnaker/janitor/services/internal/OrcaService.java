@@ -17,14 +17,13 @@
 package com.netflix.spinnaker.janitor.services.internal;
 
 import retrofit.http.Body;
-import retrofit2.Call;
-import retrofit2.http.Headers;
-import retrofit2.http.POST;
+import retrofit.http.Headers;
+import retrofit.http.POST;
 
 import java.util.Map;
 
 public interface OrcaService {
   @Headers("Content-type: application/context+json")
   @POST("/ops")
-  Call<Map> doOperation(@Body Map<String, ?> body);
+  Map doOperation(@Body Map<String, ?> body);
 }

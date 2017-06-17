@@ -20,9 +20,12 @@ import com.netflix.spinnaker.janitor.services.AccountService;
 import com.netflix.spinnaker.janitor.queue.MarkMessage;
 import com.netflix.spinnaker.janitor.queue.Message;
 import com.netflix.spinnaker.janitor.queue.JanitorQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
@@ -32,6 +35,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/janitor")
 public class JanitorController {
+  private static Logger LOGGER = LoggerFactory.getLogger(JanitorController.class);
 
   @Autowired
   private AccountService accountService;
@@ -51,19 +55,20 @@ public class JanitorController {
     value = "/mark",
     method = RequestMethod.POST
   )
-  public void mark() {
-    List<String> accounts = getAccounts();
+  public void mark(@RequestParam(value = "cloudProvider", defaultValue = "aws") String cloudProvider) {
+    List<String> accounts = getAccounts(cloudProvider);
     List<Message> messages = buildMessages(
       accounts,
       new ArrayList<>(resourceTypeToRetentionDays.keySet()),
-      "aws"
+      cloudProvider
     );
 
+    LOGGER.info("{} work messages to be placed on queue", messages.size());
     messages.forEach(message -> janitorQueue.push(message, Duration.ofSeconds(0)));
   }
 
-  private List<String> getAccounts() {
-    return accountService.getAccounts();
+  private List<String> getAccounts(String cloudProvider) {
+    return accountService.getAccounts(cloudProvider);
   }
 
   /**

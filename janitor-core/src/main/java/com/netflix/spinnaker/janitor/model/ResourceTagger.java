@@ -16,8 +16,6 @@
 
 package com.netflix.spinnaker.janitor.model;
 
-import java.io.IOException;
-
 /**
  * An interface to tag resources
  */
@@ -36,6 +34,6 @@ public interface ResourceTagger {
 
   String NAMESPACE = "janitor";
 
-  void upsert(EntityTag tag,String resourceId, String resourceType, String account, String region, String cloudProvider) throws IOException;
-  EntityTag find(String resourceId, String resourceName, String resourceType) throws IOException;
+  void upsert(EntityTag tag,String resourceId, String resourceType, String account, String region, String cloudProvider);
+  EntityTag find(String resourceId, String resourceName, String resourceType);
 }

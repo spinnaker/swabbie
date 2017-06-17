@@ -19,14 +19,13 @@ import com.netflix.spinnaker.janitor.model.Account;
 import com.netflix.spinnaker.janitor.model.LoadBalancer;
 import retrofit.http.GET;
 import retrofit.http.Query;
-import retrofit2.Call;
 
 import java.util.List;
 
 public interface ClouddriverService {
   @GET("/loadbalancers")
-  Call<List<LoadBalancer>> getLoadBalancers(@Query("account") String account);
+  List<LoadBalancer> getLoadBalancers(@Query("account") String account);
 
   @GET("/credentials")
-  Call<List<Account>> getAccounts();
+  List<Account> getAccounts();
 }

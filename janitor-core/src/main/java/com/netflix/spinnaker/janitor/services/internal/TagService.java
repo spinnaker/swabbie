@@ -18,15 +18,13 @@ package com.netflix.spinnaker.janitor.services.internal;
 
 import com.netflix.spinnaker.janitor.model.EntityTag;
 import retrofit.http.*;
-import retrofit2.Call;
-
 import java.util.List;
 
 
 public interface TagService {
   @Headers("Accept: application/json")
   @POST("/tags")
-  Call<Void> add(@Query("entityId") String entityId,
+  void add(@Query("entityId") String entityId,
                  @Query("entityType") String entityType,
                  @Query("account") String account,
                  @Query("region") String region,
@@ -36,5 +34,5 @@ public interface TagService {
 
   @Headers("Accept: application/json")
   @GET("/tags")
-  Call<List<EntityTag>> find(@Query("entityId") String resourceId, @Query("entityType") String resourceType);
+  List<EntityTag> find(@Query("entityId") String resourceId, @Query("entityType") String resourceType);
 }

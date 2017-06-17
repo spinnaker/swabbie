@@ -16,17 +16,13 @@
 
 dependencies {
   compile spinnaker.dependency('eurekaClient')
-  compile 'com.squareup.retrofit2:retrofit:2.1.0'
-  compile 'com.squareup.retrofit2:converter-gson:2.1.0'
-  compile 'com.squareup.okhttp3:okhttp:3.5.0'
-  compile 'com.squareup.okhttp3:logging-interceptor:3.5.0'
-  compile 'com.squareup.retrofit2:converter-jackson:2.1.0'
-
+  spinnaker.group('retrofitDefault')
   compile spinnaker.dependency('korkWeb')
   compile spinnaker.dependency('korkSecurity')
+  compile spinnaker.dependency("korkStackdriver")
+  compile spinnaker.dependency('kork')
   compile spinnaker.dependency('rxJava')
   compile spinnaker.dependency('spectatorApi')
-  compile spinnaker.dependency('kork')
   compile spinnaker.dependency('slf4jApi')
   testRuntime spinnaker.dependency('slf4jSimple')
   compile "org.threeten:threeten-extra:1.0"

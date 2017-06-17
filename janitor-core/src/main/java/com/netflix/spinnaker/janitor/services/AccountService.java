@@ -18,20 +18,13 @@ package com.netflix.spinnaker.janitor.services;
 
 import com.netflix.spinnaker.janitor.model.Account;
 import com.netflix.spinnaker.janitor.services.internal.ClouddriverService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import retrofit2.Response;
-
-import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
 public class AccountService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(AccountService.class);
   private ClouddriverService clouddriverService;
 
   @Autowired
@@ -39,17 +32,11 @@ public class AccountService {
     this.clouddriverService = clouddriverService;
   }
 
-  public List<String> getAccounts() { //TODO add hystrix. ALso maybe bubble up exception
-    try {
-      Response<List<Account>> response = clouddriverService.getAccounts().execute();
-      return response.body()
-        .stream()
-        .map(Account::getName)
-        .collect(Collectors.toList());
-    } catch (IOException e) {
-      LOGGER.error("Exception getting list of accounts", e);
-    }
-
-    return Collections.emptyList();
+  public List<String> getAccounts(String cloudProvider) { //TODO add hystrix. ALso maybe bubble up exception
+    return clouddriverService.getAccounts()
+      .stream()
+      .filter(i -> i.getType().equals(cloudProvider))
+      .map(Account::getAccountId)
+      .collect(Collectors.toList());
   }
 }

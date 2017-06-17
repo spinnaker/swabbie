@@ -67,7 +67,7 @@ public class QueueProcessor extends DiscoveryActivated implements WorkProcessor 
     this.rulesEngine = rulesEngine;
   }
 
-  @Scheduled(fixedDelay = 50000)
+  @Scheduled(fixedDelay = 5000)
   public void poll() {
     if (getEnabled()) {
       try {

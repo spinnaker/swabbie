@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.TemporalAmount;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.DelayQueue;
@@ -52,7 +51,7 @@ public class InMemoryQueue implements JanitorQueue, Closeable {
   private ScheduledAction scheduledAction;
   private Clock clock;
 
-  public InMemoryQueue(Clock clock,
+  public InMemoryQueue(final Clock clock,
                        TemporalAmount ackTimeout,
                        long initialRedeliveryDelayInSeconds,
                        long redeliveryDelayInSeconds,
@@ -74,34 +73,29 @@ public class InMemoryQueue implements JanitorQueue, Closeable {
   }
 
   @Override
-  public void poll(MessageCallback handler) throws Exception {
+  public void poll(MessageCallback fn) throws Exception {
     Envelope envelope = workQueue.poll();
-    if (envelope == null) {
+    if (envelope == null || envelope.getPayload() == null) {
       LOGGER.info("{} work queue is empty.", InMemoryQueue.class.getSimpleName());
       return;
     }
 
-    Optional.ofNullable(envelope.getPayload()).ifPresent(message -> {
-      Envelope copy = new Envelope(
-        message,
-        clock.instant().plus(ackTimeout),
-        envelope.getClock()
-      );
-
-      waitQueue.add(copy);
-      handler.accept(message, ack());
-    });
+    Envelope copy = (Envelope) envelope.clone();
+    copy.setScheduledTime(clock.instant().plus(ackTimeout));
+    waitQueue.add(copy);
+    fn.accept(envelope.getPayload(), ack());
   }
 
   /**
    * Acknowledging a message by removing it from the wait queue
-   * @return
+   * @return true if message was acked and false if message was already acked or doesnt exist in wait queue
    */
 
   private Function<Message, Boolean> ack() {
     return (message) -> {
-      LOGGER.info("acknowledging message {}", message);
-      return waitQueue.removeIf( it -> it.getPayload().getId().equals(message.getId()));
+      boolean acked = waitQueue.removeIf(it -> it.getPayload().getId().equals(message.getId()));
+      LOGGER.info("acknowledging message {} result {}", message, acked);
+      return acked;
     };
   }
 
@@ -124,9 +118,9 @@ public class InMemoryQueue implements JanitorQueue, Closeable {
   private static class Redeliverer<T extends Envelope> implements Runnable {
     private Queue<T> from;
     private Queue<T> to;
-    private Integer count = 3;
+    private int count;
 
-    Redeliverer(Queue<T> from, Queue<T> to, Integer count) {
+    Redeliverer(Queue<T> from, Queue<T> to, int count) {
       this.from = from;
       this.to = to;
       this.count = count;
@@ -147,7 +141,9 @@ public class InMemoryQueue implements JanitorQueue, Closeable {
     @Override
     public void run() {
       pollAll(from, envelope -> {
-        if (envelope.getCount() <= count) {
+        if (envelope.getCount() < count) {
+          LOGGER.info("Redelivering message {} count {} max {}", envelope.getPayload().getId(), envelope.getCount(), count);
+          envelope.incrementDeliveryCount();
           to.add(envelope);
           from.remove(envelope);
         }
@@ -159,12 +155,12 @@ public class InMemoryQueue implements JanitorQueue, Closeable {
    * Message envelope
    */
 
-  private static class Envelope implements Delayed {
+  private static class Envelope implements Delayed, Cloneable {
     private UUID id;
     private Message payload;
     private Instant scheduledTime;
     private Clock clock;
-    private Integer count = 1;
+    private int count;
 
     Envelope(Message payload, Instant scheduledTime, Clock clock) {
       this.id = UUID.randomUUID();
@@ -185,11 +181,7 @@ public class InMemoryQueue implements JanitorQueue, Closeable {
       return payload;
     }
 
-    Clock getClock() {
-      return clock;
-    }
-
-    Integer getCount() {
+    int getCount() {
       return count;
     }
 
@@ -207,6 +199,19 @@ public class InMemoryQueue implements JanitorQueue, Closeable {
     public int compareTo(Delayed other) {
       return ((Long) getDelay(TimeUnit.MILLISECONDS))
         .compareTo(other.getDelay(TimeUnit.MILLISECONDS));
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+      return super.clone();
+    }
+
+    void incrementDeliveryCount() {
+      this.count++;
+    }
+
+    public void setScheduledTime(Instant scheduledTime) {
+      this.scheduledTime = scheduledTime;
     }
   }
 }

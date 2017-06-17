@@ -17,63 +17,101 @@
 
 package com.netflix.spinnaker.janitor.config;
 
+import com.netflix.spinnaker.config.OkHttpClientConfiguration;
 import com.netflix.spinnaker.janitor.services.internal.ClouddriverService;
 import com.netflix.spinnaker.janitor.services.internal.Front50Service;
 import com.netflix.spinnaker.janitor.services.internal.OrcaService;
 import com.netflix.spinnaker.janitor.services.internal.TagService;
-import okhttp3.OkHttpClient;
+import com.netflix.spinnaker.okhttp.OkHttpClientConfigurationProperties;
+import com.netflix.spinnaker.retrofit.Slf4jRetrofitLogger;
+import com.squareup.okhttp.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import retrofit2.Retrofit;
-import retrofit2.converter.jackson.JacksonConverterFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.*;
+import retrofit.RestAdapter;
+import retrofit.client.OkClient;
+import retrofit.converter.JacksonConverter;
 
-import java.util.concurrent.TimeUnit;
+
+import static retrofit.Endpoints.newFixedEndpoint;
 
 @ComponentScan("com.netflix.spinnaker.janitor")
+@Import(OkHttpClientConfiguration.class)
+@EnableConfigurationProperties(OkHttpClientConfigurationProperties.class)
 @Configuration
 public class RetrofitConfig {
+
+  @Value("${okHttpClient.connectionPool.maxIdleConnections:5}")
+  private int maxIdleConnections;
+
+  @Value("${okHttpClient.connectionPool.keepAliveDurationMs:300000}")
+  private int keepAliveDurationMs;
+
+  @Value("${okHttpClient.retryOnConnectionFailure:true}")
+  private boolean retryOnConnectionFailure;
+
   @Autowired
   private ServiceConfiguration serviceConfiguration;
 
   @Bean
-  OkHttpClient retrofitClient() {
-    //TODO: update this, might need to downgrade retrofit to use the default or
-    return new OkHttpClient.Builder()
-      .readTimeout(30000, TimeUnit.MILLISECONDS)
-      .connectTimeout(30000, TimeUnit.MILLISECONDS)
-      .build();
+  OkClient retrofitClient(OkHttpClientConfiguration okHttpClientConfiguration) {
+    final String userAgent = "Spinnaker-${System.getProperty('spring.application.name', 'unknown')}/${getClass().getPackage().implementationVersion ?: '1.0'}";
+    OkHttpClient client = okHttpClientConfiguration.create();
+    client.networkInterceptors().add(chain -> chain.proceed(
+      chain.request().newBuilder().header("User-Agent", userAgent).build()
+    ));
+
+    client.setConnectionPool(new ConnectionPool(maxIdleConnections, keepAliveDurationMs));
+    client.setRetryOnConnectionFailure(retryOnConnectionFailure);
+
+    return new OkClient(client);
   }
 
   @Bean
-  Front50Service front50Service(OkHttpClient retrofitClient) {
-    return createClient("front50", retrofitClient,  Front50Service.class);
+  RestAdapter.LogLevel retrofitLogLevel(@Value("${retrofit.logLevel:BASIC}") String retrofitLogLevel) {
+    return RestAdapter.LogLevel.valueOf(retrofitLogLevel);
   }
 
   @Bean
-  ClouddriverService clouddriverService(OkHttpClient retrofitClient) {
-    return createClient("clouddriver", retrofitClient,  ClouddriverService.class);
+  Front50Service front50Service(OkClient retrofitClient, RestAdapter.LogLevel retrofitLogLevel) {
+    return createClient("front50", retrofitClient, retrofitLogLevel, Front50Service.class);
   }
 
   @Bean
-  OrcaService orcaService(OkHttpClient retrofitClient) {
-    return createClient("orca", retrofitClient,  OrcaService.class);
+  ClouddriverService clouddriverService(OkClient retrofitClient, RestAdapter.LogLevel retrofitLogLevel) {
+    return createClient("clouddriver", retrofitClient, retrofitLogLevel, ClouddriverService.class);
   }
 
   @Bean
-  TagService tagService(OkHttpClient retrofitClient) {
-    return createClient("orca", retrofitClient,  TagService.class);
+  OrcaService orcaService(OkClient retrofitClient, RestAdapter.LogLevel retrofitLogLevel) {
+    return createClient("orca", retrofitClient, retrofitLogLevel, OrcaService.class);
   }
 
-  <T> T createClient(String serviceName, OkHttpClient okHttpClient, Class<T> clazz) {
+  @Bean
+  TagService tagService(OkClient retrofitClient, RestAdapter.LogLevel retrofitLogLevel) {
+    return createClient("front50", retrofitClient, retrofitLogLevel, TagService.class);
+  }
+
+  private <T> T createClient(String serviceName, OkClient client, RestAdapter.LogLevel retrofitLogLevel, Class<T> serviceType) {
     ServiceConfiguration.Service service = serviceConfiguration.byName(serviceName);
-    Retrofit retrofit = new Retrofit.Builder()
-      .baseUrl(service.getBaseUrl())
-      .addConverterFactory(JacksonConverterFactory.create())
-      .client(okHttpClient)
-      .build();
+    if (service == null) {
+      throw new IllegalArgumentException(
+        String.format("Unknown service name %s", serviceName)
+      );
+    }
 
-    return retrofit.create(clazz);
+    if (!service.getEnabled()) {
+      return null;
+    }
+
+    return new RestAdapter.Builder()
+      .setEndpoint(newFixedEndpoint(service.getBaseUrl()))
+      .setClient(client)
+      .setConverter(new JacksonConverter())
+      .setLogLevel(retrofitLogLevel)
+      .setLog(new Slf4jRetrofitLogger(serviceType))
+      .build()
+      .create(serviceType);
   }
 }

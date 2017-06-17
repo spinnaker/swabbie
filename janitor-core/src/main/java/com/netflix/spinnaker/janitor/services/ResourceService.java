@@ -21,10 +21,6 @@ import com.netflix.spinnaker.janitor.services.internal.ClouddriverService;
 import com.netflix.spinnaker.janitor.services.internal.OrcaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import retrofit2.Response;
-
-import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,14 +37,7 @@ public class ResourceService {
   }
 
   public List<LoadBalancer> getLoadbalancers(String account) { //TODO: hystrix this
-    try {
-      Response<List<LoadBalancer>> response =  clouddriverService.getLoadBalancers(account).execute();
-      return response.body();
-    } catch (IOException e) { //TODO: handle this
-      e.printStackTrace();
-    }
-
-    return Collections.emptyList();
+    return clouddriverService.getLoadBalancers(account);
   }
 
   public void deleteLoadBalancer(String cloudProvider, String account, String region, String name) {

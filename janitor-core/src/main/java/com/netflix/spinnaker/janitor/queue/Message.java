@@ -23,7 +23,7 @@ import com.netflix.spinnaker.janitor.model.Identifiable;
  * A message is scoped to a cloud provider, account, resource type
  */
 
-public abstract class Message implements Identifiable {
+public abstract class Message implements Identifiable, Cloneable {
   private static final String PREFIX = "janitor:";
 
   /**
@@ -81,10 +81,17 @@ public abstract class Message implements Identifiable {
     return resourceType;
   }
 
-  public void setResourceType(String resourceType) {
-    this.resourceType = resourceType;
+  @Override
+  public String toString() {
+    return "Message{" +
+      "id='" + id + '\'' +
+      ", cloudProvider='" + cloudProvider + '\'' +
+      ", account='" + account + '\'' +
+      ", resourceType='" + resourceType + '\'' +
+      '}';
   }
 
+  @Override
   public Object clone() throws CloneNotSupportedException {
     return super.clone();
   }

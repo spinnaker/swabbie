@@ -89,14 +89,11 @@ class InMemoryQueueSpec extends Specification {
       "accountId1"
     )
 
-    Boolean acked = null
     MessageCallback consumer = new MessageCallback() {
       @Override
       void accept(Message m, Function<Message, Boolean> ack) {
-        assert(message.equals(m))
-        assert queue.waitQueue.size() == 1 // message is placed on wait queue at poll
-        acked = ack.apply(m)
-        assert queue.waitQueue.size() == 0 // message is removed from wait queue when acked
+        assert message == m
+        assert ack.apply(m)
       }
     }
 
@@ -109,7 +106,6 @@ class InMemoryQueueSpec extends Specification {
     queue.poll(consumer)
 
     then:
-    acked
     queue.size() == 0
   }
 
@@ -126,6 +122,7 @@ class InMemoryQueueSpec extends Specification {
       @Override
       void accept(Message m, Function<Message, Boolean> ack) {
         assert(message.equals(m))
+        //message is unacked
       }
     }
 

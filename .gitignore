@@ -1,0 +1,14 @@
+/classes/
+/.gradle/
+/.idea/
+build/
+/.gradletasknamecache
+*.iml
+*.ipr
+*.iws
+out/
+.DS_Store
+/json/
+*.rdb
+/.shelf/
+**/*/out/*

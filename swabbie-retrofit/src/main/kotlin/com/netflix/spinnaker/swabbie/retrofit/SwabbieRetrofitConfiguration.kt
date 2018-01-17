@@ -32,7 +32,7 @@ import retrofit.client.OkClient
 @Configuration
 @Import(OkHttpClientConfiguration::class)
 @EnableConfigurationProperties
-open class RetrofitConfiguration {
+open class SwabbieRetrofitConfiguration {
 
   private val log = LoggerFactory.getLogger(javaClass)
 
@@ -61,7 +61,7 @@ open class RetrofitConfiguration {
       })
 
       connectionPool = ConnectionPool(maxIdleConnections, keepAliveDurationMs)
-      retryOnConnectionFailure = this@RetrofitConfiguration.retryOnConnectionFailure
+      retryOnConnectionFailure = this@SwabbieRetrofitConfiguration.retryOnConnectionFailure
     }
     return OkClient(cfg)
   }

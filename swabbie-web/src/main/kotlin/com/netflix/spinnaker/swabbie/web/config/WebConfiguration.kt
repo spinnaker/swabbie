@@ -31,7 +31,9 @@ import javax.servlet.*
 import javax.servlet.http.HttpServletResponse
 
 @Configuration
-@ComponentScan(basePackages = arrayOf("com.netflix.spinnaker.swabbie.controllers"))
+@ComponentScan(basePackages = arrayOf(
+  "com.netflix.spinnaker.swabbie.controllers"
+))
 open class WebConfiguration
 @Autowired constructor(
   private val registry: Registry

@@ -22,10 +22,13 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
 @Configuration
+@ComponentScan(basePackages = arrayOf("com.netflix.spinnaker.swabbie"))
 open class SwabbieConfiguration {
   @Bean
   @Primary
@@ -34,5 +37,13 @@ open class SwabbieConfiguration {
     registerModule(JavaTimeModule())
     disable(FAIL_ON_UNKNOWN_PROPERTIES)
     disable(READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
+  }
+
+  // TODO: number of cores ===? to the number of resource handlers?
+  @Bean
+  open fun taskExecutor(): ThreadPoolTaskExecutor {
+    val taskExecutor = ThreadPoolTaskExecutor()
+    taskExecutor.corePoolSize = 5
+    return taskExecutor
   }
 }

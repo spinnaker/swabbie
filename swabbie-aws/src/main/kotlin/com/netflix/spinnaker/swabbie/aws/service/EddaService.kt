@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Netflix, Inc.
+ * Copyright 2018 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,18 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.exception
+package com.netflix.spinnaker.swabbie.aws.service
 
-class SwabbieException : RuntimeException {
-  constructor(message: String) : super(message)
-  constructor(message: String, cause: Throwable) : super(message, cause)
+import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
+import retrofit.http.GET
+import retrofit.http.Path
+
+
+//TODO: jeyrs move to -nflx
+interface EddaService {
+  @GET("/api/v2/aws/securityGroups/{groupId}")
+  fun getSecurityGroup(@Path("groupId") groupId: String): AmazonSecurityGroup
+
+  @GET("/api/v2/aws/securityGroups")
+  fun getSecurityGroupIds(): List<String>
 }

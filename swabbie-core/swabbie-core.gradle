@@ -10,5 +10,6 @@ dependencies {
   compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+"
   compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.+"
   compile "com.kjetland:mbknor-jackson-jsonschema_2.12:1.0.+"
-//  testCompile project(":swabbie-test") TODO: do we need this
+  compile spinnaker.dependency("rxJava")
+//  testCompile project(":swabbie-test")
 }

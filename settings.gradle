@@ -16,7 +16,7 @@
 
 rootProject.name = "swabbie"
 
-include 'swabbie-core', 'swabbie-retrofit', 'swabbie-web'
+include 'swabbie-core', 'swabbie-retrofit', 'swabbie-web', 'swabbie-aws'
 
 def setBuildFile(project) {
   project.buildFileName = "${project.name}.gradle"

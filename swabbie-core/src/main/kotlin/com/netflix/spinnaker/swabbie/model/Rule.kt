@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Netflix, Inc.
+ * Copyright 2018 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,18 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.exception
+package com.netflix.spinnaker.swabbie.model
 
-class SwabbieException : RuntimeException {
-  constructor(message: String) : super(message)
-  constructor(message: String, cause: Throwable) : super(message, cause)
+interface Rule {
+  fun applies(resource: Resource): Boolean
+  fun apply(resource: Resource): Result
 }
+
+data class Result(
+  val summary: Summary?
+)
+
+data class Summary(
+  val description: String,
+  val ruleName: String
+)

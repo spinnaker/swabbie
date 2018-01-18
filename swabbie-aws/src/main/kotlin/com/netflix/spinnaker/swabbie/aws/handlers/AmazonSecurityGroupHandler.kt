@@ -16,29 +16,38 @@
 
 package com.netflix.spinnaker.swabbie.aws.handlers
 
+import com.netflix.spinnaker.swabbie.Notifier
+import com.netflix.spinnaker.swabbie.ResourceRepository
 import com.netflix.spinnaker.swabbie.aws.provider.AmazonSecurityGroupProvider
 import com.netflix.spinnaker.swabbie.handlers.AbstractResourceHandler
+import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Rule
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 
 @Component
-class AmazonSecurityGroupHandler(
-  private val rules: List<Rule>,
+class AmazonSecurityGroupHandler
+@Autowired constructor(
+  rules: List<Rule>,
+  resourceRepository: ResourceRepository,
+  notifier: Notifier,
   private val amazonSecurityGroupProvider: AmazonSecurityGroupProvider
-): AbstractResourceHandler(rules) {
-  private val log: Logger = LoggerFactory.getLogger(javaClass)
-  override fun getResources(): List<Resource> {
-    //TODO: how to exclude based on exclusion rules
-    //TODO: filters should be influenced by a configuration
-    val filters = mapOf("region" to "us-east-1", "account" to "test")
-    return amazonSecurityGroupProvider.getSecurityGroups(filters)
+): AbstractResourceHandler(rules, resourceRepository, notifier) {
+  override fun handles(markResourceDescription: MarkResourceDescription): Boolean {
+    return markResourceDescription.resourceType == SECURITY_GROUP && markResourceDescription.cloudProvider == "aws"
   }
 
-  override fun filter(resources: List<Resource>): List<Resource> {
-    //TODO: filtering allows to exclude resources that are meant to be skipped by swabbie
-    return resources
+  override fun getNameSpace(): String {
+    return "test:us-east-1:" //TODO: include the handler location
+  }
+
+  override fun fetchResources(markResourceDescription: MarkResourceDescription): List<Resource> {
+    //TODO: -r jeyrs apply exclusion rules to filter out resources
+    //TODO: filters should be influenced by a configuration
+    //TODO: jeyrs impl this
+    val filters = mapOf("region" to "us-east-1", "account" to "test")
+    return amazonSecurityGroupProvider.getSecurityGroups(filters)
   }
 }

@@ -14,9 +14,18 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
+package com.netflix.spinnaker.swabbie.scheduler
 
-  testCompile project(":swabbie-test")
-}
+data class MarkResourceDescription(
+  val namespace: String,
+  val resourceType: String,
+  val cloudProvider: String,
+  val retentionPolicy: RetentionPolicy
+): WorkDescription
+
+interface WorkDescription
+
+data class RetentionPolicy(
+  val exclusions: List<String>?,
+  val days: Int
+)

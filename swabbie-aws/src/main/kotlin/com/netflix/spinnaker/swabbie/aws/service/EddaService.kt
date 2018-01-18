@@ -16,7 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.aws.service
 
-import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
 import retrofit.http.GET
 import retrofit.http.Path
 
@@ -24,7 +23,7 @@ import retrofit.http.Path
 //TODO: jeyrs move to -nflx
 interface EddaService {
   @GET("/api/v2/aws/securityGroups/{groupId}")
-  fun getSecurityGroup(@Path("groupId") groupId: String): AmazonSecurityGroup
+  fun getSecurityGroup(@Path("groupId") groupId: String): Map<String, Any>
 
   @GET("/api/v2/aws/securityGroups")
   fun getSecurityGroupIds(): List<String>

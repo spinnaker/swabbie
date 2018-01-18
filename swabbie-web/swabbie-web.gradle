@@ -36,6 +36,7 @@ dependencies {
   compile "org.springframework.boot:spring-boot-starter-data-rest:1.5+"
   compile "com.netflix.spinnaker.kork:kork-web:+"
   compile project(":swabbie-aws")
+  compile project(":swabbie-redis")
 }
 
 tasks.bootRepackage.enabled = Boolean.valueOf(project.repackage)

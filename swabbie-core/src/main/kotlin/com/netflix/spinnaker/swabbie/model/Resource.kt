@@ -16,11 +16,27 @@
 
 package com.netflix.spinnaker.swabbie.model
 
-interface Resource: Named {
-  fun getResourceType(): String
-  fun getCloudProvider(): String
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+
+const val SECURITY_GROUP = "securityGroup"
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", include = JsonTypeInfo.As.PROPERTY)
+abstract class Resource: Identifiable
+
+interface Identifiable {
+  val resourceId: String
+  val resourceType: String
 }
 
-interface Named {
-  fun getName(): String
-}
+data class TrackedResource(
+  val resource: Resource,
+  val summaries: List<Summary>,
+  val notification: Notification,
+  val projectedTerminationTime: Long
+): Identifiable by resource
+
+data class Notification(
+  val sentAt: Long,
+  val to: String,
+  val type: String
+)

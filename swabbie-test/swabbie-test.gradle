@@ -1,0 +1,4 @@
+dependencies {
+  compile project(":swabbie-core")
+  compile "com.natpryce:hamkrest:+"
+}

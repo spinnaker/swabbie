@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.model
+package com.netflix.spinnaker.swabbie.test
+import com.fasterxml.jackson.annotation.JsonTypeName
+import com.netflix.spinnaker.swabbie.model.Resource
 
-interface SecurityGroup: Resource
+@JsonTypeName("testResource")
+data class TestResource(
+  override val resourceId: String,
+  override val resourceType: String = "testResource"
+): Resource()

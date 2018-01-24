@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-rootProject.name = "swabbie"
+rootProject.name = 'swabbie'
 
-include 'swabbie-core', 'swabbie-retrofit', 'swabbie-web', 'swabbie-aws'
+include 'swabbie-test',
+  'swabbie-core',
+  'swabbie-retrofit',
+  'swabbie-redis',
+  'swabbie-aws',
+  'swabbie-web'
 
 def setBuildFile(project) {
   project.buildFileName = "${project.name}.gradle"

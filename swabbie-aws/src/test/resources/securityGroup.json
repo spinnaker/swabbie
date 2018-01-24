@@ -1,0 +1,45 @@
+{
+  "ipPermissionsEgress":[
+    {
+      "prefixListIds":[
+
+      ],
+      "toPort":null,
+      "ipv4Ranges":[
+        {
+          "description":null,
+          "cidrIp":"0.0.0.0/0",
+          "class":"com.amazonaws.services.ec2.model.IpRange"
+        }
+      ],
+      "ipProtocol":"-1",
+      "fromPort":null,
+      "class":"com.amazonaws.services.ec2.model.IpPermission",
+      "ipRanges":[
+        "0.0.0.0/0"
+      ],
+      "userIdGroupPairs":[
+
+      ],
+      "ipv6Ranges":[
+        {
+          "description":null,
+          "cidrIpv6":"::/0",
+          "class":"com.amazonaws.services.ec2.model.Ipv6Range"
+        }
+      ]
+    }
+  ],
+  "vpcId":"vpc-46f5a223",
+  "description":"Security Group for jeyrstestapp",
+  "tags":[
+
+  ],
+  "groupId":"sg-4fc3253d",
+  "groupName":"jeyrstestapp",
+  "ownerId":"179727101194",
+  "class":"com.amazonaws.services.ec2.model.SecurityGroup",
+  "ipPermissions":[
+
+  ]
+}

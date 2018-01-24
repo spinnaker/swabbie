@@ -21,23 +21,30 @@ import com.fasterxml.jackson.databind.DeserializationFeature.READ_DATE_TIMESTAMP
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.ComponentScan
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Primary
+import com.netflix.spinnaker.swabbie.Notifier
+import com.netflix.spinnaker.swabbie.model.Notification
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.Summary
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.annotation.*
+import org.springframework.core.type.filter.AssignableTypeFilter
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
+import org.springframework.util.ClassUtils
+import java.time.Clock
 
 @Configuration
 @ComponentScan(basePackages = arrayOf("com.netflix.spinnaker.swabbie"))
 open class SwabbieConfiguration {
-  @Bean
-  @Primary
-  open fun objectMapper() = ObjectMapper().apply {
-    registerModule(KotlinModule())
-    registerModule(JavaTimeModule())
-    disable(FAIL_ON_UNKNOWN_PROPERTIES)
-    disable(READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
-  }
+  @Autowired
+  open fun objectMapper(objectMapper: ObjectMapper) =
+    objectMapper.apply {
+      registerSubtypes(*findAllSubtypes(Resource::class.java, "com.netflix.spinnaker.swabbie"))
+    }.registerModule(KotlinModule())
+      .registerModule(JavaTimeModule())
+      .disable(FAIL_ON_UNKNOWN_PROPERTIES)
+      .disable(READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
+
+  @Bean open fun clock(): Clock = Clock.systemDefaultZone()
 
   // TODO: number of cores ===? to the number of resource handlers?
   @Bean
@@ -46,4 +53,27 @@ open class SwabbieConfiguration {
     taskExecutor.corePoolSize = 5
     return taskExecutor
   }
+
+  // TODO: remove
+  @Bean
+  open fun noopNotifier(): Notifier {
+    return NoopNotifier()
+  }
+
+  class NoopNotifier: Notifier {
+    override fun notify(owner: String, summaries: List<Summary>): Notification {
+      return Notification(0, "/dev/null", "empty")
+    }
+  }
+
+  fun findAllSubtypes(clazz: Class<*>, pkg: String): Array<Class<*>>
+    = ClassPathScanningCandidateComponentProvider(false)
+    .apply { addIncludeFilter(AssignableTypeFilter(clazz)) }
+    .findCandidateComponents(pkg)
+    .map {
+      val cls = ClassUtils.resolveClassName(it.beanClassName, ClassUtils.getDefaultClassLoader())
+      return@map cls
+    }
+    .toTypedArray()
+
 }

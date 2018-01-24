@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
+package com.netflix.spinnaker.config
 
-  testCompile project(":swabbie-test")
+import org.springframework.boot.context.properties.ConfigurationProperties
+
+@ConfigurationProperties("redis")
+open class JedisConfigurationProperties {
+  var connection: String? = "redis://localhost:6379"
+  var connectionPrevious: String? = null
+  var timeout: Int = 1000
 }

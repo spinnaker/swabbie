@@ -16,30 +16,48 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.discovery.SwabbieActivator
+import com.netflix.discovery.DiscoveryClient
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
+import com.netflix.spinnaker.swabbie.scheduler.WorkProducer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.util.concurrent.Executor
 
 @Component
 class ResourceMarkerAgent(
-  private val activator: SwabbieActivator,
   private val executor: Executor,
+  private val workProducer: WorkProducer,
+  @Autowired(required = false) private val discoveryClient: DiscoveryClient?,
   private val resourceHandlers: List<ResourceHandler>
-) {
+): DiscoverySupport(discoveryClient = discoveryClient) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  @Scheduled(fixedDelayString = "\${resource.markers.interval:60000}")
-  fun run() {
-    if (activator.isEnabled()) {
-      log.info("Swabbie resource markers started")
-      resourceHandlers.forEach { handler ->
-        executor.execute {
-          handler.createWork()
+  @Scheduled(fixedDelayString = "\${resource.markers.interval:120000}")
+  fun execute() {
+    if (enabled()) {
+      try {
+        log.info("Swabbie markers started...")
+        workProducer.createWork().let { work ->
+          work.forEach { w ->
+            workProducer.remove(w)
+            resourceHandlers.find { handler -> handler.handles(w) }.let { handler ->
+              if (handler == null) {
+                throw IllegalStateException(
+                  String.format("No Suitable handler found for %s", w)
+                )
+              } else {
+                executor.execute {
+                  handler.process(w)
+                }
+              }
+            }
+          }
         }
+      } catch (e: Exception) {
+        log.error("failed", e)
       }
     }
   }

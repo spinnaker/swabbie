@@ -16,21 +16,29 @@
 
 package com.netflix.spinnaker.swabbie.aws.provider
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.provider.SecurityGroupProvider
 import com.netflix.spinnaker.swabbie.aws.service.EddaService
-import com.netflix.spinnaker.swabbie.model.SecurityGroup
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import org.springframework.stereotype.Component
 
 @Component
 open class AmazonSecurityGroupProvider(
-  private val eddaService: EddaService
+  private val eddaService: EddaService,
+  private val objectMapper: ObjectMapper
 ): SecurityGroupProvider {
-  override fun getSecurityGroups(filters: Map<String, Any>): List<SecurityGroup> {
+  override fun getSecurityGroups(filters: Map<String, Any>): List<Resource> {
     //TODO: precalculate edda clients by region. hardcoded to us-east-1, test
     //TODO: need to be able to keep a local cache of resources
     val account = filters["account"]
     val region = filters["region"]
     val ids: String = eddaService.getSecurityGroupIds().first { it == "sg-4fc3253d" }
-    return arrayListOf(eddaService.getSecurityGroup(ids)) as List<SecurityGroup>
+
+    var map = eddaService.getSecurityGroup(ids)
+    map += mapOf("type" to "amazonSecurityGroup") //TODO: need a custom deserializer if we need this to be type
+
+    return arrayListOf(objectMapper.readValue(objectMapper.writeValueAsString(map), AmazonSecurityGroup::class.java))
   }
 }

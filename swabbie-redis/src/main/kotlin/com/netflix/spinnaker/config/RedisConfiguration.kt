@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
+package com.netflix.spinnaker.config
 
-  testCompile project(":swabbie-test")
-}
+import org.springframework.context.annotation.ComponentScan
+import org.springframework.context.annotation.Configuration
+
+@Configuration
+@ComponentScan("com.netflix.spinnaker.swabbie.redis")
+open class RedisConfiguration
+

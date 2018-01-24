@@ -14,8 +14,19 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.discovery
+package com.netflix.spinnaker.swabbie
 
-interface SwabbieActivator {
-  fun isEnabled(): Boolean
+import com.netflix.appinfo.InstanceInfo
+import com.netflix.discovery.DiscoveryClient
+
+open class DiscoverySupport(
+  private val discoveryClient: DiscoveryClient?
+) {
+  fun enabled(): Boolean {
+    return if (discoveryClient == null) {
+      true
+    } else {
+      discoveryClient.instanceRemoteStatus == InstanceInfo.InstanceStatus.UP
+    }
+  }
 }

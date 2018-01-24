@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
+package com.netflix.spinnaker.swabbie
 
-  testCompile project(":swabbie-test")
+import com.netflix.spinnaker.swabbie.model.Notification
+import com.netflix.spinnaker.swabbie.model.Summary
+
+interface Notifier {
+  fun notify(owner: String, summaries: List<Summary>): Notification
 }

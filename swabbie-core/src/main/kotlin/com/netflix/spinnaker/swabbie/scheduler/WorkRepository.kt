@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
+package com.netflix.spinnaker.swabbie.scheduler
 
-  testCompile project(":swabbie-test")
+interface WorkRepository {
+  fun createWork(markResourceDescription: MarkResourceDescription)
+  fun getWork(): List<MarkResourceDescription>
+  fun remove(markResourceDescription: MarkResourceDescription)
 }

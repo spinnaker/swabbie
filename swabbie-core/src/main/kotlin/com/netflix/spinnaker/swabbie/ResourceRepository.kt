@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
+package com.netflix.spinnaker.swabbie
 
-  testCompile project(":swabbie-test")
+import com.netflix.spinnaker.swabbie.model.TrackedResource
+import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
+
+interface ResourceRepository {
+  fun track(trackedResource: TrackedResource, markResourceDescription: MarkResourceDescription)
+  fun find(resourceId: String): TrackedResource?
+  fun remove(resourceId: String)
+  fun getMarkedResources(): List<TrackedResource>
 }

@@ -22,45 +22,57 @@ import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.concurrent.TimeUnit
 
 abstract class AbstractResourceHandler(
   private val rules: List<Rule>,
   private val resourceRepository: ResourceRepository,
   private val notifier: Notifier
 ): ResourceHandler {
-  override fun process(markResourceDescription: MarkResourceDescription) {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+  override fun mark(markResourceDescription: MarkResourceDescription) {
     try {
       log.info("fetching resources of type {}", markResourceDescription.resourceType)
-      val trackedResources: List<TrackedResource>? = resourceRepository.getMarkedResources()
-      fetchResources(markResourceDescription)?.forEach { resource ->
-        val summaries = mutableListOf(Summary("test", "test rule"))
-        rules
-          .filter { it.applies(resource) }
-          .map { it.apply(resource) }
-          .forEach { result ->
-            if (result.summary != null) {
-              summaries += result.summary
+      val markedResources: List<MarkedResource>? = resourceRepository.getMarkedResources()
+      val fetchedResources: List<Resource>? = fetchResources(markResourceDescription)
+      if (fetchedResources == null || fetchedResources.isEmpty()) {
+        log.info("Upstream resources no longer exist. Removing marked resources {}", markedResources)
+        markedResources?.forEach {
+          resourceRepository.remove(it.resourceId)
+        }
+      } else {
+        fetchedResources.forEach { resource ->
+          val summaries = mutableListOf<Summary>()
+          rules
+            .filter { it.applies(resource) }
+            .map { it.apply(resource) }
+            .forEach { result ->
+              if (result.summary != null) {
+                summaries += result.summary
+              }
             }
-          }
 
-        val alreadyTrackedResource: TrackedResource? = trackedResources?.find { it.resourceId == resource.resourceId }
-        if (!summaries.isEmpty()) {
-          val owner = "yolo@netflix.com" //TODO: get resource owner
-          val terminationTime = 0L //TODO: calculate termination time based on resource type configuration retention policy
+          val alreadyMarkedResource: MarkedResource? = markedResources?.find { it.resourceId == resource.resourceId }
+          if (!summaries.isEmpty()) {
+            val owner = "yolo@netflix.com" //TODO: get resource owner
+            val terminationTime = 0L //TODO: calculate termination time based on resource type configuration retention policy
 
-          resourceRepository.track(
-            TrackedResource(
-              resource,
-              summaries + (alreadyTrackedResource?.summaries ?: listOf()),
-              alreadyTrackedResource?.notification ?: notifier.notify(owner, summaries),
-              Math.min(alreadyTrackedResource?.projectedTerminationTime ?: Long.MAX_VALUE, terminationTime)
-            ),
-            markResourceDescription
-          )
-        } else {
-          if (alreadyTrackedResource != null) {
-            log.info("forgetting about {}. Resource is now valid", alreadyTrackedResource)
-            resourceRepository.remove(resource.resourceId)
+
+            // TODO: review the termination time piece
+            resourceRepository.track(
+              MarkedResource(
+                resource,
+                summaries + (alreadyMarkedResource?.summaries ?: listOf()),
+                alreadyMarkedResource?.notification ?: notifier.notify(owner, summaries),
+                TimeUnit.DAYS.toMillis(markResourceDescription.retentionPolicy.days.toLong())
+              ),
+              markResourceDescription
+            )
+          } else {
+            if (alreadyMarkedResource != null) {
+              log.info("forgetting now valid {} resource", alreadyMarkedResource)
+              resourceRepository.remove(resource.resourceId)
+            }
           }
         }
       }
@@ -69,5 +81,31 @@ abstract class AbstractResourceHandler(
     }
   }
 
-  private val log: Logger = LoggerFactory.getLogger(javaClass)
+  override fun cleanup(markedResource: MarkedResource) {
+    fetchResource(markedResource)?.let { resource ->
+      val summaries = mutableListOf<Summary>()
+      rules
+        .filter { it.applies(resource) }
+        .map { it.apply(resource) }
+        .forEach { result ->
+          if (result.summary != null) {
+            summaries += result.summary
+          }
+        }
+
+      when {
+        summaries.isEmpty() -> {
+          log.info("forgetting now valid {} resource", markedResource)
+          resourceRepository.remove(resource.resourceId)
+        }
+        else -> {
+          log.info("Preparing deletion of {}", markedResource)
+          doDelete(markedResource)
+          resourceRepository.remove(resource.resourceId)
+        }
+      }
+    }
+  }
+
+  abstract fun doDelete(markedResource: MarkedResource)
 }

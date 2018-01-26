@@ -18,40 +18,47 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.discovery.DiscoveryClient
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
-import com.netflix.spinnaker.swabbie.scheduler.WorkProducer
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import java.time.Instant
 import java.util.concurrent.Executor
+import java.time.ZoneId
+import java.time.LocalDate
 
 @Component
-class ResourceMarkerAgent(
+class ResourceCleanerAgent(
   private val executor: Executor,
-  private val workProducer: WorkProducer,
+  private val resourceRepository: ResourceRepository,
   @Autowired(required = false) private val discoveryClient: DiscoveryClient?,
   private val resourceHandlers: List<ResourceHandler>
 ): DiscoverySupport(discoveryClient = discoveryClient) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  @Scheduled(fixedDelayString = "\${resource.markers.interval:120000}")
+  @Scheduled(fixedDelayString = "\${resource.cleaners.interval:120000}")
   fun execute() {
     if (enabled()) {
       try {
-        log.info("Swabbie markers started...")
-        workProducer.createWork().let { work ->
-          work.forEach { w ->
-            workProducer.remove(w)
-            resourceHandlers.find { handler -> handler.handles(w.resourceType, w.cloudProvider) }.let { handler ->
-              if (handler == null) {
-                throw IllegalStateException(
-                  String.format("No Suitable handler found for %s", w)
-                )
-              } else {
-                executor.execute {
-                  handler.mark(w)
-                }
+        log.info("Swabbie cleaners started...")
+        val resourcesToDelete: List<MarkedResource>? = resourceRepository.getMarkedResourcesToDelete()
+        resourcesToDelete?.forEach {trackedResource ->
+          resourceHandlers.find { handler -> handler.handles(trackedResource.resourceType, trackedResource.cloudProvider) }.let { handler ->
+            if (handler == null) {
+              throw IllegalStateException(
+                String.format("No Suitable handler found for %s", trackedResource)
+              )
+            } else {
+              executor.execute {
+                Instant.ofEpochMilli(trackedResource.projectedTerminationTime)
+                  .atZone(ZoneId.systemDefault())
+                  .toLocalDate().let { terminationDate ->
+                    if (terminationDate.isAfter(LocalDate.now())) {
+                      handler.cleanup(trackedResource)
+                    }
+                  }
               }
             }
           }

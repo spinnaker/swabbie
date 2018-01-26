@@ -24,6 +24,7 @@ import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 
@@ -35,8 +36,16 @@ class AmazonSecurityGroupHandler
   notifier: Notifier,
   private val amazonSecurityGroupProvider: AmazonSecurityGroupProvider
 ): AbstractResourceHandler(rules, resourceRepository, notifier) {
-  override fun handles(markResourceDescription: MarkResourceDescription): Boolean {
-    return markResourceDescription.resourceType == SECURITY_GROUP && markResourceDescription.cloudProvider == "aws"
+  override fun doDelete(markedResource: MarkedResource) {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  }
+
+  override fun fetchResource(markedResource: MarkedResource): Resource {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  }
+
+  override fun handles(resourceType: String, cloudProvider: String): Boolean {
+    return resourceType == SECURITY_GROUP && cloudProvider == "aws"
   }
 
   override fun getNameSpace(): String {

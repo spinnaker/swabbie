@@ -20,12 +20,13 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.swabbie.ResourceRepository
-import com.netflix.spinnaker.swabbie.model.TrackedResource
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import java.time.Clock
+import java.time.Duration
 
 @Component
 class RedisResourceRepository
@@ -35,49 +36,46 @@ class RedisResourceRepository
   private val objectMapper: ObjectMapper,
   private val clock: Clock
 ): ResourceRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
-  override fun getMarkedResources(): List<TrackedResource> {
+  override fun getMarkedResources(): List<MarkedResource>? {
+    return doGetAll(true)
+  }
+
+  override fun getMarkedResourcesToDelete(): List<MarkedResource>? {
+    return doGetAll(false)
+  }
+
+  private fun doGetAll(includeAll: Boolean): List<MarkedResource>? {
     resources().let { key ->
       return getClientForId(key).run {
         this.withCommandsClient<Set<String>> { client ->
-          client.zrangeByScore(key, "-inf", "+inf")
-        }.let { set ->
-          when {
-            set.isEmpty() -> emptyList()
-            else -> this.withCommandsClient<Set<String>> { client ->
-              client.hmget(resource(), *set.map { it }.toTypedArray()).toSet()
-            }.map { json ->
-                objectMapper.readValue<TrackedResource>(json)
-              }
+          if (includeAll) {
+            client.zrangeByScore(key, "-inf", "+inf")
+          } else {
+            client.zrangeByScore(key, 0.0, clock.instant().toEpochMilli().toDouble())
           }
-        }
+        }.let { set ->
+            when {
+              set.isEmpty() -> emptyList()
+              else -> this.withCommandsClient<Set<String>> { client ->
+                client.hmget(resource(), *set.map { it }.toTypedArray()).toSet()
+              }.map { json ->
+                  objectMapper.readValue<MarkedResource>(json)
+                }
+            }
+          }
       }
     }
   }
 
-  override fun track(trackedResource: TrackedResource, markResourceDescription: MarkResourceDescription) {
-    val resourceId = "${markResourceDescription.namespace}:${trackedResource.resourceType}:${trackedResource.resourceId}"
+  override fun track(markedResource: MarkedResource, markResourceDescription: MarkResourceDescription) {
+    val resourceId = "${markResourceDescription.namespace}:${markedResource.resourceType}:${markedResource.resourceId}"
     resource(resourceId).let { key ->
-      val score = trackedResource.projectedTerminationTime
+      val score = clock.instant().plus(Duration.ofMillis(markedResource.projectedTerminationTime)).toEpochMilli().toDouble()
       getClientForId(key).withCommandsClient { client ->
-        client.hset(resource(), resourceId, objectMapper.writeValueAsString(trackedResource))
-        client.zadd(resources(), score.toDouble(), resourceId)
+        client.hset(resource(), resourceId, objectMapper.writeValueAsString(markedResource))
+        client.zadd(resources(), score, resourceId)
       }
     }
-  }
-
-  override fun find(resourceId: String): TrackedResource? {
-    resource(resourceId).let { key ->
-      val q = getClientForId(key)
-        .withCommandsClient<Set<String>> { c ->
-          c.zrange(key, 0, clock.millis())
-        }
-
-      if (!q.isEmpty()) {
-        return objectMapper.readValue(q.first(), TrackedResource::class.java)
-      }
-    }
-
-    return null
   }
 
   override fun remove(resourceId: String) {

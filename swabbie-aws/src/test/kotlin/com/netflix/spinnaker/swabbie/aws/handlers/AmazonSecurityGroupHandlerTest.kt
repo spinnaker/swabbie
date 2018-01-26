@@ -58,14 +58,15 @@ object AmazonSecurityGroupHandlerTest {
       getSecurityGroups()
 
     whenever(rule.applies(any())) doReturn true
-    whenever(rule.apply(any())) doReturn Result(null)
+    whenever(rule.apply(any())) doReturn
+      Result(Summary("invalid resource", "rule1"))
 
     AmazonSecurityGroupHandler(
       listOf(rule),
       resourceRepository,
       notifier,
       amazonSecurityGroupProvider
-    ).process(
+    ).mark(
       MarkResourceDescription(
         "aws:test:us-east-1",
         SECURITY_GROUP,

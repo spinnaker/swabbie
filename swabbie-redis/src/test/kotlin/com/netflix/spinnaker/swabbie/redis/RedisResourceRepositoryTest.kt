@@ -61,35 +61,46 @@ object RedisResourceRepositoryTest {
   }
 
   @Test
-  fun `fetch all tracked resources`() {
-    val terminationTime = clock.millis()
-    val terminationTime5SecondsLater = clock.millis() + 5000
-
-    resourceRepository.track(
-      TrackedResource(
-        TestResource("testResource 2"),
-        listOf(Summary("delete me 2", "importantRule 2")),
-        Notification(clock.millis(), "yolo@netflix.com", "Email"),
-        terminationTime5SecondsLater
+  fun `fetch all tracked resources and resources to delete`() {
+    val now = 0L
+    val anHourLater = now + 3600 * 60 * 1000L
+    listOf(
+      MarkedResource(
+        TestResource("marked resource due for deletion now"),
+        listOf(Summary("invalid resource 1", "rule 1")),
+        Notification(clock.instant().toEpochMilli(), "yolo@netflixcom", "Email" ),
+        now
       ),
-      MarkResourceDescription("namespace", "testResourceType", "aws", RetentionPolicy(null, 10))
-
-    )
-
-    resourceRepository.track(
-      TrackedResource(
-        TestResource("testResource"),
-        listOf(Summary("delete me", "importantRule")),
-        Notification(clock.millis(), "yolo@netflix.com", "Email"),
-        terminationTime
+      MarkedResource(
+        TestResource("marked resource not due for deletion 2 seconds later"),
+        listOf(Summary("invalid resource 2", "rule 2")),
+        Notification(now, "yolo@netflixcom", "Email" ),
+        anHourLater
       ),
-      MarkResourceDescription("namespace", "testResourceType", "aws", RetentionPolicy(null, 10))
-    )
+      MarkedResource(
+        TestResource("random"),
+        listOf(Summary("invalid resource 3", "rule 3")),
+        Notification(now, "yolo@netflixcom", "Email" ),
+        anHourLater
+      )
+    ).forEach{ resource ->
+      resourceRepository.track(
+        resource,
+        MarkResourceDescription(
+          "namespace",
+          "testResourceType",
+          "aws",
+          RetentionPolicy(null, 10)
+        )
+      )
+    }
 
     resourceRepository.getMarkedResources().let { result ->
-      result.size shouldMatch equalTo(2)
-      result.first().projectedTerminationTime shouldMatch equalTo(terminationTime)
-      result.last().projectedTerminationTime shouldMatch equalTo(terminationTime5SecondsLater)
+      result?.size shouldMatch equalTo(3)
+    }
+
+    resourceRepository.getMarkedResourcesToDelete().let { result ->
+      result?.size shouldMatch equalTo(1)
     }
   }
 }

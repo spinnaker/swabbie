@@ -21,14 +21,28 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 const val SECURITY_GROUP = "securityGroup"
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", include = JsonTypeInfo.As.PROPERTY)
-abstract class Resource: Identifiable
+abstract class Resource: Identifiable {
+  override fun equals(other: Any?): Boolean {
+    if (this === other) {
+      return true
+    }
+
+    return other is Resource &&
+      other.resourceId == this.resourceId && other.resourceType == this.resourceId
+  }
+
+  override fun hashCode(): Int {
+    return super.hashCode() + this.resourceType.hashCode() + this.resourceId.hashCode()
+  }
+}
 
 interface Identifiable {
   val resourceId: String
   val resourceType: String
+  val cloudProvider: String
 }
 
-data class TrackedResource(
+data class MarkedResource(
   val resource: Resource,
   val summaries: List<Summary>,
   val notification: Notification,

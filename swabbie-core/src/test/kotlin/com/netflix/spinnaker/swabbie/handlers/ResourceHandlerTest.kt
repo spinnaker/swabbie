@@ -16,9 +16,8 @@
 
 package com.netflix.spinnaker.swabbie.handlers
 
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.natpryce.hamkrest.equalTo
+import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.swabbie.Notifier
 import com.netflix.spinnaker.swabbie.ResourceRepository
 import com.netflix.spinnaker.swabbie.model.*
@@ -42,15 +41,26 @@ object ResourceHandlerTest {
 
   @Test
   fun `creating work by tracking new violating resources and notify user`() {
-    val mark = MarkResourceDescription("aws:test:us-east-1", SECURITY_GROUP, "aws", RetentionPolicy(emptyList(), 10))
+    val fetchedResources = mutableListOf<Resource>(
+      TestResource("marked resource due for deletion now")
+    )
+
     whenever(notifier.notify(any(), any())) doReturn
       Notification(clock.millis(), "yolo@netflixcom", "Email" )
 
     TestResourceHandler(
-      listOf<Rule>(AlwaysInvalidRule()),
+      listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
       resourceRepository,
-      notifier
-    ).process(mark)
+      notifier,
+      fetchedResources
+    ).mark(
+      MarkResourceDescription(
+        "aws:test:us-east-1",
+        SECURITY_GROUP,
+        "aws",
+        RetentionPolicy(emptyList(), 10)
+      )
+    )
 
     verify(notifier).notify(any(), any())
     verify(resourceRepository).track(any(), any())
@@ -58,11 +68,14 @@ object ResourceHandlerTest {
 
   @Test
   fun `should update already tracked resource if still invalid and don't notify user again`() {
-    val mark = MarkResourceDescription("aws:test:us-east-1", SECURITY_GROUP, "aws", RetentionPolicy(emptyList(), 10))
+    val fetchedResources = mutableListOf<Resource>(
+      TestResource("testResource")
+    )
+
     whenever(resourceRepository.getMarkedResources()) doReturn
       listOf(
-        TrackedResource(
-          TestResource("test resource"),
+        MarkedResource(
+          TestResource("testResource"),
           listOf(Summary("violates rule 1", "ruleName")),
           Notification(clock.millis(), "yolo@netflixcom", "Email" ),
           clock.millis()
@@ -73,23 +86,66 @@ object ResourceHandlerTest {
       Notification(clock.millis(), "yolo@netflixcom", "Email" )
 
     TestResourceHandler(
-      listOf<Rule>(AlwaysInvalidRule()),
+      listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
       resourceRepository,
-      notifier
-    ).process(mark)
+      notifier,
+      fetchedResources
+    ).mark(
+      MarkResourceDescription(
+        "aws:test:us-east-1",
+        SECURITY_GROUP,
+        "aws",
+        RetentionPolicy(emptyList(), 10))
+    )
 
     verify(notifier, never()).notify(any(), any())
     verify(resourceRepository).track(any(), any())
   }
 
-  //TODO: fix this
-//  @Test
+  @Test
+  fun `should delete a resource`() {
+  val now = 0L
+    val resourceToDelete = MarkedResource(
+      TestResource("marked resource due for deletion now"),
+      listOf(Summary("invalid resource 1", "rule 1")),
+      Notification(clock.instant().toEpochMilli(), "yolo@netflixcom", "Email" ),
+      now
+    )
+
+    val fetchedResources = mutableListOf<Resource>(
+      TestResource("marked resource due for deletion now")
+    )
+
+    whenever(notifier.notify(any(), any())) doReturn
+      Notification(clock.millis(), "yolo@netflixcom", "Email" )
+
+    TestResourceHandler(
+      listOf(
+        TestRule(true, Summary("always invalid", "rule1")),
+        TestRule(true, null),
+        TestRule(false, null)
+      ),
+      resourceRepository,
+      notifier,
+      fetchedResources
+    ).cleanup(resourceToDelete)
+
+    verify(notifier, never()).notify(any(), any())
+    verify(resourceRepository, never()).track(any(), any())
+    fetchedResources.size shouldMatch equalTo(0)
+    verify(resourceRepository).remove(any())
+  }
+
+  @Test
   fun `should forget resource if no longer violate a rule and don't notify user`() {
-    val mark = MarkResourceDescription("aws:test:us-east-1", SECURITY_GROUP, "aws", RetentionPolicy(emptyList(), 10))
+    val fetchedResources = mutableListOf<Resource>(
+      TestResource("testResource")
+    )
+
     whenever(resourceRepository.getMarkedResources()) doReturn
       listOf(
-        TrackedResource(
-          TestResource("test resource"),
+        MarkedResource(
+          TestResource("testResource"),
           listOf(Summary("resource micro-aggressions here", javaClass.simpleName)),
           Notification(clock.millis(), "yolo@netflixcom", "Email" ),
           clock.millis()
@@ -100,42 +156,54 @@ object ResourceHandlerTest {
       Notification(clock.millis(), "yolo@netflixcom", "Email" )
 
     TestResourceHandler(
-      listOf(AlwaysValidRule()),
+      listOf(TestRule(true, null)),
       resourceRepository,
-      notifier
-    ).process(mark)
+      notifier,
+      fetchedResources
+    ).mark(
+      MarkResourceDescription(
+        "aws:test:us-east-1",
+        SECURITY_GROUP, "aws",
+        RetentionPolicy(emptyList(), 10)
+      )
+    )
 
     verify(notifier, never()).notify(any(), any())
     verify(resourceRepository, never()).track(any(), any())
     verify(resourceRepository).remove(any())
   }
 
-  class AlwaysInvalidRule: Rule {
+  class TestRule(
+    private val applies: Boolean,
+    private val summary: Summary?
+  ): Rule {
     override fun applies(resource: Resource): Boolean {
-      return true
+      return applies
     }
 
     override fun apply(resource: Resource): Result {
-      return Result(Summary("resource micro-aggressions here", javaClass.simpleName))
-    }
-  }
-
-  class AlwaysValidRule: Rule {
-    override fun applies(resource: Resource): Boolean {
-      return true
-    }
-
-    override fun apply(resource: Resource): Result {
-      return Result(null)
+      return Result(summary)
     }
   }
 
   class TestResourceHandler(
     rules: List<Rule>,
     resourceRepository: ResourceRepository,
-    notifier: Notifier
+    notifier: Notifier,
+    private val resources: MutableList<Resource>?
   ) : AbstractResourceHandler(rules, resourceRepository, notifier) {
-    override fun handles(markResourceDescription: MarkResourceDescription): Boolean {
+
+    // simulates removing a resource
+    override fun doDelete(markedResource: MarkedResource) {
+      resources?.removeIf { markedResource.resourceId == it.resourceId }
+    }
+
+    // simulates querying for a resource upstream
+    override fun fetchResource(markedResource: MarkedResource): Resource? {
+      return resources?.find { markedResource.resourceId == it.resourceId}
+    }
+
+    override fun handles(resourceType: String, cloudProvider: String): Boolean {
       return true
     }
 
@@ -144,7 +212,7 @@ object ResourceHandlerTest {
     }
 
     override fun fetchResources(markResourceDescription: MarkResourceDescription): List<Resource>? {
-      return listOf(TestResource("test resource"))
+      return resources
     }
   }
 }

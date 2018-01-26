@@ -17,12 +17,15 @@
 package com.netflix.spinnaker.swabbie.handlers
 
 import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
 
 interface ResourceHandler {
+  fun handles(resourceType: String, cloudProvider: String): Boolean
   fun fetchResources(markResourceDescription: MarkResourceDescription): List<Resource>?
+  fun fetchResource(markedResource: MarkedResource): Resource?
   fun getNameSpace(): String
 
-  fun handles(markResourceDescription: MarkResourceDescription): Boolean
-  fun process(markResourceDescription: MarkResourceDescription)
+  fun mark(markResourceDescription: MarkResourceDescription)
+  fun cleanup(markedResource: MarkedResource)
 }

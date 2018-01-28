@@ -18,51 +18,49 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.discovery.DiscoveryClient
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
-import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import java.time.Instant
 import java.util.concurrent.Executor
-import java.time.ZoneId
-import java.time.LocalDate
 
 @Component
+@ConditionalOnExpression("\${swabbie.clean.enabled}")
 class ResourceCleanerAgent(
   private val executor: Executor,
+  private val lockManager: LockManager,
   private val resourceRepository: ResourceRepository,
-  @Autowired(required = false) private val discoveryClient: DiscoveryClient?,
-  private val resourceHandlers: List<ResourceHandler>
+  private val resourceHandlers: List<ResourceHandler>,
+  @Autowired(required = false) private val discoveryClient: DiscoveryClient?
 ): DiscoverySupport(discoveryClient = discoveryClient) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  @Scheduled(fixedDelayString = "\${resource.cleaners.interval:120000}")
+  @Scheduled(fixedDelayString = "\${swabbie.clean.intervalSeconds:3600}")
   fun execute() {
     if (enabled()) {
       try {
-        log.info("Swabbie cleaners started...")
-        val resourcesToDelete: List<MarkedResource>? = resourceRepository.getMarkedResourcesToDelete()
-        resourcesToDelete?.forEach {trackedResource ->
-          resourceHandlers.find { handler -> handler.handles(trackedResource.resourceType, trackedResource.cloudProvider) }.let { handler ->
-            if (handler == null) {
-              throw IllegalStateException(
-                String.format("No Suitable handler found for %s", trackedResource)
-              )
-            } else {
-              executor.execute {
-                Instant.ofEpochMilli(trackedResource.projectedTerminationTime)
-                  .atZone(ZoneId.systemDefault())
-                  .toLocalDate().let { terminationDate ->
-                    if (terminationDate.isAfter(LocalDate.now())) {
-                      handler.cleanup(trackedResource)
+        log.info("Resource cleaners started...")
+        resourceRepository.getMarkedResourcesToDelete()
+          ?.forEach {
+            it.takeIf { lockManager.acquireLock("clean:${it.configurationId}", lockTtlSeconds = 3600) }
+              ?.also { markedResource ->
+                resourceHandlers.find {
+                  handler -> handler.handles(markedResource.resourceType, markedResource.cloudProvider)
+                }.let { handler ->
+                  if (handler == null) {
+                    throw IllegalStateException(
+                      String.format("No Suitable handler found for %s", markedResource)
+                    )
+                  } else {
+                    executor.execute {
+                      handler.clean(markedResource)
                     }
                   }
+                }
               }
-            }
           }
-        }
       } catch (e: Exception) {
         log.error("failed", e)
       }

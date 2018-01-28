@@ -46,7 +46,8 @@ data class MarkedResource(
   val resource: Resource,
   val summaries: List<Summary>,
   val notification: Notification,
-  val projectedTerminationTime: Long
+  val projectedTerminationTime: Long,
+  val configurationId: String
 ): Identifiable by resource
 
 data class Notification(

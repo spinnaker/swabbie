@@ -21,11 +21,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
+import com.netflix.spinnaker.config.Retention
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.swabbie.model.*
-import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
-import com.netflix.spinnaker.swabbie.scheduler.RetentionPolicy
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
@@ -64,34 +64,41 @@ object RedisResourceRepositoryTest {
   fun `fetch all tracked resources and resources to delete`() {
     val now = 0L
     val anHourLater = now + 3600 * 60 * 1000L
+    val configuration = WorkConfiguration(
+      "configId",
+      "test",
+      "us-east-1",
+      "testResourceType",
+      "aws",
+      Retention(),
+      emptyList()
+    )
+
     listOf(
       MarkedResource(
         TestResource("marked resource due for deletion now"),
         listOf(Summary("invalid resource 1", "rule 1")),
         Notification(clock.instant().toEpochMilli(), "yolo@netflixcom", "Email" ),
-        now
+        now,
+        configuration.configurationId
       ),
       MarkedResource(
         TestResource("marked resource not due for deletion 2 seconds later"),
         listOf(Summary("invalid resource 2", "rule 2")),
         Notification(now, "yolo@netflixcom", "Email" ),
-        anHourLater
+        anHourLater,
+        configuration.configurationId
       ),
       MarkedResource(
         TestResource("random"),
         listOf(Summary("invalid resource 3", "rule 3")),
         Notification(now, "yolo@netflixcom", "Email" ),
-        anHourLater
+        anHourLater,
+        configuration.configurationId
       )
     ).forEach{ resource ->
       resourceRepository.track(
-        resource,
-        MarkResourceDescription(
-          "namespace",
-          "testResourceType",
-          "aws",
-          RetentionPolicy(null, 10)
-        )
+        resource
       )
     }
 

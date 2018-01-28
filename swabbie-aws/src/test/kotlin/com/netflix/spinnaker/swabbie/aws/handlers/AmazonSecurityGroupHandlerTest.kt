@@ -19,13 +19,13 @@ package com.netflix.spinnaker.swabbie.aws.handlers
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.netflix.spinnaker.config.Retention
 import com.netflix.spinnaker.swabbie.Notifier
 import com.netflix.spinnaker.swabbie.ResourceRepository
 import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.aws.provider.AmazonSecurityGroupProvider
 import com.netflix.spinnaker.swabbie.model.*
-import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
-import com.netflix.spinnaker.swabbie.scheduler.RetentionPolicy
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -67,16 +67,19 @@ object AmazonSecurityGroupHandlerTest {
       notifier,
       amazonSecurityGroupProvider
     ).mark(
-      MarkResourceDescription(
+      WorkConfiguration(
         "aws:test:us-east-1",
+        "test",
+        "us-east-1",
         SECURITY_GROUP,
         "aws",
-        RetentionPolicy(null, 10)
+        Retention(10, 3),
+        emptyList()
       )
     )
 
     verify(notifier).notify(any(), any())
-    verify(resourceRepository).track(any(), any())
+    verify(resourceRepository).track(any())
   }
 
   private fun getSecurityGroups(): List<AmazonSecurityGroup> {

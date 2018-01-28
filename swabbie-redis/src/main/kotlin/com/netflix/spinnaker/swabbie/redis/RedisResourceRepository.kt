@@ -21,7 +21,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.swabbie.ResourceRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -67,8 +66,8 @@ class RedisResourceRepository
     }
   }
 
-  override fun track(markedResource: MarkedResource, markResourceDescription: MarkResourceDescription) {
-    val resourceId = "${markResourceDescription.namespace}:${markedResource.resourceType}:${markedResource.resourceId}"
+  override fun track(markedResource: MarkedResource) {
+    val resourceId = "${markedResource.configurationId}:${markedResource.resourceId}"
     resource(resourceId).let { key ->
       val score = clock.instant().plus(Duration.ofMillis(markedResource.projectedTerminationTime)).toEpochMilli().toDouble()
       getClientForId(key).withCommandsClient { client ->

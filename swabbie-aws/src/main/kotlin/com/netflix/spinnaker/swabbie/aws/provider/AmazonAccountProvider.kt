@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.handlers
+package com.netflix.spinnaker.swabbie.aws.provider
 
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.provider.AccountProvider
+import org.springframework.stereotype.Component
 
-interface ResourceHandler {
-  fun handles(resourceType: String, cloudProvider: String): Boolean
-  fun fetchResources(workConfiguration: WorkConfiguration): List<Resource>?
-  fun fetchResource(markedResource: MarkedResource): Resource?
+@Component
+class AmazonAccountProvider : AccountProvider {
+  override fun getAccounts(): List<String> {
+    return listOf("test") //TODO: should get accounts from Spinnaker
+  }
 
-  fun mark(workConfiguration: WorkConfiguration)
-  fun clean(markedResource: MarkedResource)
 }

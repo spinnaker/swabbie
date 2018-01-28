@@ -17,10 +17,9 @@
 package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
 
 interface ResourceRepository {
-  fun track(markedResource: MarkedResource, markResourceDescription: MarkResourceDescription)
+  fun track(markedResource: MarkedResource)
   fun remove(resourceId: String)
 
   fun getMarkedResourcesToDelete(): List<MarkedResource>?

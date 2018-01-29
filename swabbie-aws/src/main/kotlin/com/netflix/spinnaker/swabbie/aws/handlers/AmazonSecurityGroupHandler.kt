@@ -20,17 +20,11 @@ import com.netflix.spinnaker.swabbie.Notifier
 import com.netflix.spinnaker.swabbie.ResourceRepository
 import com.netflix.spinnaker.swabbie.aws.provider.AmazonSecurityGroupProvider
 import com.netflix.spinnaker.swabbie.handlers.AbstractResourceHandler
-import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.Rule
-import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import org.springframework.beans.factory.annotation.Autowired
+import com.netflix.spinnaker.swabbie.model.*
 import org.springframework.stereotype.Component
 
 @Component
-class AmazonSecurityGroupHandler
-@Autowired constructor(
+class AmazonSecurityGroupHandler(
   rules: List<Rule>,
   resourceRepository: ResourceRepository,
   notifier: Notifier,
@@ -48,15 +42,11 @@ class AmazonSecurityGroupHandler
     return resourceType == SECURITY_GROUP && cloudProvider == "aws"
   }
 
-  override fun getNameSpace(): String {
-    return "test:us-east-1:" //TODO: include the handler location
-  }
-
-  override fun fetchResources(markResourceDescription: MarkResourceDescription): List<Resource> {
+  override fun fetchResources(workConfiguration: WorkConfiguration): List<Resource> {
     //TODO: -r jeyrs apply exclusion rules to filter out resources
-    //TODO: filters should be influenced by a configuration
-    //TODO: jeyrs impl this
-    val filters = mapOf("region" to "us-east-1", "account" to "test")
-    return amazonSecurityGroupProvider.getSecurityGroups(filters)
+
+    val account = workConfiguration.configurationId.split(":")[1]
+    val region = workConfiguration.configurationId.split(":")[2]
+    return amazonSecurityGroupProvider.getSecurityGroups(mapOf("region" to region, "account" to account))
   }
 }

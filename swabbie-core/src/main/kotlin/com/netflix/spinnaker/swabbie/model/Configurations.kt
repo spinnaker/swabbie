@@ -14,18 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.scheduler
+package com.netflix.spinnaker.swabbie.model
 
-data class MarkResourceDescription(
-  val namespace: String,
-  val resourceType: String,
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.Retention
+
+class Configurations<K, V>: HashMap<K, V>()
+
+data class WorkConfiguration(
+  val configurationId: String,
+  val account: String,
+  val location: String,
   val cloudProvider: String,
-  val retentionPolicy: RetentionPolicy
-): WorkDescription
-
-interface WorkDescription
-
-data class RetentionPolicy(
-  val exclusions: List<String>?,
-  val days: Int
+  val resourceType: String,
+  val retention: Retention,
+  val exclusions: List<Exclusion>,
+  val dryRun: Boolean = true
 )

@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.handlers
+package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-
-interface ResourceHandler {
-  fun handles(resourceType: String, cloudProvider: String): Boolean
-  fun fetchResources(workConfiguration: WorkConfiguration): List<Resource>?
-  fun fetchResource(markedResource: MarkedResource): Resource?
-
-  fun mark(workConfiguration: WorkConfiguration)
-  fun clean(markedResource: MarkedResource)
+interface LockManager {
+  fun acquireLock(name: String, lockTtlSeconds: Long): Boolean
 }

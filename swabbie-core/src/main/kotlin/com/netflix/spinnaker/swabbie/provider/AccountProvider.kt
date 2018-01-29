@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.scheduler
+package com.netflix.spinnaker.swabbie.provider
 
-interface WorkRepository {
-  fun createWork(markResourceDescription: MarkResourceDescription)
-  fun getWork(): List<MarkResourceDescription>
-  fun remove(markResourceDescription: MarkResourceDescription)
+interface AccountProvider {
+  fun getAccounts(): List<String>
 }

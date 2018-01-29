@@ -18,44 +18,52 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.discovery.DiscoveryClient
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
-import com.netflix.spinnaker.swabbie.scheduler.WorkProducer
+import com.netflix.spinnaker.swabbie.model.Configurations
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.util.concurrent.Executor
 
 @Component
+@ConditionalOnExpression("\${swabbie.mark.enabled}")
 class ResourceMarkerAgent(
   private val executor: Executor,
-  private val workProducer: WorkProducer,
-  @Autowired(required = false) private val discoveryClient: DiscoveryClient?,
-  private val resourceHandlers: List<ResourceHandler>
+  private val lockManager: LockManager,
+  private val configurations: Configurations<String, WorkConfiguration>,
+  private val resourceHandlers: List<ResourceHandler>,
+  @Autowired(required = false) private val discoveryClient: DiscoveryClient?
 ): DiscoverySupport(discoveryClient = discoveryClient) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  @Scheduled(fixedDelayString = "\${resource.markers.interval:120000}")
+  @Scheduled(fixedDelayString = "\${swabbie.mark.intervalSeconds:3600}")
   fun execute() {
     if (enabled()) {
       try {
-        log.info("Swabbie markers started...")
-        workProducer.createWork().let { work ->
-          work.forEach { w ->
-            workProducer.remove(w)
-            resourceHandlers.find { handler -> handler.handles(w.resourceType, w.cloudProvider) }.let { handler ->
-              if (handler == null) {
-                throw IllegalStateException(
-                  String.format("No Suitable handler found for %s", w)
-                )
-              } else {
-                executor.execute {
-                  handler.mark(w)
+        log.info("Resource markers started...")
+        configurations.keys.forEach { configurationId ->
+          configurationId.takeIf { lockManager.acquireLock("mark:$configurationId", lockTtlSeconds = 3600) }
+            ?.also {
+              configurations[it]?.let { work ->
+                resourceHandlers.find { handler ->
+                  handler.handles(work.resourceType, work.cloudProvider)
+                }.let { handler ->
+                  if (handler == null) {
+                    throw IllegalStateException(
+                      String.format("No Suitable handler found for %s", work)
+                    )
+                  } else {
+                    executor.execute {
+                      handler.mark(work)
+                    }
+                  }
                 }
               }
             }
           }
-        }
       } catch (e: Exception) {
         log.error("failed", e)
       }

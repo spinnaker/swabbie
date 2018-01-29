@@ -18,12 +18,12 @@ package com.netflix.spinnaker.swabbie.handlers
 
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
+import com.netflix.spinnaker.config.Retention
 import com.netflix.spinnaker.swabbie.Notifier
 import com.netflix.spinnaker.swabbie.ResourceRepository
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
-import com.netflix.spinnaker.swabbie.scheduler.MarkResourceDescription
-import com.netflix.spinnaker.swabbie.scheduler.RetentionPolicy
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -41,10 +41,7 @@ object ResourceHandlerTest {
 
   @Test
   fun `creating work by tracking new violating resources and notify user`() {
-    val fetchedResources = mutableListOf<Resource>(
-      TestResource("marked resource due for deletion now")
-    )
-
+    val resource = TestResource("marked resource due for deletion now")
     whenever(notifier.notify(any(), any())) doReturn
       Notification(clock.millis(), "yolo@netflixcom", "Email" )
 
@@ -52,33 +49,44 @@ object ResourceHandlerTest {
       listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
       resourceRepository,
       notifier,
-      fetchedResources
+      mutableListOf(resource)
     ).mark(
-      MarkResourceDescription(
-        "aws:test:us-east-1",
-        SECURITY_GROUP,
-        "aws",
-        RetentionPolicy(emptyList(), 10)
+      WorkConfiguration(
+        "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+        "test",
+        "us-east-1",
+        resource.resourceType,
+        resource.cloudProvider,
+        Retention(10, 3),
+        emptyList()
       )
     )
 
     verify(notifier).notify(any(), any())
-    verify(resourceRepository).track(any(), any())
+    verify(resourceRepository).track(any())
   }
 
   @Test
   fun `should update already tracked resource if still invalid and don't notify user again`() {
-    val fetchedResources = mutableListOf<Resource>(
-      TestResource("testResource")
+    val resource = TestResource("testResource")
+    val workDescription = WorkConfiguration(
+      "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      "test",
+      "us-east-1",
+      resource.cloudProvider,
+      resource.resourceType,
+      Retention(10, 3),
+      emptyList()
     )
 
     whenever(resourceRepository.getMarkedResources()) doReturn
       listOf(
         MarkedResource(
-          TestResource("testResource"),
+          resource,
           listOf(Summary("violates rule 1", "ruleName")),
           Notification(clock.millis(), "yolo@netflixcom", "Email" ),
-          clock.millis()
+          clock.millis(),
+          workDescription.configurationId
         )
       )
 
@@ -89,33 +97,28 @@ object ResourceHandlerTest {
       listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
       resourceRepository,
       notifier,
-      fetchedResources
-    ).mark(
-      MarkResourceDescription(
-        "aws:test:us-east-1",
-        SECURITY_GROUP,
-        "aws",
-        RetentionPolicy(emptyList(), 10))
-    )
+      mutableListOf(resource)
+    ).mark(workDescription)
 
     verify(notifier, never()).notify(any(), any())
-    verify(resourceRepository).track(any(), any())
+    verify(resourceRepository).track(any())
   }
 
   @Test
   fun `should delete a resource`() {
-  val now = 0L
-    val resourceToDelete = MarkedResource(
-      TestResource("marked resource due for deletion now"),
-      listOf(Summary("invalid resource 1", "rule 1")),
-      Notification(clock.instant().toEpochMilli(), "yolo@netflixcom", "Email" ),
-      now
+    val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
+    val resource = TestResource("marked resource due for deletion now")
+    val configuration = WorkConfiguration(
+      "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      "test",
+      "us-east-1",
+      resource.cloudProvider,
+      resource.resourceType,
+      Retention(10, 3),
+      emptyList()
     )
 
-    val fetchedResources = mutableListOf<Resource>(
-      TestResource("marked resource due for deletion now")
-    )
-
+    val fetchedResources = mutableListOf<Resource>(resource)
     whenever(notifier.notify(any(), any())) doReturn
       Notification(clock.millis(), "yolo@netflixcom", "Email" )
 
@@ -128,27 +131,43 @@ object ResourceHandlerTest {
       resourceRepository,
       notifier,
       fetchedResources
-    ).cleanup(resourceToDelete)
+    ).clean(
+      MarkedResource(
+        resource,
+        listOf(Summary("invalid resource 1", "rule 1")),
+        Notification(clock.instant().toEpochMilli(), "yolo@netflixcom", "Email" ),
+        fifteenDaysAgo,
+        configuration.configurationId
+      )
+    )
 
     verify(notifier, never()).notify(any(), any())
-    verify(resourceRepository, never()).track(any(), any())
+    verify(resourceRepository, never()).track(any())
     fetchedResources.size shouldMatch equalTo(0)
     verify(resourceRepository).remove(any())
   }
 
   @Test
   fun `should forget resource if no longer violate a rule and don't notify user`() {
-    val fetchedResources = mutableListOf<Resource>(
-      TestResource("testResource")
+    val resource = TestResource("testResource")
+    val configuration = WorkConfiguration(
+      "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      "test",
+      "us-east-1",
+      resource.cloudProvider,
+      resource.resourceType,
+      Retention(10, 3),
+      emptyList()
     )
 
     whenever(resourceRepository.getMarkedResources()) doReturn
       listOf(
         MarkedResource(
-          TestResource("testResource"),
-          listOf(Summary("resource micro-aggressions here", javaClass.simpleName)),
+          resource,
+          listOf(Summary("invalid resource", javaClass.simpleName)),
           Notification(clock.millis(), "yolo@netflixcom", "Email" ),
-          clock.millis()
+          clock.millis(),
+          configuration.configurationId
         )
       )
 
@@ -159,17 +178,11 @@ object ResourceHandlerTest {
       listOf(TestRule(true, null)),
       resourceRepository,
       notifier,
-      fetchedResources
-    ).mark(
-      MarkResourceDescription(
-        "aws:test:us-east-1",
-        SECURITY_GROUP, "aws",
-        RetentionPolicy(emptyList(), 10)
-      )
-    )
+      mutableListOf(resource)
+    ).mark(configuration)
 
     verify(notifier, never()).notify(any(), any())
-    verify(resourceRepository, never()).track(any(), any())
+    verify(resourceRepository, never()).track(any())
     verify(resourceRepository).remove(any())
   }
 
@@ -207,11 +220,7 @@ object ResourceHandlerTest {
       return true
     }
 
-    override fun getNameSpace(): String {
-      return "test:us-east-1"
-    }
-
-    override fun fetchResources(markResourceDescription: MarkResourceDescription): List<Resource>? {
+    override fun fetchResources(workConfiguration: WorkConfiguration): List<Resource>? {
       return resources
     }
   }

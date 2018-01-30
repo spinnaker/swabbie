@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.discovery.DiscoveryClient
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.stereotype.Component
 
-open class DiscoverySupport(
-  private val discoveryClient: DiscoveryClient?
+@Component
+class DiscoverySupport(
+  @Autowired(required = false) val discoveryClient: DiscoveryClient?
 ) {
-  fun enabled(): Boolean {
-    return if (discoveryClient == null) {
-      true
-    } else {
-      discoveryClient.instanceRemoteStatus == InstanceInfo.InstanceStatus.UP
+  val log: Logger = LoggerFactory.getLogger(javaClass)
+  inline fun ifUP(action: () -> Unit) {
+    log.info("Discovery status {}", discoveryClient?.instanceRemoteStatus ?: "not available")
+    if (discoveryClient == null || discoveryClient.instanceRemoteStatus == InstanceInfo.InstanceStatus.UP) {
+      action.invoke()
     }
   }
 }

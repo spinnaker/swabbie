@@ -19,130 +19,143 @@ package com.netflix.spinnaker.swabbie.handlers
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.Retention
-import com.netflix.spinnaker.swabbie.Notifier
-import com.netflix.spinnaker.swabbie.ResourceRepository
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
+import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 
 object ResourceHandlerTest {
-  val resourceRepository = mock<ResourceRepository>()
-  val notifier = mock<Notifier>()
-  val clock = Clock.systemDefaultZone()
+  private val resourceRepository = mock<ResourceTrackingRepository>()
+  private val clock = Clock.systemDefaultZone()
+  private val applicationEventPublisher = mock<ApplicationEventPublisher>()
 
   @AfterEach
   fun cleanup() {
-    reset(resourceRepository, notifier)
+    reset(resourceRepository, applicationEventPublisher)
   }
 
   @Test
-  fun `creating work by tracking new violating resources and notify user`() {
-    val resource = TestResource("marked resource due for deletion now")
-    whenever(notifier.notify(any(), any())) doReturn
-      Notification(clock.millis(), "yolo@netflixcom", "Email" )
-
+  fun `should track violating resources and notify user`() {
+    val resource = TestResource("testResource")
+    val violationSummary = Summary("violates rule 1", "ruleName")
     TestResourceHandler(
-      listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
-      resourceRepository,
-      notifier,
-      mutableListOf(resource)
+      clock = clock,
+      rules =listOf<Rule>(TestRule(true, violationSummary)),
+      resourceTrackingRepository = resourceRepository,
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedUpstreamResources = mutableListOf(resource)
     ).mark(
-      WorkConfiguration(
-        "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-        "test",
-        "us-east-1",
-        resource.resourceType,
-        resource.cloudProvider,
-        Retention(10, 3),
-        emptyList()
+      ScopeOfWorkConfiguration(
+        configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+        account = "test",
+        location = "us-east-1",
+        resourceType = resource.resourceType,
+        cloudProvider = resource.cloudProvider,
+        retention = Retention(
+          days = 10,
+          ageThresholdDays = 3
+        ),
+        exclusions = emptyList()
       )
     )
 
-    verify(notifier).notify(any(), any())
-    verify(resourceRepository).track(any())
+    verify(resourceRepository).upsert(any(), any())
   }
 
   @Test
   fun `should update already tracked resource if still invalid and don't notify user again`() {
     val resource = TestResource("testResource")
-    val workDescription = WorkConfiguration(
-      "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      "test",
-      "us-east-1",
-      resource.cloudProvider,
-      resource.resourceType,
-      Retention(10, 3),
-      emptyList()
+    val configuration = ScopeOfWorkConfiguration(
+      configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      account = "test",
+      location = "us-east-1",
+      cloudProvider = resource.cloudProvider,
+      resourceType = resource.resourceType,
+      retention = Retention(
+        days = 10,
+        ageThresholdDays = 3
+      ),
+      exclusions = emptyList()
+    )
+
+    val markedResource = MarkedResource(
+      resource = resource,
+      summaries = listOf(Summary("violates rule 1", "ruleName")),
+      configurationId = configuration.configurationId,
+      projectedDeletionStamp = clock.millis(),
+      notificationInfo = NotificationInfo(
+        recipient = "yolo@netflix.com",
+        notificationType = "Email",
+        notificationStamp = clock.millis()
+      )
     )
 
     whenever(resourceRepository.getMarkedResources()) doReturn
-      listOf(
-        MarkedResource(
-          resource,
-          listOf(Summary("violates rule 1", "ruleName")),
-          Notification(clock.millis(), "yolo@netflixcom", "Email" ),
-          clock.millis(),
-          workDescription.configurationId
-        )
-      )
-
-    whenever(notifier.notify(any(), any())) doReturn
-      Notification(clock.millis(), "yolo@netflixcom", "Email" )
+      listOf(markedResource)
 
     TestResourceHandler(
-      listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
-      resourceRepository,
-      notifier,
-      mutableListOf(resource)
-    ).mark(workDescription)
+      clock = clock,
+      rules = listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
+      resourceTrackingRepository = resourceRepository,
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedUpstreamResources = mutableListOf(resource)
+    ).mark(configuration)
 
-    verify(notifier, never()).notify(any(), any())
-    verify(resourceRepository).track(any())
+    verify(applicationEventPublisher, never()).publishEvent(NotifyOwnerEvent(markedResource))
+    verify(resourceRepository).upsert(any(), any())
   }
 
   @Test
   fun `should delete a resource`() {
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     val resource = TestResource("marked resource due for deletion now")
-    val configuration = WorkConfiguration(
-      "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      "test",
-      "us-east-1",
-      resource.cloudProvider,
-      resource.resourceType,
-      Retention(10, 3),
-      emptyList()
+    val configuration = ScopeOfWorkConfiguration(
+      configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      account = "test",
+      location = "us-east-1",
+      cloudProvider = resource.cloudProvider,
+      resourceType = resource.resourceType,
+      retention = Retention(
+        days = 10,
+        ageThresholdDays = 3
+      ),
+      exclusions = emptyList()
+    )
+
+    val markedResource = MarkedResource(
+      resource = resource,
+      summaries = listOf(Summary("invalid resource 1", "rule 1")),
+      configurationId = configuration.configurationId,
+      projectedDeletionStamp = fifteenDaysAgo,
+      adjustedDeletionStamp = fifteenDaysAgo,
+      notificationInfo = NotificationInfo(
+        recipient = "yolo@netflix.com",
+        notificationType = "Email",
+        notificationStamp = clock.millis()
+      )
     )
 
     val fetchedResources = mutableListOf<Resource>(resource)
-    whenever(notifier.notify(any(), any())) doReturn
-      Notification(clock.millis(), "yolo@netflixcom", "Email" )
-
     TestResourceHandler(
-      listOf(
+      clock = clock,
+      rules = listOf(
         TestRule(true, Summary("always invalid", "rule1")),
         TestRule(true, null),
         TestRule(false, null)
       ),
-      resourceRepository,
-      notifier,
-      fetchedResources
-    ).clean(
-      MarkedResource(
-        resource,
-        listOf(Summary("invalid resource 1", "rule 1")),
-        Notification(clock.instant().toEpochMilli(), "yolo@netflixcom", "Email" ),
-        fifteenDaysAgo,
-        configuration.configurationId
-      )
-    )
+      resourceTrackingRepository = resourceRepository,
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedUpstreamResources = fetchedResources
+    ).clean(markedResource)
 
-    verify(notifier, never()).notify(any(), any())
-    verify(resourceRepository, never()).track(any())
+    verify(applicationEventPublisher, never()).publishEvent(NotifyOwnerEvent(markedResource))
+    verify(resourceRepository, never()).upsert(any(), any())
     fetchedResources.size shouldMatch equalTo(0)
     verify(resourceRepository).remove(any())
   }
@@ -150,39 +163,45 @@ object ResourceHandlerTest {
   @Test
   fun `should forget resource if no longer violate a rule and don't notify user`() {
     val resource = TestResource("testResource")
-    val configuration = WorkConfiguration(
-      "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      "test",
-      "us-east-1",
-      resource.cloudProvider,
-      resource.resourceType,
-      Retention(10, 3),
-      emptyList()
+    val configuration = ScopeOfWorkConfiguration(
+      configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      account = "test",
+      location = "us-east-1",
+      cloudProvider = resource.cloudProvider,
+      resourceType = resource.resourceType,
+      retention = Retention(
+        days = 10,
+        ageThresholdDays = 3
+      ),
+      exclusions = emptyList()
+    )
+
+    val markedResource = MarkedResource(
+      resource = resource,
+      summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
+      configurationId = configuration.configurationId,
+      projectedDeletionStamp = clock.millis(),
+      notificationInfo = NotificationInfo(
+        recipient = "yolo@netflix.com",
+        notificationType = "Email",
+        notificationStamp = clock.millis()
+      )
     )
 
     whenever(resourceRepository.getMarkedResources()) doReturn
-      listOf(
-        MarkedResource(
-          resource,
-          listOf(Summary("invalid resource", javaClass.simpleName)),
-          Notification(clock.millis(), "yolo@netflixcom", "Email" ),
-          clock.millis(),
-          configuration.configurationId
-        )
-      )
+      listOf(markedResource)
 
-    whenever(notifier.notify(any(), any())) doReturn
-      Notification(clock.millis(), "yolo@netflixcom", "Email" )
 
     TestResourceHandler(
-      listOf(TestRule(true, null)),
-      resourceRepository,
-      notifier,
-      mutableListOf(resource)
+      clock = clock,
+      rules = listOf(TestRule(true, null)),
+      resourceTrackingRepository = resourceRepository,
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedUpstreamResources = mutableListOf(resource)
     ).mark(configuration)
 
-    verify(notifier, never()).notify(any(), any())
-    verify(resourceRepository, never()).track(any())
+    verify(applicationEventPublisher, never()).publishEvent(NotifyOwnerEvent(markedResource))
+    verify(resourceRepository, never()).upsert(any(), any())
     verify(resourceRepository).remove(any())
   }
 
@@ -200,28 +219,29 @@ object ResourceHandlerTest {
   }
 
   class TestResourceHandler(
+    clock: Clock,
     rules: List<Rule>,
-    resourceRepository: ResourceRepository,
-    notifier: Notifier,
-    private val resources: MutableList<Resource>?
-  ) : AbstractResourceHandler(rules, resourceRepository, notifier) {
+    resourceTrackingRepository: ResourceTrackingRepository,
+    applicationEventPublisher: ApplicationEventPublisher,
+    private val simulatedUpstreamResources: MutableList<Resource>?
+  ) : AbstractResourceHandler(clock, rules, resourceTrackingRepository, applicationEventPublisher) {
 
     // simulates removing a resource
     override fun doDelete(markedResource: MarkedResource) {
-      resources?.removeIf { markedResource.resourceId == it.resourceId }
+      simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }
 
     // simulates querying for a resource upstream
-    override fun fetchResource(markedResource: MarkedResource): Resource? {
-      return resources?.find { markedResource.resourceId == it.resourceId}
+    override fun getUpstreamResource(markedResource: MarkedResource): Resource? {
+      return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId}
     }
 
     override fun handles(resourceType: String, cloudProvider: String): Boolean {
       return true
     }
 
-    override fun fetchResources(workConfiguration: WorkConfiguration): List<Resource>? {
-      return resources
+    override fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>? {
+      return simulatedUpstreamResources
     }
   }
 }

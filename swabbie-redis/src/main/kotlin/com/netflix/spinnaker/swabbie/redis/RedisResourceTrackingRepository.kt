@@ -19,22 +19,20 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
-import com.netflix.spinnaker.swabbie.ResourceRepository
+import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.time.Duration
+import java.time.Instant
 
 @Component
-class RedisResourceRepository
-@Autowired constructor(
+class RedisResourceTrackingRepository(
   @Qualifier("mainRedisClient") private val mainRedisClientDelegate: RedisClientDelegate,
   @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?,
   private val objectMapper: ObjectMapper,
   private val clock: Clock
-): ResourceRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
+): ResourceTrackingRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
   override fun getMarkedResources(): List<MarkedResource>? {
     return doGetAll(true)
   }
@@ -44,7 +42,7 @@ class RedisResourceRepository
   }
 
   private fun doGetAll(includeAll: Boolean): List<MarkedResource>? {
-    resources().let { key ->
+    ALL_RESOURCES_KEY.let { key ->
       return getClientForId(key).run {
         this.withCommandsClient<Set<String>> { client ->
           if (includeAll) {
@@ -53,26 +51,28 @@ class RedisResourceRepository
             client.zrangeByScore(key, 0.0, clock.instant().toEpochMilli().toDouble())
           }
         }.let { set ->
-            when {
-              set.isEmpty() -> emptyList()
-              else -> this.withCommandsClient<Set<String>> { client ->
-                client.hmget(resource(), *set.map { it }.toTypedArray()).toSet()
-              }.map { json ->
-                  objectMapper.readValue<MarkedResource>(json)
-                }
-            }
+            if (set.isEmpty()) emptyList()
+            else this.withCommandsClient<Set<String>> { client ->
+              client.hmget(SINGLE_RESOURCES_KEY, *set.map { it }.toTypedArray()).toSet()
+            }.map { json ->
+                objectMapper.readValue<MarkedResource>(json)
+              }
           }
       }
     }
   }
 
-  override fun track(markedResource: MarkedResource) {
+  override fun upsert(markedResource: MarkedResource, score: Long) {
     val resourceId = "${markedResource.configurationId}:${markedResource.resourceId}"
-    resource(resourceId).let { key ->
-      val score = clock.instant().plus(Duration.ofMillis(markedResource.projectedTerminationTime)).toEpochMilli().toDouble()
+    markedResource.apply {
+      createdTs = if (createdTs != null) createdTs else Instant.now(clock).toEpochMilli()
+      updateTs = Instant.now(clock).toEpochMilli()
+    }
+
+    resourceKey(resourceId).let { key ->
       getClientForId(key).withCommandsClient { client ->
-        client.hset(resource(), resourceId, objectMapper.writeValueAsString(markedResource))
-        client.zadd(resources(), score, resourceId)
+        client.hset(SINGLE_RESOURCES_KEY, resourceId, objectMapper.writeValueAsString(markedResource))
+        client.zadd(ALL_RESOURCES_KEY, score.toDouble(), resourceId)
       }
     }
   }
@@ -82,6 +82,8 @@ class RedisResourceRepository
   }
 }
 
-internal fun resource(resourceId: String) = "{swabbie:resource}:$resourceId"
-internal fun resource() = "{swabbie:resource}"
-internal fun resources() = "{swabbie:resources}"
+const val SINGLE_RESOURCES_KEY = "{swabbie:resource}"
+const val ALL_RESOURCES_KEY = "{swabbie:resources}"
+
+fun resourceKey(resourceId: String) = "$SINGLE_RESOURCES_KEY:$resourceId"
+

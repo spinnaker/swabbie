@@ -21,13 +21,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature.READ_DATE_TIMESTAMP
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.netflix.spinnaker.swabbie.model.Configurations
-import com.netflix.spinnaker.swabbie.Notifier
-import com.netflix.spinnaker.swabbie.model.Notification
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.provider.AccountProvider
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.*
@@ -51,63 +46,19 @@ open class SwabbieConfiguration {
 
   @Bean open fun clock(): Clock = Clock.systemDefaultZone()
 
-  /**
-   * Configuration namespace/id format is {cloudProvider}:{account}:{location}:{resourceType}
-   * locations in aws are regions
-   */
   @Bean
-  open fun configuration(accountProvider: AccountProvider, properties: SwabbieProperties): Configurations<String, WorkConfiguration> {
-    val globalExclusions: MutableList<Exclusion>? = properties.globalExclusions
-    val configuration = Configurations<String, WorkConfiguration>()
-    properties.providers.forEach { cloudProviderConfiguration ->
-      cloudProviderConfiguration.resourceTypes.forEach { resourceTypeConfiguration ->
-        accountProvider.getAccounts().forEach { account ->
-          cloudProviderConfiguration.locations.forEach { location ->
-            val configurationId = "${cloudProviderConfiguration.name}:$account:$location:${resourceTypeConfiguration.name}"
-            configuration[configurationId] = WorkConfiguration(
-              configurationId,
-              account,
-              location,
-              cloudProviderConfiguration.name,
-              resourceTypeConfiguration.name,
-              resourceTypeConfiguration.retention,
-              mergeExclusions(globalExclusions, resourceTypeConfiguration.exclusions),
-              resourceTypeConfiguration.dryRun
-            )
-          }
-        }
-      }
+  open fun taskExecutor(scopeOfWorkConfigurator: ScopeOfWorkConfigurator): ThreadPoolTaskExecutor =
+    ThreadPoolTaskExecutor().apply {
+      corePoolSize = scopeOfWorkConfigurator.scopeCount()
     }
 
-    return configuration
-  }
 
-  @Bean
-  open fun taskExecutor(): ThreadPoolTaskExecutor {
-    val taskExecutor = ThreadPoolTaskExecutor()
-    taskExecutor.corePoolSize = 5
-    return taskExecutor
-  }
-
-  // TODO: remove
-  @Bean
-  open fun noopNotifier(): Notifier {
-    return NoopNotifier()
-  }
-
-  class NoopNotifier: Notifier {
-    override fun notify(owner: String, summaries: List<Summary>): Notification {
-      return Notification(0, "/dev/null", "empty")
-    }
-  }
-
-  private fun findAllSubtypes(clazz: Class<*>, pkg: String): Array<Class<*>>
-    = ClassPathScanningCandidateComponentProvider(false)
+  private fun findAllSubtypes(clazz: Class<*>, pkg: String): Array<Class<*>> =
+    ClassPathScanningCandidateComponentProvider(false)
     .apply { addIncludeFilter(AssignableTypeFilter(clazz)) }
     .findCandidateComponents(pkg)
     .map {
-      val cls = ClassUtils.resolveClassName(it.beanClassName, ClassUtils.getDefaultClassLoader())
-      return@map cls
+      return@map ClassUtils.resolveClassName(it.beanClassName, ClassUtils.getDefaultClassLoader())
     }
     .toTypedArray()
 

@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.persistence
 
-import com.netflix.spinnaker.swabbie.model.Notification
-import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 
-interface Notifier {
-  fun notify(owner: String, summaries: List<Summary>): Notification
+interface ResourceTrackingRepository {
+  fun upsert(markedResource: MarkedResource, score: Long = markedResource.projectedDeletionStamp)
+  fun remove(resourceId: String)
+
+  fun getMarkedResourcesToDelete(): List<MarkedResource>?
+  fun getMarkedResources(): List<MarkedResource>?
 }

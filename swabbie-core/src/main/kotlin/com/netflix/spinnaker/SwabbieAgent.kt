@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker
 
-interface LockManager {
-  fun acquireLock(name: String, lockTtlSeconds: Long): Boolean
+interface SwabbieAgent {
+  fun execute()
 }

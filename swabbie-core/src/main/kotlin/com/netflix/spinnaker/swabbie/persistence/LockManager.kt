@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.handlers
+package com.netflix.spinnaker.swabbie.persistence
 
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-
-interface ResourceHandler {
-  fun handles(resourceType: String, cloudProvider: String): Boolean
-  fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>?
-  fun getUpstreamResource(markedResource: MarkedResource): Resource?
-
-  fun mark(scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
-  fun clean(markedResource: MarkedResource)
+interface LockManager {
+  fun acquireLock(name: String, lockTtlSeconds: Long): Boolean
 }

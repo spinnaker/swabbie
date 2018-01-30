@@ -21,6 +21,8 @@ include 'swabbie-test',
   'swabbie-retrofit',
   'swabbie-redis',
   'swabbie-aws',
+  'swabbie-echo',
+  'swabbie-orca',
   'swabbie-web'
 
 def setBuildFile(project) {
@@ -33,3 +35,4 @@ def setBuildFile(project) {
 rootProject.children.each {
   setBuildFile it
 }
+

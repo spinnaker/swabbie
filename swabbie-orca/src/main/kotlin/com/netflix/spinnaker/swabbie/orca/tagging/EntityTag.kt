@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.handlers
+package com.netflix.spinnaker.swabbie.orca.tagging
 
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.tagging.Tag
 
-interface ResourceHandler {
-  fun handles(resourceType: String, cloudProvider: String): Boolean
-  fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>?
-  fun getUpstreamResource(markedResource: MarkedResource): Resource?
+data class EntityTag(
+  val name: String,
+  val value: EntityTagValue,
+  val category: String = "Swabbie"
+): Tag
 
-  fun mark(scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
-  fun clean(markedResource: MarkedResource)
-}
+data class EntityTagValue(
+  val message: String,
+  val type: String = "alert"
+)

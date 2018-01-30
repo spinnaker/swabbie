@@ -37,6 +37,8 @@ dependencies {
   compile "com.netflix.spinnaker.kork:kork-web:+"
   compile project(":swabbie-aws")
   compile project(":swabbie-redis")
+  compile project(":swabbie-echo")
+  compile project(":swabbie-orca")
 }
 
 tasks.bootRepackage.enabled = Boolean.valueOf(project.repackage)

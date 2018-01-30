@@ -16,37 +16,43 @@
 
 package com.netflix.spinnaker.swabbie.aws.handlers
 
-import com.netflix.spinnaker.swabbie.Notifier
-import com.netflix.spinnaker.swabbie.ResourceRepository
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.aws.provider.AmazonSecurityGroupProvider
 import com.netflix.spinnaker.swabbie.handlers.AbstractResourceHandler
 import com.netflix.spinnaker.swabbie.model.*
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
+import java.time.Clock
 
 @Component
 class AmazonSecurityGroupHandler(
+  clock: Clock,
   rules: List<Rule>,
-  resourceRepository: ResourceRepository,
-  notifier: Notifier,
+  resourceTrackingRepository: ResourceTrackingRepository,
+  applicationEventPublisher: ApplicationEventPublisher,
   private val amazonSecurityGroupProvider: AmazonSecurityGroupProvider
-): AbstractResourceHandler(rules, resourceRepository, notifier) {
+): AbstractResourceHandler(clock, rules, resourceTrackingRepository, applicationEventPublisher) {
   override fun doDelete(markedResource: MarkedResource) {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    log.info("This resource is about to be deleted {}", markedResource)
   }
 
-  override fun fetchResource(markedResource: MarkedResource): Resource {
+  override fun getUpstreamResource(markedResource: MarkedResource): Resource {
     TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
   }
 
   override fun handles(resourceType: String, cloudProvider: String): Boolean {
-    return resourceType == SECURITY_GROUP && cloudProvider == "aws"
+    return resourceType == SECURITY_GROUP && cloudProvider == AWS
   }
 
-  override fun fetchResources(workConfiguration: WorkConfiguration): List<Resource> {
+  override fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource> {
     //TODO: -r jeyrs apply exclusion rules to filter out resources
 
-    val account = workConfiguration.configurationId.split(":")[1]
-    val region = workConfiguration.configurationId.split(":")[2]
-    return amazonSecurityGroupProvider.getSecurityGroups(mapOf("region" to region, "account" to account))
+    return amazonSecurityGroupProvider.getSecurityGroups(
+      filters = mapOf(
+        "region" to scopeOfWorkConfiguration.location,
+        "account" to scopeOfWorkConfiguration.account
+      )
+    )
   }
 }

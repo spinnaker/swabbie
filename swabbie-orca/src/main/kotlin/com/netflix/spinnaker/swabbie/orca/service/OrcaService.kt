@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.orca.service
 
-import com.netflix.spinnaker.swabbie.model.MarkedResource
+import retrofit.http.*
 
-interface ResourceRepository {
-  fun track(markedResource: MarkedResource)
-  fun remove(resourceId: String)
+interface OrcaService {
 
-  fun getMarkedResourcesToDelete(): List<MarkedResource>?
-  fun getMarkedResources(): List<MarkedResource>?
+  @POST("/ops")
+  @Headers("Content-Type: application/context+json")
+  fun orchestrate(@Body request: Map<String, Any>): Map<String, Any>
+
+  @GET("/tasks/{id}")
+  fun getTask(@Path("id") id: String): Map<String, Any>
 }

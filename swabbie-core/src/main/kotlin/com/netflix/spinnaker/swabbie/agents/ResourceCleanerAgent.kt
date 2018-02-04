@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.agents
 
-import com.netflix.discovery.DiscoveryClient
+import com.netflix.spinnaker.SwabbieAgent
+import com.netflix.spinnaker.swabbie.persistence.LockManager
+import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -31,38 +32,39 @@ import java.util.concurrent.Executor
 class ResourceCleanerAgent(
   private val executor: Executor,
   private val lockManager: LockManager,
-  private val resourceRepository: ResourceRepository,
+  private val resourceTrackingRepository: ResourceTrackingRepository,
   private val resourceHandlers: List<ResourceHandler>,
-  @Autowired(required = false) private val discoveryClient: DiscoveryClient?
-): DiscoverySupport(discoveryClient = discoveryClient) {
+  private val discoverySupport: DiscoverySupport
+): SwabbieAgent {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-
-  @Scheduled(fixedDelayString = "\${swabbie.clean.intervalSeconds:3600}")
-  fun execute() {
-    if (enabled()) {
+  @Scheduled(fixedDelayString = "\${swabbie.clean.frequency.ms:3600000}")
+  override fun execute() {
+    discoverySupport.ifUP {
       try {
         log.info("Resource cleaners started...")
-        resourceRepository.getMarkedResourcesToDelete()
+        resourceTrackingRepository.getMarkedResourcesToDelete()
+          ?.filter { it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
           ?.forEach {
-            it.takeIf { lockManager.acquireLock("clean:${it.configurationId}", lockTtlSeconds = 3600) }
-              ?.also { markedResource ->
+            it.takeIf {
+              lockManager.acquireLock("{swabbie:clean}:${it.configurationId}", lockTtlSeconds = 3600)
+            }?.let { markedResource ->
                 resourceHandlers.find {
                   handler -> handler.handles(markedResource.resourceType, markedResource.cloudProvider)
                 }.let { handler ->
-                  if (handler == null) {
-                    throw IllegalStateException(
-                      String.format("No Suitable handler found for %s", markedResource)
-                    )
-                  } else {
-                    executor.execute {
-                      handler.clean(markedResource)
+                    if (handler == null) {
+                      throw IllegalStateException(
+                        String.format("No Suitable handler found for %s", markedResource)
+                      )
+                    } else {
+                      executor.execute {
+                        handler.clean(markedResource)
+                      }
                     }
                   }
-                }
               }
           }
       } catch (e: Exception) {
-        log.error("failed", e)
+        log.error("Failed to execute resource cleaners", e)
       }
     }
   }

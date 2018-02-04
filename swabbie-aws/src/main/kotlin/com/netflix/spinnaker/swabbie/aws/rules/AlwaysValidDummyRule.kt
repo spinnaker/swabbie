@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.rules
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.Summary
 import org.springframework.stereotype.Component
 
 @Component
@@ -31,3 +32,14 @@ class AlwaysValidDummyRule : Rule {
     return Result(summary = null)
   }
 }
+
+//@Component
+//class AlwaysInValidDummyRule : Rule {
+//  override fun applies(resource: Resource): Boolean {
+//    return true
+//  }
+//
+//  override fun apply(resource: Resource): Result {
+//    return Result(summary = Summary("Failed Dummy Rule", javaClass.simpleName))
+//  }
+//}

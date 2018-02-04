@@ -14,17 +14,28 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.handlers
+package com.netflix.spinnaker.swabbie.events
 
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
-import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 
-interface ResourceHandler {
-  fun handles(resourceType: String, cloudProvider: String): Boolean
-  fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>?
-  fun getUpstreamResource(markedResource: MarkedResource): Resource?
 
-  fun mark(scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
-  fun clean(markedResource: MarkedResource)
-}
+const val NOTIFY = "NOTIFY"
+const val UNMARK = "UNMARK"
+const val MARK = "MARK"
+
+abstract class Event(
+  open val markedResource: MarkedResource,
+  val name: String
+)
+
+class NotifyOwnerEvent(
+  override val markedResource: MarkedResource
+): Event(markedResource, NOTIFY)
+
+class UnMarkResourceEvent(
+  override val markedResource: MarkedResource
+): Event(markedResource, UNMARK)
+
+class MarkResourceEvent(
+  override val markedResource: MarkedResource
+): Event(markedResource, MARK)

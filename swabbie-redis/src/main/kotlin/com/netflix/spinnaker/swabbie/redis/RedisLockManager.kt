@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.redis
 
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
-import com.netflix.spinnaker.swabbie.LockManager
+import com.netflix.spinnaker.swabbie.persistence.LockManager
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component

@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.model
+package com.netflix.spinnaker.swabbie.orca.tagging
 
-import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.config.Retention
+import com.netflix.spinnaker.swabbie.orca.service.OrcaService
+import com.netflix.spinnaker.swabbie.tagging.Tag
+import com.netflix.spinnaker.swabbie.tagging.TaggingService
 
-class Configurations<K, V>: HashMap<K, V>()
+class EntityTaggingService(
+  private val orcaService: OrcaService
+): TaggingService {
+  override fun tag(resourceId: String, resourceType: String, cloudProvider: String, region: String?, tags: List<Tag>) {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  }
 
-data class WorkConfiguration(
-  val configurationId: String,
-  val account: String,
-  val location: String,
-  val cloudProvider: String,
-  val resourceType: String,
-  val retention: Retention,
-  val exclusions: List<Exclusion>,
-  val dryRun: Boolean = true
-)
+}

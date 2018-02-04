@@ -18,7 +18,11 @@ package com.netflix.spinnaker.swabbie.model
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
+/** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"
+
+/** Provider Types **/
+const val AWS = "aws"
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", include = JsonTypeInfo.As.PROPERTY)
 abstract class Resource: Identifiable {
@@ -45,13 +49,35 @@ interface Identifiable {
 data class MarkedResource(
   val resource: Resource,
   val summaries: List<Summary>,
-  val notification: Notification,
-  val projectedTerminationTime: Long,
-  val configurationId: String
+  val configurationId: String,
+  val projectedDeletionStamp: Long,
+  var adjustedDeletionStamp: Long? = null,
+  var notificationInfo: NotificationInfo = NotificationInfo(),
+  var createdTs: Long? = null,
+  var updateTs: Long? = null
 ): Identifiable by resource
 
-data class Notification(
-  val sentAt: Long,
-  val to: String,
-  val type: String
+data class NotificationInfo(
+  val recipient: String? = null,
+  val notificationType: String? = null,
+  val notificationStamp: Long? = null
 )
+
+data class ResourceState(
+  var markedResource: MarkedResource,
+  val deleted: Boolean = false,
+  val statuses: MutableList<Status>
+)
+
+data class Status(
+  val name: String,
+  val timestamp: Long
+): Comparable<Status> {
+  override fun compareTo(other: Status): Int {
+    return if (other.name == name) {
+      timestamp.compareTo(other.timestamp)
+    } else {
+      1
+    }
+  }
+}

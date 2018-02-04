@@ -24,8 +24,8 @@ import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.Retention
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.*
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
@@ -34,19 +34,21 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import redis.clients.jedis.JedisPool
 import java.time.Clock
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 @TestInstance(Lifecycle.PER_CLASS)
-object RedisResourceRepositoryTest {
-  val embeddedRedis = EmbeddedRedis.embed()
-  val jedisPool = embeddedRedis.pool as JedisPool
-  val objectMapper = ObjectMapper().apply {
+object RedisResourceTrackingRepositoryTest {
+  private val embeddedRedis = EmbeddedRedis.embed()
+  private val jedisPool = embeddedRedis.pool as JedisPool
+  private val objectMapper = ObjectMapper().apply {
     registerSubtypes(TestResource::class.java)
     registerModule(KotlinModule())
     disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
   }
 
-  val clock = Clock.systemDefaultZone()
-  val resourceRepository = RedisResourceRepository(JedisClientDelegate(jedisPool), null, objectMapper, clock)
+  private val clock = Clock.systemDefaultZone()
+  private val resourceRepository = RedisResourceTrackingRepository(JedisClientDelegate(jedisPool), null, objectMapper, clock)
 
   @BeforeEach
   fun setup() {
@@ -62,44 +64,47 @@ object RedisResourceRepositoryTest {
 
   @Test
   fun `fetch all tracked resources and resources to delete`() {
-    val now = 0L
-    val anHourLater = now + 3600 * 60 * 1000L
-    val configuration = WorkConfiguration(
-      "configId",
-      "test",
-      "us-east-1",
-      "testResourceType",
-      "aws",
-      Retention(),
-      emptyList()
+    val now = Instant.now(clock)
+    val twoDaysFromNow = now.plus(2, ChronoUnit.DAYS)
+    val configuration = ScopeOfWorkConfiguration(
+      configurationId = "configId",
+      account = "test",
+      location = "us-east-1",
+      resourceType = "testResourceType",
+      cloudProvider = AWS,
+      retention = Retention(),
+      exclusions = emptyList()
     )
 
     listOf(
       MarkedResource(
-        TestResource("marked resource due for deletion now"),
-        listOf(Summary("invalid resource 1", "rule 1")),
-        Notification(clock.instant().toEpochMilli(), "yolo@netflixcom", "Email" ),
-        now,
-        configuration.configurationId
+        resource = TestResource("marked resourceHash due for deletion now"),
+        summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
+        configurationId = configuration.configurationId,
+        projectedDeletionStamp = 0,
+        adjustedDeletionStamp = 0,
+        notificationInfo = NotificationInfo(
+          notificationStamp = clock.instant().toEpochMilli(),
+          recipient = "yolo@netflixcom",
+          notificationType = "Email"
+        )
       ),
       MarkedResource(
-        TestResource("marked resource not due for deletion 2 seconds later"),
-        listOf(Summary("invalid resource 2", "rule 2")),
-        Notification(now, "yolo@netflixcom", "Email" ),
-        anHourLater,
-        configuration.configurationId
+        resource = TestResource("marked resourceHash not due for deletion 2 seconds later"),
+        summaries = listOf(Summary("invalid resourceHash 2", "rule 2")),
+        configurationId = configuration.configurationId,
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
+        adjustedDeletionStamp = twoDaysFromNow.toEpochMilli()
       ),
       MarkedResource(
-        TestResource("random"),
-        listOf(Summary("invalid resource 3", "rule 3")),
-        Notification(now, "yolo@netflixcom", "Email" ),
-        anHourLater,
-        configuration.configurationId
+        resource = TestResource("random"),
+        summaries = listOf(Summary("invalid resourceHash 3", "rule 3")),
+        configurationId = configuration.configurationId,
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
+        adjustedDeletionStamp = twoDaysFromNow.toEpochMilli()
       )
     ).forEach{ resource ->
-      resourceRepository.track(
-        resource
-      )
+      resourceRepository.upsert(resource)
     }
 
     resourceRepository.getMarkedResources().let { result ->

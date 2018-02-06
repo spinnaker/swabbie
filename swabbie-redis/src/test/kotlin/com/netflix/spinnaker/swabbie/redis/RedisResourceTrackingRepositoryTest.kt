@@ -32,6 +32,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestInstance.Lifecycle
+import org.springframework.util.Assert
 import redis.clients.jedis.JedisPool
 import java.time.Clock
 import java.time.Instant
@@ -63,11 +64,46 @@ object RedisResourceTrackingRepositoryTest {
   }
 
   @Test
+  fun `removing a resource should work`() {
+    val configuration = ScopeOfWorkConfiguration(
+      namespace = "configId",
+      account = "test",
+      location = "us-east-1",
+      resourceType = "testResourceType",
+      cloudProvider = AWS,
+      retention = Retention(),
+      exclusions = emptyList()
+    )
+
+    val markedResource = MarkedResource(
+      resource = TestResource("marked resourceHash due for deletion now"),
+      summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
+      namespace = configuration.namespace,
+      projectedDeletionStamp = 0,
+      adjustedDeletionStamp = 0,
+      notificationInfo = NotificationInfo(
+        notificationStamp = clock.instant().toEpochMilli(),
+        recipient = "yolo@netflixcom",
+        notificationType = "Email"
+      )
+    )
+
+    resourceRepository.upsert(markedResource)
+    Assert.notEmpty(resourceRepository.getMarkedResources(), "should have inserted resource")
+
+    resourceRepository.remove(markedResource)
+
+    resourceRepository.getMarkedResources().let { result ->
+      result?.size shouldMatch equalTo(0)
+    }
+  }
+
+  @Test
   fun `fetch all tracked resources and resources to delete`() {
     val now = Instant.now(clock)
     val twoDaysFromNow = now.plus(2, ChronoUnit.DAYS)
     val configuration = ScopeOfWorkConfiguration(
-      configurationId = "configId",
+      namespace = "configId",
       account = "test",
       location = "us-east-1",
       resourceType = "testResourceType",
@@ -80,7 +116,7 @@ object RedisResourceTrackingRepositoryTest {
       MarkedResource(
         resource = TestResource("marked resourceHash due for deletion now"),
         summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
-        configurationId = configuration.configurationId,
+        namespace = configuration.namespace,
         projectedDeletionStamp = 0,
         adjustedDeletionStamp = 0,
         notificationInfo = NotificationInfo(
@@ -92,14 +128,14 @@ object RedisResourceTrackingRepositoryTest {
       MarkedResource(
         resource = TestResource("marked resourceHash not due for deletion 2 seconds later"),
         summaries = listOf(Summary("invalid resourceHash 2", "rule 2")),
-        configurationId = configuration.configurationId,
+        namespace = configuration.namespace,
         projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
         adjustedDeletionStamp = twoDaysFromNow.toEpochMilli()
       ),
       MarkedResource(
         resource = TestResource("random"),
         summaries = listOf(Summary("invalid resourceHash 3", "rule 3")),
-        configurationId = configuration.configurationId,
+        namespace = configuration.namespace,
         projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
         adjustedDeletionStamp = twoDaysFromNow.toEpochMilli()
       )

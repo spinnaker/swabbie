@@ -33,6 +33,16 @@ class RedisResourceTrackingRepository(
   private val objectMapper: ObjectMapper,
   private val clock: Clock
 ): ResourceTrackingRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
+  override fun find(resourceId: String, namespace: String): MarkedResource? {
+    resourceKey("$namespace:$resourceId}").let { key ->
+      return getClientForId(key).withCommandsClient<String> { client ->
+        client.hget(SINGLE_RESOURCES_KEY, key)
+      }?.let { json ->
+          objectMapper.readValue(json)
+        }
+    }
+  }
+
   override fun getMarkedResources(): List<MarkedResource>? {
     return doGetAll(true)
   }
@@ -63,22 +73,30 @@ class RedisResourceTrackingRepository(
   }
 
   override fun upsert(markedResource: MarkedResource, score: Long) {
-    val resourceId = "${markedResource.configurationId}:${markedResource.resourceId}"
-    markedResource.apply {
-      createdTs = if (createdTs != null) createdTs else Instant.now(clock).toEpochMilli()
-      updateTs = Instant.now(clock).toEpochMilli()
-    }
+    "${markedResource.namespace}:${markedResource.resourceId}".let { id ->
+      markedResource.apply {
+        createdTs = if (createdTs != null) createdTs else Instant.now(clock).toEpochMilli()
+        updateTs = Instant.now(clock).toEpochMilli()
+      }
 
-    resourceKey(resourceId).let { key ->
-      getClientForId(key).withCommandsClient { client ->
-        client.hset(SINGLE_RESOURCES_KEY, resourceId, objectMapper.writeValueAsString(markedResource))
-        client.zadd(ALL_RESOURCES_KEY, score.toDouble(), resourceId)
+      resourceKey(id).let { key ->
+        getClientForId(key).withCommandsClient { client ->
+          client.hset(SINGLE_RESOURCES_KEY, id, objectMapper.writeValueAsString(markedResource))
+          client.zadd(ALL_RESOURCES_KEY, score.toDouble(), id)
+        }
       }
     }
   }
 
-  override fun remove(resourceId: String) {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  override fun remove(markedResource: MarkedResource) {
+    "${markedResource.namespace}:${markedResource.resourceId}".let { id ->
+      resourceKey(id).let { key ->
+        getClientForId(key).withCommandsClient { client ->
+          client.zrem(ALL_RESOURCES_KEY, id)
+          client.hdel(SINGLE_RESOURCES_KEY, key)
+        }
+      }
+    }
   }
 }
 

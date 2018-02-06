@@ -47,7 +47,7 @@ object EventNotificationListenerTest {
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("violates rule 1", "ruleName")),
-      configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
       projectedDeletionStamp = System.currentTimeMillis(),
       adjustedDeletionStamp = null,
       createdTs = Instant.now(clock).toEpochMilli()
@@ -67,7 +67,7 @@ object EventNotificationListenerTest {
         MarkedResource(
           resource = resource,
           summaries = listOf(Summary("violates rule 1", "ruleName")),
-          configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+          namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
           projectedDeletionStamp = System.currentTimeMillis(),
           adjustedDeletionStamp = System.currentTimeMillis(),
           notificationInfo = notificationInfo

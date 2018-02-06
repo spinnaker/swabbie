@@ -20,8 +20,9 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 
 interface ResourceTrackingRepository {
   fun upsert(markedResource: MarkedResource, score: Long = markedResource.projectedDeletionStamp)
-  fun remove(resourceId: String)
+  fun remove(markedResource: MarkedResource)
 
   fun getMarkedResourcesToDelete(): List<MarkedResource>?
   fun getMarkedResources(): List<MarkedResource>?
+  fun find(resourceId: String, namespace: String): MarkedResource?
 }

@@ -26,5 +26,5 @@ interface ResourceHandler {
   fun getUpstreamResource(markedResource: MarkedResource): Resource?
 
   fun mark(scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
-  fun clean(markedResource: MarkedResource)
+  fun clean(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
 }

@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component
 @Component
 @EnableConfigurationProperties(SwabbieProperties::class)
 class ScopeOfWorkConfigurator(
-  private val swabbieProperties: SwabbieProperties,
+  swabbieProperties: SwabbieProperties,
   private val accountProvider: AccountProvider
 ) {
   private var _scopeOfWorkConfigurations = mutableListOf<ScopeOfWork>()
@@ -46,22 +46,23 @@ class ScopeOfWorkConfigurator(
       cloudProviderConfiguration.resourceTypes.forEach { resourceTypeConfiguration ->
         accountProvider.getAccounts().forEach { account ->
           cloudProviderConfiguration.locations.forEach { location ->
-            val configurationId = "${cloudProviderConfiguration.name}:$account:$location:${resourceTypeConfiguration.name}"
-            _scopeOfWorkConfigurations.add(
-              ScopeOfWork(
-                configurationId,
-                ScopeOfWorkConfiguration(
-                  configurationId = configurationId,
-                  account = account,
-                  location = location,
-                  cloudProvider = cloudProviderConfiguration.name,
-                  resourceType = resourceTypeConfiguration.name,
-                  retention = resourceTypeConfiguration.retention,
-                  exclusions = mergeExclusions(globalExclusions, resourceTypeConfiguration.exclusions),
-                  dryRun = resourceTypeConfiguration.dryRun
+            "${cloudProviderConfiguration.name}:$account:$location:${resourceTypeConfiguration.name}".let { namespace ->
+              _scopeOfWorkConfigurations.add(
+                ScopeOfWork(
+                  namespace = namespace,
+                  configuration = ScopeOfWorkConfiguration(
+                    namespace = namespace,
+                    account = account,
+                    location = location,
+                    cloudProvider = cloudProviderConfiguration.name,
+                    resourceType = resourceTypeConfiguration.name,
+                    retention = resourceTypeConfiguration.retention,
+                    exclusions = mergeExclusions(globalExclusions, resourceTypeConfiguration.exclusions),
+                    dryRun = resourceTypeConfiguration.dryRun
+                  )
                 )
               )
-            )
+            }
           }
         }
       }
@@ -79,7 +80,7 @@ data class ScopeOfWork(
 )
 
 data class ScopeOfWorkConfiguration(
-  val configurationId: String,
+  val namespace: String,
   val account: String,
   val location: String,
   val cloudProvider: String,

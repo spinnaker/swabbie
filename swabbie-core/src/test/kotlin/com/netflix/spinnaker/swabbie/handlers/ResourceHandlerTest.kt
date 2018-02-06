@@ -52,7 +52,7 @@ object ResourceHandlerTest {
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(
       ScopeOfWorkConfiguration(
-        configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+        namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
         account = "test",
         location = "us-east-1",
         resourceType = resource.resourceType,
@@ -61,6 +61,7 @@ object ResourceHandlerTest {
           days = 10,
           ageThresholdDays = 3
         ),
+        dryRun = false,
         exclusions = emptyList()
       )
     )
@@ -72,7 +73,7 @@ object ResourceHandlerTest {
   fun `should update already tracked resource if still invalid and don't notify user again`() {
     val resource = TestResource("testResource")
     val configuration = ScopeOfWorkConfiguration(
-      configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
       account = "test",
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
@@ -81,13 +82,14 @@ object ResourceHandlerTest {
         days = 10,
         ageThresholdDays = 3
       ),
+      dryRun = false,
       exclusions = emptyList()
     )
 
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("violates rule 1", "ruleName")),
-      configurationId = configuration.configurationId,
+      namespace = configuration.namespace,
       projectedDeletionStamp = clock.millis(),
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
@@ -96,8 +98,8 @@ object ResourceHandlerTest {
       )
     )
 
-    whenever(resourceRepository.getMarkedResources()) doReturn
-      listOf(markedResource)
+    whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn
+      markedResource
 
     TestResourceHandler(
       clock = clock,
@@ -116,7 +118,7 @@ object ResourceHandlerTest {
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     val resource = TestResource("marked resource due for deletion now")
     val configuration = ScopeOfWorkConfiguration(
-      configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
       account = "test",
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
@@ -125,13 +127,14 @@ object ResourceHandlerTest {
         days = 10,
         ageThresholdDays = 3
       ),
+      dryRun = false,
       exclusions = emptyList()
     )
 
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("invalid resource 1", "rule 1")),
-      configurationId = configuration.configurationId,
+      namespace = configuration.namespace,
       projectedDeletionStamp = fifteenDaysAgo,
       adjustedDeletionStamp = fifteenDaysAgo,
       notificationInfo = NotificationInfo(
@@ -152,7 +155,7 @@ object ResourceHandlerTest {
       resourceTrackingRepository = resourceRepository,
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = fetchedResources
-    ).clean(markedResource)
+    ).clean(markedResource, configuration)
 
     verify(applicationEventPublisher, never()).publishEvent(NotifyOwnerEvent(markedResource))
     verify(resourceRepository, never()).upsert(any(), any())
@@ -164,7 +167,7 @@ object ResourceHandlerTest {
   fun `should forget resource if no longer violate a rule and don't notify user`() {
     val resource = TestResource("testResource")
     val configuration = ScopeOfWorkConfiguration(
-      configurationId = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
       account = "test",
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
@@ -173,13 +176,14 @@ object ResourceHandlerTest {
         days = 10,
         ageThresholdDays = 3
       ),
+      dryRun = false,
       exclusions = emptyList()
     )
 
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
-      configurationId = configuration.configurationId,
+      namespace = configuration.namespace,
       projectedDeletionStamp = clock.millis(),
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
@@ -188,8 +192,8 @@ object ResourceHandlerTest {
       )
     )
 
-    whenever(resourceRepository.getMarkedResources()) doReturn
-      listOf(markedResource)
+    whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn
+      markedResource
 
 
     TestResourceHandler(

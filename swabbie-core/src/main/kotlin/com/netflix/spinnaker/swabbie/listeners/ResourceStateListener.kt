@@ -56,18 +56,19 @@ class ResourceStateListener(
 
   private fun updateState(event: Event) {
     event.markedResource.let {
-      resourceStateRepository.get(it.resourceId, it.configurationId).let { currentState ->
-        if (currentState != null) {
-          currentState.statuses.add(Status(event.name, clock.instant().toEpochMilli()))
-          currentState.markedResource = it
-          resourceStateRepository.upsert(currentState)
-        } else {
-          resourceStateRepository.upsert(
-            ResourceState(
-              markedResource = it,
-              statuses = mutableListOf(Status(event.name, clock.instant().toEpochMilli()))
-            )
-          )
+      resourceStateRepository.get(
+        resourceId = it.resourceId,
+        namespace = it.namespace
+      ).let { currentState ->
+        currentState?.statuses?.add(Status(event.name, clock.instant().toEpochMilli()))
+        (currentState?.copy(
+          statuses = currentState.statuses,
+          markedResource = it
+        ) ?: ResourceState(
+          markedResource = it,
+          statuses = mutableListOf(Status(event.name, clock.instant().toEpochMilli()))
+        )).let {
+          resourceStateRepository.upsert(it)
         }
       }
     }

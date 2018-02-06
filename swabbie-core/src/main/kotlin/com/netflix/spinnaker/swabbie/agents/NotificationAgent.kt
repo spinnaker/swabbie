@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.SwabbieAgent
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.persistence.LockManager
 import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Component
 class NotificationAgent(
   private val lockManager: LockManager,
   private val resourceTrackingRepository: ResourceTrackingRepository,
+  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
@@ -42,9 +44,13 @@ class NotificationAgent(
         resourceTrackingRepository.getMarkedResourcesToDelete()
           ?.forEach { markedResource ->
             markedResource.takeIf {
-              lockManager.acquireLock("{swabbie:notify}:${it.configurationId}", lockTtlSeconds = 3600)
+              lockManager.acquireLock("{swabbie:notify}:${it.namespace}", lockTtlSeconds = 3600)
             }?.let {
-                applicationEventPublisher.publishEvent(NotifyOwnerEvent(it))
+                scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.let { scopeOfWork ->
+                  if (!scopeOfWork.configuration.dryRun) {
+                    applicationEventPublisher.publishEvent(NotifyOwnerEvent(it))
+                  }
+                }
               }
           }
       } catch (e: Exception) {

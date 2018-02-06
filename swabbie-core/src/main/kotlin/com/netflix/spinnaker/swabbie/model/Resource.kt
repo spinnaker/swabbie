@@ -49,7 +49,7 @@ interface Identifiable {
 data class MarkedResource(
   val resource: Resource,
   val summaries: List<Summary>,
-  val configurationId: String,
+  val namespace: String,
   val projectedDeletionStamp: Long,
   var adjustedDeletionStamp: Long? = null,
   var notificationInfo: NotificationInfo = NotificationInfo(),

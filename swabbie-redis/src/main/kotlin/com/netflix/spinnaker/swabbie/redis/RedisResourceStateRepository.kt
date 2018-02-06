@@ -23,21 +23,20 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.persistence.ResourceStateRepository
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import java.time.Clock
 
 @Component
 class RedisResourceStateRepository(
   @Qualifier("mainRedisClient") private val mainRedisClientDelegate: RedisClientDelegate,
   @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?,
-  private val objectMapper: ObjectMapper,
-  private val clock: Clock
+  private val objectMapper: ObjectMapper
 ): ResourceStateRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
   override fun upsert(resourceState: ResourceState) {
-    val id = "${resourceState.markedResource.configurationId}:${resourceState.markedResource.resourceId}"
-    statesKey(id).let { key ->
-      getClientForId(key).withCommandsClient { client ->
-        client.hset(SINGLE_STATE_KEY, id, objectMapper.writeValueAsString(resourceState))
-        client.sadd(ALL_STATES_KEY, id)
+    "${resourceState.markedResource.namespace}:${resourceState.markedResource.resourceId}".let { id ->
+      statesKey(id).let { key ->
+        getClientForId(key).withCommandsClient { client ->
+          client.hset(SINGLE_STATE_KEY, id, objectMapper.writeValueAsString(resourceState))
+          client.sadd(ALL_STATES_KEY, id)
+        }
       }
     }
   }
@@ -46,30 +45,26 @@ class RedisResourceStateRepository(
     ALL_STATES_KEY.let { key ->
       return getClientForId(key).run {
         this.withCommandsClient<Set<String>> { client ->
-            client.smembers(key)
+          client.smembers(key)
         }.let { set ->
-            if (set.isEmpty()) emptyList()
-            else this.withCommandsClient<Set<String>> { client ->
-              client.hmget(SINGLE_STATE_KEY, *set.map { it }.toTypedArray()).toSet()
-            }.map { json ->
-                objectMapper.readValue<ResourceState>(json)
-              }
-          }
+          if (set.isEmpty()) emptyList()
+          else this.withCommandsClient<Set<String>> { client ->
+            client.hmget(SINGLE_STATE_KEY, *set.map { it }.toTypedArray()).toSet()
+          }.map { json ->
+              objectMapper.readValue<ResourceState>(json)
+            }
+        }
       }
     }
   }
 
-  override fun get(resourceId: String, configurationId: String): ResourceState? {
-    statesKey("$configurationId:$resourceId").let { key ->
+  override fun get(resourceId: String, namespace: String): ResourceState? {
+    statesKey("$namespace:$resourceId").let { key ->
       return getClientForId(key).run {
         this.withCommandsClient<String> { client ->
-          client.hget(key, "$configurationId:$resourceId")
-        }.let { json ->
-            if (json != null ) {
-              objectMapper.readValue(json, ResourceState::class.java)
-            } else {
-              null
-            }
+          client.hget(SINGLE_STATE_KEY, key)
+        }?.let { json ->
+            objectMapper.readValue(json, ResourceState::class.java)
           }
       }
     }

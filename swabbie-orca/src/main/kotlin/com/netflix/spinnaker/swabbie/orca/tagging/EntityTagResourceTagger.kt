@@ -36,7 +36,7 @@ class EntityTagResourceTagger(
           resourceId = it.resourceId,
           resourceType = it.resourceType,
           cloudProvider = it.cloudProvider,
-          region = scopeOfWorkConfigurator.list().find { c -> c.namespace == it.configurationId }?.configuration?.location,
+          region = scopeOfWorkConfigurator.list().find { c -> c.namespace == it.namespace }?.configuration?.location,
           tags = listOf(
             EntityTag(
               name = it.resourceId,

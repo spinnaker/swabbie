@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.SwabbieAgent
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.persistence.LockManager
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
@@ -33,6 +34,7 @@ class ResourceCleanerAgent(
   private val executor: Executor,
   private val lockManager: LockManager,
   private val resourceTrackingRepository: ResourceTrackingRepository,
+  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
   private val resourceHandlers: List<ResourceHandler>,
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
@@ -46,7 +48,7 @@ class ResourceCleanerAgent(
           ?.filter { it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
           ?.forEach {
             it.takeIf {
-              lockManager.acquireLock("{swabbie:clean}:${it.configurationId}", lockTtlSeconds = 3600)
+              lockManager.acquireLock("{swabbie:clean}:${it.namespace}", lockTtlSeconds = 3600)
             }?.let { markedResource ->
                 resourceHandlers.find {
                   handler -> handler.handles(markedResource.resourceType, markedResource.cloudProvider)
@@ -56,8 +58,10 @@ class ResourceCleanerAgent(
                         String.format("No Suitable handler found for %s", markedResource)
                       )
                     } else {
-                      executor.execute {
-                        handler.clean(markedResource)
+                      scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.let { scopeOfWork ->
+                        executor.execute {
+                          handler.clean(markedResource, scopeOfWork.configuration)
+                        }
                       }
                     }
                   }

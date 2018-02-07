@@ -17,6 +17,8 @@
 package com.netflix.spinnaker.swabbie.listeners
 
 
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
+import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.Event
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
@@ -24,33 +26,51 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.persistence.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import java.time.Clock
 
 @Component
-class ResourceStateListener(
+class ResourceStateEventListener(
   private val resourceStateRepository: ResourceStateRepository,
+  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
   private val clock: Clock,
-  @Autowired(required = false) val resourceTagger: ResourceTagger?
+  @Autowired(required = false) private val resourceTagger: ResourceTagger?
 ) {
-  private val log = LoggerFactory.getLogger(javaClass)
-
   @EventListener(MarkResourceEvent::class)
   fun onMarkResourceEvent(event: MarkResourceEvent) {
-    event.let {
-      updateState(event)
-      resourceTagger?.tag(it.markedResource)
-    }
+    event.let { e->
+      updateState(e)
+      scopeOfWorkConfigurator.list()
+        .find { it.namespace == e.markedResource.namespace }
+        ?.let { config ->
+          resourceTagger?.tag(e.markedResource, config.configuration)
+        }
+      }
   }
 
   @EventListener(UnMarkResourceEvent::class)
   fun onUnMarkResourceEvent(event: MarkResourceEvent) {
-    event.let {
-      updateState(event)
-      resourceTagger?.unTag(it.markedResource)
+    event.let { e ->
+      updateState(e)
+      scopeOfWorkConfigurator.list()
+        .find { it.namespace == e.markedResource.namespace }
+        ?.let { config ->
+          resourceTagger?.unTag(e.markedResource, config.configuration)
+        }
+      }
+  }
+
+  @EventListener(DeleteResourceEvent::class)
+  fun onDeleteResourceEvent(event: MarkResourceEvent) {
+    event.let { e ->
+      updateState(e)
+      scopeOfWorkConfigurator.list()
+        .find { it.namespace == e.markedResource.namespace }
+        ?.let { config ->
+          resourceTagger?.unTag(e.markedResource, config.configuration)
+        }
     }
   }
 

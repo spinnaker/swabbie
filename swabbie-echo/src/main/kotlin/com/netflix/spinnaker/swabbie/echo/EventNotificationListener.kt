@@ -48,7 +48,7 @@ class EventNotificationListener(
           notificationInfo.notificationStamp == null && markedResource.adjustedDeletionStamp == null
         }?.let {
           try {
-            log.info("Sending notification for {}", event.markedResource)
+            log.info("Preparing to send notification for {} to user {}", event.markedResource, owner)
             val notificationInstant = Instant.now(clock)
             // offset termination time with when resource was first marked
             val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)

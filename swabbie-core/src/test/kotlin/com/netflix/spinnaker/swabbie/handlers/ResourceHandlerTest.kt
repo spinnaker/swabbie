@@ -53,7 +53,7 @@ object ResourceHandlerTest {
     ).mark(
       ScopeOfWorkConfiguration(
         namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-        account = "test",
+        account = Account(name = "test", accountId = "id"),
         location = "us-east-1",
         resourceType = resource.resourceType,
         cloudProvider = resource.cloudProvider,
@@ -74,7 +74,7 @@ object ResourceHandlerTest {
     val resource = TestResource("testResource")
     val configuration = ScopeOfWorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = "test",
+      account = Account(name = "test", accountId = "id"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -119,7 +119,7 @@ object ResourceHandlerTest {
     val resource = TestResource("marked resource due for deletion now")
     val configuration = ScopeOfWorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = "test",
+      account = Account(name = "test", accountId = "id"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -168,7 +168,7 @@ object ResourceHandlerTest {
     val resource = TestResource("testResource")
     val configuration = ScopeOfWorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = "test",
+      account = Account(name = "test", accountId = "id"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -229,9 +229,7 @@ object ResourceHandlerTest {
     applicationEventPublisher: ApplicationEventPublisher,
     private val simulatedUpstreamResources: MutableList<Resource>?
   ) : AbstractResourceHandler(clock, rules, resourceTrackingRepository, applicationEventPublisher) {
-
-    // simulates removing a resource
-    override fun doDelete(markedResource: MarkedResource) {
+    override fun remove(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }
 

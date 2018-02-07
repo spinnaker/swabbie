@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.orca.tagging
+package com.netflix.spinnaker.swabbie.orca
 
-import com.netflix.spinnaker.swabbie.orca.service.OrcaService
-import com.netflix.spinnaker.swabbie.tagging.Tag
-import com.netflix.spinnaker.swabbie.tagging.TaggingService
+import retrofit.http.*
 
-class EntityTaggingService(
-  private val orcaService: OrcaService
-): TaggingService {
-  override fun tag(resourceId: String, resourceType: String, cloudProvider: String, region: String?, tags: List<Tag>) {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-  }
+interface OrcaService {
+  @POST("/ops")
+  @Headers("Content-Type: application/context+json")
+  fun orchestrate(@Body request: OrchestrationRequest): Map<String, Any>
 
+  @GET("/tasks/{id}")
+  fun getTask(@Path("id") id: String): Map<String, Any>
 }
+
+class OrchestrationRequest(
+  val application: String,
+  val description: String,
+  val job: List<OrcaJob>
+)
+
+class OrcaJob(
+  type: String,
+  context: MutableMap<String, Any?>): HashMap<String, Any?>(context.apply { put("type", type) }
+)

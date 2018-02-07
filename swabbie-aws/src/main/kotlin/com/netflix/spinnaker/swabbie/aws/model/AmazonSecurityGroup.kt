@@ -32,6 +32,7 @@ data class AmazonSecurityGroup
   val ipPermissions: List<IpPermission>?,
   val tags: List<Tag>?,
   override val resourceId: String = groupId,
+  override val name: String = groupName,
   override val resourceType: String = SECURITY_GROUP,
   override val cloudProvider: String = "aws"
 ): Resource()

@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.orca.service
+package com.netflix.spinnaker.swabbie.clouddriver
 
-import retrofit.http.*
+import com.netflix.spinnaker.swabbie.model.Account
+import retrofit.http.GET
 
-interface OrcaService {
-
-  @POST("/ops")
-  @Headers("Content-Type: application/context+json")
-  fun orchestrate(@Body request: Map<String, Any>): Map<String, Any>
-
-  @GET("/tasks/{id}")
-  fun getTask(@Path("id") id: String): Map<String, Any>
+interface CloudDriverService {
+  @GET("/credentials")
+  fun getAccounts(): Set<Account>
 }

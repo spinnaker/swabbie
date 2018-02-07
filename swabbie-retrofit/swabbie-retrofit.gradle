@@ -15,7 +15,6 @@
  */
 
 dependencies {
-  compile project(":swabbie-core")
   compile "com.squareup.retrofit:retrofit:1.+"
   compile "com.squareup.okhttp:okhttp-urlconnection:2.+"
   compile "com.squareup.okhttp:okhttp-apache:2.+"

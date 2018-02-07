@@ -20,6 +20,7 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.Retention
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.config.mergeExclusions
+import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.provider.AccountProvider
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Component
@@ -44,9 +45,9 @@ class ScopeOfWorkConfigurator(
     val globalExclusions: MutableList<Exclusion>? = swabbieProperties.globalExclusions
     swabbieProperties.providers.forEach { cloudProviderConfiguration ->
       cloudProviderConfiguration.resourceTypes.forEach { resourceTypeConfiguration ->
-        accountProvider.getAccounts().forEach { account ->
+        accountProvider.getAccounts().filter { it.name == "test" }.forEach { account ->
           cloudProviderConfiguration.locations.forEach { location ->
-            "${cloudProviderConfiguration.name}:$account:$location:${resourceTypeConfiguration.name}".let { namespace ->
+            "${cloudProviderConfiguration.name}:${account.name}:$location:${resourceTypeConfiguration.name}".let { namespace ->
               _scopeOfWorkConfigurations.add(
                 ScopeOfWork(
                   namespace = namespace,
@@ -81,7 +82,7 @@ data class ScopeOfWork(
 
 data class ScopeOfWorkConfiguration(
   val namespace: String,
-  val account: String,
+  val account: Account,
   val location: String,
   val cloudProvider: String,
   val resourceType: String,

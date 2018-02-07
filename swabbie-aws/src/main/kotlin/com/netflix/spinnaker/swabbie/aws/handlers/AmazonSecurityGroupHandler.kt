@@ -16,11 +16,16 @@
 
 package com.netflix.spinnaker.swabbie.aws.handlers
 
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.aws.provider.AmazonSecurityGroupProvider
 import com.netflix.spinnaker.swabbie.handlers.AbstractResourceHandler
 import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.orca.OrcaJob
+import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -31,14 +36,37 @@ class AmazonSecurityGroupHandler(
   rules: List<Rule>,
   resourceTrackingRepository: ResourceTrackingRepository,
   applicationEventPublisher: ApplicationEventPublisher,
-  private val amazonSecurityGroupProvider: AmazonSecurityGroupProvider
+  private val amazonSecurityGroupProvider: AmazonSecurityGroupProvider,
+  private val orcaService: OrcaService
 ): AbstractResourceHandler(clock, rules, resourceTrackingRepository, applicationEventPublisher) {
-  override fun doDelete(markedResource: MarkedResource) {
-    log.info("This resource is about to be deleted {}", markedResource)
+  override fun remove(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
+    markedResource.resource.let { resource ->
+      if (resource is AmazonSecurityGroup) {
+        log.info("This resource is about to be deleted {}", markedResource)
+        orcaService.orchestrate(
+          OrchestrationRequest(
+            application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+            job = listOf(
+              OrcaJob(
+                type = "deleteSecurityGroup",
+                context = mutableMapOf(
+                  "credentials" to scopeOfWorkConfiguration.account.name,
+                  "securityGroupName" to resource.groupName,
+                  "cloudProvider" to resource.cloudProvider,
+                  "vpcId" to resource.vpcId,
+                  "regions" to listOf(scopeOfWorkConfiguration.location)
+                )
+              )
+            ),
+            description = "Swabbie delete security group ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+          )
+        )
+      }
+    }
   }
 
   override fun getUpstreamResource(markedResource: MarkedResource): Resource {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    return amazonSecurityGroupProvider.getSecurityGroup(markedResource.resourceId)
   }
 
   override fun handles(resourceType: String, cloudProvider: String): Boolean {

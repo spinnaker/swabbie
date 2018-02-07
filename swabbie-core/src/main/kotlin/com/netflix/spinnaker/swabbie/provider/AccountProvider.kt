@@ -16,6 +16,8 @@
 
 package com.netflix.spinnaker.swabbie.provider
 
+import com.netflix.spinnaker.swabbie.model.Account
+
 interface AccountProvider {
-  fun getAccounts(): List<String>
+  fun getAccounts(): Set<Account>
 }

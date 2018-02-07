@@ -17,5 +17,9 @@
 package com.netflix.spinnaker.swabbie.tagging
 
 interface TaggingService {
-  fun tag(resourceId: String, resourceType: String, cloudProvider: String, region: String?, tags: List<Tag>)
+  fun tag(tagRequest: TagRequest)
+  fun removeTag(tagRequest: TagRequest)
 }
+
+interface TagRequest
+interface Tag

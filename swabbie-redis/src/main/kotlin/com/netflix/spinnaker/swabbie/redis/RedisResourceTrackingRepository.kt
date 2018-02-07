@@ -93,7 +93,7 @@ class RedisResourceTrackingRepository(
       resourceKey(id).let { key ->
         getClientForId(key).withCommandsClient { client ->
           client.zrem(ALL_RESOURCES_KEY, id)
-          client.hdel(SINGLE_RESOURCES_KEY, key)
+          client.hdel(SINGLE_RESOURCES_KEY, id)
         }
       }
     }

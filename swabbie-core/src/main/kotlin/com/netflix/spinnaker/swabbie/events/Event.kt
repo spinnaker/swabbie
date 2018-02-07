@@ -22,6 +22,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 const val NOTIFY = "NOTIFY"
 const val UNMARK = "UNMARK"
 const val MARK = "MARK"
+const val DELETE = "DELETE"
 
 abstract class Event(
   open val markedResource: MarkedResource,
@@ -39,3 +40,7 @@ class UnMarkResourceEvent(
 class MarkResourceEvent(
   override val markedResource: MarkedResource
 ): Event(markedResource, MARK)
+
+class DeleteResourceEvent(
+  override val markedResource: MarkedResource
+): Event(markedResource, DELETE)

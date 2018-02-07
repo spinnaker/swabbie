@@ -42,6 +42,7 @@ abstract class Resource: Identifiable {
 
 interface Identifiable {
   val resourceId: String
+  val name: String
   val resourceType: String
   val cloudProvider: String
 }

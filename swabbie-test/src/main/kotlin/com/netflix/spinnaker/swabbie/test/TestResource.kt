@@ -22,5 +22,6 @@ import com.netflix.spinnaker.swabbie.model.Resource
 data class TestResource(
   override val resourceId: String,
   override val resourceType: String = "testResource",
-  override val cloudProvider: String = "testProvider"
+  override val cloudProvider: String = "testProvider",
+  override val name: String = "testResource"
 ): Resource()

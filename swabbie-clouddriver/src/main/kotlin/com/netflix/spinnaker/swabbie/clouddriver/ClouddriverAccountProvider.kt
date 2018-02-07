@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.orca.tagging
+package com.netflix.spinnaker.swabbie.clouddriver
 
-import com.netflix.spinnaker.swabbie.tagging.Tag
+import com.netflix.spinnaker.swabbie.model.Account
+import com.netflix.spinnaker.swabbie.provider.AccountProvider
+import org.springframework.stereotype.Component
 
-data class EntityTag(
-  val name: String,
-  val value: EntityTagValue,
-  val category: String = "Swabbie"
-): Tag
-
-data class EntityTagValue(
-  val message: String,
-  val type: String = "alert"
-)
+@Component
+class ClouddriverAccountProvider(
+  private val cloudDriverService: CloudDriverService
+) : AccountProvider {
+  override fun getAccounts(): Set<Account> {
+    return cloudDriverService.getAccounts()// TODO: cache result in memory
+  }
+}

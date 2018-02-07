@@ -17,39 +17,36 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.okhttp.SpinnakerRequestInterceptor
+import com.netflix.spinnaker.swabbie.clouddriver.CloudDriverService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import retrofit.Endpoint
 import retrofit.Endpoints
-import retrofit.RequestInterceptor
 import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
 @Import(RetrofitConfiguration::class)
-@ComponentScan("com.netflix.spinnaker.swabbie.orca")
-open class OrcaConfiguration {
+open class ClouddriverConfiguration {
   @Bean
-  open fun orcaEndpoint(@Value("\${orca.baseUrl}") orcaBaseUrl: String)
-    = Endpoints.newFixedEndpoint(orcaBaseUrl)
+  open fun clouddriverEndpoint(@Value("\${clouddriver.baseUrl}") clouddriverBaseUrl: String)
+    = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
 
-  @Bean open fun orcaService(orcaEndpoint: Endpoint,
-                             objectMapper: ObjectMapper,
-                             retrofitClient: Client,
-                             spinnakerRequestInterceptor: RequestInterceptor,
-                             retrofitLogLevel: RestAdapter.LogLevel)
+  @Bean open fun clouddriverService(clouddriverEndpoint: Endpoint,
+                                    objectMapper: ObjectMapper,
+                                    retrofitClient: Client,
+                                    spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
+                                    retrofitLogLevel: RestAdapter.LogLevel)
     = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
-    .setEndpoint(orcaEndpoint)
+    .setEndpoint(clouddriverEndpoint)
     .setClient(retrofitClient)
     .setLogLevel(retrofitLogLevel)
     .setConverter(JacksonConverter(objectMapper))
     .build()
-    .create(OrcaService::class.java)
-
+    .create(CloudDriverService::class.java)
 }

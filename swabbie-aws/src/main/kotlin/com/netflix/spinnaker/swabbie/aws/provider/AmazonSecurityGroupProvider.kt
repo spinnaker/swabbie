@@ -21,14 +21,19 @@ import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.provider.SecurityGroupProvider
 import com.netflix.spinnaker.swabbie.aws.service.EddaService
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import org.springframework.stereotype.Component
 
 @Component
-open class AmazonSecurityGroupProvider(
+open class AmazonSecurityGroupProvider( //TODO: this is for testing only
   private val eddaService: EddaService,
   private val objectMapper: ObjectMapper
 ): SecurityGroupProvider {
+  override fun getSecurityGroup(groupId: String): Resource {
+    var map = eddaService.getSecurityGroup(groupId)
+    map += mapOf("type" to "amazonSecurityGroup")
+    return objectMapper.readValue(objectMapper.writeValueAsString(map), AmazonSecurityGroup::class.java)
+  }
+
   override fun getSecurityGroups(filters: Map<String, Any>): List<Resource> {
     //TODO: precalculate edda clients by region. hardcoded to us-east-1, test
     //TODO: need to be able to keep a local cache of resources

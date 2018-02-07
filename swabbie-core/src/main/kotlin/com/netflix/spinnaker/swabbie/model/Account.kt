@@ -14,15 +14,9 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws.provider
+package com.netflix.spinnaker.swabbie.model
 
-import com.netflix.spinnaker.swabbie.provider.AccountProvider
-import org.springframework.stereotype.Component
-
-@Component
-class AmazonAccountProvider : AccountProvider {
-  override fun getAccounts(): List<String> {
-    return listOf("test") //TODO: should get accounts from Spinnaker
-  }
-
-}
+data class Account(
+  val name: String,
+  val accountId: String?
+)

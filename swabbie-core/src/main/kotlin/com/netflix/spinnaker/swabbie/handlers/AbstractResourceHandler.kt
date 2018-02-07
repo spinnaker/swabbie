@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.handlers
 
 import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
@@ -113,13 +114,13 @@ abstract class AbstractResourceHandler(
               log.info("Preparing deletion of {}. dryRun {}", markedResource, scopeOfWorkConfiguration.dryRun)
               if (markedResource.adjustedDeletionStamp != null && !scopeOfWorkConfiguration.dryRun) {
                 resourceTrackingRepository.remove(markedResource)
-                applicationEventPublisher.publishEvent(NotifyOwnerEvent(markedResource))
-                doDelete(markedResource)
+                applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource))
+                remove(markedResource, scopeOfWorkConfiguration)
               }
             }
           }
       }
   }
 
-  abstract fun doDelete(markedResource: MarkedResource)
+  abstract fun remove(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
 }

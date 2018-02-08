@@ -16,31 +16,52 @@
 
 package com.netflix.spinnaker.swabbie.events
 
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 
 
-const val NOTIFY = "NOTIFY"
-const val UNMARK = "UNMARK"
-const val MARK = "MARK"
-const val DELETE = "DELETE"
+const val NOTIFY  = "NOTIFY"
+const val UNMARK  = "UNMARK"
+const val MARK    = "MARK"
+const val DELETE  = "DELETE"
 
 abstract class Event(
+  val name: String,
   open val markedResource: MarkedResource,
-  val name: String
-)
+  open val scopeOfWorkConfiguration: ScopeOfWorkConfiguration
+) {
+  override fun equals(other: Any?): Boolean {
+    if (other is Event) {
+      return name == other.name && other.markedResource == markedResource
+        && scopeOfWorkConfiguration == other.scopeOfWorkConfiguration
+    }
+    return super.equals(other)
+  }
+
+  override fun hashCode(): Int {
+    var result = name.hashCode()
+    result = 31 * result + markedResource.hashCode()
+    result = 31 * result + scopeOfWorkConfiguration.hashCode()
+    return result
+  }
+}
 
 class NotifyOwnerEvent(
-  override val markedResource: MarkedResource
-): Event(markedResource, NOTIFY)
+  override val markedResource: MarkedResource,
+  override val scopeOfWorkConfiguration: ScopeOfWorkConfiguration
+): Event(NOTIFY, markedResource, scopeOfWorkConfiguration)
 
 class UnMarkResourceEvent(
-  override val markedResource: MarkedResource
-): Event(markedResource, UNMARK)
+  override val markedResource: MarkedResource,
+  override val scopeOfWorkConfiguration: ScopeOfWorkConfiguration
+): Event(UNMARK, markedResource, scopeOfWorkConfiguration)
 
 class MarkResourceEvent(
-  override val markedResource: MarkedResource
-): Event(markedResource, MARK)
+  override val markedResource: MarkedResource,
+  override val scopeOfWorkConfiguration: ScopeOfWorkConfiguration
+): Event(MARK, markedResource, scopeOfWorkConfiguration)
 
 class DeleteResourceEvent(
-  override val markedResource: MarkedResource
-): Event(markedResource, DELETE)
+  override val markedResource: MarkedResource,
+  override val scopeOfWorkConfiguration: ScopeOfWorkConfiguration
+): Event(DELETE, markedResource, scopeOfWorkConfiguration)

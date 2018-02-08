@@ -48,7 +48,7 @@ class ResourceCleanerAgent(
           ?.filter { it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
           ?.forEach {
             it.takeIf {
-              lockManager.acquireLock("{swabbie:clean}:${it.namespace}", lockTtlSeconds = 3600)
+              lockManager.acquire(locksName(PREFIX, it.namespace), lockTtlSeconds = 3600)
             }?.let { markedResource ->
                 resourceHandlers.find {
                   handler -> handler.handles(markedResource.resourceType, markedResource.cloudProvider)
@@ -61,6 +61,7 @@ class ResourceCleanerAgent(
                       scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.let { scopeOfWork ->
                         executor.execute {
                           handler.clean(markedResource, scopeOfWork.configuration)
+                          lockManager.release(locksName(PREFIX, it.namespace))
                         }
                       }
                     }
@@ -72,4 +73,6 @@ class ResourceCleanerAgent(
       }
     }
   }
+
+  private val PREFIX = "{swabbie:mark}"
 }

@@ -16,8 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.listeners
 
-
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.Event
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
@@ -34,7 +32,6 @@ import java.time.Clock
 @Component
 class ResourceStateEventListener(
   private val resourceStateRepository: ResourceStateRepository,
-  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
   private val clock: Clock,
   @Autowired(required = false) private val resourceTagger: ResourceTagger?
 ) {
@@ -42,35 +39,23 @@ class ResourceStateEventListener(
   fun onMarkResourceEvent(event: MarkResourceEvent) {
     event.let { e->
       updateState(e)
-      scopeOfWorkConfigurator.list()
-        .find { it.namespace == e.markedResource.namespace }
-        ?.let { config ->
-          resourceTagger?.tag(e.markedResource, config.configuration)
-        }
-      }
+      resourceTagger?.tag(e.markedResource, event.scopeOfWorkConfiguration)
+    }
   }
 
   @EventListener(UnMarkResourceEvent::class)
   fun onUnMarkResourceEvent(event: MarkResourceEvent) {
     event.let { e ->
       updateState(e)
-      scopeOfWorkConfigurator.list()
-        .find { it.namespace == e.markedResource.namespace }
-        ?.let { config ->
-          resourceTagger?.unTag(e.markedResource, config.configuration)
-        }
-      }
+      resourceTagger?.unTag(e.markedResource, event.scopeOfWorkConfiguration)
+    }
   }
 
   @EventListener(DeleteResourceEvent::class)
-  fun onDeleteResourceEvent(event: MarkResourceEvent) {
+  fun onDeleteResourceEvent(event: DeleteResourceEvent) {
     event.let { e ->
       updateState(e)
-      scopeOfWorkConfigurator.list()
-        .find { it.namespace == e.markedResource.namespace }
-        ?.let { config ->
-          resourceTagger?.unTag(e.markedResource, config.configuration)
-        }
+      resourceTagger?.unTag(e.markedResource, event.scopeOfWorkConfiguration)
     }
   }
 

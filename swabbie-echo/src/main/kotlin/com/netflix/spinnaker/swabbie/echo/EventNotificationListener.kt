@@ -18,15 +18,14 @@ package com.netflix.spinnaker.swabbie.echo
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
+import com.netflix.spinnaker.swabbie.messageSubjectAndBody
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.Instant
-import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 @Component
@@ -52,7 +51,7 @@ class EventNotificationListener(
             val notificationInstant = Instant.now(clock)
             // offset termination time with when resource was first marked
             val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
-            log.info("Adjusting deletion time to {}", (offset + markedResource.projectedDeletionStamp).toLocalDate())
+            log.info("Adjusting deletion time to {}", offset + markedResource.projectedDeletionStamp)
             markedResource.apply {
               this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
               this.notificationInfo = NotificationInfo(
@@ -61,7 +60,7 @@ class EventNotificationListener(
                 notificationType = EchoService.Notification.Type.EMAIL.name
               )
             }.let { updatedMarkedResource ->
-                val (subject, body) = messageSubjectAndBody(updatedMarkedResource)
+                val (subject, body) = messageSubjectAndBody(updatedMarkedResource, clock)
                 echoService.create(EchoService.Notification(
                   notificationType = EchoService.Notification.Type.EMAIL,
                   to = listOf(owner),
@@ -86,30 +85,4 @@ class EventNotificationListener(
       }
     }
   }
-
-  private fun Long.toLocalDate(): LocalDate {
-    return Instant.ofEpochMilli(this)
-      .atZone(clock.zone)
-      .toLocalDate()
-  }
-
-  private fun messageSubjectAndBody(markedResource: MarkedResource): EmailSubjectAndBody {
-    val optOutUrl = ""// TODO: add endpoint. Configurable
-    return EmailSubjectAndBody(
-      subject = "Resource ${markedResource.resourceId} scheduled for deletion",
-      body = markedResource.summaries
-        .joinToString(", ") {
-          it.description
-        }.let { violationSummary ->
-        "<h2>This resource is scheduled to be deleted on ${markedResource.adjustedDeletionStamp!!.toLocalDate()}</h2> <br /> \n " +
-          "* $violationSummary <br /> \n" +
-          "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
-      }
-    )
-  }
-
-  data class EmailSubjectAndBody(
-    val subject: String,
-    val body: String
-  )
 }

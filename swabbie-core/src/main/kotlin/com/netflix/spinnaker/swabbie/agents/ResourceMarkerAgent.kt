@@ -44,7 +44,7 @@ class ResourceMarkerAgent(
         log.info("Resource markers started...")
         scopeOfWorkConfigurator.list().forEach {
           it.takeIf {
-            lockManager.acquireLock("{swabbie:mark}:${it.namespace}", lockTtlSeconds = 3600)
+            lockManager.acquire(locksName(PREFIX, it.namespace), lockTtlSeconds = 3600)
           }?.let { scopeOfWork ->
               resourceHandlers.find { handler ->
                 handler.handles(scopeOfWork.configuration.resourceType, scopeOfWork.configuration.cloudProvider)
@@ -56,6 +56,7 @@ class ResourceMarkerAgent(
                   } else {
                     executor.execute {
                       handler.mark(scopeOfWork.configuration)
+                      lockManager.release(locksName(PREFIX, scopeOfWork.namespace))
                     }
                   }
                 }
@@ -67,4 +68,6 @@ class ResourceMarkerAgent(
       }
     }
   }
+
+  private val PREFIX = "{swabbie:mark}"
 }

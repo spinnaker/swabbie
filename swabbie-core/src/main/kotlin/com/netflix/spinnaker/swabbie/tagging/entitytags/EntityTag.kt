@@ -43,13 +43,13 @@ data class UpsertEntityTagsRequest(
   val entityRef: EntityRef?,
   val tags: List<EntityTag>?,
   override val application: String,
-  override val description: String = "Swabbie tagging"
+  override val description: String = "Resource marked as cleanup candidate"
 ): EntityTagRequest("upsertEntityTags", application, description)
 
 data class DeleteEntityTagsRequest(
   val id: String,
   override val application: String,
-  override val description: String = "Swabbie removing tag"
+  override val description: String = "Removing swabbie tag"
 ): EntityTagRequest("deleteEntityTags", application, description)
 
 open class EntityTagRequest(

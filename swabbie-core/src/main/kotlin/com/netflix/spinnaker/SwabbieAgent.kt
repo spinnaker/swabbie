@@ -17,5 +17,6 @@
 package com.netflix.spinnaker
 
 interface SwabbieAgent {
+  fun locksName(prefix: String,  namespace: String) = "$prefix:$namespace"
   fun execute()
 }

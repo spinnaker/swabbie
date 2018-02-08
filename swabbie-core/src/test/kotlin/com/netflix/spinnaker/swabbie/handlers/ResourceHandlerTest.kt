@@ -20,7 +20,8 @@ import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.Retention
 import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
-import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
+import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
+import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
@@ -70,7 +71,7 @@ object ResourceHandlerTest {
   }
 
   @Test
-  fun `should update already tracked resource if still invalid and don't notify user again`() {
+  fun `should update already tracked resource if still invalid and don't generate a mark event again`() {
     val resource = TestResource("testResource")
     val configuration = ScopeOfWorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
@@ -109,7 +110,7 @@ object ResourceHandlerTest {
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(configuration)
 
-    verify(applicationEventPublisher, never()).publishEvent(NotifyOwnerEvent(markedResource))
+    verify(applicationEventPublisher, never()).publishEvent(MarkResourceEvent(markedResource, configuration))
     verify(resourceRepository).upsert(any(), any())
   }
 
@@ -157,7 +158,6 @@ object ResourceHandlerTest {
       simulatedUpstreamResources = fetchedResources
     ).clean(markedResource, configuration)
 
-    verify(applicationEventPublisher, never()).publishEvent(NotifyOwnerEvent(markedResource))
     verify(resourceRepository, never()).upsert(any(), any())
     fetchedResources.size shouldMatch equalTo(0)
     verify(resourceRepository).remove(any())
@@ -204,7 +204,7 @@ object ResourceHandlerTest {
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(configuration)
 
-    verify(applicationEventPublisher, never()).publishEvent(NotifyOwnerEvent(markedResource))
+    verify(applicationEventPublisher).publishEvent(UnMarkResourceEvent(markedResource, configuration))
     verify(resourceRepository, never()).upsert(any(), any())
     verify(resourceRepository).remove(any())
   }

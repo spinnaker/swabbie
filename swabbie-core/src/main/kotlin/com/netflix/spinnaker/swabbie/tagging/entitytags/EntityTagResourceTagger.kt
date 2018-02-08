@@ -20,12 +20,15 @@ import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import com.netflix.spinnaker.swabbie.tagMessage
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import org.springframework.stereotype.Component
+import java.time.Clock
 
 @Component
 class EntityTagResourceTagger(
-  private val taggingService: EntityTaggingService
+  private val taggingService: EntityTaggingService,
+  private val clock: Clock
 ): ResourceTagger {
   override fun tag(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
     markedResource
@@ -41,8 +44,8 @@ class EntityTagResourceTagger(
           ),
           tags = listOf(
             EntityTag(
-              namespace = scopeOfWorkConfiguration.namespace,
-              value = Value(markedResource.summaries.map { it.description }.joinToString { "," })
+              namespace = "swabbie:${scopeOfWorkConfiguration.namespace.toLowerCase()}",
+              value = Value(message = tagMessage(it, clock))
             )
           ),
           application = FriggaReflectiveNamer().deriveMoniker(markedResource).app

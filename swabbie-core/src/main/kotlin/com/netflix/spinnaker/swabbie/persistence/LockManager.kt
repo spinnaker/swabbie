@@ -17,5 +17,6 @@
 package com.netflix.spinnaker.swabbie.persistence
 
 interface LockManager {
-  fun acquireLock(name: String, lockTtlSeconds: Long): Boolean
+  fun acquire(name: String, lockTtlSeconds: Long): Boolean
+  fun release(name: String)
 }

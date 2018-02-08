@@ -17,7 +17,10 @@
 package com.netflix.spinnaker.swabbie.echo
 
 import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spinnaker.config.Retention
+import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
+import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
@@ -36,6 +39,17 @@ object EventNotificationListenerTest {
   private val clock = Clock.systemDefaultZone()
   private val listener = EventNotificationListener(echoService, resourceRepository, registry, clock)
 
+  private val resource = TestResource("testResource")
+  private val scopeOfWorkConfiguration = ScopeOfWorkConfiguration(
+    namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+    account = Account(name = "test", accountId = "accountId"),
+    location = "us-east-1",
+    cloudProvider = "aws",
+    resourceType = "securityGroup",
+    retention = Retention(days = 10, ageThresholdDays = 2),
+    exclusions = emptyList()
+  )
+
   @AfterEach
   fun cleanup() {
     reset(echoService, resourceRepository)
@@ -43,17 +57,19 @@ object EventNotificationListenerTest {
 
   @Test
   fun `should notify`() {
-    val resource = TestResource("testResource")
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("violates rule 1", "ruleName")),
-      namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      namespace = scopeOfWorkConfiguration.namespace,
       projectedDeletionStamp = System.currentTimeMillis(),
       adjustedDeletionStamp = null,
       createdTs = Instant.now(clock).toEpochMilli()
     )
 
-    listener.onNotifyOwnerEvent(NotifyOwnerEvent(markedResource))
+    listener.onNotifyOwnerEvent(
+      NotifyOwnerEvent(markedResource, scopeOfWorkConfiguration)
+    )
+
     verify(echoService).create(any())
     verify(resourceRepository).upsert(any(), any())
   }
@@ -61,7 +77,6 @@ object EventNotificationListenerTest {
   @Test
   fun `should not notify`() {
     val notificationInfo = NotificationInfo(recipient = "yolo@netflix.com", notificationStamp = clock.instant().toEpochMilli())
-    val resource = TestResource("testResource")
     listener.onNotifyOwnerEvent(
       NotifyOwnerEvent(
         MarkedResource(
@@ -71,7 +86,8 @@ object EventNotificationListenerTest {
           projectedDeletionStamp = System.currentTimeMillis(),
           adjustedDeletionStamp = System.currentTimeMillis(),
           notificationInfo = notificationInfo
-        )
+        ),
+        scopeOfWorkConfiguration
       )
     )
 

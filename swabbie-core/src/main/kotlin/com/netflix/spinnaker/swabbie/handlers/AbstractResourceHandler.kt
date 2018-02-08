@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.handlers
 import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.model.*
@@ -58,7 +57,7 @@ abstract class AbstractResourceHandler(
                 if (trackedMarkedResource != null && violationSummaries.isEmpty() && !scopeOfWorkConfiguration.dryRun) {
                   log.info("forgetting now valid {} resource", upstreamResource)
                   resourceTrackingRepository.remove(trackedMarkedResource)
-                  applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource))
+                  applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource, scopeOfWorkConfiguration))
                 } else if (!violationSummaries.isEmpty()) {
                   log.info("found cleanup candidate {} of type {}, violations {}, dryRyn {}",
                     upstreamResource, scopeOfWorkConfiguration.resourceType, violationSummaries, scopeOfWorkConfiguration.dryRun)
@@ -80,8 +79,9 @@ abstract class AbstractResourceHandler(
                     ).let {
                         if (!scopeOfWorkConfiguration.dryRun) {
                           resourceTrackingRepository.upsert(it)
-                          applicationEventPublisher.publishEvent(MarkResourceEvent(it))
-                          applicationEventPublisher.publishEvent(NotifyOwnerEvent(it))
+                          if (trackedMarkedResource != null) {
+                            applicationEventPublisher.publishEvent(MarkResourceEvent(it, scopeOfWorkConfiguration))
+                          }
                         }
                       }
                     }
@@ -107,15 +107,15 @@ abstract class AbstractResourceHandler(
             it.apply(upstreamResource).summary
           }.let { violationSummaries ->
             if (violationSummaries.isEmpty() && !scopeOfWorkConfiguration.dryRun) {
-              applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource))
+              applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource,scopeOfWorkConfiguration))
               resourceTrackingRepository.remove(markedResource)
             } else {
               // adjustedDeletionStamp is the adjusted projectedDeletionStamp after notification is sent
               log.info("Preparing deletion of {}. dryRun {}", markedResource, scopeOfWorkConfiguration.dryRun)
               if (markedResource.adjustedDeletionStamp != null && !scopeOfWorkConfiguration.dryRun) {
-                resourceTrackingRepository.remove(markedResource)
-                applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource))
                 remove(markedResource, scopeOfWorkConfiguration)
+                resourceTrackingRepository.remove(markedResource)
+                applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, scopeOfWorkConfiguration))
               }
             }
           }

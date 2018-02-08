@@ -41,14 +41,15 @@ class NotificationAgent(
     discoverySupport.ifUP {
       try {
         log.info("Notification Agent Started ...")
-        resourceTrackingRepository.getMarkedResourcesToDelete()
+        resourceTrackingRepository.getMarkedResources()
           ?.forEach { markedResource ->
             markedResource.takeIf {
-              lockManager.acquireLock("{swabbie:notify}:${it.namespace}", lockTtlSeconds = 3600)
+              lockManager.acquire(locksName(PREFIX, it.namespace), lockTtlSeconds = 3600)
             }?.let {
+                //TODO: refactor to send notifications in bulk. map user to a list of resources & send a notification for all
                 scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.let { scopeOfWork ->
                   if (!scopeOfWork.configuration.dryRun) {
-                    applicationEventPublisher.publishEvent(NotifyOwnerEvent(it))
+                    applicationEventPublisher.publishEvent(NotifyOwnerEvent(it, scopeOfWork.configuration))
                   }
                 }
               }
@@ -58,4 +59,6 @@ class NotificationAgent(
       }
     }
   }
+
+  private val PREFIX = "{swabbie:notify}"
 }

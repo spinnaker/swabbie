@@ -16,6 +16,8 @@
 
 package com.netflix.spinnaker.swabbie.aws.model
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter
+import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
@@ -26,50 +28,20 @@ data class AmazonSecurityGroup
   val groupId: String,
   val groupName: String,
   val description: String?,
-  val vpcId: String,
+  val vpcId: String?,
   val ownerId: String,
-  val ipPermissionsEgress: List<IpPermissionsEgress>?,
-  val ipPermissions: List<IpPermission>?,
-  val tags: List<Tag>?,
   override val resourceId: String = groupId,
   override val name: String = groupName,
   override val resourceType: String = SECURITY_GROUP,
   override val cloudProvider: String = "aws"
-): Resource()
+): Resource() {
+  val details: MutableMap<String, Any?> = mutableMapOf()
 
-data class IpPermissionsEgress(
-  val ipProtocol: String,
-  val ipV4Ranges: List<IpV4Range>?,
-  val ipV6Ranges: List<IpV6Range>?,
-  val userIdGroupPairs: List<UserIdGroupPair>?,
-  val prefixListIds: List<String>?
-)
+  @JsonAnySetter
+  fun set(name: String, value: Any?) {
+    details[name] = value
+  }
 
-data class IpV6Range(
-  val cidrIpV6: String,
-  val description: String?
-)
-
-data class IpV4Range(
-  val cidrIpV4: String,
-  val description: String?
-)
-
-data class IpPermission(
-  val ipProtocol: String,
-  val fromPort: Int?,
-  val toPort: Int?,
-  val ipV4Ranges: List<IpV4Range>?,
-  val ipV6Ranges: List<IpV6Range>?,
-  val userIdGroupPairs: List<UserIdGroupPair>?
-)
-
-data class UserIdGroupPair(
-  val userId: String,
-  val groupId: String
-)
-
-data class Tag(
-  val key: String,
-  val value: String
-)
+  @JsonAnyGetter
+  fun details() = details
+}

@@ -79,7 +79,7 @@ abstract class AbstractResourceHandler(
                     ).let {
                         if (!scopeOfWorkConfiguration.dryRun) {
                           resourceTrackingRepository.upsert(it)
-                          if (trackedMarkedResource != null) {
+                          if (trackedMarkedResource == null) {
                             applicationEventPublisher.publishEvent(MarkResourceEvent(it, scopeOfWorkConfiguration))
                           }
                         }
@@ -99,7 +99,7 @@ abstract class AbstractResourceHandler(
    * deletes violating resources
    */
   override fun clean(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
-    getUpstreamResource(markedResource)
+    getUpstreamResource(markedResource, scopeOfWorkConfiguration)
       ?.let { upstreamResource ->
         rules
           .filter { it.applies(upstreamResource) }

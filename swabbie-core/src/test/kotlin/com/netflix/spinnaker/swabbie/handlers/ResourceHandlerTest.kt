@@ -234,7 +234,7 @@ object ResourceHandlerTest {
     }
 
     // simulates querying for a resource upstream
-    override fun getUpstreamResource(markedResource: MarkedResource): Resource? {
+    override fun getUpstreamResource(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration): Resource? {
       return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId}
     }
 

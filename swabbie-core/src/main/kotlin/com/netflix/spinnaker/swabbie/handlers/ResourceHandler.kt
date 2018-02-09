@@ -23,7 +23,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 interface ResourceHandler {
   fun handles(resourceType: String, cloudProvider: String): Boolean
   fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>?
-  fun getUpstreamResource(markedResource: MarkedResource): Resource?
+  fun getUpstreamResource(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration): Resource?
 
   fun mark(scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
   fun clean(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)

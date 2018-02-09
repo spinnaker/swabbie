@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,17 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws.service
-
-import retrofit.http.GET
-import retrofit.http.Path
-
-
-//TODO: jeyrs move to -nflx
-interface EddaService {
-  @GET("/api/v2/aws/securityGroups/{groupId}")
-  fun getSecurityGroup(@Path("groupId") groupId: String): Map<String, Any>
-
-  @GET("/api/v2/aws/securityGroups")
-  fun getSecurityGroupIds(): List<String>
+dependencies {
+  compile project(":swabbie-aws")
+  testCompile project(":swabbie-test")
 }

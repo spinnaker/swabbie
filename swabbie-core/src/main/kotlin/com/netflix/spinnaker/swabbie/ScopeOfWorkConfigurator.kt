@@ -50,9 +50,9 @@ class ScopeOfWorkConfigurator(
             "${cloudProviderConfiguration.name}:${account.name}:$location:${resourceTypeConfiguration.name}".let { namespace ->
               _scopeOfWorkConfigurations.add(
                 ScopeOfWork(
-                  namespace = namespace,
+                  namespace = namespace.toLowerCase(),
                   configuration = ScopeOfWorkConfiguration(
-                    namespace = namespace,
+                    namespace = namespace.toLowerCase(),
                     account = account,
                     location = location,
                     cloudProvider = cloudProviderConfiguration.name,

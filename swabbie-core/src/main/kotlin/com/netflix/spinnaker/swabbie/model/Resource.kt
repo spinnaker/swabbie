@@ -16,15 +16,12 @@
 
 package com.netflix.spinnaker.swabbie.model
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-
 /** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"
 
 /** Provider Types **/
 const val AWS = "aws"
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", include = JsonTypeInfo.As.PROPERTY)
 abstract class Resource: Identifiable {
   override fun equals(other: Any?): Boolean {
     if (this === other) {

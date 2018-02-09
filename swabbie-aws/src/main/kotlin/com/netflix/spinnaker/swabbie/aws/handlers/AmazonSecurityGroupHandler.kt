@@ -20,12 +20,12 @@ import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.aws.provider.AmazonSecurityGroupProvider
 import com.netflix.spinnaker.swabbie.handlers.AbstractResourceHandler
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
+import com.netflix.spinnaker.swabbie.provider.SecurityGroupProvider
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -36,7 +36,7 @@ class AmazonSecurityGroupHandler(
   rules: List<Rule>,
   resourceTrackingRepository: ResourceTrackingRepository,
   applicationEventPublisher: ApplicationEventPublisher,
-  private val amazonSecurityGroupProvider: AmazonSecurityGroupProvider,
+  private val securityGroupProvider: SecurityGroupProvider,
   private val orcaService: OrcaService
 ): AbstractResourceHandler(clock, rules, resourceTrackingRepository, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
@@ -65,22 +65,18 @@ class AmazonSecurityGroupHandler(
     }
   }
 
-  override fun getUpstreamResource(markedResource: MarkedResource): Resource {
-    return amazonSecurityGroupProvider.getSecurityGroup(markedResource.resourceId)
-  }
-
-  override fun handles(resourceType: String, cloudProvider: String): Boolean {
-    return resourceType == SECURITY_GROUP && cloudProvider == AWS
-  }
-
-  override fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource> {
-    //TODO: -r jeyrs apply exclusion rules to filter out resources
-
-    return amazonSecurityGroupProvider.getSecurityGroups(
-      filters = mapOf(
-        "region" to scopeOfWorkConfiguration.location,
-        "account" to scopeOfWorkConfiguration.account
-      )
+  override fun getUpstreamResource(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration): Resource?
+    = securityGroupProvider.getSecurityGroup(
+      groupId = markedResource.resourceId,
+      account = scopeOfWorkConfiguration.account.name,
+      region = scopeOfWorkConfiguration.location
     )
-  }
+
+  override fun handles(resourceType: String, cloudProvider: String): Boolean = resourceType == SECURITY_GROUP && cloudProvider == AWS
+
+  override fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>?
+    = securityGroupProvider.getSecurityGroups(
+      account = scopeOfWorkConfiguration.account.name,
+      region = scopeOfWorkConfiguration.location
+    )
 }

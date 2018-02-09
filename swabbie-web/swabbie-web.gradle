@@ -38,6 +38,7 @@ dependencies {
   compile project(":swabbie-aws")
   compile project(":swabbie-redis")
   compile project(":swabbie-echo")
+  compile project(":swabbie-edda")
   compile project(":swabbie-clouddriver")
 }
 

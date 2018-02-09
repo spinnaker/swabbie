@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.config
+package com.netflix.spinnaker.swabbie.edda.service
 
-import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
-import org.springframework.context.annotation.ComponentScan
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Import
+import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
+import retrofit.http.GET
+import retrofit.http.Path
 
-@Configuration
-@ComponentScan(basePackages = arrayOf(
-  "com.netflix.spinnaker.swabbie.aws",
-  "com.netflix.spinnaker.swabbie.edda"
-))
-@Import(SwabbieRetrofitConfiguration::class)
-open class AwsConfiguration
+
+//TODO: jeyrs move to -nflx
+interface EddaService {
+  @GET("/api/v2/aws/securityGroups/{groupId}")
+  fun getSecurityGroup(@Path("groupId") groupId: String): AmazonSecurityGroup
+
+  @GET("/api/v2/aws/securityGroups")
+  fun getSecurityGroupIds(): List<String>
+}

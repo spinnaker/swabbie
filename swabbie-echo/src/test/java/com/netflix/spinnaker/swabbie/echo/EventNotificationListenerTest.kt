@@ -17,8 +17,7 @@
 package com.netflix.spinnaker.swabbie.echo
 
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.Retention
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
@@ -46,7 +45,7 @@ object EventNotificationListenerTest {
     location = "us-east-1",
     cloudProvider = "aws",
     resourceType = "securityGroup",
-    retention = Retention(days = 10, ageThresholdDays = 2),
+    retentionDays = 14,
     exclusions = emptyList()
   )
 

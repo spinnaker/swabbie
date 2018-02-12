@@ -59,7 +59,7 @@ class RedisResourceStateRepository(
   }
 
   override fun get(resourceId: String, namespace: String): ResourceState? {
-    statesKey("$namespace:$resourceId").let { key ->
+    "$namespace:$resourceId".let { key ->
       return getClientForId(key).run {
         this.withCommandsClient<String> { client ->
           client.hget(SINGLE_STATE_KEY, key)

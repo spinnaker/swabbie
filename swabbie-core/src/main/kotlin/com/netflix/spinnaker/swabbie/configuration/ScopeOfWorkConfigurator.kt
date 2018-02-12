@@ -14,26 +14,25 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.configuration
 
 import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.config.Retention
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.config.mergeExclusions
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.provider.AccountProvider
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Component
-
+import javax.annotation.PostConstruct
 
 @Component
 @EnableConfigurationProperties(SwabbieProperties::class)
 class ScopeOfWorkConfigurator(
-  swabbieProperties: SwabbieProperties,
+  private val swabbieProperties: SwabbieProperties,
   private val accountProvider: AccountProvider
 ) {
   private var _scopeOfWorkConfigurations = mutableListOf<ScopeOfWork>()
-  fun list(): MutableList<ScopeOfWork> {
+  fun list(): List<ScopeOfWork> {
     return _scopeOfWorkConfigurations
   }
 
@@ -41,8 +40,9 @@ class ScopeOfWorkConfigurator(
    * Configuration namespace/id format is {cloudProvider}:{account}:{location}:{resourceType}
    * locations in aws are regions
    */
-  init {
-    val globalExclusions: MutableList<Exclusion>? = swabbieProperties.globalExclusions
+
+  @PostConstruct
+  fun configure() {
     swabbieProperties.providers.forEach { cloudProviderConfiguration ->
       cloudProviderConfiguration.resourceTypes.forEach { resourceTypeConfiguration ->
         accountProvider.getAccounts().filter { it.name == "test" }.forEach { account ->
@@ -57,8 +57,8 @@ class ScopeOfWorkConfigurator(
                     location = location,
                     cloudProvider = cloudProviderConfiguration.name,
                     resourceType = resourceTypeConfiguration.name,
-                    retention = resourceTypeConfiguration.retention,
-                    exclusions = mergeExclusions(globalExclusions, resourceTypeConfiguration.exclusions),
+                    retentionDays = resourceTypeConfiguration.retentionDays,
+                    exclusions = mergeExclusions(cloudProviderConfiguration.exclusions, resourceTypeConfiguration.exclusions),
                     dryRun = resourceTypeConfiguration.dryRun
                   )
                 )
@@ -86,7 +86,7 @@ data class ScopeOfWorkConfiguration(
   val location: String,
   val cloudProvider: String,
   val resourceType: String,
-  val retention: Retention,
+  val retentionDays: Int,
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true
 )

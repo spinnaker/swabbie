@@ -16,18 +16,25 @@
 
 package com.netflix.spinnaker.swabbie.model
 
+import com.fasterxml.jackson.annotation.JsonTypeName
+
 /** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"
 
 /** Provider Types **/
 const val AWS = "aws"
 
+const val RESOURCE_TYPE_INFO_FIELD =  "swabbieTypeInfo"
+
+/**
+ * subtypes specify type by annotating with JsonTypeName
+ */
 abstract class Resource: Identifiable {
+  val swabbieTypeInfo: String = javaClass.getAnnotation(JsonTypeName::class.java).value
   override fun equals(other: Any?): Boolean {
     if (this === other) {
       return true
     }
-
     return other is Resource &&
       other.resourceId == this.resourceId && other.resourceType == this.resourceId
   }

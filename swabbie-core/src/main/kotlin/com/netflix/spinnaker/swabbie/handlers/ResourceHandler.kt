@@ -16,7 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.handlers
 
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 

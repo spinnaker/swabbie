@@ -21,10 +21,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import com.netflix.spinnaker.config.Retention
+import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.junit.jupiter.api.AfterAll
@@ -45,6 +45,7 @@ object RedisResourceTrackingRepositoryTest {
   private val objectMapper = ObjectMapper().apply {
     registerSubtypes(TestResource::class.java)
     registerModule(KotlinModule())
+    registerModule(resourceDeserializerModule())
     disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
   }
 
@@ -63,7 +64,7 @@ object RedisResourceTrackingRepositoryTest {
     embeddedRedis.destroy()
   }
 
-//  @Test
+  @Test
   fun `removing a resource should work`() {
     val configuration = ScopeOfWorkConfiguration(
       namespace = "configId",
@@ -71,7 +72,7 @@ object RedisResourceTrackingRepositoryTest {
       location = "us-east-1",
       resourceType = "testResourceType",
       cloudProvider = AWS,
-      retention = Retention(),
+      retentionDays = 14,
       exclusions = emptyList()
     )
 
@@ -98,7 +99,7 @@ object RedisResourceTrackingRepositoryTest {
     }
   }
 
-//  @Test
+  @Test
   fun `fetch all tracked resources and resources to delete`() {
     val now = Instant.now(clock)
     val twoDaysFromNow = now.plus(2, ChronoUnit.DAYS)
@@ -108,7 +109,7 @@ object RedisResourceTrackingRepositoryTest {
       location = "us-east-1",
       resourceType = "testResourceType",
       cloudProvider = AWS,
-      retention = Retention(),
+      retentionDays = 14,
       exclusions = emptyList()
     )
 

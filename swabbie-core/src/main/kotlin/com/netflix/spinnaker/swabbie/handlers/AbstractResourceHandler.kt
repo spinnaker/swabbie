@@ -16,7 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.handlers
 
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
@@ -63,7 +63,7 @@ abstract class AbstractResourceHandler(
                     upstreamResource, scopeOfWorkConfiguration.resourceType, violationSummaries, scopeOfWorkConfiguration.dryRun)
                   LocalDate.now(clock).with { today ->
                     today.plus(
-                      Period.ofDays(scopeOfWorkConfiguration.retention.days + scopeOfWorkConfiguration.retention.ageThresholdDays)
+                      Period.ofDays(scopeOfWorkConfiguration.retentionDays)
                     )
                   }.let { projectedDeletionDate ->
                       log.info("Projected deletion date for resource {} is {}, dryRun {}", projectedDeletionDate, upstreamResource, scopeOfWorkConfiguration.dryRun)

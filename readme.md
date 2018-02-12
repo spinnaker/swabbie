@@ -9,16 +9,21 @@ It applies a set of rules to mark cleanup candidates. Once marked, a resource is
 ## Configuration
 ```
 swabbie:
-  enabled: true
-  mark:
-    enabled: true
-    intervalSeconds: 120000
-
-  clean:
-    enabled: true
-    intervalSeconds: 120000
-
   dryRun: true
+  taggingEnabled: false
+  agents:
+    mark:
+      enabled: false
+      intervalSeconds: 3600000
+
+    clean:
+      enabled: false
+      intervalSeconds: 3600000
+
+    notify:
+      enabled: false
+      intervalSeconds: 3600000
+
   providers:
     - name: aws
       locations:
@@ -41,12 +46,9 @@ swabbie:
       resourceTypes:
         - name: securityGroup
           enabled: true
-          dryRun: true
-          retention:
-            days: 10
-            ageThresholdDays: 10
+          retentionDays: 10
           exclusions:
-            - type: Simple
+            - type: Literal
               attributes:
                 - key: name
                   value:
@@ -82,7 +84,7 @@ data class ScopeOfWorkConfiguration(
   val location: String,
   val cloudProvider: String,
   val resourceType: String,
-  val retention: Retention,
+  val retentionDays: Int = 14,
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true
 )
@@ -92,11 +94,11 @@ The scope of work configuration is derived from the YAML configuration.
 #### Marking & Redis
 A marker agent operates on a unit of work by acquiring a simple lock to avoid operating on work in progress.
 The locking mechanism is backed by `Redis`, a `SETNX ` with a `TTL`.
-Scheduling the cleanup of resources is done by keeping an index in a `ZSET` using the projected deletion time as the `score`. 
+Scheduling the cleanup of resources is done by keeping an index in a `ZSET` using the projected deletion time as the `score`.
 This takes advantage of Redis Sorted Sets.
 
 #### Deleting & Redis
-Getting elements from the `ZSET` from `inf` to `now` and delete them.
+Getting elements from the `ZSET` from `-inf` to `now` and delete them.
 
 
 #### Dry Run

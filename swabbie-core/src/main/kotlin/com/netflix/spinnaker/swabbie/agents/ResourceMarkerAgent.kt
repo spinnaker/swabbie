@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.SwabbieAgent
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.persistence.LockManager
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
 import org.slf4j.Logger
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component
 import java.util.concurrent.Executor
 
 @Component
-@ConditionalOnExpression("\${swabbie.mark.enabled}")
+@ConditionalOnExpression("\${swabbie.agents.mark.enabled}")
 class ResourceMarkerAgent(
   private val executor: Executor,
   private val lockManager: LockManager,
@@ -37,7 +37,7 @@ class ResourceMarkerAgent(
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  @Scheduled(fixedDelayString = "\${swabbie.mark.frequency.ms:3600000}")
+  @Scheduled(fixedDelayString = "\${swabbie.agents.mark.intervalSeconds:3600000}")
   override fun execute() {
     discoverySupport.ifUP {
       try {

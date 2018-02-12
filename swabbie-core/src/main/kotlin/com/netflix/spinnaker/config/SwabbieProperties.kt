@@ -20,16 +20,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties("swabbie")
 open class SwabbieProperties {
-  var enabled: Boolean = false
-  var dryRun: Boolean = false
-  var globalExclusions: MutableList<Exclusion>? = mutableListOf()
+  var dryRun: Boolean? = true
   var providers: List<CloudProviderConfiguration> = mutableListOf()
 }
 
 class CloudProviderConfiguration {
-  var name: String = "aws"
+  var exclusions: MutableList<Exclusion>? = null
+  var name: String = ""
   var locations: List<String> = mutableListOf()
-  var exclusions: List<Exclusion>? = mutableListOf()
   var resourceTypes: List<ResourceTypeConfiguration> = mutableListOf()
   var attributes: List<Attribute> = mutableListOf()
   override fun toString(): String {
@@ -39,32 +37,19 @@ class CloudProviderConfiguration {
 
 class Exclusion {
   var type: String = ""
-  var comments: String = ""
   var attributes: List<Attribute> = mutableListOf()
   override fun toString(): String {
-    return "Exclusion(type='$type', comments='$comments', attributes=$attributes)"
+    return "Exclusion(type='$type', attributes=$attributes)"
   }
 }
 
 class ResourceTypeConfiguration {
-  var enabled: Boolean = true
+  var enabled: Boolean = false
   var dryRun: Boolean = false
-  var name: String = ""
-  var retention: Retention = Retention()
-  var exclusions: MutableList<Exclusion>? = mutableListOf()
-}
+  var retentionDays: Int = 14
+  var exclusions: MutableList<Exclusion> = mutableListOf()
 
-class Retention {
-  var days: Int = 0
-  var ageThresholdDays: Int = 0
-  constructor(days: Int = 14, ageThresholdDays: Int = 14) {
-    this.days = days
-    this.ageThresholdDays = ageThresholdDays
-  }
-
-  override fun toString(): String {
-    return "Retention(days=$days, ageThresholdDays=$ageThresholdDays)"
-  }
+  lateinit var name: String
 }
 
 class Attribute {
@@ -78,6 +63,7 @@ class Attribute {
 
 enum class ExclusionType { Literal, Account, Tag }
 
+// TODO: rework this
 internal fun mergeExclusions(global: MutableList<Exclusion>?, local: MutableList<Exclusion>?): List<Exclusion> {
   if (global == null && local == null) {
     return emptyList()

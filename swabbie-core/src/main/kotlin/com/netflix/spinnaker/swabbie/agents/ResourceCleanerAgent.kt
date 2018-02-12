@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.SwabbieAgent
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.persistence.LockManager
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.handlers.ResourceHandler
@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component
 import java.util.concurrent.Executor
 
 @Component
-@ConditionalOnExpression("\${swabbie.clean.enabled}")
+@ConditionalOnExpression("\${swabbie.agents.clean.enabled}")
 class ResourceCleanerAgent(
   private val executor: Executor,
   private val lockManager: LockManager,
@@ -39,7 +39,7 @@ class ResourceCleanerAgent(
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  @Scheduled(fixedDelayString = "\${swabbie.clean.frequency.ms:3600000}")
+  @Scheduled(fixedDelayString = "\${swabbie.agents.clean.intervalSeconds:3600000}")
   override fun execute() {
     discoverySupport.ifUP {
       try {

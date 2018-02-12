@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.handlers
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.aws.model.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.handlers.AbstractResourceHandler

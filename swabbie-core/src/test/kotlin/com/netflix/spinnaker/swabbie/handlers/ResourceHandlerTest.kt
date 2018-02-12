@@ -18,8 +18,7 @@ package com.netflix.spinnaker.swabbie.handlers
 
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import com.netflix.spinnaker.config.Retention
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
@@ -58,10 +57,7 @@ object ResourceHandlerTest {
         location = "us-east-1",
         resourceType = resource.resourceType,
         cloudProvider = resource.cloudProvider,
-        retention = Retention(
-          days = 10,
-          ageThresholdDays = 3
-        ),
+        retentionDays = 14,
         dryRun = false,
         exclusions = emptyList()
       )
@@ -79,10 +75,7 @@ object ResourceHandlerTest {
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
-      retention = Retention(
-        days = 10,
-        ageThresholdDays = 3
-      ),
+      retentionDays = 14,
       dryRun = false,
       exclusions = emptyList()
     )
@@ -124,10 +117,7 @@ object ResourceHandlerTest {
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
-      retention = Retention(
-        days = 10,
-        ageThresholdDays = 3
-      ),
+      retentionDays = 14,
       dryRun = false,
       exclusions = emptyList()
     )
@@ -172,10 +162,7 @@ object ResourceHandlerTest {
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
-      retention = Retention(
-        days = 10,
-        ageThresholdDays = 3
-      ),
+      retentionDays = 14,
       dryRun = false,
       exclusions = emptyList()
     )

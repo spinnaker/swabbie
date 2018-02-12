@@ -15,8 +15,10 @@
  */
 
 package com.netflix.spinnaker.swabbie.test
+import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.model.Resource
 
+@JsonTypeName("testResource")
 data class TestResource(
   override val resourceId: String,
   override val resourceType: String = "testResource",

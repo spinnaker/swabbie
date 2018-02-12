@@ -17,17 +17,19 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.SwabbieAgent
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.persistence.LockManager
 import com.netflix.spinnaker.swabbie.events.NotifyOwnerEvent
 import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 @Component
+@ConditionalOnExpression("\${swabbie.agents.notify.enabled}")
 class NotificationAgent(
   private val lockManager: LockManager,
   private val resourceTrackingRepository: ResourceTrackingRepository,
@@ -36,7 +38,7 @@ class NotificationAgent(
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  @Scheduled(fixedDelayString = "\${swabbie.notification.frequency.ms:3600000}")
+  @Scheduled(fixedDelayString = "\${swabbie.agents.notify.intervalSeconds:3600000}")
   override fun execute() {
     discoverySupport.ifUP {
       try {

@@ -16,7 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.controllers
 
-import com.netflix.spinnaker.swabbie.ScopeOfWorkConfigurator
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.persistence.ResourceStateRepository
 import org.slf4j.LoggerFactory
@@ -43,7 +43,7 @@ class ResourceController(
     @RequestParam resourceId: String,
     @RequestParam resourceType: String
   ): ResourceState? {
-    "$provider:$account:$location:$resourceType".let { namespace ->
+    "$provider:$account:$location:$resourceType".toLowerCase().let { namespace ->
       scopeOfWorkConfigurator.list()
         .find { scopeOfWork ->
           scopeOfWork.namespace == namespace

@@ -14,28 +14,11 @@
  * limitations under the License.
  */
 
-rootProject.name = 'swabbie'
+dependencies {
+  compile project(":swabbie-retrofit")
+  compile project(":swabbie-core")
+  compile "com.netflix.spinnaker.moniker:moniker:+"
 
-include 'swabbie-test',
-  'swabbie-core',
-  'swabbie-retrofit',
-  'swabbie-redis',
-  'swabbie-aws',
-  'swabbie-echo',
-  'swabbie-orca',
-  'swabbie-clouddriver',
-  'swabbie-front50',
-  'swabbie-edda',
-  'swabbie-web'
-
-def setBuildFile(project) {
-  project.buildFileName = "${project.name}.gradle"
-  project.children.each {
-    setBuildFile(it)
-  }
+  testCompile project(":swabbie-test")
+  testCompile "com.squareup.retrofit:retrofit-mock:1.9.+"
 }
-
-rootProject.children.each {
-  setBuildFile it
-}
-

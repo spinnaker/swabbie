@@ -17,8 +17,8 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.netflix.spinnaker.swabbie.echo.EchoService
-import org.slf4j.LoggerFactory
+import com.netflix.spinnaker.okhttp.SpinnakerRequestInterceptor
+import com.netflix.spinnaker.swabbie.front50.Front50Service
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
@@ -26,31 +26,29 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import retrofit.Endpoint
 import retrofit.Endpoints
-import retrofit.RequestInterceptor
 import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
-@ComponentScan("com.netflix.spinnaker.swabbie.echo")
 @Import(RetrofitConfiguration::class)
-open class EchoConfiguration {
-  private val log = LoggerFactory.getLogger(javaClass)
+@ComponentScan("com.netflix.spinnaker.swabbie.front50")
+open class Front50Configuration {
+  @Bean
+  open fun front50Endpoint(@Value("\${front50.baseUrl}") clouddriverBaseUrl: String)
+    = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
 
-  @Bean open fun echoEndpoint(@Value("\${echo.baseUrl}") echoBaseUrl: String)
-    = Endpoints.newFixedEndpoint(echoBaseUrl)
-
-  @Bean open fun echoService(echoEndpoint: Endpoint,
-                             objectMapper: ObjectMapper,
-                             retrofitClient: Client,
-                             spinnakerRequestInterceptor: RequestInterceptor,
-                             retrofitLogLevel: RestAdapter.LogLevel)
+  @Bean open fun clouddriverService(front50Endpoint: Endpoint,
+                                    objectMapper: ObjectMapper,
+                                    retrofitClient: Client,
+                                    spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
+                                    retrofitLogLevel: RestAdapter.LogLevel)
     = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
-    .setEndpoint(echoEndpoint)
+    .setEndpoint(front50Endpoint)
     .setClient(retrofitClient)
     .setLogLevel(retrofitLogLevel)
     .setConverter(JacksonConverter(objectMapper))
     .build()
-    .create(EchoService::class.java)
+    .create(Front50Service::class.java)
 }

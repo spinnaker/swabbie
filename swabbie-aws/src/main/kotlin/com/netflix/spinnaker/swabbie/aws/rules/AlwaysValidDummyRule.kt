@@ -33,13 +33,13 @@ class AlwaysValidDummyRule : Rule {
   }
 }
 
-@Component
-class AlwaysInValidDummyRule : Rule {
-  override fun applies(resource: Resource): Boolean {
-    return true
-  }
-
-  override fun apply(resource: Resource): Result {
-    return Result(summary = Summary("Failed Dummy Rule", javaClass.simpleName))
-  }
-}
+//@Component
+//class AlwaysInValidDummyRule : Rule {
+//  override fun applies(resource: Resource): Boolean {
+//    return true
+//  }
+//
+//  override fun apply(resource: Resource): Result {
+//    return Result(summary = Summary("Failed Dummy Rule", javaClass.simpleName))
+//  }
+//}

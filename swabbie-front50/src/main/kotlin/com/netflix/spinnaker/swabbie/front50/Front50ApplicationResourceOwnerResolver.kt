@@ -14,32 +14,35 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.clouddriver
+package com.netflix.spinnaker.swabbie.front50
 
-import com.netflix.spinnaker.swabbie.model.Account
-import com.netflix.spinnaker.swabbie.provider.AccountProvider
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.notifications.ResourceOwnerResolver
+import org.springframework.stereotype.Component
+import java.util.concurrent.atomic.AtomicReference
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.stereotype.Component
-import java.util.concurrent.atomic.AtomicReference
 
 @Component
-class ClouddriverAccountProvider(
-  private val cloudDriverService: CloudDriverService
-) : AccountProvider {
+class Front50ApplicationResourceOwnerResolver(
+  private val front50Service: Front50Service
+) : ResourceOwnerResolver {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private var accountsCache = AtomicReference<Set<Account>>()
-  override fun getAccounts(): Set<Account> {
-    return cloudDriverService.getAccounts()
-  }
+  private var applicationsCache = AtomicReference<Set<Application>>()
+
+  override fun resolve(resource: Resource): String? =
+    FriggaReflectiveNamer().deriveMoniker(resource).app?.let { derivedApp ->
+      applicationsCache.get().find { it.name == derivedApp }?.email
+    }
 
   @Scheduled(fixedDelay = 24 * 60 * 60 * 1000L)
   private fun refreshApplications() {
     try {
-      accountsCache.set(cloudDriverService.getAccounts())
+      applicationsCache.set(front50Service.getApplications())
     } catch (e: Exception) {
-      log.error("Error refreshing accounts cache", e)
+      log.error("Error refreshing applications cache", e)
     }
   }
 }

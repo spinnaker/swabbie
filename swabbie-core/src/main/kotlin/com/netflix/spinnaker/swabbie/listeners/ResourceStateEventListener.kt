@@ -16,10 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.listeners
 
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
-import com.netflix.spinnaker.swabbie.events.Event
-import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
+import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.persistence.ResourceStateRepository
@@ -56,6 +53,14 @@ class ResourceStateEventListener(
     event.let { e ->
       updateState(e)
       resourceTagger?.unTag(e.markedResource, event.scopeOfWorkConfiguration)
+    }
+  }
+
+  @EventListener(OwnerNotifiedEvent::class)
+  fun onNotifyOwnerEvent(event: OwnerNotifiedEvent) {
+    event.let { e ->
+      updateState(e)
+      resourceTagger?.tag(e.markedResource, event.scopeOfWorkConfiguration)
     }
   }
 

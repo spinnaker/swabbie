@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.events
 import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 
-
 const val NOTIFY  = "NOTIFY"
 const val UNMARK  = "UNMARK"
 const val MARK    = "MARK"
@@ -46,7 +45,7 @@ abstract class Event(
   }
 }
 
-class NotifyOwnerEvent(
+class OwnerNotifiedEvent(
   override val markedResource: MarkedResource,
   override val scopeOfWorkConfiguration: ScopeOfWorkConfiguration
 ): Event(NOTIFY, markedResource, scopeOfWorkConfiguration)

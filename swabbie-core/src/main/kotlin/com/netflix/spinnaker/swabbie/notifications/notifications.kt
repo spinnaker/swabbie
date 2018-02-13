@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.notifications
 
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import java.time.Clock
@@ -36,15 +36,16 @@ fun tagMessage(markedResource: MarkedResource, clock: Clock): String {
 }
 
 //TODO: move email template to echo
-fun messageSubjectAndBody(markedResource: MarkedResource, clock: Clock): EmailSubjectAndBody {
+fun messageSubjectAndBody(markedResources: List<MarkedResource>, clock: Clock): EmailSubjectAndBody {
   val optOutUrl = ""// TODO: add endpoint. Configurable
   return EmailSubjectAndBody(
-    subject = "Resource ${markedResource.resourceId} scheduled for deletion",
-    body = markedResource.summaries
+    subject = "Resource ${markedResources.size} scheduled for deletion",
+    body = markedResources[0].summaries
       .joinToString(", ") {
         it.description
       }.let { violationSummary ->
-        "<h2>This resource is scheduled to be deleted on ${(markedResource.adjustedDeletionStamp?: markedResource.projectedDeletionStamp).toLocalDate(clock)}</h2> <br /> \n " +
+        "<h2>This resource is scheduled to be deleted on ${(markedResources[0].adjustedDeletionStamp
+          ?: markedResources[0].projectedDeletionStamp).toLocalDate(clock)}</h2> <br /> \n " +
           "* $violationSummary <br /> \n" +
           "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
       }

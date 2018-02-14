@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.front50
+package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.model.Application
-import retrofit.http.GET
+import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 
-interface Front50Service {
-  @GET("/v2/applications")
-  fun getApplications(): Set<Application>
+interface ResourceTagger {
+  fun tag(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
+  fun unTag(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
 }

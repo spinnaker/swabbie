@@ -16,6 +16,7 @@
 
 dependencies {
   compile project(":swabbie-core")
+  compile project(":swabbie-orca")
   compile project(":swabbie-retrofit")
 
   testCompile project(":swabbie-test")

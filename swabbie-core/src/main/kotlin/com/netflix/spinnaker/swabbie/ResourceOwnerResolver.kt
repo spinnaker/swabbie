@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.front50
+package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.model.Application
-import retrofit.http.GET
+import com.netflix.spinnaker.swabbie.model.Resource
 
-interface Front50Service {
-  @GET("/v2/applications")
-  fun getApplications(): Set<Application>
+interface ResourceOwnerResolver {
+  fun resolve(resource: Resource): String?
 }

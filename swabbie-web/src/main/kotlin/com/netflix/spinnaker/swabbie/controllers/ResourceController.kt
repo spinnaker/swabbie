@@ -18,7 +18,7 @@ package com.netflix.spinnaker.swabbie.controllers
 
 import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.persistence.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.*
 

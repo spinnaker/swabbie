@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.front50
+package com.netflix.spinnaker.swabbie.model
 
-import com.netflix.spinnaker.swabbie.model.Application
-import retrofit.http.GET
-
-interface Front50Service {
-  @GET("/v2/applications")
-  fun getApplications(): Set<Application>
-}
+data class Application(
+  val name: String,
+  val email: String
+)

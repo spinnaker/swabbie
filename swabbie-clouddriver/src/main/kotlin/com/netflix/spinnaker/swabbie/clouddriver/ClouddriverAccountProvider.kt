@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.clouddriver
 
 import com.netflix.spinnaker.swabbie.model.Account
-import com.netflix.spinnaker.swabbie.provider.AccountProvider
+import com.netflix.spinnaker.swabbie.AccountProvider
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled

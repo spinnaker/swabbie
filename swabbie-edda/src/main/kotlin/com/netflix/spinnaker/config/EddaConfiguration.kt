@@ -17,8 +17,8 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.netflix.spinnaker.swabbie.edda.service.EddaService
-import com.netflix.spinnaker.swabbie.provider.AccountProvider
+import com.netflix.spinnaker.swabbie.edda.EddaService
+import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan

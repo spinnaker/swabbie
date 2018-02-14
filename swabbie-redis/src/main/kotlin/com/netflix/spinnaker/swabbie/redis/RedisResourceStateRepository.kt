@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.persistence.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.front50
+package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.model.Application
-import retrofit.http.GET
-
-interface Front50Service {
-  @GET("/v2/applications")
-  fun getApplications(): Set<Application>
+interface TaggingService {
+  fun tag(tagRequest: TagRequest)
+  fun removeTag(tagRequest: TagRequest)
 }
+
+interface TagRequest
+interface Tag

@@ -18,7 +18,8 @@ package com.netflix.spinnaker.swabbie.front50
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.notifications.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.model.Application
 import org.springframework.stereotype.Component
 import java.util.concurrent.atomic.AtomicReference
 import org.slf4j.Logger

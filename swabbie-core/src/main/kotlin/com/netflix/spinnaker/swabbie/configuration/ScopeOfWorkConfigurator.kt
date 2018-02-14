@@ -20,7 +20,7 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.config.mergeExclusions
 import com.netflix.spinnaker.swabbie.model.Account
-import com.netflix.spinnaker.swabbie.provider.AccountProvider
+import com.netflix.spinnaker.swabbie.AccountProvider
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Component
 import javax.annotation.PostConstruct

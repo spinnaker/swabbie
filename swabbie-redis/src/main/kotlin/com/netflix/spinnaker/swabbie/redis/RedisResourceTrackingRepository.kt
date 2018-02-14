@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
-import com.netflix.spinnaker.swabbie.persistence.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component

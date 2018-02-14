@@ -26,7 +26,6 @@ dependencies {
   compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+"
   compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.+"
   compile spinnaker.dependency("rxJava")
-  compile project(":swabbie-orca")
 
   testCompile project(":swabbie-test")
 }

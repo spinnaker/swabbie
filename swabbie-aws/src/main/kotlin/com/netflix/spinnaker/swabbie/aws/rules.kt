@@ -14,12 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.front50
+package com.netflix.spinnaker.swabbie.aws
 
-import com.netflix.spinnaker.swabbie.model.Application
-import retrofit.http.GET
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.Result
+import com.netflix.spinnaker.swabbie.model.Rule
+import org.springframework.stereotype.Component
 
-interface Front50Service {
-  @GET("/v2/applications")
-  fun getApplications(): Set<Application>
+@Component
+class AlwaysValidDummyRule : Rule {
+  override fun applies(resource: Resource): Boolean {
+    return true
+  }
+
+  override fun apply(resource: Resource): Result {
+    return Result(summary = null)
+  }
 }

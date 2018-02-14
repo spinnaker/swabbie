@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.front50
+package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.model.Application
-import retrofit.http.GET
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 
-interface Front50Service {
-  @GET("/v2/applications")
-  fun getApplications(): Set<Application>
+interface ResourceTrackingRepository {
+  fun upsert(markedResource: MarkedResource, score: Long = markedResource.projectedDeletionStamp)
+  fun remove(markedResource: MarkedResource)
+
+  fun getMarkedResourcesToDelete(): List<MarkedResource>?
+  fun getMarkedResources(): List<MarkedResource>?
+  fun find(resourceId: String, namespace: String): MarkedResource?
 }

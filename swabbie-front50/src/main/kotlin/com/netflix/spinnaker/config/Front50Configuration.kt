@@ -35,15 +35,14 @@ import retrofit.converter.JacksonConverter
 @ComponentScan("com.netflix.spinnaker.swabbie.front50")
 open class Front50Configuration {
   @Bean
-  open fun front50Endpoint(@Value("\${front50.baseUrl}") clouddriverBaseUrl: String)
-    = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
+  open fun front50Endpoint(@Value("\${front50.baseUrl}") front50Url: String): Endpoint
+    = Endpoints.newFixedEndpoint(front50Url)
 
-  @Bean open fun clouddriverService(front50Endpoint: Endpoint,
-                                    objectMapper: ObjectMapper,
-                                    retrofitClient: Client,
-                                    spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
-                                    retrofitLogLevel: RestAdapter.LogLevel)
-    = RestAdapter.Builder()
+  @Bean open fun front50Service(front50Endpoint: Endpoint,
+                                objectMapper: ObjectMapper,
+                                retrofitClient: Client,
+                                spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
+                                retrofitLogLevel: RestAdapter.LogLevel): Front50Service = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(front50Endpoint)
     .setClient(retrofitClient)

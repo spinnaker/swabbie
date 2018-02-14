@@ -14,12 +14,18 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.front50
+package com.netflix.spinnaker.swabbie.edda
 
-import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import retrofit.http.GET
+import retrofit.http.Path
 
-interface Front50Service {
-  @GET("/v2/applications")
-  fun getApplications(): Set<Application>
+
+//TODO: jeyrs move to -nflx
+interface EddaService {
+  @GET("/api/v2/aws/securityGroups/{groupId}")
+  fun getSecurityGroup(@Path("groupId") groupId: String): AmazonSecurityGroup
+
+  @GET("/api/v2/aws/securityGroups")
+  fun getSecurityGroupIds(): List<String>
 }

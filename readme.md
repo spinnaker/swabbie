@@ -1,5 +1,7 @@
 # Swabbie
 
+WORK IN PROGRESS!
+
 Proposal doc: https://docs.google.com/document/d/1XZ_g9sPc-UE8JrTARnSjWvpSvFiZ1oJTFUbXQJqB5B0/edit#
 
 Swabbie is a service automating the cleanup of unused resources, such as EBS Volumes and Security Groups.

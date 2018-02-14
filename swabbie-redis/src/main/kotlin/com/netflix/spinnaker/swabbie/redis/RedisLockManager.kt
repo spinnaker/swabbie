@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.redis
 
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
-import com.netflix.spinnaker.swabbie.persistence.LockManager
+import com.netflix.spinnaker.swabbie.LockManager
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -37,7 +37,7 @@ class RedisLockManager
     }
   }
 
-  override fun acquire(name: String, lockTtlSeconds: Long): Boolean {
+  override fun acquire(name: String, lockTtlSeconds: Long): Boolean =
     locksKey(name).let { key ->
       getClientForId(key)
         .withCommandsClient<String> { client ->
@@ -46,7 +46,6 @@ class RedisLockManager
           return result == "OK"
         }
     }
-  }
 
   private fun locksKey(name: String) = "$name.locks"
 }

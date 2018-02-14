@@ -16,7 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.echo
 
-import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.Notifier
 import org.springframework.stereotype.Component
 
 @Component

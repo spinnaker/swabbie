@@ -106,5 +106,5 @@ Getting elements from the `ZSET` from `-inf` to `now` and delete them.
 #### Dry Run
 TODO
 
-#### Excluding resources
+#### Excluding resources & Opting out
 Swabbie includes all resources defined in the configuration by default. Exclusion rules can be used to exclude resources matching certain criteria.

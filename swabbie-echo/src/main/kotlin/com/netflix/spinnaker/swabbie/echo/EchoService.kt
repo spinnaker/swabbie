@@ -32,7 +32,6 @@ interface EchoService {
     val cc: Collection<String> = listOf(),
     val severity: NotificationSeverity,
     val source: Source,
-    val templateGroup: String = "swabbie",
     val additionalContext: Map<String, Any?> = mapOf()
   ) {
 

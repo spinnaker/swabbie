@@ -45,7 +45,7 @@ class Exclusion {
 
 class ResourceTypeConfiguration {
   var enabled: Boolean = false
-  var dryRun: Boolean = false
+  var dryRun: Boolean = true
   var retentionDays: Int = 14
   var exclusions: MutableList<Exclusion> = mutableListOf()
 

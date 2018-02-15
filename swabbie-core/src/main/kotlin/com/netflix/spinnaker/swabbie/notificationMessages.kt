@@ -39,7 +39,7 @@ fun tagMessage(markedResource: MarkedResource, clock: Clock): String {
 fun messageSubjectAndBody(markedResources: List<MarkedResource>, clock: Clock): EmailSubjectAndBody {
   val optOutUrl = ""// TODO: add endpoint. Configurable
   return EmailSubjectAndBody(
-    subject = "Resource ${markedResources.size} scheduled for deletion",
+    subject = "<h4>Resource ${markedResources.size} scheduled for deletion</h4>",
     body = markedResources[0].summaries
       .joinToString(", ") {
         it.description

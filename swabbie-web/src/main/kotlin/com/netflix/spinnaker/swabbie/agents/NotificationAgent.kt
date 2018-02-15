@@ -63,45 +63,14 @@ class NotificationAgent(
     discoverySupport.ifUP {
       try {
         log.info("Notification Agent Started ...")
-        val resourceConfigurations = mutableMapOf<String, ScopeOfWorkConfiguration>()
-        val owners = mutableMapOf<String, MutableList<MarkedResource>>()
-
-        // finds resource owner and map configuration for each resource
-        resourceTrackingRepository.getMarkedResources()
-          ?.filter {
-            it.notificationInfo.notificationStamp == null && it.adjustedDeletionStamp == null
-          }?.forEach { markedResource ->
-            ownerResolvers.map {
-              it.resolve(markedResource.resource)
-            }.first()
-              .let { owner ->
-                if (owner != null) {
-                  owners[owner].let { list ->
-                    if (list != null) {
-                      list += markedResource
-                    } else {
-                      mutableListOf(markedResource)
-                    }
-                    getMatchingConfiguration(markedResource)?.let {
-                      resourceConfigurations[markedResource.resourceId] = it
-                    }
-                  }
-                } else {
-                  registry.counter(resourceWithNoOwnerId.withTag("resolveOwner", "failed"))
-                }
-            }
-        }
-
-        owners.forEach { owner ->
+        findMarkedResourceOwners().forEach { owner ->
           owner.takeIf {
             lockManager.acquire(locksName(PREFIX, it.key), lockTtlSeconds = 3600)
-          }?.let {
-            owner.value.mapNotNull { markedResource ->
-              resourceConfigurations[markedResource.resourceId]?.let {
+          }.let {
+              owner.value.map { markedResourceAndConfiguration ->
+                val markedResource = markedResourceAndConfiguration.first
                 val notificationInstant = Instant.now(clock)
                 val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
-                log.info("Adjusting deletion time to {}", offset + markedResource.projectedDeletionStamp)
-
                 markedResource.apply {
                   this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
                   this.notificationInfo = NotificationInfo(
@@ -110,21 +79,22 @@ class NotificationAgent(
                     notificationType = "EMAIL"
                   )
                 }
-                Pair(markedResource, it)
-              }
-            }.let { markedResourceConfigurationPair ->
-                if (!markedResourceConfigurationPair.isEmpty()) {
-                  val (subject, body) = messageSubjectAndBody(markedResourceConfigurationPair.map { it.first }.toList(), clock)
+
+                log.info("Adjusting deletion time to {} for {}", offset + markedResource.projectedDeletionStamp, markedResource)
+                Pair(markedResource, markedResourceAndConfiguration.second)
+              }.let { markedResourceAndConfiguration ->
+                  val resources = markedResourceAndConfiguration.map { it.first }.toList()
+                  val (subject, body) = messageSubjectAndBody(resources, clock)
                   notifier.notify(owner.key, subject, body, "EMAIL").let {
-                    markedResourceConfigurationPair.forEach {
-                      log.info("notification sent to {} for {}", owner.key)
-                      resourceTrackingRepository.upsert(it.first, it.first.adjustedDeletionStamp!!)
-                      applicationEventPublisher.publishEvent(OwnerNotifiedEvent(it.first, it.second))
+                    resources.forEach { resource ->
+                      log.info("notification sent to {} for {}", owner.key, resources)
+                      resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
+                      applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.scopeOfWorkConfiguration(markedResourceAndConfiguration)))
+                      lockManager.acquire(locksName(PREFIX, owner.key), lockTtlSeconds = 3600)
                     }
                   }
                 }
-              }
-          }
+            }
         }
       } catch (e: Exception) {
         log.error("Failed to execute notification agent", e)
@@ -132,8 +102,34 @@ class NotificationAgent(
     }
   }
 
-  private fun getMatchingConfiguration(markedResource: MarkedResource): ScopeOfWorkConfiguration? =
-    scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.configuration
+  private fun findMarkedResourceOwners(): MutableMap<String, MutableList<Pair<MarkedResource, ScopeOfWorkConfiguration>>> {
+    val owners = mutableMapOf<String, MutableList<Pair<MarkedResource, ScopeOfWorkConfiguration>>>()
+    resourceTrackingRepository.getMarkedResources()
+      ?.filter {
+        it.notificationInfo.notificationStamp == null && it.adjustedDeletionStamp == null
+      }?.forEach { markedResource ->
+        ownerResolvers.map {
+          it.resolve(markedResource.resource)
+        }.first()
+          .let { owner ->
+            if (owner != null) {
+              getMatchingConfiguration(markedResource)?.let { config ->
+                if (owners[owner] == null) {
+                  owners[owner] = mutableListOf(Pair(markedResource, config))
+                } else {
+                  owners[owner]!!.add(Pair(markedResource, config))
+                }
+              }
+            } else {
+              log.error("unable to find owner for resource {}", markedResource)
+            }
+          }
+      }
+    return owners
+  }
 
-  private val PREFIX = "{swabbie:notify}"
+  private fun getMatchingConfiguration(markedResource: MarkedResource): ScopeOfWorkConfiguration? = scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.configuration
 }
+
+private val PREFIX = "{swabbie:notify}"
+private fun MarkedResource.scopeOfWorkConfiguration(configs: List<Pair<MarkedResource, ScopeOfWorkConfiguration>>): ScopeOfWorkConfiguration = configs.find { this == it.first }!!.second

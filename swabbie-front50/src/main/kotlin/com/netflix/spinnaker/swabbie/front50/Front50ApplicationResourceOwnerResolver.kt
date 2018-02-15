@@ -31,11 +31,11 @@ class Front50ApplicationResourceOwnerResolver(
   private val front50Service: Front50Service
 ) : ResourceOwnerResolver {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private var applicationsCache = AtomicReference<Set<Application>>()
+  val applicationsCache = AtomicReference<Set<Application>>()
 
   override fun resolve(resource: Resource): String? =
     FriggaReflectiveNamer().deriveMoniker(resource).app?.let { derivedApp ->
-      applicationsCache.get().find { it.name == derivedApp }?.email
+      applicationsCache.get().find { it.name.equals(derivedApp, ignoreCase = true)}?.email
     }
 
   @Scheduled(fixedDelay = 24 * 60 * 60 * 1000L)

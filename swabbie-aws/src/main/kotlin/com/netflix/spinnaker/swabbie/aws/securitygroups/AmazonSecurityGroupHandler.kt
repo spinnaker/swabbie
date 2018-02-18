@@ -17,9 +17,9 @@
 package com.netflix.spinnaker.swabbie.aws.securitygroups
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.AbstractResourceHandler
+import com.netflix.spinnaker.swabbie.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -34,11 +34,12 @@ class AmazonSecurityGroupHandler(
   clock: Clock,
   rules: List<Rule>,
   resourceTrackingRepository: ResourceTrackingRepository,
+  exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   private val securityGroupProvider: SecurityGroupProvider,
   private val orcaService: OrcaService
-): AbstractResourceHandler(clock, rules, resourceTrackingRepository, applicationEventPublisher) {
-  override fun remove(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
+): AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, applicationEventPublisher) {
+  override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup) {
         log.info("This resource is about to be deleted {}", markedResource)
@@ -49,11 +50,11 @@ class AmazonSecurityGroupHandler(
               OrcaJob(
                 type = "deleteSecurityGroup",
                 context = mutableMapOf(
-                  "credentials" to scopeOfWorkConfiguration.account.name,
+                  "credentials" to workConfiguration.account.name,
                   "securityGroupName" to resource.groupName,
                   "cloudProvider" to resource.cloudProvider,
                   "vpcId" to resource.vpcId,
-                  "regions" to listOf(scopeOfWorkConfiguration.location)
+                  "regions" to listOf(workConfiguration.location)
                 )
               )
             ),
@@ -64,18 +65,18 @@ class AmazonSecurityGroupHandler(
     }
   }
 
-  override fun getUpstreamResource(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration): Resource?
+  override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): Resource?
     = securityGroupProvider.getSecurityGroup(
       groupId = markedResource.resourceId,
-      account = scopeOfWorkConfiguration.account.name,
-      region = scopeOfWorkConfiguration.location
+      account = workConfiguration.account.name,
+      region = workConfiguration.location
     )
 
   override fun handles(resourceType: String, cloudProvider: String): Boolean = resourceType == SECURITY_GROUP && cloudProvider == AWS
 
-  override fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>?
+  override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<Resource>?
     = securityGroupProvider.getSecurityGroups(
-      account = scopeOfWorkConfiguration.account.name,
-      region = scopeOfWorkConfiguration.location
+      account = workConfiguration.account.name,
+      region = workConfiguration.location
     )
 }

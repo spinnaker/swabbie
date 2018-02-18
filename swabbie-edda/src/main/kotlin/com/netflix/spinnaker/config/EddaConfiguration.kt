@@ -35,7 +35,8 @@ import retrofit.converter.JacksonConverter
 
 @Configuration
 @ComponentScan(basePackages = arrayOf(
-  "com.netflix.spinnaker.swabbie.edda"
+  "com.netflix.spinnaker.swabbie.edda",
+  "com.netflix.spinnaker.swabbie.aws"
 ))
 @Import(SwabbieRetrofitConfiguration::class)
 open class EddaConfiguration {

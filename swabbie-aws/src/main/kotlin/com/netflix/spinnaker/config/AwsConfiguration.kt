@@ -23,8 +23,7 @@ import org.springframework.context.annotation.Import
 
 @Configuration
 @ComponentScan(basePackages = arrayOf(
-  "com.netflix.spinnaker.swabbie.aws",
-  "com.netflix.spinnaker.swabbie.edda"
+  "com.netflix.spinnaker.swabbie.aws"
 ))
 @Import(SwabbieRetrofitConfiguration::class)
 open class AwsConfiguration

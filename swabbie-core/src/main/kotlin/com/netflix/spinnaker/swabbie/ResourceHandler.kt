@@ -16,15 +16,15 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
 interface ResourceHandler {
   fun handles(resourceType: String, cloudProvider: String): Boolean
-  fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>?
-  fun getUpstreamResource(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration): Resource?
+  fun getUpstreamResources(workConfiguration: WorkConfiguration): List<Resource>?
+  fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): Resource?
 
-  fun mark(scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
-  fun clean(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
+  fun mark(workConfiguration: WorkConfiguration)
+  fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
 }

@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.test
-import com.fasterxml.jackson.annotation.JsonTypeName
+package com.netflix.spinnaker.swabbie.aws.model
+
+import com.fasterxml.jackson.annotation.JsonAnyGetter
+import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.netflix.spinnaker.swabbie.model.Resource
 
-@JsonTypeName("testResource")
-data class TestResource(
-  override val resourceId: String,
-  override val resourceType: String = "testResource",
-  override val cloudProvider: String = "testProvider",
-  override val name: String = resourceId
-): Resource()
+abstract class AmazonResource: Resource() {
+  val details: MutableMap<String, Any?> = mutableMapOf()
+
+  @JsonAnySetter
+  fun set(name: String, value: Any?) {
+    details[name] = value
+  }
+
+  @JsonAnyGetter
+  fun details() = details
+}

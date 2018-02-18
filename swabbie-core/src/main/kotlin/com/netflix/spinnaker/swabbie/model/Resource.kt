@@ -17,6 +17,9 @@
 package com.netflix.spinnaker.swabbie.model
 
 import com.fasterxml.jackson.annotation.JsonTypeName
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.swabbie.Excludable
+import com.netflix.spinnaker.swabbie.ExclusionPolicy
 
 /** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"
@@ -29,8 +32,12 @@ const val RESOURCE_TYPE_INFO_FIELD =  "swabbieTypeInfo"
 /**
  * subtypes specify type by annotating with JsonTypeName
  */
-abstract class Resource: Identifiable {
+abstract class Resource: Identifiable, Excludable {
   val swabbieTypeInfo: String = javaClass.getAnnotation(JsonTypeName::class.java).value
+
+  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean =
+    exclusionPolicies.find { it.apply(this, exclusions) } != null
+
   override fun equals(other: Any?): Boolean {
     if (this === other) {
       return true
@@ -44,11 +51,14 @@ abstract class Resource: Identifiable {
   }
 }
 
-interface Identifiable {
+interface Identifiable: Named {
   val resourceId: String
-  val name: String
   val resourceType: String
   val cloudProvider: String
+}
+
+interface Named {
+  val name: String
 }
 
 data class MarkedResource(

@@ -18,7 +18,9 @@ package com.netflix.spinnaker.swabbie
 
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
+import com.netflix.spinnaker.config.Attribute
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.model.*
@@ -47,12 +49,13 @@ object ResourceHandlerTest {
       clock = clock,
       rules =listOf<Rule>(TestRule(true, violationSummary)),
       resourceTrackingRepository = resourceRepository,
+      exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(
-      ScopeOfWorkConfiguration(
+      WorkConfiguration(
         namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-        account = Account(name = "test", accountId = "id"),
+        account = Account(name = "test", accountId = "id", type = "type"),
         location = "us-east-1",
         resourceType = resource.resourceType,
         cloudProvider = resource.cloudProvider,
@@ -68,9 +71,9 @@ object ResourceHandlerTest {
   @Test
   fun `should update already tracked resource if still invalid and don't generate a mark event again`() {
     val resource = TestResource("testResource")
-    val configuration = ScopeOfWorkConfiguration(
+    val configuration = WorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = Account(name = "test", accountId = "id"),
+      account = Account(name = "test", accountId = "id", type = "type"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -98,6 +101,7 @@ object ResourceHandlerTest {
       clock = clock,
       rules = listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
       resourceTrackingRepository = resourceRepository,
+      exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(configuration)
@@ -110,9 +114,9 @@ object ResourceHandlerTest {
   fun `should delete a resource`() {
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     val resource = TestResource("marked resource due for deletion now")
-    val configuration = ScopeOfWorkConfiguration(
+    val configuration = WorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = Account(name = "test", accountId = "id"),
+      account = Account(name = "test", accountId = "id", type = "type"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -143,6 +147,7 @@ object ResourceHandlerTest {
         TestRule(false, null)
       ),
       resourceTrackingRepository = resourceRepository,
+      exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = fetchedResources
     ).clean(markedResource, configuration)
@@ -153,11 +158,48 @@ object ResourceHandlerTest {
   }
 
   @Test
+  fun `should ignore resource`() {
+    val resource = TestResource(resourceId = "testResourceId", name = "testResourceName")
+    val configuration = WorkConfiguration(
+      namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
+      account = Account(name = "test", accountId = "id", type = "type"),
+      location = "us-east-1",
+      cloudProvider = resource.cloudProvider,
+      resourceType = resource.resourceType,
+      retentionDays = 14,
+      dryRun = false,
+      exclusions = listOf(
+        Exclusion()
+          .withType(ExclusionType.Literal.toString())
+          .withAttributes(
+            listOf(
+              Attribute()
+                .withKey("name")
+                .withValue(listOf(resource.name))
+            )
+          )
+      )
+    )
+
+    TestResourceHandler(
+      clock = clock,
+      rules = listOf(TestRule(true, null)),
+      resourceTrackingRepository = resourceRepository,
+      exclusionPolicies = listOf(LiteralExclusionPolicy()),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedUpstreamResources = mutableListOf(resource)
+    ).mark(configuration)
+
+    verify(applicationEventPublisher, never()).publishEvent(any())
+    verify(resourceRepository, never()).upsert(any(), any())
+  }
+
+  @Test
   fun `should forget resource if no longer violate a rule and don't notify user`() {
     val resource = TestResource("testResource")
-    val configuration = ScopeOfWorkConfiguration(
+    val configuration = WorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = Account(name = "test", accountId = "id"),
+      account = Account(name = "test", accountId = "id", type = "type"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -186,6 +228,7 @@ object ResourceHandlerTest {
       clock = clock,
       rules = listOf(TestRule(true, null)),
       resourceTrackingRepository = resourceRepository,
+      exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(configuration)
@@ -213,14 +256,15 @@ object ResourceHandlerTest {
     rules: List<Rule>,
     resourceTrackingRepository: ResourceTrackingRepository,
     applicationEventPublisher: ApplicationEventPublisher,
+    exclusionPolicies: List<ResourceExclusionPolicy>,
     private val simulatedUpstreamResources: MutableList<Resource>?
-  ) : AbstractResourceHandler(clock, rules, resourceTrackingRepository, applicationEventPublisher) {
-    override fun remove(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
+  ) : AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, applicationEventPublisher) {
+    override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }
 
     // simulates querying for a resource upstream
-    override fun getUpstreamResource(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration): Resource? {
+    override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): Resource? {
       return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId}
     }
 
@@ -228,7 +272,7 @@ object ResourceHandlerTest {
       return true
     }
 
-    override fun getUpstreamResources(scopeOfWorkConfiguration: ScopeOfWorkConfiguration): List<Resource>? {
+    override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<Resource>? {
       return simulatedUpstreamResources
     }
   }

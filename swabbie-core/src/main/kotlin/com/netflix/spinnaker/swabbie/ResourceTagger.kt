@@ -16,10 +16,10 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
 interface ResourceTagger {
-  fun tag(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
-  fun unTag(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
+  fun tag(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
+  fun unTag(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
 }

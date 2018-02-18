@@ -16,16 +16,17 @@
 
 package com.netflix.spinnaker.swabbie.controllers
 
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
+
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.model.Work
 import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/resources")
 class ResourceController(
-  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
+  private val work: List<Work>,
   private val resourceStateRepository: ResourceStateRepository
 ) {
   private val log = LoggerFactory.getLogger(javaClass)
@@ -44,16 +45,15 @@ class ResourceController(
     @RequestParam resourceType: String
   ): ResourceState? {
     "$provider:$account:$location:$resourceType".toLowerCase().let { namespace ->
-      scopeOfWorkConfigurator.list()
-        .find { scopeOfWork ->
-          scopeOfWork.namespace == namespace
-        }.let { scopeOfWork ->
-          return if (scopeOfWork != null) {
-            resourceStateRepository.get(resourceId, scopeOfWork.namespace)
-          } else {
-            resourceStateRepository.get(resourceId, namespace)
-          }
+      work.find { scopeOfWork ->
+        scopeOfWork.namespace == namespace
+      }.let { scopeOfWork ->
+        return if (scopeOfWork != null) {
+          resourceStateRepository.get(resourceId, scopeOfWork.namespace)
+        } else {
+          resourceStateRepository.get(resourceId, namespace)
         }
+      }
     }
   }
 }

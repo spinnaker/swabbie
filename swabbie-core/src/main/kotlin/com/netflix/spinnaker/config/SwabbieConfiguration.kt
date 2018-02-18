@@ -26,9 +26,14 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
+import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.WorkConfigurationExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
 import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.Work
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.*
@@ -55,17 +60,55 @@ open class SwabbieConfiguration {
   open fun clock(): Clock = Clock.systemDefaultZone()
 
   @Bean
-  open fun taskExecutor(scopeOfWorkConfigurator: ScopeOfWorkConfigurator): ThreadPoolTaskExecutor =
+  open fun taskExecutor(work: List<Work>): ThreadPoolTaskExecutor =
     ThreadPoolTaskExecutor().apply {
-      corePoolSize = scopeOfWorkConfigurator.scopeCount()
+      corePoolSize = work.size
     }
+
+  @Bean
+  open fun work(swabbieProperties: SwabbieProperties,
+                accountProvider: AccountProvider,
+                exclusionPolicies: List<WorkConfigurationExclusionPolicy>): List<Work> {
+    val allWork = mutableListOf<Work>()
+    log.info("Loading Swabbie configuration {}", swabbieProperties)
+    swabbieProperties.providers.forEach { cloudProviderConfiguration ->
+      cloudProviderConfiguration.resourceTypes.filter {
+        it.enabled
+      }.forEach { resourceTypeConfiguration ->
+        accountProvider.getAccounts().filter { it.name == "test" }.forEach { account ->
+          cloudProviderConfiguration.locations.forEach { location ->
+            "${cloudProviderConfiguration.name}:${account.name}:$location:${resourceTypeConfiguration.name}".let { namespace ->
+              WorkConfiguration(
+                namespace = namespace.toLowerCase(),
+                account = account,
+                location = location,
+                cloudProvider = cloudProviderConfiguration.name,
+                resourceType = resourceTypeConfiguration.name,
+                retentionDays = resourceTypeConfiguration.retentionDays,
+                exclusions = mergeExclusions(cloudProviderConfiguration.exclusions, resourceTypeConfiguration.exclusions),
+                dryRun = swabbieProperties.dryRun || cloudProviderConfiguration.dryRun || resourceTypeConfiguration.dryRun
+              ).takeIf {
+                !it.shouldBeExcluded(exclusionPolicies, it.exclusions)
+              }?.let { configuration ->
+                  allWork.add(Work(namespace = namespace.toLowerCase(), configuration = configuration))
+                }
+            }
+          }
+        }
+      }
+    }
+
+    log.info("Generated work {}", allWork)
+    return allWork
+  }
+
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
 }
 
-
-class ResourceDeserializer: JsonDeserializer<Resource>() {
+class ResourceDeserializer : JsonDeserializer<Resource>() {
   private val registry = mutableMapOf<String, Class<Resource>>()
   override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Resource =
-    (p.codec as ObjectMapper).let { mapper->
+    (p.codec as ObjectMapper).let { mapper ->
       mapper.readTree<ObjectNode>(p).let { root ->
         root.get(RESOURCE_TYPE_INFO_FIELD).let { node ->
           if (node != null) {
@@ -74,16 +117,16 @@ class ResourceDeserializer: JsonDeserializer<Resource>() {
             throw IllegalArgumentException("Failed to deserialize subtype")
           }
         }
+      }
     }
-  }
 
   fun registerResourceTypes(types: Array<NamedType>): ResourceDeserializer {
-    types.forEach { registry[it.name] = it.type as Class<Resource>}
+    types.forEach { registry[it.name] = it.type as Class<Resource> }
     return this
   }
 }
 
-private const val PKG = "com.netflix.spinnaker.swabbie"
+private val PKG = "com.netflix.spinnaker.swabbie"
 
 private fun findSubTypesInPackage(clazz: Class<Resource>, pkg: String): List<Class<*>> =
   ClassPathScanningCandidateComponentProvider(false)

@@ -17,9 +17,9 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.SwabbieAgent
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.LockManager
 import com.netflix.spinnaker.swabbie.ResourceHandler
+import com.netflix.spinnaker.swabbie.model.Work
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
@@ -32,7 +32,7 @@ import java.util.concurrent.Executor
 class ResourceMarkerAgent(
   private val executor: Executor,
   private val lockManager: LockManager,
-  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
+  private val work: List<Work>,
   private val resourceHandlers: List<ResourceHandler>,
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
@@ -42,7 +42,7 @@ class ResourceMarkerAgent(
     discoverySupport.ifUP {
       try {
         log.info("Resource markers started...")
-        scopeOfWorkConfigurator.list().forEach {
+        work.forEach {
           it.takeIf {
             lockManager.acquire(locksName(PREFIX, it.namespace), lockTtlSeconds = 3600)
           }?.let { scopeOfWork ->

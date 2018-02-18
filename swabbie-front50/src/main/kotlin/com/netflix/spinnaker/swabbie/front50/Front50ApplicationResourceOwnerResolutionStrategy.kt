@@ -17,8 +17,8 @@
 package com.netflix.spinnaker.swabbie.front50
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolutionStrategy
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.model.Application
 import org.springframework.stereotype.Component
 import java.util.concurrent.atomic.AtomicReference
@@ -27,9 +27,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 
 @Component
-class Front50ApplicationResourceOwnerResolver(
+class Front50ApplicationResourceOwnerResolutionStrategy(
   private val front50Service: Front50Service
-) : ResourceOwnerResolver {
+) : ResourceOwnerResolutionStrategy {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   val applicationsCache = AtomicReference<Set<Application>>()
 

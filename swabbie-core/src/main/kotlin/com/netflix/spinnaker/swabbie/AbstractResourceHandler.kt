@@ -30,6 +30,7 @@ abstract class AbstractResourceHandler(
   private val rules: List<Rule>,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
+  private val ownerResolver: OwnerResolver,
   private val applicationEventPublisher: ApplicationEventPublisher
 ): ResourceHandler {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
@@ -75,6 +76,7 @@ abstract class AbstractResourceHandler(
                         resource = upstreamResource,
                         summaries = violationSummaries,
                         namespace = workConfiguration.namespace,
+                        resourceOwner = ownerResolver.resolve(upstreamResource),
                         projectedDeletionStamp = projectedDeletionDate.atStartOfDay(clock.zone).toInstant().toEpochMilli()
                       )
                     ).let {

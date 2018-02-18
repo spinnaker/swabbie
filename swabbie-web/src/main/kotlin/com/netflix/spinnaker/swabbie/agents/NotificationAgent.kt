@@ -25,7 +25,6 @@ import com.netflix.spinnaker.swabbie.messageSubjectAndBody
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.Notifier
-import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
@@ -48,8 +47,7 @@ class NotificationAgent(
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val discoverySupport: DiscoverySupport,
   private val clock: Clock,
-  private val notifier: Notifier,
-  private val ownerResolvers: List<ResourceOwnerResolver>
+  private val notifier: Notifier
 ): SwabbieAgent {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val resourceWithNoOwnerId = registry.createId("swabbie.notifications")
@@ -63,7 +61,7 @@ class NotificationAgent(
     discoverySupport.ifUP {
       try {
         log.info("Notification Agent Started ...")
-        findMarkedResourceOwners().forEach { owner ->
+        markedResourcesGroupedByOwner().forEach { owner ->
           owner.takeIf {
             lockManager.acquire(locksName(PREFIX, it.key), lockTtlSeconds = 3600)
           }.let {
@@ -102,15 +100,13 @@ class NotificationAgent(
     }
   }
 
-  private fun findMarkedResourceOwners(): MutableMap<String, MutableList<Pair<MarkedResource, WorkConfiguration>>> {
+  private fun markedResourcesGroupedByOwner(): MutableMap<String, MutableList<Pair<MarkedResource, WorkConfiguration>>> {
     val owners = mutableMapOf<String, MutableList<Pair<MarkedResource, WorkConfiguration>>>()
     resourceTrackingRepository.getMarkedResources()
       ?.filter {
         it.notificationInfo.notificationStamp == null && it.adjustedDeletionStamp == null
       }?.forEach { markedResource ->
-        ownerResolvers.map {
-          it.resolve(markedResource.resource)
-        }.first()
+        markedResource.resourceOwner
           .let { owner ->
             if (owner != null) {
               getMatchingConfiguration(markedResource)?.let { config ->

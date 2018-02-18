@@ -69,7 +69,8 @@ data class MarkedResource(
   var adjustedDeletionStamp: Long? = null,
   var notificationInfo: NotificationInfo = NotificationInfo(),
   var createdTs: Long? = null,
-  var updateTs: Long? = null
+  var updateTs: Long? = null,
+  val resourceOwner: String? = null
 ): Identifiable by resource
 
 data class NotificationInfo(

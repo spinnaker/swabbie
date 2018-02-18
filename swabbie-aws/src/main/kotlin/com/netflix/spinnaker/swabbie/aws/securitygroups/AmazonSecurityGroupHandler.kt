@@ -17,14 +17,11 @@
 package com.netflix.spinnaker.swabbie.aws.securitygroups
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.AbstractResourceHandler
-import com.netflix.spinnaker.swabbie.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.SecurityGroupProvider
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -34,11 +31,12 @@ class AmazonSecurityGroupHandler(
   clock: Clock,
   rules: List<Rule>,
   resourceTrackingRepository: ResourceTrackingRepository,
+  resourceOwnerResolver: ResourceOwnerResolver,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   private val securityGroupProvider: SecurityGroupProvider,
   private val orcaService: OrcaService
-): AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, applicationEventPublisher) {
+): AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup) {

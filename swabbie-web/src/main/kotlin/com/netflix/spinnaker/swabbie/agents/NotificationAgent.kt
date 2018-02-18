@@ -18,8 +18,7 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.SwabbieAgent
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
+import com.netflix.spinnaker.swabbie.model.Work
 import com.netflix.spinnaker.swabbie.LockManager
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.messageSubjectAndBody
@@ -28,6 +27,7 @@ import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.Notifier
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
@@ -44,7 +44,7 @@ class NotificationAgent(
   private val lockManager: LockManager,
   private val registry: Registry,
   private val resourceTrackingRepository: ResourceTrackingRepository,
-  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
+  private val work: List<Work>,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val discoverySupport: DiscoverySupport,
   private val clock: Clock,
@@ -102,8 +102,8 @@ class NotificationAgent(
     }
   }
 
-  private fun findMarkedResourceOwners(): MutableMap<String, MutableList<Pair<MarkedResource, ScopeOfWorkConfiguration>>> {
-    val owners = mutableMapOf<String, MutableList<Pair<MarkedResource, ScopeOfWorkConfiguration>>>()
+  private fun findMarkedResourceOwners(): MutableMap<String, MutableList<Pair<MarkedResource, WorkConfiguration>>> {
+    val owners = mutableMapOf<String, MutableList<Pair<MarkedResource, WorkConfiguration>>>()
     resourceTrackingRepository.getMarkedResources()
       ?.filter {
         it.notificationInfo.notificationStamp == null && it.adjustedDeletionStamp == null
@@ -128,8 +128,8 @@ class NotificationAgent(
     return owners
   }
 
-  private fun getMatchingConfiguration(markedResource: MarkedResource): ScopeOfWorkConfiguration? = scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.configuration
+  private fun getMatchingConfiguration(markedResource: MarkedResource): WorkConfiguration? = work.find { it.namespace == markedResource.namespace }?.configuration
 }
 
 private val PREFIX = "{swabbie:notify}"
-private fun MarkedResource.scopeOfWorkConfiguration(configs: List<Pair<MarkedResource, ScopeOfWorkConfiguration>>): ScopeOfWorkConfiguration = configs.find { this == it.first }!!.second
+private fun MarkedResource.scopeOfWorkConfiguration(configs: List<Pair<MarkedResource, WorkConfiguration>>): WorkConfiguration = configs.find { this == it.first }!!.second

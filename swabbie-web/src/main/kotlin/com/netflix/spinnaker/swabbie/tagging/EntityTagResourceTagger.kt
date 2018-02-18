@@ -17,11 +17,11 @@
 package com.netflix.spinnaker.swabbie.tagging
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import com.netflix.spinnaker.swabbie.tagMessage
 import com.netflix.spinnaker.swabbie.ResourceTagger
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -32,7 +32,7 @@ class EntityTagResourceTagger(
   private val taggingService: EntityTaggingService,
   private val clock: Clock
 ): ResourceTagger {
-  override fun tag(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
+  override fun tag(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource
       .takeIf { it.resourceType in SUPPORTED_RESOURCE_TYPES }
       ?.let {
@@ -41,12 +41,12 @@ class EntityTagResourceTagger(
             entityType = markedResource.resourceType.toLowerCase(),
             cloudProvider = markedResource.cloudProvider,
             entityId = markedResource.resourceId,
-            region = scopeOfWorkConfiguration.location,
-            account = scopeOfWorkConfiguration.account.name
+            region = workConfiguration.location,
+            account = workConfiguration.account.name
           ),
           tags = listOf(
             EntityTag(
-              namespace = "swabbie:${scopeOfWorkConfiguration.namespace.toLowerCase()}",
+              namespace = "swabbie:${workConfiguration.namespace.toLowerCase()}",
               value = Value(message = tagMessage(it, clock))
             )
           ),
@@ -57,17 +57,17 @@ class EntityTagResourceTagger(
       }
   }
 
-  override fun unTag(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
+  override fun unTag(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource
       .takeIf { it.resourceType in SUPPORTED_RESOURCE_TYPES }
       ?.let {
         taggingService.removeTag(
           DeleteEntityTagsRequest(
-            id = "${scopeOfWorkConfiguration.cloudProvider}:" +
-              "${scopeOfWorkConfiguration.resourceType.toLowerCase()}: " +
+            id = "${workConfiguration.cloudProvider}:" +
+              "${workConfiguration.resourceType.toLowerCase()}: " +
               "${it.resourceId}:" +
-              "${scopeOfWorkConfiguration.account.accountId}:" +
-              scopeOfWorkConfiguration.location,
+              "${workConfiguration.account.accountId}:" +
+              workConfiguration.location,
             application = FriggaReflectiveNamer().deriveMoniker(markedResource).app
           )
         )

@@ -24,7 +24,6 @@ import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.junit.jupiter.api.AfterAll
@@ -66,9 +65,9 @@ object RedisResourceTrackingRepositoryTest {
 
   @Test
   fun `removing a resource should work`() {
-    val configuration = ScopeOfWorkConfiguration(
+    val configuration = WorkConfiguration(
       namespace = "configId",
-      account = Account(name = "test", accountId = "id"),
+      account = Account(name = "test", accountId = "id", type = "aws"),
       location = "us-east-1",
       resourceType = "testResourceType",
       cloudProvider = AWS,
@@ -103,9 +102,9 @@ object RedisResourceTrackingRepositoryTest {
   fun `fetch all tracked resources and resources to delete`() {
     val now = Instant.now(clock)
     val twoDaysFromNow = now.plus(2, ChronoUnit.DAYS)
-    val configuration = ScopeOfWorkConfiguration(
+    val configuration = WorkConfiguration(
       namespace = "configId",
-      account = Account(name = "test", accountId = "id"),
+      account = Account(name = "test", accountId = "id", type = "aws"),
       location = "us-east-1",
       resourceType = "testResourceType",
       cloudProvider = AWS,

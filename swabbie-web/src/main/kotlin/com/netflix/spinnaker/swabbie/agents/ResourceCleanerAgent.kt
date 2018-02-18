@@ -17,10 +17,10 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.SwabbieAgent
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfigurator
 import com.netflix.spinnaker.swabbie.LockManager
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.ResourceHandler
+import com.netflix.spinnaker.swabbie.model.Work
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
@@ -34,7 +34,7 @@ class ResourceCleanerAgent(
   private val executor: Executor,
   private val lockManager: LockManager,
   private val resourceTrackingRepository: ResourceTrackingRepository,
-  private val scopeOfWorkConfigurator: ScopeOfWorkConfigurator,
+  private val work: List<Work>,
   private val resourceHandlers: List<ResourceHandler>,
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
@@ -58,7 +58,7 @@ class ResourceCleanerAgent(
                         String.format("No Suitable handler found for %s", markedResource)
                       )
                     } else {
-                      scopeOfWorkConfigurator.list().find { it.namespace == markedResource.namespace }?.let { scopeOfWork ->
+                      work.find { it.namespace == markedResource.namespace }?.let { scopeOfWork ->
                         executor.execute {
                           handler.clean(markedResource, scopeOfWork.configuration)
                           lockManager.release(locksName(PREFIX, it.namespace))

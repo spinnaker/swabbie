@@ -16,7 +16,6 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.configuration.ScopeOfWorkConfiguration
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
@@ -30,6 +29,7 @@ abstract class AbstractResourceHandler(
   private val clock: Clock,
   private val rules: List<Rule>,
   private val resourceTrackingRepository: ResourceTrackingRepository,
+  private val exclusionPolicies: List<ResourceExclusionPolicy>,
   private val applicationEventPublisher: ApplicationEventPublisher
 ): ResourceHandler {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
@@ -37,13 +37,15 @@ abstract class AbstractResourceHandler(
   /**
    * finds & tracks cleanup candidates
    */
-  override fun mark(scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
+  override fun mark(workConfiguration: WorkConfiguration) {
     try {
-      log.info("getting upstream resources of type {}", scopeOfWorkConfiguration.resourceType)
-      getUpstreamResources(scopeOfWorkConfiguration)?.let { upstreamResources ->
+      log.info("getting upstream resources of type {}", workConfiguration.resourceType)
+      getUpstreamResources(workConfiguration)?.let { upstreamResources ->
         log.info("fetched {} upstream resources of type {}, dryRun {}",
-          upstreamResources.size, scopeOfWorkConfiguration.resourceType, scopeOfWorkConfiguration.dryRun)
-        upstreamResources.forEach { upstreamResource ->
+          upstreamResources.size, workConfiguration.resourceType, workConfiguration.dryRun)
+        upstreamResources.filter {
+          !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions)
+        }.forEach { upstreamResource ->
           rules
             .filter { it.applies(upstreamResource) }
             .mapNotNull {
@@ -51,35 +53,35 @@ abstract class AbstractResourceHandler(
             }.let { violationSummaries ->
               resourceTrackingRepository.find(
                 resourceId = upstreamResource.resourceId,
-                namespace = scopeOfWorkConfiguration.namespace
+                namespace = workConfiguration.namespace
               ).let { trackedMarkedResource ->
-                if (trackedMarkedResource != null && violationSummaries.isEmpty() && !scopeOfWorkConfiguration.dryRun) {
+                if (trackedMarkedResource != null && violationSummaries.isEmpty() && !workConfiguration.dryRun) {
                   log.info("forgetting now valid {} resource", upstreamResource)
                   resourceTrackingRepository.remove(trackedMarkedResource)
-                  applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource, scopeOfWorkConfiguration))
+                  applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource, workConfiguration))
                 } else if (!violationSummaries.isEmpty()) {
                   log.info("found cleanup candidate {} of type {}, violations {}, dryRyn {}",
-                    upstreamResource, scopeOfWorkConfiguration.resourceType, violationSummaries, scopeOfWorkConfiguration.dryRun)
+                    upstreamResource, workConfiguration.resourceType, violationSummaries, workConfiguration.dryRun)
                   LocalDate.now(clock).with { today ->
                     today.plus(
-                      Period.ofDays(scopeOfWorkConfiguration.retentionDays)
+                      Period.ofDays(workConfiguration.retentionDays)
                     )
                   }.let { projectedDeletionDate ->
-                      log.info("Projected deletion date for resource {} is {}, dryRun {}", projectedDeletionDate, upstreamResource, scopeOfWorkConfiguration.dryRun)
+                      log.info("Projected deletion date for resource {} is {}, dryRun {}", projectedDeletionDate, upstreamResource, workConfiguration.dryRun)
                       (trackedMarkedResource?.copy(
                         projectedDeletionStamp = projectedDeletionDate.atStartOfDay(clock.zone).toInstant().toEpochMilli(),
                         summaries = violationSummaries
                       ) ?: MarkedResource(
                         resource = upstreamResource,
                         summaries = violationSummaries,
-                        namespace = scopeOfWorkConfiguration.namespace,
+                        namespace = workConfiguration.namespace,
                         projectedDeletionStamp = projectedDeletionDate.atStartOfDay(clock.zone).toInstant().toEpochMilli()
                       )
                     ).let {
-                        if (!scopeOfWorkConfiguration.dryRun) {
+                        if (!workConfiguration.dryRun) {
                           resourceTrackingRepository.upsert(it)
                           if (trackedMarkedResource == null) {
-                            applicationEventPublisher.publishEvent(MarkResourceEvent(it, scopeOfWorkConfiguration))
+                            applicationEventPublisher.publishEvent(MarkResourceEvent(it, workConfiguration))
                           }
                         }
                       }
@@ -97,29 +99,30 @@ abstract class AbstractResourceHandler(
   /**
    * deletes violating resources
    */
-  override fun clean(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration) {
-    getUpstreamResource(markedResource, scopeOfWorkConfiguration)
+  override fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+    getUpstreamResource(markedResource, workConfiguration)
+      ?.takeIf { !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions) }
       ?.let { upstreamResource ->
         rules
           .filter { it.applies(upstreamResource) }
           .mapNotNull {
             it.apply(upstreamResource).summary
           }.let { violationSummaries ->
-            if (violationSummaries.isEmpty() && !scopeOfWorkConfiguration.dryRun) {
-              applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource,scopeOfWorkConfiguration))
+            if (violationSummaries.isEmpty() && !workConfiguration.dryRun) {
+              applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
               resourceTrackingRepository.remove(markedResource)
             } else {
               // adjustedDeletionStamp is the adjusted projectedDeletionStamp after notification is sent
-              log.info("Preparing deletion of {}. dryRun {}", markedResource, scopeOfWorkConfiguration.dryRun)
-              if (markedResource.adjustedDeletionStamp != null && !scopeOfWorkConfiguration.dryRun) {
-                remove(markedResource, scopeOfWorkConfiguration)
+              log.info("Preparing deletion of {}. dryRun {}", markedResource, workConfiguration.dryRun)
+              if (markedResource.adjustedDeletionStamp != null && !workConfiguration.dryRun) {
+                remove(markedResource, workConfiguration)
                 resourceTrackingRepository.remove(markedResource)
-                applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, scopeOfWorkConfiguration))
+                applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
               }
             }
           }
       }
   }
 
-  abstract fun remove(markedResource: MarkedResource, scopeOfWorkConfiguration: ScopeOfWorkConfiguration)
+  abstract fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
 }

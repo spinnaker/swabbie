@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws.securitygroups
+package com.netflix.spinnaker.swabbie.aws.exclusion
 
-import com.fasterxml.jackson.annotation.JsonTypeName
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.swabbie.Excludable
+import com.netflix.spinnaker.swabbie.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
-import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import org.springframework.stereotype.Component
 
-@JsonTypeName("amazonSecurityGroup")
-data class AmazonSecurityGroup(
-  val groupId: String,
-  val groupName: String,
-  val description: String?,
-  val vpcId: String?,
-  val ownerId: String,
-  override val resourceId: String = groupId,
-  override val name: String = groupName,
-  override val resourceType: String = SECURITY_GROUP,
-  override val cloudProvider: String = "aws"
-): AmazonResource()
+@Component
+class AmazonTagExclusionPolicy: ResourceExclusionPolicy {
+  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
+    if (excludable is AmazonResource) {
+//      excludable.details["tags"]
+      //TODO
+    }
+
+    return false
+  }
+}

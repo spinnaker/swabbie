@@ -18,5 +18,6 @@ package com.netflix.spinnaker.swabbie.model
 
 data class Account(
   val name: String,
-  val accountId: String?
+  val accountId: String?,
+  val type: String
 )

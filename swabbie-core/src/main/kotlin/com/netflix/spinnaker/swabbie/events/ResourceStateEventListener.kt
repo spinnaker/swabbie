@@ -35,7 +35,7 @@ class ResourceStateEventListener(
   fun onMarkResourceEvent(event: MarkResourceEvent) {
     event.let { e->
       updateState(e)
-      resourceTagger?.tag(e.markedResource, event.scopeOfWorkConfiguration)
+      resourceTagger?.tag(e.markedResource, event.workConfiguration)
     }
   }
 
@@ -43,7 +43,7 @@ class ResourceStateEventListener(
   fun onUnMarkResourceEvent(event: MarkResourceEvent) {
     event.let { e ->
       updateState(e)
-      resourceTagger?.unTag(e.markedResource, event.scopeOfWorkConfiguration)
+      resourceTagger?.unTag(e.markedResource, event.workConfiguration)
     }
   }
 
@@ -51,7 +51,7 @@ class ResourceStateEventListener(
   fun onDeleteResourceEvent(event: DeleteResourceEvent) {
     event.let { e ->
       updateState(e)
-      resourceTagger?.unTag(e.markedResource, event.scopeOfWorkConfiguration)
+      resourceTagger?.unTag(e.markedResource, event.workConfiguration)
     }
   }
 
@@ -59,7 +59,7 @@ class ResourceStateEventListener(
   fun onNotifyOwnerEvent(event: OwnerNotifiedEvent) {
     event.let { e ->
       updateState(e)
-      resourceTagger?.tag(e.markedResource, event.scopeOfWorkConfiguration)
+      resourceTagger?.tag(e.markedResource, event.workConfiguration)
     }
   }
 

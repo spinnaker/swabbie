@@ -20,18 +20,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties("swabbie")
 open class SwabbieProperties {
-  var dryRun: Boolean? = true
+  var dryRun: Boolean = true
   var providers: List<CloudProviderConfiguration> = mutableListOf()
 }
 
 class CloudProviderConfiguration {
+  var dryRun: Boolean = true
   var exclusions: MutableList<Exclusion>? = null
   var name: String = ""
   var locations: List<String> = mutableListOf()
   var resourceTypes: List<ResourceTypeConfiguration> = mutableListOf()
-  var attributes: List<Attribute> = mutableListOf()
   override fun toString(): String {
-    return "CloudProviderConfiguration(name='$name', exclusions=$exclusions, resourceTypes=$resourceTypes, attributes=$attributes)"
+    return "CloudProviderConfiguration(name='$name', exclusions=$exclusions, resourceTypes=$resourceTypes)"
   }
 }
 
@@ -41,6 +41,16 @@ class Exclusion {
   override fun toString(): String {
     return "Exclusion(type='$type', attributes=$attributes)"
   }
+
+  fun withType(t: String): Exclusion =
+    this.apply {
+      type = t
+    }
+
+  fun withAttributes(attrs: List<Attribute>): Exclusion =
+    this.apply {
+      attributes = attrs
+    }
 }
 
 class ResourceTypeConfiguration {
@@ -59,9 +69,19 @@ class Attribute {
     return "Attribute(key='$key', value=$value)"
   }
 
+  fun withKey(k: String): Attribute =
+    this.apply {
+      key = k
+    }
+
+  fun withValue(v: List<String>): Attribute =
+    this.apply {
+      value = v
+    }
+
 }
 
-enum class ExclusionType { Literal, Account, Tag }
+enum class ExclusionType { Literal, AccountType, AccountName, Tag }
 
 // TODO: rework this
 internal fun mergeExclusions(global: MutableList<Exclusion>?, local: MutableList<Exclusion>?): List<Exclusion> {

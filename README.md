@@ -6,7 +6,7 @@ Swabbie is a service automating the cleanup of unused resources, such as EBS Vol
 It's a replacement for Janitor Monkey.
 It applies a set of rules to mark cleanup candidates. Once marked, a resource is scheduled for deletion, and an owner is notified.
 
-Proposal doc: https://docs.google.com/document/d/1XZ_g9sPc-UE8JrTARnSjWvpSvFiZ1oJTFUbXQJqB5B0/edit#
+Proposal doc(Netflix Only): https://docs.google.com/document/d/1XZ_g9sPc-UE8JrTARnSjWvpSvFiZ1oJTFUbXQJqB5B0/edit#
 
 ## Configuration
 ```
@@ -15,7 +15,7 @@ swabbie:
   taggingEnabled: false
   agents:
     mark:
-      enabled: false
+      enabled: true
       intervalSeconds: 3600000
 
     clean:
@@ -28,6 +28,7 @@ swabbie:
 
   providers:
     - name: aws
+      dryRun: false
       locations:
         - us-east-1
 
@@ -37,25 +38,31 @@ swabbie:
             - key: expiration_time
               value:
                 - never
-                - pattern/^\d+(d|m|y)$
+                - pattern:^\d+(d|m|y)$
 
-        - type: Account
+        - type: AccountName
           attributes:
-            - key: account
+            - key: name
               value:
-                - test
+                - seg
 
       resourceTypes:
         - name: securityGroup
           enabled: true
           retentionDays: 10
+          dryRun: false
           exclusions:
+            - type: AccountType
+              attributes:
+                - key: type
+                  value:
+                    - titus
+
             - type: Literal
               attributes:
                 - key: name
                   value:
-                    - nf-datacenter
-                    - nf-infrastructure
+                    pattern:prod
 ```
 
 
@@ -80,7 +87,7 @@ Responsibilities include:
 A single unit of work is scoped to a configuration that defines its granularity.
 
 ```
-data class ScopeOfWorkConfiguration(
+data class Work(
   val namespace: String,
   val account: Account,
   val location: String,
@@ -91,7 +98,7 @@ data class ScopeOfWorkConfiguration(
   val dryRun: Boolean = true
 )
 ```
-The scope of work configuration is derived from the YAML configuration.
+Work configuration is derived from the YAML configuration.
 
 #### Marking & Redis
 A marker agent operates on a unit of work by acquiring a simple lock to avoid operating on work in progress.
@@ -106,5 +113,17 @@ Getting elements from the `ZSET` from `-inf` to `now` and delete them.
 #### Dry Run
 TODO
 
-#### Excluding resources & Opting out
-Swabbie includes all resources defined in the configuration by default. Exclusion rules can be used to exclude resources matching certain criteria.
+#### Exclusion Policies
+Swabbie includes all resources defined in the configuration by default.
+Resources can be excluded/opted out from consideration using exclusion policies.
+
+
+There are two types of Exclusion Policies:
+
+- `WorkConfigurationExclusionPolicy`: Excludes work at configuration time
+- `ResourceExclusionPolicy`: Excludes resources at runtime
+
+Current Policies:
+
+- `AccountNameExclusionPolicy`.
+- `AccountTypeExclusionPolicy`.

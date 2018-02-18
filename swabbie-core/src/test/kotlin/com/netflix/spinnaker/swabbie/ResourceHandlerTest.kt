@@ -50,6 +50,7 @@ object ResourceHandlerTest {
       rules =listOf<Rule>(TestRule(true, violationSummary)),
       resourceTrackingRepository = resourceRepository,
       exclusionPolicies = listOf(mock()),
+      ownerResolver = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(
@@ -101,6 +102,7 @@ object ResourceHandlerTest {
       clock = clock,
       rules = listOf<Rule>(TestRule(true, Summary("always invalid", "rule1"))),
       resourceTrackingRepository = resourceRepository,
+      ownerResolver = mock(),
       exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
@@ -147,6 +149,7 @@ object ResourceHandlerTest {
         TestRule(false, null)
       ),
       resourceTrackingRepository = resourceRepository,
+      ownerResolver = mock(),
       exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = fetchedResources
@@ -185,6 +188,7 @@ object ResourceHandlerTest {
       clock = clock,
       rules = listOf(TestRule(true, null)),
       resourceTrackingRepository = resourceRepository,
+      ownerResolver = mock(),
       exclusionPolicies = listOf(LiteralExclusionPolicy()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
@@ -228,6 +232,7 @@ object ResourceHandlerTest {
       clock = clock,
       rules = listOf(TestRule(true, null)),
       resourceTrackingRepository = resourceRepository,
+      ownerResolver = mock(),
       exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
@@ -255,10 +260,11 @@ object ResourceHandlerTest {
     clock: Clock,
     rules: List<Rule>,
     resourceTrackingRepository: ResourceTrackingRepository,
+    ownerResolver: OwnerResolver,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
     private val simulatedUpstreamResources: MutableList<Resource>?
-  ) : AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, applicationEventPublisher) {
+  ) : AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }

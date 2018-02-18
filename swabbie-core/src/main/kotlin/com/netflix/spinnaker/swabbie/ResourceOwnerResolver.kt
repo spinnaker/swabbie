@@ -17,7 +17,19 @@
 package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.Resource
+import org.springframework.stereotype.Component
 
-interface ResourceOwnerResolver {
+@Component
+class ResourceOwnerResolver(
+  private val resourceOwnerStrategies: List<ResourceOwnerResolutionStrategy>
+): OwnerResolver {
+  override fun resolve(resource: Resource): String? = resourceOwnerStrategies.mapNotNull { it.resolve(resource) }.first()
+}
+
+interface OwnerResolver {
+  fun resolve(resource: Resource): String?
+}
+
+interface ResourceOwnerResolutionStrategy {
   fun resolve(resource: Resource): String?
 }

@@ -110,6 +110,10 @@ This takes advantage of Redis Sorted Sets.
 Getting elements from the `ZSET` from `-inf` to `now` and delete them.
 
 
+#### Notifications
+When resources are marked for deletion, a notification is sent to the owner.
+Resource owners are resolved using resolution strategies. Default strategy is getting the email field on the resource's application.
+
 #### Dry Run
 TODO
 

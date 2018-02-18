@@ -25,8 +25,8 @@ import com.nhaarman.mockito_kotlin.mock
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-object Front50ApplicationResourceOwnerResolverTest {
-  private val subject = Front50ApplicationResourceOwnerResolver(mock())
+object Front50ApplicationResourceOwnerResolutionStrategyTest {
+  private val subject = Front50ApplicationResourceOwnerResolutionStrategy(mock())
 
   @BeforeEach
   fun setup() {

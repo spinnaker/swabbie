@@ -16,8 +16,25 @@
 
 package com.netflix.spinnaker.swabbie.model
 
-data class Account(
-  val name: String,
-  val accountId: String?,
+import com.netflix.spinnaker.swabbie.Cacheable
+
+
+interface Account: Named {
+  val accountId: String?
   val type: String
-)
+}
+
+/**
+ * An account managed by Spinnaker
+ */
+data class SpinnakerAccount(
+  override val accountId: String?,
+  override val type: String,
+  override val name: String
+) : Account, Cacheable
+
+data class EmptyAccount(
+  override val accountId: String? = "",
+  override val type: String = "",
+  override val name: String = ""
+): Account

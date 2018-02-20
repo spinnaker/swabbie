@@ -18,7 +18,9 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.Resource
 
-interface SecurityGroupProvider {
-  fun getSecurityGroups(account: String, region: String): List<Resource>?
-  fun getSecurityGroup(groupId: String, account: String, region: String): Resource?
+interface ResourceProvider<out T: Resource> {
+  fun getAll(params: Parameters): List<T>?
+  fun getOne(params: Parameters): T?
 }
+
+class Parameters(val map: Map<String, Any>): HashMap<String, Any>(map)

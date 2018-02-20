@@ -34,7 +34,7 @@ class AmazonSecurityGroupHandler(
   resourceOwnerResolver: ResourceOwnerResolver,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  private val securityGroupProvider: SecurityGroupProvider,
+  private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
 ): AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
@@ -63,18 +63,26 @@ class AmazonSecurityGroupHandler(
     }
   }
 
-  override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): Resource?
-    = securityGroupProvider.getSecurityGroup(
-      groupId = markedResource.resourceId,
-      account = workConfiguration.account.name,
-      region = workConfiguration.location
+  override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): AmazonSecurityGroup? =
+    securityGroupProvider.getOne(
+      Parameters(
+        mapOf(
+          "groupId" to markedResource.resourceId,
+          "account" to workConfiguration.account.name,
+          "region" to workConfiguration.location
+        )
+      )
     )
 
   override fun handles(resourceType: String, cloudProvider: String): Boolean = resourceType == SECURITY_GROUP && cloudProvider == AWS
 
-  override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<Resource>?
-    = securityGroupProvider.getSecurityGroups(
-      account = workConfiguration.account.name,
-      region = workConfiguration.location
+  override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
+    securityGroupProvider.getAll(
+      Parameters(
+        mapOf(
+          "account" to workConfiguration.account.name,
+          "region" to workConfiguration.location
+        )
+      )
     )
 }

@@ -22,7 +22,9 @@ import com.natpryce.hamkrest.should.shouldNotMatch
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.swabbie.model.Account
+import com.netflix.spinnaker.swabbie.exclusions.AccountNameExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.AccountTypeExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.junit.jupiter.api.Test
 
@@ -34,7 +36,7 @@ object AccountExclusionPolicyTest {
     val accountName = "test"
     val configuration = WorkConfiguration(
       namespace = "aws:test:us-east-1:securityGroup",
-      account = Account(name = accountName, accountId = "id", type = "aws"),
+      account = SpinnakerAccount(name = accountName, accountId = "id", type = "aws"),
       location = "us-east-1",
       cloudProvider = "aws",
       resourceType = "securityGroup",
@@ -58,7 +60,7 @@ object AccountExclusionPolicyTest {
 
     AccountNameExclusionPolicy()
       .apply(
-        configuration.copy(account = Account(name = "other", accountId = "id", type = "aws")),
+        configuration.copy(account = SpinnakerAccount(name = "other", accountId = "id", type = "aws")),
         configuration.exclusions
       ) shouldNotMatch  equalTo(true)
   }
@@ -68,7 +70,7 @@ object AccountExclusionPolicyTest {
     val accountType = "aws"
     val configuration = WorkConfiguration(
       namespace = "aws:test:us-east-1:securityGroup",
-      account = Account(name = "test", accountId = "id", type = accountType),
+      account = SpinnakerAccount(name = "test", accountId = "id", type = accountType),
       location = "us-east-1",
       cloudProvider = "aws",
       resourceType = "securityGroup",
@@ -92,7 +94,7 @@ object AccountExclusionPolicyTest {
 
     AccountTypeExclusionPolicy()
       .apply(
-        configuration.copy(account = Account(name = "test", accountId = "id", type = "other")),
+        configuration.copy(account = SpinnakerAccount(name = "test", accountId = "id", type = "other")),
         configuration.exclusions
       ) shouldNotMatch  equalTo(true)
   }

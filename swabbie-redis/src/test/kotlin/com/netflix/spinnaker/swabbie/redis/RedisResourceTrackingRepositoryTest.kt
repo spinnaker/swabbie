@@ -67,7 +67,7 @@ object RedisResourceTrackingRepositoryTest {
   fun `removing a resource should work`() {
     val configuration = WorkConfiguration(
       namespace = "configId",
-      account = Account(name = "test", accountId = "id", type = "aws"),
+      account = SpinnakerAccount(name = "test", accountId = "id", type = "aws"),
       location = "us-east-1",
       resourceType = "testResourceType",
       cloudProvider = AWS,
@@ -104,7 +104,7 @@ object RedisResourceTrackingRepositoryTest {
     val twoDaysFromNow = now.plus(2, ChronoUnit.DAYS)
     val configuration = WorkConfiguration(
       namespace = "configId",
-      account = Account(name = "test", accountId = "id", type = "aws"),
+      account = SpinnakerAccount(name = "test", accountId = "id", type = "aws"),
       location = "us-east-1",
       resourceType = "testResourceType",
       cloudProvider = AWS,

@@ -81,7 +81,7 @@ class Attribute {
 
 }
 
-enum class ExclusionType { Literal, AccountType, AccountName, Tag }
+enum class ExclusionType { Name, AccountType, AccountName, Tag }
 
 // TODO: rework this
 internal fun mergeExclusions(global: MutableList<Exclusion>?, local: MutableList<Exclusion>?): List<Exclusion> {

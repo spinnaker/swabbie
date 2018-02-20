@@ -16,7 +16,7 @@
 
 package com.netflix.spinnaker.config
 
-import com.netflix.discovery.DiscoveryClient
+import com.netflix.discovery.EurekaClient
 import com.netflix.dyno.connectionpool.Host
 import com.netflix.dyno.connectionpool.HostSupplier
 import com.netflix.dyno.connectionpool.TokenMapSupplier
@@ -45,7 +45,7 @@ open class DynomiteConfiguration {
   @Bean(destroyMethod = "stopClient")
   open fun mainDynoJedisClient(mainDynomiteConfigurationProperties: DynomiteConfigurationProperties,
                                mainConnectionPoolConfiguration: ConnectionPoolConfigurationImpl,
-                               discoveryClient: Optional<DiscoveryClient>): DynoJedisClient
+                               discoveryClient: Optional<EurekaClient>): DynoJedisClient
     = createDynoJedisClient(mainDynomiteConfigurationProperties, mainConnectionPoolConfiguration, discoveryClient)
 
   @Bean(name = arrayOf("mainRedisClient")) open fun dynomiteClientDelegate(dynoJedisClient: DynoJedisClient): DynomiteClientDelegate {
@@ -56,7 +56,7 @@ open class DynomiteConfiguration {
 
   private fun createDynoJedisClient(dynomiteConfigurationProperties: DynomiteConfigurationProperties,
                                     connectionPoolConfiguration: ConnectionPoolConfigurationImpl,
-                                    discoveryClient: Optional<DiscoveryClient>): DynoJedisClient {
+                                    discoveryClient: Optional<EurekaClient>): DynoJedisClient {
     val builder = DynoJedisClient.Builder()
       .withApplicationName(dynomiteConfigurationProperties.applicationName)
       .withDynomiteClusterName(dynomiteConfigurationProperties.clusterName)

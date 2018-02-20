@@ -16,18 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.aws.model
 
-import com.fasterxml.jackson.annotation.JsonAnyGetter
-import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.netflix.spinnaker.swabbie.model.Resource
 
-abstract class AmazonResource: Resource() {
-  val details: MutableMap<String, Any?> = mutableMapOf()
-
-  @JsonAnySetter
-  fun set(name: String, value: Any?) {
-    details[name] = value
-  }
-
-  @JsonAnyGetter
-  fun details() = details
-}
+abstract class AmazonResource: Resource()

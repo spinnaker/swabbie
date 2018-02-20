@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws.exclusion
+package com.netflix.spinnaker.swabbie.aws.exclusions
 
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.swabbie.Excludable

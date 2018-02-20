@@ -16,6 +16,8 @@
 
 package com.netflix.spinnaker.swabbie.model
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter
+import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.swabbie.Excludable
@@ -31,10 +33,17 @@ const val RESOURCE_TYPE_INFO_FIELD =  "swabbieTypeInfo"
 
 /**
  * subtypes specify type by annotating with JsonTypeName
+ * Represents a resource that swabbie can visit and act on
  */
-abstract class Resource: Identifiable, Excludable {
+abstract class Resource: Identifiable, Excludable, HasDetails() {
+  /**
+   * requires all subtypes to be annotated with JsonTypeName
+   */
   val swabbieTypeInfo: String = javaClass.getAnnotation(JsonTypeName::class.java).value
 
+  /**
+   * Determines if a resource should be spared by Swabbie
+   */
   override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean =
     exclusionPolicies.find { it.apply(this, exclusions) } != null
 
@@ -51,6 +60,21 @@ abstract class Resource: Identifiable, Excludable {
   }
 }
 
+/**
+ * The details field will include all non strongly typed fields of the Resource
+ */
+abstract class HasDetails {
+  val details: MutableMap<String, Any?> = mutableMapOf()
+
+  @JsonAnySetter
+  fun set(name: String, value: Any?) {
+    details[name] = value
+  }
+
+  @JsonAnyGetter
+  fun details() = details
+}
+
 interface Identifiable: Named {
   val resourceId: String
   val resourceType: String
@@ -61,6 +85,10 @@ interface Named {
   val name: String
 }
 
+/**
+ * Cleanup candidate decorated with additional metadata
+ * 'adjustedDeletionStamp' is the scheduled deletion time
+ */
 data class MarkedResource(
   val resource: Resource,
   val summaries: List<Summary>,

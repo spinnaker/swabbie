@@ -18,28 +18,16 @@ package com.netflix.spinnaker.swabbie.clouddriver
 
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.AccountProvider
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Scheduled
+import com.netflix.spinnaker.swabbie.InMemoryCache
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import org.springframework.stereotype.Component
-import java.util.concurrent.atomic.AtomicReference
 
 @Component
 class ClouddriverAccountProvider(
-  private val cloudDriverService: CloudDriverService
+  private val accountCache: InMemoryCache<SpinnakerAccount>
 ) : AccountProvider {
-  private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private var accountsCache = AtomicReference<Set<Account>>()
-  override fun getAccounts(): Set<Account> {
-    return cloudDriverService.getAccounts()
-  }
-
-  @Scheduled(fixedDelay = 24 * 60 * 60 * 1000L)
-  private fun refreshApplications() {
-    try {
-      accountsCache.set(cloudDriverService.getAccounts())
-    } catch (e: Exception) {
-      log.error("Error refreshing accounts cache", e)
-    }
-  }
+  override fun getAccounts(): Set<Account> = accountCache.get()
 }
+
+@Component
+class ClouddriverAccountCache(cloudDriverService: CloudDriverService): InMemoryCache<SpinnakerAccount>(cloudDriverService.getAccounts())

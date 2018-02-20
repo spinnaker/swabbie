@@ -28,10 +28,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.WorkConfigurationExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.Work
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -65,6 +62,18 @@ open class SwabbieConfiguration {
       corePoolSize = work.size
     }
 
+  private fun getAccounts(accountProvider: AccountProvider, accountType: String): List<Account> {
+    accountProvider.getAccounts().filter {
+      it.type.equals(accountType, ignoreCase = true)
+    }.let { accounts ->
+        return if (accounts.isEmpty()) {
+          listOf(EmptyAccount())
+        } else {
+          accounts
+        }
+      }
+  }
+
   @Bean
   open fun work(swabbieProperties: SwabbieProperties,
                 accountProvider: AccountProvider,
@@ -75,7 +84,7 @@ open class SwabbieConfiguration {
       cloudProviderConfiguration.resourceTypes.filter {
         it.enabled
       }.forEach { resourceTypeConfiguration ->
-        accountProvider.getAccounts().filter { it.name == "test" }.forEach { account ->
+          getAccounts(accountProvider, cloudProviderConfiguration.name).forEach { account ->
           cloudProviderConfiguration.locations.forEach { location ->
             "${cloudProviderConfiguration.name}:${account.name}:$location:${resourceTypeConfiguration.name}".let { namespace ->
               WorkConfiguration(
@@ -106,13 +115,13 @@ open class SwabbieConfiguration {
 }
 
 class ResourceDeserializer : JsonDeserializer<Resource>() {
-  private val registry = mutableMapOf<String, Class<Resource>>()
+  private val registry = mutableMapOf<String, Class<*>>()
   override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Resource =
     (p.codec as ObjectMapper).let { mapper ->
       mapper.readTree<ObjectNode>(p).let { root ->
         root.get(RESOURCE_TYPE_INFO_FIELD).let { node ->
           if (node != null) {
-            mapper.convertValue(root, registry[node.asText()])
+            mapper.convertValue(root, registry[node.asText()]) as Resource
           } else {
             throw IllegalArgumentException("Failed to deserialize subtype")
           }
@@ -121,7 +130,7 @@ class ResourceDeserializer : JsonDeserializer<Resource>() {
     }
 
   fun registerResourceTypes(types: Array<NamedType>): ResourceDeserializer {
-    types.forEach { registry[it.name] = it.type as Class<Resource> }
+    types.forEach { registry[it.name] = it.type as Class<*> }
     return this
   }
 }

@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.clouddriver
+package com.netflix.spinnaker.swabbie.front50
 
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import retrofit.http.GET
+import com.netflix.spinnaker.swabbie.InMemoryCache
+import com.netflix.spinnaker.swabbie.model.Application
+import org.springframework.stereotype.Component
 
-interface CloudDriverService {
-  @GET("/credentials")
-  fun getAccounts(): Set<SpinnakerAccount>
-}
+@Component
+class Front50ApplicationCache(front50Service: Front50Service): InMemoryCache<Application>(front50Service.getApplications())

@@ -19,28 +19,28 @@ package com.netflix.spinnaker.swabbie.front50
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
+import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.Resource
+import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
-import org.junit.jupiter.api.BeforeEach
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Test
 
 object Front50ApplicationResourceOwnerResolutionStrategyTest {
-  private val subject = Front50ApplicationResourceOwnerResolutionStrategy(mock())
+  val front50ApplicationCache: InMemoryCache<Application> = mock()
+  private val subject = Front50ApplicationResourceOwnerResolutionStrategy(front50ApplicationCache)
 
-  @BeforeEach
-  fun setup() {
-    subject.applicationsCache.set(
+  @Test
+  fun `should resolve resource owner from application config`() {
+    whenever(front50ApplicationCache.get()) doReturn
       setOf(
         Application(name = "name", email = "name@netflix.com"),
         Application(name = "test", email = "test@netflix.com")
       )
-    )
-  }
 
-  @Test
-  fun `should resolve resource owner from application config`() =
     subject.resolve(R()) shouldMatch equalTo("name@netflix.com")
+  }
 }
 
 @JsonTypeName("R")

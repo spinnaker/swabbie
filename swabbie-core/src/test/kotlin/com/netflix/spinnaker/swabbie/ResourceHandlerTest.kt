@@ -23,6 +23,7 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
+import com.netflix.spinnaker.swabbie.exclusions.NameExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.*
@@ -56,7 +57,7 @@ object ResourceHandlerTest {
     ).mark(
       WorkConfiguration(
         namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-        account = Account(name = "test", accountId = "id", type = "type"),
+        account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
         location = "us-east-1",
         resourceType = resource.resourceType,
         cloudProvider = resource.cloudProvider,
@@ -74,7 +75,7 @@ object ResourceHandlerTest {
     val resource = TestResource("testResource")
     val configuration = WorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = Account(name = "test", accountId = "id", type = "type"),
+      account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -118,7 +119,7 @@ object ResourceHandlerTest {
     val resource = TestResource("marked resource due for deletion now")
     val configuration = WorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = Account(name = "test", accountId = "id", type = "type"),
+      account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -165,7 +166,7 @@ object ResourceHandlerTest {
     val resource = TestResource(resourceId = "testResourceId", name = "testResourceName")
     val configuration = WorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = Account(name = "test", accountId = "id", type = "type"),
+      account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,
@@ -173,7 +174,7 @@ object ResourceHandlerTest {
       dryRun = false,
       exclusions = listOf(
         Exclusion()
-          .withType(ExclusionType.Literal.toString())
+          .withType(ExclusionType.Name.toString())
           .withAttributes(
             listOf(
               Attribute()
@@ -189,7 +190,7 @@ object ResourceHandlerTest {
       rules = listOf(TestRule(true, null)),
       resourceTrackingRepository = resourceRepository,
       ownerResolver = mock(),
-      exclusionPolicies = listOf(LiteralExclusionPolicy()),
+      exclusionPolicies = listOf(NameExclusionPolicy()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(configuration)
@@ -203,7 +204,7 @@ object ResourceHandlerTest {
     val resource = TestResource("testResource")
     val configuration = WorkConfiguration(
       namespace = "${resource.cloudProvider}:test:us-east-1:${resource.resourceType}",
-      account = Account(name = "test", accountId = "id", type = "type"),
+      account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
       location = "us-east-1",
       cloudProvider = resource.cloudProvider,
       resourceType = resource.resourceType,

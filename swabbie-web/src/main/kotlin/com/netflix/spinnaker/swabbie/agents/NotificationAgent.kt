@@ -88,7 +88,7 @@ class NotificationAgent(
                       log.info("notification sent to {} for {}", owner.key, resources)
                       resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
                       applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.scopeOfWorkConfiguration(markedResourceAndConfiguration)))
-                      lockManager.acquire(locksName(PREFIX, owner.key), lockTtlSeconds = 3600)
+                      lockManager.release(locksName(PREFIX, owner.key))
                     }
                   }
                 }

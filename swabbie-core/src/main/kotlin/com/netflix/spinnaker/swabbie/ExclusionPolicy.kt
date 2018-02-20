@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie
 import com.netflix.spinnaker.swabbie.model.Named
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import org.springframework.stereotype.Component
 
 interface ExclusionPolicy {
   fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean
@@ -41,17 +40,4 @@ interface Excludable: Named {
 
 interface WorkConfigurationExclusionPolicy : ExclusionPolicy
 interface ResourceExclusionPolicy: ExclusionPolicy
-
-@Component
-class LiteralExclusionPolicy: WorkConfigurationExclusionPolicy, ResourceExclusionPolicy {
-  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean =
-    values(exclusions, ExclusionType.Literal).let { names ->
-      if (names.size == 1 && names[0] == "\\*") {
-        // wildcard
-        return true
-      }
-
-      return names.find { it.equals(excludable.name, ignoreCase = true) || excludable.name.matchPattern(it) } != null
-    }
-}
 

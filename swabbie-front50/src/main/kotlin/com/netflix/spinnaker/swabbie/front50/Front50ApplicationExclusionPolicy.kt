@@ -16,19 +16,28 @@
 
 package com.netflix.spinnaker.swabbie.front50
 
+import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.ResourceOwnerResolutionStrategy
+import com.netflix.spinnaker.swabbie.Excludable
+import com.netflix.spinnaker.swabbie.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.Application
 import org.springframework.stereotype.Component
 
 @Component
-class Front50ApplicationResourceOwnerResolutionStrategy(
-  private val front50ApplicationCache: InMemoryCache<Application>
-) : ResourceOwnerResolutionStrategy {
-  override fun resolve(resource: Resource): String? =
-    FriggaReflectiveNamer().deriveMoniker(resource).app?.let { derivedApp ->
-      front50ApplicationCache.get().find { it.name.equals(derivedApp, ignoreCase = true)}?.email
+class Front50ApplicationExclusionPolicy(
+  private val front50ApplicationCache: Front50ApplicationCache
+): ResourceExclusionPolicy {
+  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
+    if (excludable is Resource) {
+      FriggaReflectiveNamer().deriveMoniker(excludable).app.let { derivedApp ->
+//        front50ApplicationCache.get().find { it.name.equals(derivedApp, ignoreCase = true)}?.details!!["swabbie"]?.let {
+//          return (it as HashMap<*, *>)["excludeAll"] as Boolean
+//        }
+      }
+
+      // TODO: expand to include detailed exclusion from application config
     }
+
+    return false
+  }
 }

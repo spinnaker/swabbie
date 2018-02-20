@@ -17,22 +17,22 @@
 package com.netflix.spinnaker.swabbie.edda.securitygroups
 
 import com.netflix.spinnaker.config.EddaClient
-import com.netflix.spinnaker.swabbie.SecurityGroupProvider
-import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import org.springframework.stereotype.Component
 
 @Component
 open class EddaAmazonSecurityGroupProvider(
   private val eddaClients: List<EddaClient>
-): SecurityGroupProvider {
-  override fun getSecurityGroup(groupId: String, account: String, region: String): Resource? =
-    eddaClients.find { it.region == region && it.account == account }?.get()?.getSecurityGroup(groupId)
-
-  override fun getSecurityGroups(account: String, region: String): List<Resource>? =
+): ResourceProvider<AmazonSecurityGroup> {
+  override fun getAll(params: Parameters): List<AmazonSecurityGroup>? =
     eddaClients.find {
-      it.region == region && it.account == account
+      it.region == params["region"] && it.account == params["account"]
     }?.get()?.let { eddaClient ->
-      //TODO: testing
-        eddaClient.getSecurityGroupIds().filter { it == "sg-4fc3253d" || it == "sg-c68bf0bc" }.map { eddaClient.getSecurityGroup(it) } //TODO: expensive, needs a local cache
-      }
+      eddaClient.getSecurityGroupIds().map { eddaClient.getSecurityGroup(it) }
+    }
+
+  override fun getOne(params: Parameters): AmazonSecurityGroup? =
+    eddaClients.find { it.region == params["region"] && it.account == params["account"] }?.get()?.getSecurityGroup(params["groupId"] as String)
 }

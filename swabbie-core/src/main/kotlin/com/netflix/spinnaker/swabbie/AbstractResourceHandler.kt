@@ -40,10 +40,9 @@ abstract class AbstractResourceHandler(
    */
   override fun mark(workConfiguration: WorkConfiguration) {
     try {
-      log.info("getting upstream resources of type {}", workConfiguration.resourceType)
+      log.info("${javaClass.name}: getting resources with namespace {}", workConfiguration.namespace)
       getUpstreamResources(workConfiguration)?.let { upstreamResources ->
-        log.info("fetched {} upstream resources of type {}, dryRun {}",
-          upstreamResources.size, workConfiguration.resourceType, workConfiguration.dryRun)
+        log.info("fetched {} resources with namespace {}, dryRun {}", upstreamResources.size, workConfiguration.namespace, workConfiguration.dryRun)
         upstreamResources.filter {
           !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions)
         }.forEach { upstreamResource ->
@@ -83,6 +82,7 @@ abstract class AbstractResourceHandler(
                         if (!workConfiguration.dryRun) {
                           resourceTrackingRepository.upsert(it)
                           if (trackedMarkedResource == null) {
+                            log.info("Resource marked for deletion {}", it)
                             applicationEventPublisher.publishEvent(MarkResourceEvent(it, workConfiguration))
                           }
                         }

@@ -16,7 +16,9 @@
 
 package com.netflix.spinnaker.swabbie.model
 
+import com.netflix.spinnaker.swabbie.Cacheable
+
 data class Application(
   val name: String,
   val email: String
-)
+): HasDetails(), Cacheable

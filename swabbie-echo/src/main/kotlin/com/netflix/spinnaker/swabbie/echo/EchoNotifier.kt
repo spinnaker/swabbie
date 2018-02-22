@@ -32,8 +32,8 @@ class EchoNotifier(
         severity = NotificationSeverity.HIGH,
         source = EchoService.Notification.Source("swabbie"),
         additionalContext = mapOf(
-          "customSubject" to subject,
-          "customBody" to body
+          "subject" to subject,
+          "body" to body
         )
       )
     )

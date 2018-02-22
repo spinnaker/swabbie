@@ -16,20 +16,27 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spinnaker.swabbie.model.Named
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import java.util.concurrent.atomic.AtomicReference
 
-interface Cacheable
+interface Cacheable: Named
 
 interface Cache<out T> {
   fun get(): Set<T>
+  fun contains(key: String?): Boolean
 }
 
-open class InMemoryCache<T: Cacheable>(
+open class InMemoryCache<out T: Cacheable>(
   private val source: Set<T>
 ): Cache<T> {
+  override fun contains(key: String?): Boolean {
+    if (key == null) return false
+    return cache.get().find { it.name == key } != null
+  }
+
   private val cache = AtomicReference<Set<T>>()
 
   @Scheduled(fixedDelay = 60 * 60 * 1000L) //TODO: make configurable
@@ -41,6 +48,13 @@ open class InMemoryCache<T: Cacheable>(
     }
   }
 
-  override fun get(): Set<T> = cache.get()
+  override fun get(): Set<T> {
+    if (cache.get() == null) {
+      cache.set(source)
+    }
+
+    return cache.get()
+  }
+
   val log: Logger = LoggerFactory.getLogger(javaClass)
 }

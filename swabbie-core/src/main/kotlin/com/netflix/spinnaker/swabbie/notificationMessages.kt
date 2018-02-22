@@ -16,46 +16,51 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spinnaker.swabbie.events.typeAndName
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 
-//TODO: move to tagging classes
-fun tagMessage(markedResource: MarkedResource, clock: Clock): String {
-  val optOutUrl = ""// TODO: add endpoint. Configurable
-  return "Resource ${markedResource.resourceId} scheduled for deletion\n" +
-    markedResource.summaries
-      .joinToString(", ") {
-        it.description
-      }.let { violationSummary ->
-        "<h2>This resource is scheduled to be deleted on ${(markedResource.adjustedDeletionStamp?: markedResource.projectedDeletionStamp).toLocalDate(clock)}</h2> <br /> \n " +
-          "* $violationSummary <br /> \n" +
-          "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
+class NotificationMessage {
+  companion object {
+    fun subject(messageType: MessageType, clock: Clock, vararg markedResources: MarkedResource): String {
+      if (messageType == MessageType.EMAIL) {
+        "<h4>${markedResources.size} markedResource(s) scheduled to be janitored on ${markedResources[0].humanReadableDeletionTime(clock)}</h4>"
       }
+
+      return ""
+    }
+
+    fun body( messageType: MessageType, clock: Clock, optOutUrl: String, vararg markedResources: MarkedResource): String {
+      if (messageType == MessageType.TAG) {
+        return markedResources[0].summaries.joinToString(", ") {
+          it.description
+        }.let { summary ->
+            "###Scheduled to be janitored on ${markedResources[0].humanReadableDeletionTime(clock)}</h2><br /> \n " +
+              "* $summary <br /> \n" +
+              "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
+          }
+      } else { //TODO: probably move to a template
+        return markedResources.map { m: MarkedResource ->
+          m.summaries.joinToString(", ") {
+            it.description
+          }.also { summary ->
+              "###${m.typeAndName()} scheduled to be janitored on ${m.humanReadableDeletionTime(clock)}</h2><br /> \n " +
+                    "* $summary <br /> \n" +
+                    "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
+            }
+        }.joinToString("\n")
+      }
+    }
+  }
 }
 
-//TODO: move email template to echo
-fun messageSubjectAndBody(markedResources: List<MarkedResource>, clock: Clock): EmailSubjectAndBody {
-  val optOutUrl = ""// TODO: add endpoint. Configurable
-  return EmailSubjectAndBody(
-    subject = "<h4>Resource ${markedResources.size} scheduled for deletion</h4>",
-    body = markedResources[0].summaries
-      .joinToString(", ") {
-        it.description
-      }.let { violationSummary ->
-        "<h2>This resource is scheduled to be deleted on ${(markedResources[0].adjustedDeletionStamp
-          ?: markedResources[0].projectedDeletionStamp).toLocalDate(clock)}</h2> <br /> \n " +
-          "* $violationSummary <br /> \n" +
-          "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
-      }
-  )
+enum class MessageType{
+  TAG, EMAIL
 }
 
-data class EmailSubjectAndBody(
-  val subject: String,
-  val body: String
-)
+private fun MarkedResource.humanReadableDeletionTime(clock: Clock) = {(this.adjustedDeletionStamp?: this.projectedDeletionStamp).toLocalDate(clock)}
 
 private fun Long.toLocalDate(clock: Clock): LocalDate {
   return Instant.ofEpochMilli(this)

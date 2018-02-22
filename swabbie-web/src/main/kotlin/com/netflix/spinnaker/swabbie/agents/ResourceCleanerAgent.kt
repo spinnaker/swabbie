@@ -58,9 +58,9 @@ class ResourceCleanerAgent(
                         String.format("No Suitable handler found for %s", markedResource)
                       )
                     } else {
-                      work.find { it.namespace == markedResource.namespace }?.let { scopeOfWork ->
+                      work.find { it.namespace == markedResource.namespace }?.let { w ->
                         executor.execute {
-                          handler.clean(markedResource, scopeOfWork.configuration)
+                          handler.clean(markedResource, w.configuration)
                           lockManager.release(locksName(PREFIX, it.namespace))
                         }
                       }

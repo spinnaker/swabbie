@@ -88,7 +88,7 @@ class NotificationAgent(
                     resources.forEach { resource ->
                       log.info("notification sent to {} for {}", owner.key, resources)
                       resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
-                      applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.scopeOfWorkConfiguration(markedResourceAndConfiguration)))
+                      applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.workConfiguration(markedResourceAndConfiguration)))
                       lockManager.release(locksName(PREFIX, owner.key))
                     }
                   }
@@ -129,4 +129,4 @@ class NotificationAgent(
 }
 
 private val PREFIX = "{swabbie:notify}"
-private fun MarkedResource.scopeOfWorkConfiguration(configs: List<Pair<MarkedResource, WorkConfiguration>>): WorkConfiguration = configs.find { this == it.first }!!.second
+private fun MarkedResource.workConfiguration(configs: List<Pair<MarkedResource, WorkConfiguration>>): WorkConfiguration = configs.find { this == it.first }!!.second

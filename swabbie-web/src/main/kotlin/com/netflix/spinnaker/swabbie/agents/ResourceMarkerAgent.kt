@@ -45,18 +45,18 @@ class ResourceMarkerAgent(
         work.forEach {
           it.takeIf {
             lockManager.acquire(locksName(PREFIX, it.namespace), lockTtlSeconds = 3600)
-          }?.let { scopeOfWork ->
+          }?.let { w ->
               resourceHandlers.find { handler ->
-                handler.handles(scopeOfWork.configuration.resourceType, scopeOfWork.configuration.cloudProvider)
+                handler.handles(w.configuration.resourceType, w.configuration.cloudProvider)
               }.let { handler ->
                   if (handler == null) {
                     throw IllegalStateException(
-                      String.format("No Suitable handler found for %s", scopeOfWork)
+                      String.format("No Suitable handler found for %s", w)
                     )
                   } else {
                     executor.execute {
-                      handler.mark(scopeOfWork.configuration)
-                      lockManager.release(locksName(PREFIX, scopeOfWork.namespace))
+                      handler.mark(w.configuration)
+                      lockManager.release(locksName(PREFIX, w.namespace))
                     }
                   }
                 }

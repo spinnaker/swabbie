@@ -3,7 +3,7 @@
 _**IMPORTANT:** This service is currently under development and is not ready for production._
 
 Swabbie is a service automating the cleanup of unused resources, such as EBS Volumes and Security Groups.
-It's a replacement for Janitor Monkey.
+It's a replacement for Janitor Monkey. It can be exetnded to clean up a variety of resource types.
 It applies a set of rules to mark cleanup candidates. Once marked, a resource is scheduled for deletion, and an owner is notified.
 
 ## Configuration

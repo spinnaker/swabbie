@@ -45,11 +45,11 @@ class ResourceController(
     @RequestParam resourceType: String
   ): ResourceState? {
     "$provider:$account:$location:$resourceType".toLowerCase().let { namespace ->
-      work.find { scopeOfWork ->
-        scopeOfWork.namespace == namespace
-      }.let { scopeOfWork ->
-        return if (scopeOfWork != null) {
-          resourceStateRepository.get(resourceId, scopeOfWork.namespace)
+      work.find { w ->
+        w.namespace == namespace
+      }.let { w ->
+        return if (w != null) {
+          resourceStateRepository.get(resourceId, w.namespace)
         } else {
           resourceStateRepository.get(resourceId, namespace)
         }

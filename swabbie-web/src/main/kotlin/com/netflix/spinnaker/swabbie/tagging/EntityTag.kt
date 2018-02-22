@@ -21,12 +21,12 @@ import com.netflix.spinnaker.swabbie.TagRequest
 
 data class EntityTag(
   val namespace: String,
-  val value: Value?,
+  val value: TagValue?,
   val valueType: String = "object",
   val name: String = "spinnaker_ui_alert:swabbie_deletion_candidate"
 ): Tag
 
-data class Value(
+data class TagValue(
   val message: String,
   val type: String = "alert"
 )
@@ -43,13 +43,13 @@ data class UpsertEntityTagsRequest(
   val entityRef: EntityRef?,
   val tags: List<EntityTag>?,
   override val application: String,
-  override val description: String = "Resource marked as cleanup candidate"
+  override val description: String
 ): EntityTagRequest("upsertEntityTags", application, description)
 
 data class DeleteEntityTagsRequest(
   val id: String,
   override val application: String,
-  override val description: String = "Removing swabbie tag"
+  override val description: String
 ): EntityTagRequest("deleteEntityTags", application, description)
 
 open class EntityTagRequest(

@@ -20,6 +20,7 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.ResourceTagger
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
@@ -35,7 +36,11 @@ class ResourceStateEventListener(
   fun onMarkResourceEvent(event: MarkResourceEvent) {
     event.let { e->
       updateState(e)
-      resourceTagger?.tag(e.markedResource, event.workConfiguration)
+      resourceTagger?.tag(
+        markedResource = e.markedResource,
+        workConfiguration = event.workConfiguration,
+        description = "${e.markedResource.typeAndName()} scheduled to be janitored on ${e.markedResource.projectedDeletionStamp}"
+      )
     }
   }
 
@@ -43,7 +48,11 @@ class ResourceStateEventListener(
   fun onUnMarkResourceEvent(event: MarkResourceEvent) {
     event.let { e ->
       updateState(e)
-      resourceTagger?.unTag(e.markedResource, event.workConfiguration)
+      resourceTagger?.unTag(
+        markedResource = e.markedResource,
+        workConfiguration = event.workConfiguration,
+        description = "${e.markedResource.typeAndName()}. No longer a cleanup candidate"
+      )
     }
   }
 
@@ -51,7 +60,11 @@ class ResourceStateEventListener(
   fun onDeleteResourceEvent(event: DeleteResourceEvent) {
     event.let { e ->
       updateState(e)
-      resourceTagger?.unTag(e.markedResource, event.workConfiguration)
+      resourceTagger?.unTag(
+        markedResource = e.markedResource,
+        workConfiguration = event.workConfiguration,
+        description = "Removing tag for now janitored ${e.markedResource.typeAndName()}"
+      )
     }
   }
 
@@ -59,7 +72,11 @@ class ResourceStateEventListener(
   fun onNotifyOwnerEvent(event: OwnerNotifiedEvent) {
     event.let { e ->
       updateState(e)
-      resourceTagger?.tag(e.markedResource, event.workConfiguration)
+      resourceTagger?.tag(
+        markedResource = e.markedResource,
+        workConfiguration = event.workConfiguration,
+        description = "Notified ${e.markedResource.notificationInfo.recipient} about soon to be janitored ${e.markedResource.typeAndName()}"
+      )
     }
   }
 
@@ -83,3 +100,5 @@ class ResourceStateEventListener(
     }
   }
 }
+
+internal fun MarkedResource.typeAndName(): String = this.resourceType.split("(?=[A-Z])".toRegex()).joinToString(" ") + ": " + this.name

@@ -17,25 +17,33 @@
 package com.netflix.spinnaker.swabbie.tagging
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
-import com.netflix.spinnaker.swabbie.tagMessage
-import com.netflix.spinnaker.swabbie.ResourceTagger
+import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
 import java.time.Clock
 
 @Component
 @ConditionalOnExpression("\${swabbie.taggingEnabled}")
-class EntityTagResourceTagger(
+class ResourceEntityTagger(
   private val taggingService: EntityTaggingService,
+  private val applicationCache: InMemoryCache<Application>,
   private val clock: Clock
 ): ResourceTagger {
-  override fun tag(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+  @Value("\${swabbie.optOut.url}")
+  lateinit var optOutUrl: String
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+  override fun tag(markedResource: MarkedResource, workConfiguration: WorkConfiguration, description: String) {
     markedResource
-      .takeIf { it.resourceType in SUPPORTED_RESOURCE_TYPES }
+      .takeIf { supportedForResource(it) }
       ?.let {
+        log.info("tagging resource {}", it)
         UpsertEntityTagsRequest(
           entityRef = EntityRef(
             entityType = markedResource.resourceType.toLowerCase(),
@@ -47,32 +55,37 @@ class EntityTagResourceTagger(
           tags = listOf(
             EntityTag(
               namespace = "swabbie:${workConfiguration.namespace.toLowerCase()}",
-              value = Value(message = tagMessage(it, clock))
+              value = TagValue(message = NotificationMessage.body(MessageType.TAG, clock, optOutUrl, markedResource))
             )
           ),
-          application = FriggaReflectiveNamer().deriveMoniker(markedResource).app
+          application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+          description = description
         ).let {
           taggingService.tag(it)
         }
       }
   }
 
-  override fun unTag(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+  private fun supportedForResource(markedResource: MarkedResource) =
+    markedResource.resourceType in SUPPORTED_RESOURCE_TYPES && applicationCache.contains(FriggaReflectiveNamer().deriveMoniker(markedResource)?.app)
+
+  override fun unTag(markedResource: MarkedResource, workConfiguration: WorkConfiguration, description: String) {
     markedResource
-      .takeIf { it.resourceType in SUPPORTED_RESOURCE_TYPES }
+      .takeIf { supportedForResource(it) }
       ?.let {
+        log.info("removing tagging resource {}", it)
         taggingService.removeTag(
           DeleteEntityTagsRequest(
-            id = "${workConfiguration.cloudProvider}:" +
-              "${workConfiguration.resourceType.toLowerCase()}: " +
-              "${it.resourceId}:" +
-              "${workConfiguration.account.accountId}:" +
-              workConfiguration.location,
-            application = FriggaReflectiveNamer().deriveMoniker(markedResource).app
+            id = tagId(workConfiguration, it),
+            application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+            description = description
           )
         )
       }
   }
+
+  private fun tagId(workConfiguration: WorkConfiguration, markedResource: MarkedResource) =
+    "${workConfiguration.cloudProvider}:${workConfiguration.resourceType.toLowerCase()}:${markedResource.resourceId}:${workConfiguration.account.accountId}:${workConfiguration.location}"
 }
 
 private val SUPPORTED_RESOURCE_TYPES = listOf(SECURITY_GROUP)

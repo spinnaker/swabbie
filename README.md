@@ -6,13 +6,15 @@ Swabbie is a service automating the cleanup of unused resources, such as EBS Vol
 It's a replacement for Janitor Monkey.
 It applies a set of rules to mark cleanup candidates. Once marked, a resource is scheduled for deletion, and an owner is notified.
 
-Proposal doc(Netflix Only): https://docs.google.com/document/d/1XZ_g9sPc-UE8JrTARnSjWvpSvFiZ1oJTFUbXQJqB5B0/edit#
-
 ## Configuration
 ```
 swabbie:
   dryRun: true
   taggingEnabled: false
+  optOut:
+    url: http://localhost:8088/
+    defaultTtlDays: 14
+
   agents:
     mark:
       enabled: true
@@ -28,7 +30,6 @@ swabbie:
 
   providers:
     - name: aws
-      dryRun: false
       locations:
         - us-east-1
 
@@ -44,25 +45,19 @@ swabbie:
           attributes:
             - key: name
               value:
-                - seg
+                - importantAccount
 
       resourceTypes:
         - name: securityGroup
           enabled: true
           retentionDays: 10
-          dryRun: false
           exclusions:
-            - type: AccountType
-              attributes:
-                - key: type
-                  value:
-                    - titus
-
-            - type: Literal
+            - type: Name
               attributes:
                 - key: name
                   value:
-                    pattern:prod
+                    - sg_to_exclude
+
 ```
 
 
@@ -126,8 +121,3 @@ There are two types of Exclusion Policies:
 
 - `WorkConfigurationExclusionPolicy`: Excludes work at configuration time
 - `ResourceExclusionPolicy`: Excludes resources at runtime
-
-Current Policies:
-
-- `AccountNameExclusionPolicy`.
-- `AccountTypeExclusionPolicy`.

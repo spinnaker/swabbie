@@ -18,17 +18,15 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.SwabbieAgent
+import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.model.Work
-import com.netflix.spinnaker.swabbie.LockManager
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
-import com.netflix.spinnaker.swabbie.messageSubjectAndBody
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
-import com.netflix.spinnaker.swabbie.Notifier
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.scheduling.annotation.Scheduled
@@ -49,6 +47,8 @@ class NotificationAgent(
   private val clock: Clock,
   private val notifier: Notifier
 ): SwabbieAgent {
+  @Value("\${swabbie.optOut.url}")
+  lateinit var optOutUrl: String
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val resourceWithNoOwnerId = registry.createId("swabbie.notifications")
 
@@ -82,7 +82,8 @@ class NotificationAgent(
                 Pair(markedResource, markedResourceAndConfiguration.second)
               }.let { markedResourceAndConfiguration ->
                   val resources = markedResourceAndConfiguration.map { it.first }.toList()
-                  val (subject, body) = messageSubjectAndBody(resources, clock)
+                  val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
+                  val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
                   notifier.notify(owner.key, subject, body, "EMAIL").let {
                     resources.forEach { resource ->
                       log.info("notification sent to {} for {}", owner.key, resources)

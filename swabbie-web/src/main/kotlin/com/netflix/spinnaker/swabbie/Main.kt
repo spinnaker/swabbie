@@ -31,7 +31,7 @@ object MainDefaults {
     "netflix.account" to "\${netflix.environment}",
     "netflix.stack" to "test",
     "spring.config.location" to "\${user.home}/.spinnaker/",
-    "spring.application.name" to "keel",
+    "spring.application.name" to "swabbie",
     "spring.config.name" to "spinnaker,\${spring.application.name}",
     "spring.profiles.active" to "\${netflix.environment},local"
   )

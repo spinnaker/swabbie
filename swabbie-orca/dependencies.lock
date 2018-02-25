@@ -1,0 +1,586 @@
+{
+    "compile": {
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        }
+    },
+    "compileClasspath": {
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        }
+    },
+    "default": {
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        }
+    },
+    "junitPlatform": {
+        "org.junit.platform:junit-platform-console": {
+            "locked": "1.0.0"
+        },
+        "org.junit.platform:junit-platform-launcher": {
+            "locked": "1.0.0"
+        }
+    },
+    "kapt": {
+        "org.jetbrains.kotlin:kotlin-annotation-processing-gradle": {
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        }
+    },
+    "kaptTest": {
+        "org.jetbrains.kotlin:kotlin-annotation-processing-gradle": {
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        }
+    },
+    "runtime": {
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        }
+    },
+    "runtimeClasspath": {
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        }
+    },
+    "testCompile": {
+        "com.natpryce:hamkrest": {
+            "locked": "1.4.2.2",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.nhaarman:mockito-kotlin": {
+            "locked": "1.5.0",
+            "requested": "+"
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.jupiter:junit-jupiter-params": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.platform:junit-platform-runner": {
+            "locked": "1.1.0",
+            "requested": "+"
+        }
+    },
+    "testCompileClasspath": {
+        "com.natpryce:hamkrest": {
+            "locked": "1.4.2.2",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.nhaarman:mockito-kotlin": {
+            "locked": "1.5.0",
+            "requested": "+"
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.jupiter:junit-jupiter-params": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.platform:junit-platform-runner": {
+            "locked": "1.1.0",
+            "requested": "+"
+        }
+    },
+    "testRuntime": {
+        "com.natpryce:hamkrest": {
+            "locked": "1.4.2.2",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.nhaarman:mockito-kotlin": {
+            "locked": "1.5.0",
+            "requested": "+"
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.jupiter:junit-jupiter-engine": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.jupiter:junit-jupiter-params": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.platform:junit-platform-launcher": {
+            "locked": "1.1.0",
+            "requested": "+"
+        },
+        "org.junit.platform:junit-platform-runner": {
+            "locked": "1.1.0",
+            "requested": "+"
+        }
+    },
+    "testRuntimeClasspath": {
+        "com.natpryce:hamkrest": {
+            "locked": "1.4.2.2",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.kork:kork-web": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.118.2"
+        },
+        "com.netflix.spinnaker.moniker:moniker": {
+            "locked": "0.2.0",
+            "requested": "+"
+        },
+        "com.netflix.spinnaker.swabbie:swabbie-retrofit": {
+            "project": true
+        },
+        "com.nhaarman:mockito-kotlin": {
+            "locked": "1.5.0",
+            "requested": "+"
+        },
+        "com.squareup.okhttp:okhttp-apache": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.okhttp:okhttp-urlconnection": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "2.7.5"
+        },
+        "com.squareup.retrofit:converter-jackson": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "com.squareup.retrofit:retrofit": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.9.0"
+        },
+        "io.reactivex:rxjava": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.0.17"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8": {
+            "firstLevelTransitive": [
+                "com.netflix.spinnaker.swabbie:swabbie-retrofit"
+            ],
+            "locked": "1.2.20",
+            "requested": "1.2.20"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.jupiter:junit-jupiter-engine": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.jupiter:junit-jupiter-params": {
+            "locked": "5.1.0",
+            "requested": "+"
+        },
+        "org.junit.platform:junit-platform-launcher": {
+            "locked": "1.1.0",
+            "requested": "+"
+        },
+        "org.junit.platform:junit-platform-runner": {
+            "locked": "1.1.0",
+            "requested": "+"
+        }
+    }
+}

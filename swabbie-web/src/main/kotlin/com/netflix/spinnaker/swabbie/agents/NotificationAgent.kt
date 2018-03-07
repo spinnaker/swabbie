@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.SwabbieAgent
 import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.echo.EchoService
 import com.netflix.spinnaker.swabbie.model.Work
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.model.MarkedResource
@@ -74,7 +75,7 @@ class NotificationAgent(
                   this.notificationInfo = NotificationInfo(
                     notificationStamp = notificationInstant.toEpochMilli(),
                     recipient = owner.key,
-                    notificationType = "EMAIL"
+                    notificationType = EchoService.Notification.Type.EMAIL.name
                   )
                 }
 
@@ -89,9 +90,10 @@ class NotificationAgent(
                       log.info("notification sent to {} for {}", owner.key, resources)
                       resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
                       applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.workConfiguration(markedResourceAndConfiguration)))
-                      lockManager.release(locksName(PREFIX, owner.key))
                     }
                   }
+
+                  lockManager.release(locksName(PREFIX, owner.key))
                 }
             }
         }

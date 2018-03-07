@@ -55,8 +55,9 @@ class ResourceMarkerAgent(
                     )
                   } else {
                     executor.execute {
-                      handler.mark(w.configuration)
-                      lockManager.release(locksName(PREFIX, w.namespace))
+                      handler.mark(w.configuration, {
+                        lockManager.release(locksName(PREFIX, w.namespace))
+                      })
                     }
                   }
                 }

@@ -25,6 +25,6 @@ interface ResourceHandler {
   fun getUpstreamResources(workConfiguration: WorkConfiguration): List<Resource>?
   fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): Resource?
 
-  fun mark(workConfiguration: WorkConfiguration)
-  fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
+  fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration, postClean: () -> Unit)
+  fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit)
 }

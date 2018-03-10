@@ -21,7 +21,10 @@ import com.netflix.spinnaker.swabbie.model.Resource
 @JsonTypeName("testResource")
 data class TestResource(
   override val resourceId: String,
-  override val resourceType: String = "testResource",
-  override val cloudProvider: String = "testProvider",
+  override val resourceType: String = TEST_RESOURCE_TYPE,
+  override val cloudProvider: String = TEST_RESOURCE_PROVIDER_TYPE,
   override val name: String = resourceId
 ): Resource()
+
+const val TEST_RESOURCE_PROVIDER_TYPE = "testProvider"
+const val TEST_RESOURCE_TYPE = "testResourceType"

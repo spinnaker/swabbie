@@ -60,8 +60,10 @@ class ResourceCleanerAgent(
                     } else {
                       work.find { it.namespace == markedResource.namespace }?.let { w ->
                         executor.execute {
-                          handler.clean(markedResource, w.configuration)
-                          lockManager.release(locksName(PREFIX, it.namespace))
+                          handler.clean(markedResource, w.configuration, {
+                            lockManager.release(locksName(PREFIX, it.namespace))
+                          })
+
                         }
                       }
                     }

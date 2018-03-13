@@ -21,6 +21,7 @@ import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
@@ -39,7 +40,7 @@ class ResourceStateEventListener(
       resourceTagger?.tag(
         markedResource = e.markedResource,
         workConfiguration = event.workConfiguration,
-        description = "${e.markedResource.typeAndName()} scheduled to be janitored on ${e.markedResource.projectedDeletionStamp}"
+        description = "${e.markedResource.typeAndName()} scheduled to be cleaned up on ${e.markedResource.humanReadableDeletionTime(clock)}"
       )
     }
   }
@@ -63,7 +64,7 @@ class ResourceStateEventListener(
       resourceTagger?.unTag(
         markedResource = e.markedResource,
         workConfiguration = event.workConfiguration,
-        description = "Removing tag for now janitored ${e.markedResource.typeAndName()}"
+        description = "Removing tag for now deleted ${e.markedResource.typeAndName()}"
       )
     }
   }
@@ -75,7 +76,7 @@ class ResourceStateEventListener(
       resourceTagger?.tag(
         markedResource = e.markedResource,
         workConfiguration = event.workConfiguration,
-        description = "Notified ${e.markedResource.notificationInfo.recipient} about soon to be janitored ${e.markedResource.typeAndName()}"
+        description = "Notified ${e.markedResource.notificationInfo.recipient} about soon to be cleaned up ${e.markedResource.typeAndName()}"
       )
     }
   }

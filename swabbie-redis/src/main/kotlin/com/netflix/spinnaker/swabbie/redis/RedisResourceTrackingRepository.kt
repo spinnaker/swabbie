@@ -34,7 +34,7 @@ class RedisResourceTrackingRepository(
   private val clock: Clock
 ): ResourceTrackingRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
   override fun find(resourceId: String, namespace: String): MarkedResource? {
-    resourceKey("$namespace:$resourceId}").let { key ->
+    "$namespace:$resourceId".let { key ->
       return getClientForId(key).withCommandsClient<String> { client ->
         client.hget(SINGLE_RESOURCES_KEY, key)
       }?.let { json ->

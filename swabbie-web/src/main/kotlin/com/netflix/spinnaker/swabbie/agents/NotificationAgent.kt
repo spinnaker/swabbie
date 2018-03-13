@@ -87,9 +87,13 @@ class NotificationAgent(
                   val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
                   notifier.notify(owner.key, subject, body, "EMAIL").let {
                     resources.forEach { resource ->
-                      log.info("notification sent to {} for {}", owner.key, resources)
-                      resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
-                      applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.workConfiguration(markedResourceAndConfiguration)))
+                      resource.takeIf {
+                        !resource.workConfiguration(markedResourceAndConfiguration).dryRun
+                      }?.let {
+                          log.info("notification sent to {} for {}", owner.key, resources)
+                          resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
+                          applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.workConfiguration(markedResourceAndConfiguration)))
+                        }
                     }
                   }
 

@@ -20,10 +20,10 @@ import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
-interface ResourceHandler {
+interface ResourceHandler<out T: Resource> {
   fun handles(resourceType: String, cloudProvider: String): Boolean
-  fun getUpstreamResources(workConfiguration: WorkConfiguration): List<Resource>?
-  fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): Resource?
+  fun getUpstreamResources(workConfiguration: WorkConfiguration): List<T>?
+  fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): T?
 
   fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration, postClean: () -> Unit)
   fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit)

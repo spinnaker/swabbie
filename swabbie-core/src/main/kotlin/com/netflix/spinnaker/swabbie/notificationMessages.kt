@@ -18,15 +18,15 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.events.typeAndName
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import java.time.Clock
-import java.time.Instant
-import java.time.LocalDate
 
 class NotificationMessage {
   companion object {
     fun subject(messageType: MessageType, clock: Clock, vararg markedResources: MarkedResource): String {
       if (messageType == MessageType.EMAIL) {
-        "<h4>${markedResources.size} markedResource(s) scheduled to be janitored on ${markedResources[0].humanReadableDeletionTime(clock)}</h4>"
+        val time = markedResources[0].humanReadableDeletionTime(clock)
+        "${markedResources.size} resource(s) scheduled to be cleaned up on $time"
       }
 
       return ""
@@ -37,7 +37,8 @@ class NotificationMessage {
         return markedResources[0].summaries.joinToString(", ") {
           it.description
         }.let { summary ->
-            "###Scheduled to be janitored on ${markedResources[0].humanReadableDeletionTime(clock)}</h2><br /> \n " +
+            val time = markedResources[0].humanReadableDeletionTime(clock)
+            "Scheduled to be cleaned up on $time<br /> \n " +
               "* $summary <br /> \n" +
               "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
           }
@@ -46,9 +47,9 @@ class NotificationMessage {
           m.summaries.joinToString(", ") {
             it.description
           }.also { summary ->
-              "###${m.typeAndName()} scheduled to be janitored on ${m.humanReadableDeletionTime(clock)}</h2><br /> \n " +
-                    "* $summary <br /> \n" +
-                    "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
+              "${m.typeAndName()} scheduled to be janitored on ${m.humanReadableDeletionTime(clock)}</h2><br /> \n " +
+              "* $summary <br /> \n" +
+              "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
             }
         }.joinToString("\n")
       }
@@ -56,14 +57,6 @@ class NotificationMessage {
   }
 }
 
-enum class MessageType{
+enum class MessageType {
   TAG, EMAIL
-}
-
-private fun MarkedResource.humanReadableDeletionTime(clock: Clock) = {(this.adjustedDeletionStamp?: this.projectedDeletionStamp).toLocalDate(clock)}
-
-private fun Long.toLocalDate(clock: Clock): LocalDate {
-  return Instant.ofEpochMilli(this)
-    .atZone(clock.zone)
-    .toLocalDate()
 }

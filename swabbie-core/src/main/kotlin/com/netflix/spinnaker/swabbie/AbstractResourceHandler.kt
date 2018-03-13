@@ -25,14 +25,14 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.time.*
 
-abstract class AbstractResourceHandler(
+abstract class AbstractResourceHandler<out T : Resource>(
   private val clock: Clock,
-  private val rules: List<Rule>,
+  private val rules: List<Rule<T>>,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
   private val ownerResolver: OwnerResolver,
   private val applicationEventPublisher: ApplicationEventPublisher
-): ResourceHandler {
+) : ResourceHandler<T> {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
 
   /**
@@ -46,9 +46,9 @@ abstract class AbstractResourceHandler(
         upstreamResources.filter {
           !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions)
         }.forEach { upstreamResource ->
-            rules
-              .checkResource(upstreamResource)
-              .let { violationSummaries ->
+            rules.mapNotNull {
+              it.apply(upstreamResource).summary
+            }.let { violationSummaries ->
                 resourceTrackingRepository.find(
                   resourceId = upstreamResource.resourceId,
                   namespace = workConfiguration.namespace
@@ -59,9 +59,11 @@ abstract class AbstractResourceHandler(
                     applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource, workConfiguration))
                   } else if (!violationSummaries.isEmpty()) {
                     if (!workConfiguration.dryRun) {
+                      val deletionDate = trackedMarkedResource?.humanReadableDeletionTime(clock)
+                        ?: workConfiguration.retentionDays.days.fromNow
                       upstreamResource.mark(
                         trackedMarkedResource = trackedMarkedResource,
-                        projectedDeletionDate = workConfiguration.retentionDays.days.fromNow,
+                        projectedDeletionDate = deletionDate,
                         violationSummaries = violationSummaries,
                         workConfiguration = workConfiguration
                       )
@@ -70,7 +72,7 @@ abstract class AbstractResourceHandler(
                 }
               }
           }
-        }
+      }
     } catch (e: Exception) {
       log.error("Failed while invoking $javaClass", e)
     } finally {
@@ -82,9 +84,8 @@ abstract class AbstractResourceHandler(
                             projectedDeletionDate: LocalDate,
                             violationSummaries: List<Summary>,
                             workConfiguration: WorkConfiguration) {
-    log.info("Projected deletion date for resource {} is {}, dryRun {}", this, projectedDeletionDate, workConfiguration.dryRun)
+    log.info("Deletion date for resource {} is {}, dryRun {}", this, projectedDeletionDate, workConfiguration.dryRun)
     (trackedMarkedResource?.copy(
-      projectedDeletionStamp = projectedDeletionDate.atStartOfDay(clock.zone).toInstant().toEpochMilli(),
       summaries = violationSummaries
     ) ?: MarkedResource(
       resource = this,
@@ -107,37 +108,42 @@ abstract class AbstractResourceHandler(
   override fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration, postClean: () -> Unit) {
     try {
       getUpstreamResource(markedResource, workConfiguration)
-        ?.takeIf { !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions) }
-        ?.let { upstreamResource ->
-          rules
-            .checkResource(upstreamResource)
-            .let { violationSummaries ->
-              if (violationSummaries.isEmpty() && !workConfiguration.dryRun) {
-                applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
-                resourceTrackingRepository.remove(markedResource)
-              } else {
-                // adjustedDeletionStamp is the adjusted projectedDeletionStamp after notification is sent
-                log.info("Preparing deletion of {}. dryRun {}", markedResource, workConfiguration.dryRun)
-                if (markedResource.adjustedDeletionStamp != null && !workConfiguration.dryRun) {
-                  remove(markedResource, workConfiguration)
-                  resourceTrackingRepository.remove(markedResource)
-                  applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
-                }
+        .let { resource ->
+          if (resource == null) {
+            log.info("Resource {} no longer exists", markedResource)
+            resourceTrackingRepository.remove(markedResource)
+          } else {
+            resource
+              .takeIf { !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions) }
+              ?.let { upstreamResource ->
+                rules.mapNotNull {
+                  it.apply(upstreamResource).summary
+                }.let { violationSummaries ->
+                    if (violationSummaries.isEmpty() && !workConfiguration.dryRun) {
+                      applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
+                      resourceTrackingRepository.remove(markedResource)
+                    } else {
+                      // adjustedDeletionStamp is the adjusted projectedDeletionStamp after notification is sent
+                      log.info("Preparing deletion of {}. dryRun {}", markedResource, workConfiguration.dryRun)
+                      if (markedResource.adjustedDeletionStamp != null && !workConfiguration.dryRun) {
+                        remove(markedResource, workConfiguration)
+                        resourceTrackingRepository.remove(markedResource)
+                        applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
+                      }
+                    }
+                  }
               }
-            }
+          }
         }
     } finally {
       postClean.invoke()
     }
   }
 
-  private fun <E: Rule> List<E>.checkResource(upstreamResource: Resource)
-    = this.filter { it.applies(upstreamResource) }.mapNotNull { it.apply(upstreamResource).summary }
-
-  val Int.days: Period
+  private val Int.days: Period
     get() = Period.ofDays(this)
 
-  val Period.fromNow: LocalDate
+  private val Period.fromNow: LocalDate
     get() = LocalDate.now(clock) + this
 
   abstract fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration)

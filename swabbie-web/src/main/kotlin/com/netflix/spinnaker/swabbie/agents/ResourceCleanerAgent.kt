@@ -35,7 +35,7 @@ class ResourceCleanerAgent(
   private val lockManager: LockManager,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val work: List<Work>,
-  private val resourceHandlers: List<ResourceHandler>,
+  private val resourceHandlers: List<ResourceHandler<*>>,
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
@@ -54,9 +54,7 @@ class ResourceCleanerAgent(
                   handler -> handler.handles(markedResource.resourceType, markedResource.cloudProvider)
                 }.let { handler ->
                     if (handler == null) {
-                      throw IllegalStateException(
-                        String.format("No Suitable handler found for %s", markedResource)
-                      )
+                      throw IllegalStateException("No Suitable handler found for $markedResource")
                     } else {
                       work.find { it.namespace == markedResource.namespace }?.let { w ->
                         executor.execute {

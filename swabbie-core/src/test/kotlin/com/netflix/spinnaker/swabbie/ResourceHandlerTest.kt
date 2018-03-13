@@ -53,8 +53,8 @@ object ResourceHandlerTest {
     val resource = TestResource("testResource")
     TestResourceHandler(
       clock = clock,
-      rules =listOf<Rule>(TestRule(
-        appliesPredicate = { resource.resourceId ==  "testResource" },
+      rules =listOf(TestRule(
+        invalidOn = { resource.resourceId ==  "testResource" },
         summary = Summary("violates rule 1", "ruleName"))
       ),
       resourceTrackingRepository = resourceRepository,
@@ -75,15 +75,15 @@ object ResourceHandlerTest {
 
   @Test
   fun `should track violating resources and notify user`() {
-    val resources: List<Resource> = listOf(
+    val resources: List<TestResource> = listOf(
       TestResource("invalid resource 1"),
       TestResource("invalid resource 2"),
       TestResource("valid resource")
     )
 
-    val rules: List<Rule> = resources.map {
+    val rules: List<TestRule> = resources.map {
       TestRule(
-        appliesPredicate = { it.resourceId == "invalid resource 1" || it.resourceId == "invalid resource 2" },
+        invalidOn = { it.resourceId == "invalid resource 1" || it.resourceId == "invalid resource 2" },
         summary = Summary(description = "test rule description", ruleName = "test rule name")
       )
     }
@@ -126,9 +126,9 @@ object ResourceHandlerTest {
 
     TestResourceHandler(
       clock = clock,
-      rules = listOf<Rule>(
+      rules = listOf(
         TestRule(
-          appliesPredicate = { resource.resourceId ==  "testResource" },
+          invalidOn = { resource.resourceId ==  "testResource" },
           summary = Summary("always invalid", "rule1")
         )
       ),
@@ -164,7 +164,7 @@ object ResourceHandlerTest {
       )
     )
 
-    val fetchedResources = mutableListOf<Resource>(resource)
+    val fetchedResources = mutableListOf<TestResource>(resource)
     TestResourceHandler(
       clock = clock,
       rules = listOf(
@@ -243,7 +243,7 @@ object ResourceHandlerTest {
     TestResourceHandler(
       clock = clock,
       rules = listOf(
-        TestRule(appliesPredicate = { true }, summary = null)
+        TestRule(invalidOn = { true }, summary = null)
       ),
       resourceTrackingRepository = resourceRepository,
       ownerResolver = mock(),
@@ -273,41 +273,37 @@ object ResourceHandlerTest {
   )
 
   class TestRule(
-    private val appliesPredicate: (Resource) -> Boolean,
+    private val invalidOn: (Resource) -> Boolean,
     private val summary: Summary?
-  ): Rule {
-    override fun applies(resource: Resource): Boolean {
-      return appliesPredicate(resource)
-    }
-
-    override fun apply(resource: Resource): Result {
-      return Result(summary)
+  ): Rule<TestResource> {
+    override fun apply(resource: TestResource): Result {
+      return if (invalidOn(resource)) Result(summary) else Result(null)
     }
   }
 
   class TestResourceHandler(
     clock: Clock,
-    rules: List<Rule>,
+    private val rules: List<Rule<TestResource>>,
     resourceTrackingRepository: ResourceTrackingRepository,
     ownerResolver: OwnerResolver,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
-    private val simulatedUpstreamResources: MutableList<Resource>?
-  ) : AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
+    private val simulatedUpstreamResources: MutableList<TestResource>?
+  ) : AbstractResourceHandler<TestResource>(clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }
 
     // simulates querying for a resource upstream
-    override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): Resource? {
+    override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): TestResource? {
       return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId}
     }
 
     override fun handles(resourceType: String, cloudProvider: String): Boolean {
-      return true
+      return !rules.isEmpty()
     }
 
-    override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<Resource>? {
+    override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<TestResource>? {
       return simulatedUpstreamResources
     }
   }

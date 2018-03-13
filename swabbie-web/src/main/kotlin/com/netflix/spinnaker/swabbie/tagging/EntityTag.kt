@@ -23,6 +23,7 @@ data class EntityTag(
   val namespace: String,
   val value: TagValue?,
   val valueType: String = "object",
+  val category: String = "Swabbie",
   val name: String = "spinnaker_ui_alert:swabbie_deletion_candidate"
 ): Tag
 
@@ -55,6 +56,5 @@ data class DeleteEntityTagsRequest(
 open class EntityTagRequest(
   open val type: String,
   open val application: String,
-  open val description: String,
-  val category: String = "Swabbie"
+  open val description: String
 ): TagRequest

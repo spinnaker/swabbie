@@ -26,17 +26,18 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
 
+//TODO: add rules for this handler
 @Component
 class AmazonSecurityGroupHandler(
   clock: Clock,
-  rules: List<Rule>,
+  rules: List<Rule<AmazonSecurityGroup>>,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceOwnerResolver: ResourceOwnerResolver,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
-): AbstractResourceHandler(clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+): AbstractResourceHandler<AmazonSecurityGroup>(clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup) {
@@ -56,7 +57,7 @@ class AmazonSecurityGroupHandler(
                 )
               )
             ),
-            description = "Swabbie delete security group ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+            description = "Cleaning up Security Group for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
           )
         )
       }
@@ -74,7 +75,9 @@ class AmazonSecurityGroupHandler(
       )
     )
 
-  override fun handles(resourceType: String, cloudProvider: String): Boolean = resourceType == SECURITY_GROUP && cloudProvider == AWS
+  //TODO: enable when rules are added
+  override fun handles(resourceType: String, cloudProvider: String): Boolean = false
+//    = resourceType == SECURITY_GROUP && cloudProvider == AWS && !rules.isEmpty()
 
   override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
     securityGroupProvider.getAll(

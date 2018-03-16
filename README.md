@@ -50,6 +50,7 @@ swabbie:
       resourceTypes:
         - name: securityGroup
           enabled: true
+          dryRun: true
           retentionDays: 10
           exclusions:
             - type: Name
@@ -110,7 +111,12 @@ When resources are marked for deletion, a notification is sent to the owner.
 Resource owners are resolved using resolution strategies. Default strategy is getting the email field on the resource's application.
 
 #### Dry Run
-TODO
+This will ensure swabbie runs in dryRun, meaning no writes, nor any destructive action of the data will occur
+```
+swabbie:
+  dryRun: true
+```
+It's also possible to turn on dryRun at a resource type level
 
 #### Exclusion Policies
 Swabbie includes all resources defined in the configuration by default.
@@ -121,3 +127,4 @@ There are two types of Exclusion Policies:
 
 - `WorkConfigurationExclusionPolicy`: Excludes work at configuration time
 - `ResourceExclusionPolicy`: Excludes resources at runtime
+- TODO

@@ -18,13 +18,19 @@ package com.netflix.spinnaker.swabbie.model
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter
 import com.fasterxml.jackson.annotation.JsonAnySetter
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.swabbie.Excludable
 import com.netflix.spinnaker.swabbie.ExclusionPolicy
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
 
 /** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"
+const val LOAD_BALANCER = "loadBalancer"
+const val SERVER_GROUP = "serverGroup"
 
 /** Provider Types **/
 const val AWS = "aws"
@@ -35,6 +41,7 @@ const val RESOURCE_TYPE_INFO_FIELD =  "swabbieTypeInfo"
  * subtypes specify type by annotating with JsonTypeName
  * Represents a resource that swabbie can visit and act on
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 abstract class Resource: Identifiable, Excludable, HasDetails() {
   /**
    * requires all subtypes to be annotated with JsonTypeName
@@ -123,5 +130,13 @@ data class Status(
     } else {
       1
     }
+  }
+}
+
+fun MarkedResource.humanReadableDeletionTime(clock: Clock): LocalDate {
+  (this.adjustedDeletionStamp?: this.projectedDeletionStamp).let {
+    return Instant.ofEpochMilli(it)
+      .atZone(clock.zone)
+      .toLocalDate()
   }
 }

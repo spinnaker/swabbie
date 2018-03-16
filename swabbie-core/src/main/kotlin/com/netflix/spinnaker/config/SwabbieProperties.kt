@@ -25,7 +25,6 @@ open class SwabbieProperties {
 }
 
 class CloudProviderConfiguration {
-  var dryRun: Boolean = true
   var exclusions: MutableList<Exclusion>? = null
   var name: String = ""
   var locations: List<String> = mutableListOf()

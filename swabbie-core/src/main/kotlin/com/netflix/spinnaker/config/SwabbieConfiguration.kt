@@ -95,7 +95,7 @@ open class SwabbieConfiguration {
                 resourceType = resourceTypeConfiguration.name,
                 retentionDays = resourceTypeConfiguration.retentionDays,
                 exclusions = mergeExclusions(cloudProviderConfiguration.exclusions, resourceTypeConfiguration.exclusions),
-                dryRun = (resourceTypeConfiguration.dryRun || swabbieProperties.dryRun) && cloudProviderConfiguration.dryRun
+                dryRun = if (swabbieProperties.dryRun) true else (resourceTypeConfiguration.dryRun || swabbieProperties.dryRun)
               ).takeIf {
                 !it.shouldBeExcluded(exclusionPolicies, it.exclusions)
               }?.let { configuration ->

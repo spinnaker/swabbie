@@ -18,10 +18,7 @@ package com.netflix.spinnaker.swabbie.tagging
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
-import com.netflix.spinnaker.swabbie.model.Application
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -33,7 +30,6 @@ import java.time.Clock
 @ConditionalOnExpression("\${swabbie.taggingEnabled}")
 class ResourceEntityTagger(
   private val taggingService: EntityTaggingService,
-  private val applicationCache: InMemoryCache<Application>,
   private val clock: Clock
 ): ResourceTagger {
   @Value("\${swabbie.optOut.url}")
@@ -66,8 +62,10 @@ class ResourceEntityTagger(
       }
   }
 
-  private fun supportedForResource(markedResource: MarkedResource) =
-    markedResource.resourceType in SUPPORTED_RESOURCE_TYPES && applicationCache.contains(FriggaReflectiveNamer().deriveMoniker(markedResource)?.app)
+  private fun supportedForResource(markedResource: MarkedResource): Boolean =
+    markedResource.resourceType in SUPPORTED_RESOURCE_TYPES
+      && FriggaReflectiveNamer().deriveMoniker(markedResource)?.app != null
+
 
   override fun unTag(markedResource: MarkedResource, workConfiguration: WorkConfiguration, description: String) {
     markedResource
@@ -88,4 +86,4 @@ class ResourceEntityTagger(
     "${workConfiguration.cloudProvider}:${workConfiguration.resourceType.toLowerCase()}:${markedResource.resourceId}:${workConfiguration.account.accountId}:${workConfiguration.location}"
 }
 
-private val SUPPORTED_RESOURCE_TYPES = listOf(SECURITY_GROUP)
+private val SUPPORTED_RESOURCE_TYPES = listOf(SECURITY_GROUP, LOAD_BALANCER)

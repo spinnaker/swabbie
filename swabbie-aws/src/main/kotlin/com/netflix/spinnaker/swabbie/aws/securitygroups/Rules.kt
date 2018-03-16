@@ -14,21 +14,19 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.model
+package com.netflix.spinnaker.swabbie.aws.securitygroups
 
-/**
- * A resource specific rule
- * If the rule finds the resource to be invalid, it will return a violation summary
- */
-interface Rule<in T: Resource> {
-  fun apply(resource: T): Result
+import com.netflix.spinnaker.swabbie.model.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
+
+@Component
+class OrphanedSecurityGroupRule: Rule<AmazonSecurityGroup> {
+  override fun apply(resource: AmazonSecurityGroup): Result {
+    //TODO: implement
+    return Result(null)
+  }
+
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
 }
-
-data class Result(
-  val summary: Summary?
-)
-
-data class Summary(
-  val description: String,
-  val ruleName: String
-)

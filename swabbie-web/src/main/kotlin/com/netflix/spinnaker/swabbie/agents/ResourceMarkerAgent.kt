@@ -33,7 +33,7 @@ class ResourceMarkerAgent(
   private val executor: Executor,
   private val lockManager: LockManager,
   private val work: List<Work>,
-  private val resourceHandlers: List<ResourceHandler>,
+  private val resourceHandlers: List<ResourceHandler<*>>,
   private val discoverySupport: DiscoverySupport
 ): SwabbieAgent {
   private val log: Logger = LoggerFactory.getLogger(javaClass)

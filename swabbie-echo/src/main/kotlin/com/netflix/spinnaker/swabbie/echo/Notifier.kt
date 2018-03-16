@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.echo
 
 interface Notifier {
   fun notify(recipient: String, subject: String, body: String, messageType: String)

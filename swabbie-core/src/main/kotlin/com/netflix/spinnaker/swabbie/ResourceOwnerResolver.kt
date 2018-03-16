@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.model.Resource
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -24,10 +25,13 @@ import org.springframework.stereotype.Component
 
 @Component
 class ResourceOwnerResolver(
-  private val resourceOwnerStrategies: List<ResourceOwnerResolutionStrategy>
+  private val resourceOwnerStrategies: List<ResourceOwnerResolutionStrategy>,
+  private val registry: Registry
 ): OwnerResolver {
   @Value("\${swabbie.notify.fallbackEmail:cloudmonkeyalerts@netflix.com}")
   private lateinit var fallbackEmail: String
+
+  private val resourceOwnerId = registry.createId("swabbie.resources.owner")
   override fun resolve(resource: Resource): String? {
     try {
       log.info("Looking up resource owner for {}", resource)
@@ -35,12 +39,15 @@ class ResourceOwnerResolver(
         it.resolve(resource)
       }.let { owners ->
         return if (!owners.isEmpty()) {
+          registry.counter(resourceOwnerId.withTags("result", "found")).increment()
           owners.first()
         } else {
+          registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
           fallbackEmail
         }
       }
     } catch (e: Exception) {
+      registry.counter(resourceOwnerId.withTags("result", "failed")).increment()
       return fallbackEmail
     }
   }

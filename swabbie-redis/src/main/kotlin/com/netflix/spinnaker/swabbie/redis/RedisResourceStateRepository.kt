@@ -71,7 +71,7 @@ class RedisResourceStateRepository(
   }
 }
 
-const val SINGLE_STATE_KEY = "{swabbie:state}"
-const val ALL_STATES_KEY = "{swabbie:states}"
+const val SINGLE_STATE_KEY = "{swabbie:resourceState}"
+const val ALL_STATES_KEY = "{swabbie:resourceStates}"
 
-fun statesKey(id: String) = "{swabbie:states}:$id"
+fun statesKey(id: String) = "{swabbie:resourceStates}:$id"

@@ -16,6 +16,8 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spectator.api.LongTaskTimer
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
@@ -26,6 +28,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.*
 
 abstract class AbstractResourceHandler<out T : Resource>(
+  private val registry: Registry,
   private val clock: Clock,
   private val rules: List<Rule<T>>,
   private val resourceTrackingRepository: ResourceTrackingRepository,
@@ -34,11 +37,14 @@ abstract class AbstractResourceHandler<out T : Resource>(
   private val applicationEventPublisher: ApplicationEventPublisher
 ) : ResourceHandler<T> {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
+  private val markDurationTimer: LongTaskTimer = registry.longTaskTimer("swabbie.mark.duration")
+  private val candidatesCountId = registry.createId("swabbie.resources.candidatesCount")
 
   /**
    * finds & tracks cleanup candidates
    */
   override fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
+    val timerId = markDurationTimer.start()
     try {
       log.info("${javaClass.name}: getting resources with namespace {}", workConfiguration.namespace)
       getUpstreamResources(workConfiguration)?.let { upstreamResources ->
@@ -57,16 +63,25 @@ abstract class AbstractResourceHandler<out T : Resource>(
                     log.info("Forgetting now valid resource {}", upstreamResource)
                     resourceTrackingRepository.remove(trackedMarkedResource)
                     applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource, workConfiguration))
-                  } else if (!violationSummaries.isEmpty()) {
-                    if (!workConfiguration.dryRun) {
-                      val deletionDate = trackedMarkedResource?.humanReadableDeletionTime(clock)
-                        ?: workConfiguration.retentionDays.days.fromNow
-                      upstreamResource.mark(
-                        trackedMarkedResource = trackedMarkedResource,
-                        projectedDeletionDate = deletionDate,
-                        violationSummaries = violationSummaries,
-                        workConfiguration = workConfiguration
-                      )
+                  } else if (!violationSummaries.isEmpty() && trackedMarkedResource == null) {
+                    MarkedResource(
+                      resource = upstreamResource,
+                      summaries = violationSummaries,
+                      namespace = workConfiguration.namespace,
+                      resourceOwner = ownerResolver.resolve(upstreamResource),
+                      projectedDeletionStamp = workConfiguration.retentionDays.days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+                    ).let {
+                      registry.counter(
+                        candidatesCountId.withTags(
+                          "resourceType", workConfiguration.resourceType,
+                          "configuration", workConfiguration.namespace
+                        )
+                      ).increment()
+                      if (!workConfiguration.dryRun) {
+                        resourceTrackingRepository.upsert(it)
+                        log.info("Marking resource {} for deletion", it)
+                        applicationEventPublisher.publishEvent(MarkResourceEvent(it, workConfiguration))
+                      }
                     }
                   }
                 }
@@ -77,28 +92,7 @@ abstract class AbstractResourceHandler<out T : Resource>(
       log.error("Failed while invoking $javaClass", e)
     } finally {
       postMark.invoke()
-    }
-  }
-
-  private fun Resource.mark(trackedMarkedResource: MarkedResource?,
-                            projectedDeletionDate: LocalDate,
-                            violationSummaries: List<Summary>,
-                            workConfiguration: WorkConfiguration) {
-    log.info("Deletion date for resource {} is {}, dryRun {}", this, projectedDeletionDate, workConfiguration.dryRun)
-    (trackedMarkedResource?.copy(
-      summaries = violationSummaries
-    ) ?: MarkedResource(
-      resource = this,
-      summaries = violationSummaries,
-      namespace = workConfiguration.namespace,
-      resourceOwner = ownerResolver.resolve(this),
-      projectedDeletionStamp = projectedDeletionDate.atStartOfDay(clock.zone).toInstant().toEpochMilli()
-    )).let {
-      resourceTrackingRepository.upsert(it)
-      if (trackedMarkedResource == null) {
-        log.info("Marking resource {} for deletion", it)
-        applicationEventPublisher.publishEvent(MarkResourceEvent(it, workConfiguration))
-      }
+      markDurationTimer.stop(timerId)
     }
   }
 
@@ -135,6 +129,8 @@ abstract class AbstractResourceHandler<out T : Resource>(
               }
           }
         }
+    } catch (e: Exception) {
+      log.error("failed to cleanup resource", markedResource, e)
     } finally {
       postClean.invoke()
     }

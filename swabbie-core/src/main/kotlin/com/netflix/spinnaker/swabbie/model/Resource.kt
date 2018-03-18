@@ -117,21 +117,14 @@ data class NotificationInfo(
 data class ResourceState(
   var markedResource: MarkedResource,
   val deleted: Boolean = false,
-  val statuses: MutableList<Status>
+  val statuses: MutableList<Status>,
+  val currentStatus: Status = statuses.last()
 )
 
 data class Status(
   val name: String,
   val timestamp: Long
-): Comparable<Status> {
-  override fun compareTo(other: Status): Int {
-    return if (other.name == name) {
-      timestamp.compareTo(other.timestamp)
-    } else {
-      1
-    }
-  }
-}
+)
 
 fun MarkedResource.humanReadableDeletionTime(clock: Clock): LocalDate {
   (this.adjustedDeletionStamp?: this.projectedDeletionStamp).let {

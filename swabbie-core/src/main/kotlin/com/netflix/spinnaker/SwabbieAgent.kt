@@ -16,7 +16,60 @@
 
 package com.netflix.spinnaker
 
-interface SwabbieAgent {
-  fun locksName(prefix: String,  namespace: String) = "$prefix:$namespace"
-  fun execute()
+import com.netflix.spectator.api.Id
+import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.swabbie.DiscoverySupport
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.boot.context.event.ApplicationReadyEvent
+import org.springframework.context.ApplicationListener
+import rx.Scheduler
+import rx.schedulers.Schedulers
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.temporal.Temporal
+import java.util.concurrent.TimeUnit
+import javax.annotation.PostConstruct
+
+interface SwabbieAgent: ApplicationListener<ApplicationReadyEvent> {
+  val agentName: String
+  fun locksName(namespace: String) = "{swabbie:${agentName.toLowerCase()}}:$namespace"
+  fun run()
+}
+
+abstract class ScheduledAgent(
+  private val clock: Clock,
+  val registry: Registry,
+  private val discoverySupport: DiscoverySupport
+): SwabbieAgent {
+  protected val log: Logger = LoggerFactory.getLogger(javaClass)
+  private val worker: Scheduler.Worker = Schedulers.io().createWorker()
+  val failedAgentId: Id = registry.createId("swabbie.agents.failed")
+
+  override fun onApplicationEvent(event: ApplicationReadyEvent?) {
+    worker.schedulePeriodically( {
+      discoverySupport.ifUP {
+        log.info("Started agent {}", javaClass.simpleName)
+        run()
+        setLastAgentRun(clock.instant())
+      }
+    }, 0, getAgentFrequency(), TimeUnit.SECONDS)
+  }
+
+  @PostConstruct
+  private fun init() {
+    initializeAgent()
+    registry.gauge("swabbie.agents.${agentName.toLowerCase()}.run.age", this, {
+      Duration.between(
+        it.getLastAgentRun(),
+        clock.instant()
+      ).toMillis().toDouble()
+    })
+  }
+
+  abstract fun initializeAgent()
+  abstract fun getLastAgentRun(): Temporal?
+  abstract fun setLastAgentRun(instant: Instant)
+  abstract fun getAgentFrequency(): Long
 }

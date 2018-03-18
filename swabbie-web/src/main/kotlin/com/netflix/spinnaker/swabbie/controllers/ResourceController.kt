@@ -19,22 +19,16 @@ package com.netflix.spinnaker.swabbie.controllers
 
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.model.Work
-import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/resources")
 class ResourceController(
-  private val work: List<Work>,
   private val resourceStateRepository: ResourceStateRepository
 ) {
-  private val log = LoggerFactory.getLogger(javaClass)
 
   @RequestMapping(value = "/states", method = arrayOf(RequestMethod.GET))
-  fun resourceStates(): List<ResourceState>? {
-    return resourceStateRepository.getAll()
-  }
+  fun resourceStates(): List<ResourceState>? = resourceStateRepository.getAll()
 
   @RequestMapping(value="/state", method = arrayOf(RequestMethod.GET))
   fun resourceState(
@@ -43,19 +37,11 @@ class ResourceController(
     @RequestParam location: String,
     @RequestParam resourceId: String,
     @RequestParam resourceType: String
-  ): ResourceState? {
-    "$provider:$account:$location:$resourceType".toLowerCase().let { namespace ->
-      work.find { w ->
-        w.namespace == namespace
-      }.let { w ->
-        return if (w != null) {
-          resourceStateRepository.get(resourceId, w.namespace)
-        } else {
-          resourceStateRepository.get(resourceId, namespace)
-        }
+  ): ResourceState? =
+    "$provider:$account:$location:$resourceType".toLowerCase()
+      .let {
+        return resourceStateRepository.get(resourceId, it)
       }
-    }
-  }
 }
 
 

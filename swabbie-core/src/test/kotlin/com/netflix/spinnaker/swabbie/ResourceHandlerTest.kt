@@ -18,6 +18,8 @@ package com.netflix.spinnaker.swabbie
 
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
+import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
@@ -261,7 +263,7 @@ object ResourceHandlerTest {
     verify(resourceRepository, never()).upsert(any(), any())
   }
 
-  private fun workConfiguration(exclusions: List<Exclusion> = emptyList()): WorkConfiguration = WorkConfiguration(
+  internal fun workConfiguration(exclusions: List<Exclusion> = emptyList()): WorkConfiguration = WorkConfiguration(
     namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
     account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
     location = "us-east-1",
@@ -288,8 +290,9 @@ object ResourceHandlerTest {
     ownerResolver: OwnerResolver,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
-    private val simulatedUpstreamResources: MutableList<TestResource>?
-  ) : AbstractResourceHandler<TestResource>(clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
+    private val simulatedUpstreamResources: MutableList<TestResource>?,
+    registry: Registry = NoopRegistry()
+  ) : AbstractResourceHandler<TestResource>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }

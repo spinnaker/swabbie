@@ -15,7 +15,6 @@
  */
 
 dependencies {
-  compile project(":swabbie-core")
   compile project(":swabbie-retrofit")
   testCompile project(":swabbie-test")
 }

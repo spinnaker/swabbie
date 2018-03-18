@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.loadbalancers
 
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
@@ -29,6 +30,7 @@ import java.time.Clock
 
 @Component
 class AmazonLoadBalancerHandler(
+  registry: Registry,
   clock: Clock,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
   resourceTrackingRepository: ResourceTrackingRepository,
@@ -38,7 +40,7 @@ class AmazonLoadBalancerHandler(
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService
-): AbstractResourceHandler<AmazonElasticLoadBalancer>(clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+): AbstractResourceHandler<AmazonElasticLoadBalancer>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonElasticLoadBalancer) {

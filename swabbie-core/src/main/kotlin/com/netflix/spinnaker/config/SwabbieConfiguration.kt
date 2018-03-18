@@ -57,9 +57,9 @@ open class SwabbieConfiguration {
   open fun clock(): Clock = Clock.systemDefaultZone()
 
   @Bean
-  open fun taskExecutor(work: List<Work>): ThreadPoolTaskExecutor =
+  open fun taskExecutor(): ThreadPoolTaskExecutor =
     ThreadPoolTaskExecutor().apply {
-      corePoolSize = work.size
+      corePoolSize = 20
     }
 
   private fun getAccounts(accountProvider: AccountProvider, accountType: String): List<Account> {

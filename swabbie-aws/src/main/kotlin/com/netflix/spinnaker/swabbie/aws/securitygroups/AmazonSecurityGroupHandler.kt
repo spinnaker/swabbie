@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.securitygroups
 
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.model.*
@@ -29,6 +30,7 @@ import java.time.Clock
 //TODO: add rules for this handler
 @Component
 class AmazonSecurityGroupHandler(
+  registry: Registry,
   clock: Clock,
   rules: List<Rule<AmazonSecurityGroup>>,
   resourceTrackingRepository: ResourceTrackingRepository,
@@ -37,7 +39,7 @@ class AmazonSecurityGroupHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
-): AbstractResourceHandler<AmazonSecurityGroup>(clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+): AbstractResourceHandler<AmazonSecurityGroup>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup) {

@@ -16,17 +16,17 @@
 
 package com.netflix.spinnaker.swabbie.tagging
 
-import com.netflix.spinnaker.swabbie.orca.OrcaJob
-import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.TagRequest
 import com.netflix.spinnaker.swabbie.TaggingService
+import com.netflix.spinnaker.swabbie.orca.OrcaJob
+import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import org.springframework.stereotype.Component
 
 @Component
 class EntityTaggingService(
   private val orcaService: OrcaService
-): TaggingService {
+) : TaggingService {
   override fun removeTag(tagRequest: TagRequest) {
     if (tagRequest is DeleteEntityTagsRequest) {
       orcaService.orchestrate(

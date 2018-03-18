@@ -18,22 +18,27 @@ package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.*
+import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES
 import com.fasterxml.jackson.databind.DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS
+import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.WorkConfigurationExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.work.WorkConfigurator
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.annotation.*
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
+import org.springframework.context.annotation.ComponentScan
+import org.springframework.context.annotation.Configuration
 import org.springframework.core.type.filter.AssignableTypeFilter
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.util.ClassUtils
@@ -62,56 +67,12 @@ open class SwabbieConfiguration {
       corePoolSize = 20
     }
 
-  private fun getAccounts(accountProvider: AccountProvider, accountType: String): List<Account> {
-    accountProvider.getAccounts().filter {
-      it.type.equals(accountType, ignoreCase = true)
-    }.let { accounts ->
-        return if (accounts.isEmpty()) {
-          listOf(EmptyAccount())
-        } else {
-          accounts
-        }
-      }
-  }
-
   @Bean
-  open fun work(swabbieProperties: SwabbieProperties,
-                accountProvider: AccountProvider,
-                exclusionPolicies: List<WorkConfigurationExclusionPolicy>): List<Work> {
-    val allWork = mutableListOf<Work>()
-    log.info("Loading Swabbie configuration {}", swabbieProperties)
-    swabbieProperties.providers.forEach { cloudProviderConfiguration ->
-      cloudProviderConfiguration.resourceTypes.filter {
-        it.enabled
-      }.forEach { resourceTypeConfiguration ->
-          getAccounts(accountProvider, cloudProviderConfiguration.name).forEach { account ->
-          cloudProviderConfiguration.locations.forEach { location ->
-            "${cloudProviderConfiguration.name}:${account.name}:$location:${resourceTypeConfiguration.name}".let { namespace ->
-              WorkConfiguration(
-                namespace = namespace.toLowerCase(),
-                account = account,
-                location = location,
-                cloudProvider = cloudProviderConfiguration.name,
-                resourceType = resourceTypeConfiguration.name,
-                retentionDays = resourceTypeConfiguration.retentionDays,
-                exclusions = mergeExclusions(cloudProviderConfiguration.exclusions, resourceTypeConfiguration.exclusions),
-                dryRun = if (swabbieProperties.dryRun) true else (resourceTypeConfiguration.dryRun || swabbieProperties.dryRun)
-              ).takeIf {
-                !it.shouldBeExcluded(exclusionPolicies, it.exclusions)
-              }?.let { configuration ->
-                  allWork.add(Work(namespace = namespace.toLowerCase(), configuration = configuration))
-                }
-            }
-          }
-        }
-      }
-    }
-
-    log.info("Generated work {}", allWork)
-    return allWork
+  open fun workConfigurator(swabbieProperties: SwabbieProperties,
+                            accountProvider: AccountProvider,
+                            exclusionPolicies: List<ExclusionPolicy>): WorkConfigurator {
+    return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies)
   }
-
-  private val log: Logger = LoggerFactory.getLogger(javaClass)
 }
 
 class ResourceDeserializer : JsonDeserializer<Resource>() {

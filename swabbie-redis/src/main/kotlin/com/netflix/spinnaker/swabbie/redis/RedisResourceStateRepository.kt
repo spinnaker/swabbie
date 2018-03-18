@@ -19,8 +19,8 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
-import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.model.ResourceState
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
@@ -29,7 +29,7 @@ class RedisResourceStateRepository(
   @Qualifier("mainRedisClient") private val mainRedisClientDelegate: RedisClientDelegate,
   @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?,
   private val objectMapper: ObjectMapper
-): ResourceStateRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
+) : ResourceStateRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
   override fun upsert(resourceState: ResourceState) {
     "${resourceState.markedResource.namespace}:${resourceState.markedResource.resourceId}".let { id ->
       statesKey(id).let { key ->
@@ -47,13 +47,13 @@ class RedisResourceStateRepository(
         this.withCommandsClient<Set<String>> { client ->
           client.smembers(key)
         }.let { set ->
-          if (set.isEmpty()) emptyList()
-          else this.withCommandsClient<Set<String>> { client ->
-            client.hmget(SINGLE_STATE_KEY, *set.map { it }.toTypedArray()).toSet()
-          }.map { json ->
-              objectMapper.readValue<ResourceState>(json)
-            }
-        }
+            if (set.isEmpty()) emptyList()
+            else this.withCommandsClient<Set<String>> { client ->
+              client.hmget(SINGLE_STATE_KEY, *set.map { it }.toTypedArray()).toSet()
+            }.map { json ->
+                objectMapper.readValue<ResourceState>(json)
+              }
+          }
       }
     }
   }

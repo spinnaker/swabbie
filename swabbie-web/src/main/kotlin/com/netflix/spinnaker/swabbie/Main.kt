@@ -43,8 +43,7 @@ object MainDefaults {
 @Import(PlatformComponents::class)
 @ComponentScan(basePackages = arrayOf("com.netflix.spinnaker.config", "com.netflix.spinnaker.swabbie.web.config"))
 open class Main : SpringBootServletInitializer() {
-  override fun configure(builder: SpringApplicationBuilder): SpringApplicationBuilder
-    = builder.properties(MainDefaults.PROPS).sources(Main::class.java)
+  override fun configure(builder: SpringApplicationBuilder): SpringApplicationBuilder = builder.properties(MainDefaults.PROPS).sources(Main::class.java)
 }
 
 fun main(args: Array<String>) {

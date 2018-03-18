@@ -24,7 +24,10 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.annotation.*
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Scope
 import retrofit.RestAdapter
 import retrofit.client.OkClient
 
@@ -51,7 +54,8 @@ open class SwabbieRetrofitConfiguration {
   @Bean(name = arrayOf("retrofitClient", "okClient"))
   @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
   open fun retrofitClient(@Qualifier("okHttpClientConfiguration") okHttpClientConfig: OkHttpClientConfiguration): OkClient {
-    val userAgent = "Spinnaker-${System.getProperty("spring.application.name", "unknown")}/${javaClass.`package`.implementationVersion ?: "1.0"}"
+    val userAgent = "Spinnaker-${System.getProperty("spring.application.name", "unknown")}/${javaClass.`package`.implementationVersion
+      ?: "1.0"}"
     val cfg = okHttpClientConfig.create().apply {
       networkInterceptors().add(Interceptor { chain ->
         chain.proceed(chain.request().newBuilder()
@@ -66,7 +70,7 @@ open class SwabbieRetrofitConfiguration {
     return OkClient(cfg)
   }
 
-  @Bean open fun retrofitLogLevel(@Value("\${retrofit.logLevel:BASIC}") retrofitLogLevel: String)
-    = RestAdapter.LogLevel.valueOf(retrofitLogLevel)
+  @Bean
+  open fun retrofitLogLevel(@Value("\${retrofit.logLevel:BASIC}") retrofitLogLevel: String) = RestAdapter.LogLevel.valueOf(retrofitLogLevel)
 }
 

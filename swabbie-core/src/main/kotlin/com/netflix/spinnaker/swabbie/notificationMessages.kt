@@ -25,14 +25,13 @@ class NotificationMessage {
   companion object {
     fun subject(messageType: MessageType, clock: Clock, vararg markedResources: MarkedResource): String {
       if (messageType == MessageType.EMAIL) {
-        val time = markedResources[0].humanReadableDeletionTime(clock)
-        "${markedResources.size} resource(s) scheduled to be cleaned up on $time"
+        return "${markedResources.size} resource(s) scheduled to be cleaned up on ${markedResources[0].humanReadableDeletionTime(clock)}"
       }
 
       return ""
     }
 
-    fun body( messageType: MessageType, clock: Clock, optOutUrl: String, vararg markedResources: MarkedResource): String {
+    fun body(messageType: MessageType, clock: Clock, optOutUrl: String, vararg markedResources: MarkedResource): String {
       if (messageType == MessageType.TAG) {
         return markedResources[0].summaries.joinToString(", ") {
           it.description
@@ -48,8 +47,8 @@ class NotificationMessage {
             it.description
           }.also { summary ->
               "${m.typeAndName()} scheduled to be janitored on ${m.humanReadableDeletionTime(clock)}</h2><br /> \n " +
-              "* $summary <br /> \n" +
-              "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
+                "* $summary <br /> \n" +
+                "* Click <a href='$optOutUrl' target='_blank'>here</a> to keep the it for 2 additional weeks."
             }
         }.joinToString("\n")
       }

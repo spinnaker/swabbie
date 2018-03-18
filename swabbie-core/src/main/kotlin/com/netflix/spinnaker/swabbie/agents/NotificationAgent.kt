@@ -18,14 +18,17 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.ScheduledAgent
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.DiscoverySupport
+import com.netflix.spinnaker.swabbie.MessageType
+import com.netflix.spinnaker.swabbie.NotificationMessage
+import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.echo.EchoService
 import com.netflix.spinnaker.swabbie.echo.Notifier
-import com.netflix.spinnaker.swabbie.model.Work
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.work.Processor
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.ApplicationEventPublisher
@@ -44,14 +47,13 @@ import java.util.concurrent.atomic.AtomicReference
 @ConditionalOnExpression("\${swabbie.agents.notify.enabled}")
 class NotificationAgent(
   registry: Registry,
+  workProcessor: Processor,
   discoverySupport: DiscoverySupport,
   private val clock: Clock,
-  private val lockManager: LockManager,
   private val resourceTrackingRepository: ResourceTrackingRepository,
-  private val work: List<Work>,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val notifier: Notifier
-): ScheduledAgent(clock, registry, discoverySupport) {
+) : ScheduledAgent(clock, registry, workProcessor, discoverySupport) {
   @Value("\${swabbie.optOut.url}")
   lateinit var optOutUrl: String
 
@@ -60,9 +62,6 @@ class NotificationAgent(
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastNotifierAgentRun: Instant
     get() = _lastAgentRun.get()
-
-  override val agentName: String
-    get() = "NOTIFIER"
 
   override fun getLastAgentRun(): Temporal? = lastNotifierAgentRun
   override fun getAgentFrequency(): Long = interval
@@ -75,85 +74,61 @@ class NotificationAgent(
   }
 
   private val notificationsId = registry.createId("swabbie.notifications")
-  override fun run() {
-    var currentConfiguration: WorkConfiguration? = null
+  override fun process(workConfiguration: WorkConfiguration) {
     try {
       log.info("Notification Agent Started ...")
-      markedResourcesGroupedByOwner().forEach { owner ->
-        owner.takeIf {
-          lockManager.acquire(locksName(it.key), lockTtlSeconds = 3600)
-        }.let {
-            owner.value.map { markedResourceAndConfiguration ->
-              val markedResource = markedResourceAndConfiguration.first
-              val notificationInstant = Instant.now(clock)
-              val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
-              markedResource.apply {
-                this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
-                this.notificationInfo = NotificationInfo(
-                  notificationStamp = notificationInstant.toEpochMilli(),
-                  recipient = owner.key,
-                  notificationType = EchoService.Notification.Type.EMAIL.name
-                )
-              }
-
-              log.info("Adjusting deletion time to {} for {}", offset + markedResource.projectedDeletionStamp, markedResource)
-              Pair(markedResource, markedResourceAndConfiguration.second)
-            }.let { markedResourceAndConfiguration ->
-                val resources = markedResourceAndConfiguration.map { it.first }.toList()
-                val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
-                val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
-                notifier.notify(owner.key, subject, body, "EMAIL").let {
-                  resources.forEach { resource ->
-                    currentConfiguration = resource.workConfiguration(markedResourceAndConfiguration)
-                    resource.takeIf {
-                      !currentConfiguration!!.dryRun
-                    }?.let {
-                        log.info("notification sent to {} for {}", owner.key, resources)
-                        resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
-                        applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, resource.workConfiguration(markedResourceAndConfiguration)))
-                      }
+      getResourcesGroupedByOwner(workConfiguration).forEach { ownerToResources ->
+        ownerToResources.value.map { markedResource ->
+          val notificationInstant = Instant.now(clock)
+          val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
+          markedResource.apply {
+            this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
+            this.notificationInfo = NotificationInfo(
+              notificationStamp = notificationInstant.toEpochMilli(),
+              recipient = ownerToResources.key,
+              notificationType = EchoService.Notification.Type.EMAIL.name
+            )
+          }
+          ownerToResources
+        }.map {
+            val resources = ownerToResources.value
+            val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
+            val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
+            notifier.notify(it.key, subject, body, "EMAIL").let {
+              resources.forEach { resource ->
+                resource.takeIf {
+                  !workConfiguration.dryRun
+                }?.let {
+                    log.info("notification sent to {} for {}", ownerToResources.key, resources)
+                    resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
+                    applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
                   }
-                }
-
-                lockManager.release(locksName(owner.key))
               }
+            }
           }
       }
     } catch (e: Exception) {
       log.error("Failed to run notification agent", e)
-      registry.counter(
-        failedAgentId.withTags(
-          "agentName", agentName,
-          "configuration", currentConfiguration?.namespace ?: "unknown"
-        )
-      ).increment()
+      registry.counter(failedAgentId.withTags("agentName", this.javaClass.simpleName, "configuration", workConfiguration.namespace)).increment()
       registry.counter(notificationsId.withTags("failed")).increment()
     }
   }
 
-  private fun markedResourcesGroupedByOwner(): MutableMap<String, MutableList<Pair<MarkedResource, WorkConfiguration>>> {
-    val owners = mutableMapOf<String, MutableList<Pair<MarkedResource, WorkConfiguration>>>()
+  private fun getResourcesGroupedByOwner(workConfiguration: WorkConfiguration): Map<String, MutableList<MarkedResource>> {
+    val owners = mutableMapOf<String, MutableList<MarkedResource>>()
     resourceTrackingRepository.getMarkedResources()
       ?.filter {
-        it.notificationInfo.notificationStamp == null && it.adjustedDeletionStamp == null
+        workConfiguration.namespace.equals(it.namespace, ignoreCase = true) && it.notificationInfo.notificationStamp == null && it.adjustedDeletionStamp == null
       }?.forEach { markedResource ->
         markedResource.resourceOwner?.let { owner ->
-          getMatchingConfiguration(markedResource)?.let { config ->
-            if (owners[owner] == null) {
-              owners[owner] = mutableListOf(Pair(markedResource, config))
-            } else {
-              owners[owner]!!.add(Pair(markedResource, config))
-            }
+          if (owners[owner] == null) {
+            owners[owner] = mutableListOf(markedResource)
+          } else {
+            owners[owner]!!.add(markedResource)
           }
         }
       }
 
     return owners
   }
-
-  private fun getMatchingConfiguration(markedResource: MarkedResource): WorkConfiguration?
-    = work.find { it.namespace == markedResource.namespace }?.configuration
 }
-
-private fun MarkedResource.workConfiguration(configs: List<Pair<MarkedResource, WorkConfiguration>>): WorkConfiguration
-  = configs.find { this == it.first }!!.second

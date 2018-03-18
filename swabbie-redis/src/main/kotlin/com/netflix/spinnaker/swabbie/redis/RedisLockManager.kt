@@ -27,7 +27,7 @@ class RedisLockManager
 @Autowired constructor(
   @Qualifier("mainRedisClient") private val mainRedisClientDelegate: RedisClientDelegate,
   @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?
-): LockManager, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
+) : LockManager, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
   override fun release(name: String) {
     locksKey(name).let { key ->
       getClientForId(key)

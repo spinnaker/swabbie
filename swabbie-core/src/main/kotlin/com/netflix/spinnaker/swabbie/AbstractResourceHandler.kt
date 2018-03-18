@@ -21,11 +21,17 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import java.time.*
+import java.time.Clock
+import java.time.LocalDate
+import java.time.Period
 
 abstract class AbstractResourceHandler<out T : Resource>(
   private val registry: Registry,

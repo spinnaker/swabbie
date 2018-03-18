@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component
 @Component
 class EchoNotifier(
   private val echoService: EchoService
-): Notifier {
+) : Notifier {
   override fun notify(recipient: String, subject: String, body: String, messageType: String) {
     echoService.create(
       EchoService.Notification(

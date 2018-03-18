@@ -30,11 +30,9 @@ open class DynomiteConfigurationProperties {
 
   var hosts: MutableList<DynoHost> = mutableListOf()
 
-  fun getDynoHosts(): MutableList<Host>
-    = hosts.map { Host(it.hostname, it.ipAddress, it.port, it.rack, it.datacenter, it.status, it.hashtag) }.toMutableList()
+  fun getDynoHosts(): MutableList<Host> = hosts.map { Host(it.hostname, it.ipAddress, it.port, it.rack, it.datacenter, it.status, it.hashtag) }.toMutableList()
 
-  fun getDynoHostTokens(): MutableList<HostToken>
-    = getDynoHosts().mapIndexed { index, host -> HostToken(hosts[index].token, host) }.toMutableList()
+  fun getDynoHostTokens(): MutableList<HostToken> = getDynoHosts().mapIndexed { index, host -> HostToken(hosts[index].token, host) }.toMutableList()
 }
 
 open class DynoHost {

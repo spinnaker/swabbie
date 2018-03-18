@@ -15,6 +15,7 @@
  */
 
 package com.netflix.spinnaker.swabbie.test
+
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.model.Resource
 
@@ -24,7 +25,7 @@ data class TestResource(
   override val resourceType: String = TEST_RESOURCE_TYPE,
   override val cloudProvider: String = TEST_RESOURCE_PROVIDER_TYPE,
   override val name: String = resourceId
-): Resource()
+) : Resource()
 
 const val TEST_RESOURCE_PROVIDER_TYPE = "testProvider"
 const val TEST_RESOURCE_TYPE = "testResourceType"

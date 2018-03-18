@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 
 interface ResourceTagger {
   fun tag(markedResource: MarkedResource, workConfiguration: WorkConfiguration, description: String)

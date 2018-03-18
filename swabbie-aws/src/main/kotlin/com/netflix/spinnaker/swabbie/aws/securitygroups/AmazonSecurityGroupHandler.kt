@@ -19,10 +19,14 @@ package com.netflix.spinnaker.swabbie.aws.securitygroups
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -39,7 +43,11 @@ class AmazonSecurityGroupHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
-): AbstractResourceHandler<AmazonSecurityGroup>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+) : AbstractResourceHandler<AmazonSecurityGroup>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+  override fun postProcessing(configuration: WorkConfiguration, action: Action) {
+
+  }
+
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup) {
@@ -78,8 +86,8 @@ class AmazonSecurityGroupHandler(
     )
 
   //TODO: enable when rules are added
-  override fun handles(resourceType: String, cloudProvider: String): Boolean = false
-//    = resourceType == SECURITY_GROUP && cloudProvider == AWS && !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration): Boolean = false
+//    = workConfiguration.resourceType == SECURITY_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
   override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
     securityGroupProvider.getAll(

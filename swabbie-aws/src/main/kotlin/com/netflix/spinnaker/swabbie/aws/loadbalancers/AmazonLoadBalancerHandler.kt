@@ -20,10 +20,16 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -40,30 +46,44 @@ class AmazonLoadBalancerHandler(
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService
-): AbstractResourceHandler<AmazonElasticLoadBalancer>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+) : AbstractResourceHandler<AmazonElasticLoadBalancer>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+  override fun postProcessing(configuration: WorkConfiguration, action: Action) {
+    when (action) {
+      Action.MARK -> {
+
+      }
+      Action.DELETE -> {
+      }
+      Action.UNMARK -> {
+      }
+      Action.NOTIFY -> {
+      }
+    }
+  }
+
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonElasticLoadBalancer) {
         //TODO: consider also removing dns records for the ELB
         //TODO: review delete action
-        log.info("This load balancer is about to be deleted {}", markedResource)
-        orcaService.orchestrate(
-          OrchestrationRequest(
-            application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
-            job = listOf(
-              OrcaJob(
-                type = "deleteLoadBalancer",
-                context = mutableMapOf(
-                  "credentials" to workConfiguration.account.name,
-                  "loadBalancerName" to resource.name,
-                  "cloudProvider" to resource.cloudProvider,
-                  "regions" to listOf(workConfiguration.location)
-                )
-              )
-            ),
-            description = "Cleaning up Load Balancer for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
-          )
-        )
+//        log.info("This load balancer is about to be deleted {}", markedResource)
+//        orcaService.orchestrate(
+//          OrchestrationRequest(
+//            application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+//            job = listOf(
+//              OrcaJob(
+//                type = "deleteLoadBalancer",
+//                context = mutableMapOf(
+//                  "credentials" to workConfiguration.account.name,
+//                  "loadBalancerName" to resource.name,
+//                  "cloudProvider" to resource.cloudProvider,
+//                  "regions" to listOf(workConfiguration.location)
+//                )
+//              )
+//            ),
+//            description = "Cleaning up Load Balancer for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+//          )
+//        )
       }
     }
   }
@@ -79,8 +99,7 @@ class AmazonLoadBalancerHandler(
       )
     )
 
-  override fun handles(resourceType: String, cloudProvider: String): Boolean
-    = resourceType == LOAD_BALANCER && cloudProvider == AWS && !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration): Boolean = workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
   override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =
     loadBalancerProvider.getAll(

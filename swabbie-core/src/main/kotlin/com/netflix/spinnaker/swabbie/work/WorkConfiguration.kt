@@ -14,16 +14,10 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.model
+package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.swabbie.Excludable
-import com.netflix.spinnaker.swabbie.ExclusionPolicy
-
-data class Work(
-  val namespace: String,
-  val configuration: WorkConfiguration
-)
+import com.netflix.spinnaker.swabbie.model.Account
 
 data class WorkConfiguration(
   val namespace: String,
@@ -33,9 +27,5 @@ data class WorkConfiguration(
   val resourceType: String,
   val retentionDays: Int,
   val exclusions: List<Exclusion>,
-  val dryRun: Boolean = true,
-  override val name: String = namespace
-): Excludable {
-  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean =
-    exclusionPolicies.find { it.apply(this, exclusions) } != null
-}
+  val dryRun: Boolean = true
+)

@@ -23,14 +23,17 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.NameExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -55,8 +58,8 @@ object ResourceHandlerTest {
     val resource = TestResource("testResource")
     TestResourceHandler(
       clock = clock,
-      rules =listOf(TestRule(
-        invalidOn = { resource.resourceId ==  "testResource" },
+      rules = listOf(TestRule(
+        invalidOn = { resource.resourceId == "testResource" },
         summary = Summary("violates rule 1", "ruleName"))
       ),
       resourceTrackingRepository = resourceRepository,
@@ -130,7 +133,7 @@ object ResourceHandlerTest {
       clock = clock,
       rules = listOf(
         TestRule(
-          invalidOn = { resource.resourceId ==  "testResource" },
+          invalidOn = { resource.resourceId == "testResource" },
           summary = Summary("always invalid", "rule1")
         )
       ),
@@ -277,7 +280,7 @@ object ResourceHandlerTest {
   class TestRule(
     private val invalidOn: (Resource) -> Boolean,
     private val summary: Summary?
-  ): Rule<TestResource> {
+  ) : Rule<TestResource> {
     override fun apply(resource: TestResource): Result {
       return if (invalidOn(resource)) Result(summary) else Result(null)
     }
@@ -285,24 +288,28 @@ object ResourceHandlerTest {
 
   class TestResourceHandler(
     clock: Clock,
-    private val rules: List<Rule<TestResource>>,
     resourceTrackingRepository: ResourceTrackingRepository,
     ownerResolver: OwnerResolver,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
+    private val rules: List<Rule<TestResource>>,
     private val simulatedUpstreamResources: MutableList<TestResource>?,
     registry: Registry = NoopRegistry()
   ) : AbstractResourceHandler<TestResource>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
+    override fun postProcessing(configuration: WorkConfiguration, action: Action) {
+
+    }
+
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }
 
     // simulates querying for a resource upstream
     override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): TestResource? {
-      return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId}
+      return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId }
     }
 
-    override fun handles(resourceType: String, cloudProvider: String): Boolean {
+    override fun handles(workConfiguration: WorkConfiguration): Boolean {
       return !rules.isEmpty()
     }
 

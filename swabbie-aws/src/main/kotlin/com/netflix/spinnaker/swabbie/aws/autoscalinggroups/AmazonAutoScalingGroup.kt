@@ -28,5 +28,4 @@ data class AmazonAutoScalingGroup(
   override val resourceType: String = SERVER_GROUP,
   override val cloudProvider: String = AWS,
   override val name: String = autoScalingGroupName
-
-): AmazonResource()
+) : AmazonResource()

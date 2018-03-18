@@ -37,15 +37,15 @@ import retrofit.converter.JacksonConverter
 open class EchoConfiguration {
   private val log = LoggerFactory.getLogger(javaClass)
 
-  @Bean open fun echoEndpoint(@Value("\${echo.baseUrl}") echoBaseUrl: String)
-    = Endpoints.newFixedEndpoint(echoBaseUrl)
+  @Bean
+  open fun echoEndpoint(@Value("\${echo.baseUrl}") echoBaseUrl: String) = Endpoints.newFixedEndpoint(echoBaseUrl)
 
-  @Bean open fun echoService(echoEndpoint: Endpoint,
-                             objectMapper: ObjectMapper,
-                             retrofitClient: Client,
-                             spinnakerRequestInterceptor: RequestInterceptor,
-                             retrofitLogLevel: RestAdapter.LogLevel)
-    = RestAdapter.Builder()
+  @Bean
+  open fun echoService(echoEndpoint: Endpoint,
+                       objectMapper: ObjectMapper,
+                       retrofitClient: Client,
+                       spinnakerRequestInterceptor: RequestInterceptor,
+                       retrofitLogLevel: RestAdapter.LogLevel) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(echoEndpoint)
     .setClient(retrofitClient)

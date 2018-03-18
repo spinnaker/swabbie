@@ -28,9 +28,10 @@ class CloudProviderConfiguration {
   var exclusions: MutableList<Exclusion>? = null
   var name: String = ""
   var locations: List<String> = mutableListOf()
+  var accounts: List<String> = mutableListOf()
   var resourceTypes: List<ResourceTypeConfiguration> = mutableListOf()
   override fun toString(): String {
-    return "CloudProviderConfiguration(name='$name', exclusions=$exclusions, resourceTypes=$resourceTypes)"
+    return "CloudProviderConfiguration(exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes)"
   }
 }
 

@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component
 class ResourceOwnerResolver(
   private val resourceOwnerStrategies: List<ResourceOwnerResolutionStrategy>,
   private val registry: Registry
-): OwnerResolver {
+) : OwnerResolver {
   @Value("\${swabbie.notify.fallbackEmail:cloudmonkeyalerts@netflix.com}")
   private lateinit var fallbackEmail: String
 
@@ -38,14 +38,14 @@ class ResourceOwnerResolver(
       resourceOwnerStrategies.mapNotNull {
         it.resolve(resource)
       }.let { owners ->
-        return if (!owners.isEmpty()) {
-          registry.counter(resourceOwnerId.withTags("result", "found")).increment()
-          owners.first()
-        } else {
-          registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
-          fallbackEmail
+          return if (!owners.isEmpty()) {
+            registry.counter(resourceOwnerId.withTags("result", "found")).increment()
+            owners.first()
+          } else {
+            registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
+            fallbackEmail
+          }
         }
-      }
     } catch (e: Exception) {
       registry.counter(resourceOwnerId.withTags("result", "failed")).increment()
       return fallbackEmail
@@ -64,10 +64,12 @@ interface ResourceOwnerResolutionStrategy {
 }
 
 @Component
-class TagOwnerResolutionStrategy: ResourceOwnerResolutionStrategy {
+class TagOwnerResolutionStrategy : ResourceOwnerResolutionStrategy {
   override fun resolve(resource: Resource): String? {
     if ("tags" in resource.details) {
-      return (resource.details["tags"] as Map<*, *>)["owner"] as? String
+      (resource.details["tags"] as? List<Map<*, *>>)?.let {
+        return it.find { it.containsKey("owner") }?.get("owner") as String
+      }
     }
 
     return null

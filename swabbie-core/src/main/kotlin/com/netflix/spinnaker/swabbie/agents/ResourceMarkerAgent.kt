@@ -37,10 +37,10 @@ import java.util.concurrent.atomic.AtomicReference
 @Component
 @ConditionalOnExpression("\${swabbie.agents.mark.enabled}")
 class ResourceMarkerAgent(
-  clock: Clock,
   registry: Registry,
   workProcessor: Processor,
   discoverySupport: DiscoverySupport,
+  private val clock: Clock,
   private val executor: AgentExecutor,
   private val resourceHandlers: List<ResourceHandler<*>>
 ) : ScheduledAgent(clock, registry, workProcessor, discoverySupport) {
@@ -58,10 +58,11 @@ class ResourceMarkerAgent(
   }
 
   override fun initializeAgent() {
+    setLastAgentRun(clock.instant())
     log.info("Marker agent starting")
   }
 
-  override fun process(workConfiguration: WorkConfiguration, complete: () -> Unit) {
+  override fun run(workConfiguration: WorkConfiguration, complete: () -> Unit) {
     try {
       resourceHandlers.find { handler ->
         handler.handles(workConfiguration)

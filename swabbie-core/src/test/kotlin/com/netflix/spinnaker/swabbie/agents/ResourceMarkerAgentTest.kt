@@ -52,7 +52,7 @@ object ResourceMarkerAgentTest {
       discoverySupport = mock(),
       executor = executor,
       resourceHandlers = listOf(resourceHandler)
-    ).process(configuration, completeFn)
+    ).run(configuration, completeFn)
 
     verify(resourceHandler, never()).mark(any(), any())
   }
@@ -69,7 +69,7 @@ object ResourceMarkerAgentTest {
       discoverySupport = mock(),
       executor = executor,
       resourceHandlers = listOf(resourceHandler)
-    ).process(ResourceMarkerAgentTest.configuration, completeFn)
+    ).run(ResourceMarkerAgentTest.configuration, completeFn)
 
     verify(resourceHandler).mark(any(), any())
   }

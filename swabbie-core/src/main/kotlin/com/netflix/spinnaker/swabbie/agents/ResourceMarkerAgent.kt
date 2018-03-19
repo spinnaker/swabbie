@@ -44,8 +44,8 @@ class ResourceMarkerAgent(
   private val executor: AgentExecutor,
   private val resourceHandlers: List<ResourceHandler<*>>
 ) : ScheduledAgent(clock, registry, workProcessor, discoverySupport) {
-  @Value("\${swabbie.agents.mark.intervalSeconds:3600000}")
-  private var interval: Long = 3600000
+  @Value("\${swabbie.agents.mark.intervalSeconds:3600}")
+  private var interval: Long = 3600
 
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastMarkerAgentRun: Instant

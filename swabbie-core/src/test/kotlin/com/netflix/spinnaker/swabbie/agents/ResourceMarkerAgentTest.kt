@@ -33,6 +33,7 @@ object ResourceMarkerAgentTest {
   private val lockManager = mock<LockManager>()
   private val executor = AgentExecutor(BlockingThreadExecutor())
   private val configuration = workConfiguration()
+  private val completeFn = {}
 
   @AfterEach
   fun cleanup() {
@@ -51,7 +52,7 @@ object ResourceMarkerAgentTest {
       discoverySupport = mock(),
       executor = executor,
       resourceHandlers = listOf(resourceHandler)
-    ).process(configuration)
+    ).process(configuration, completeFn)
 
     verify(resourceHandler, never()).mark(any(), any())
   }
@@ -68,7 +69,7 @@ object ResourceMarkerAgentTest {
       discoverySupport = mock(),
       executor = executor,
       resourceHandlers = listOf(resourceHandler)
-    ).process(ResourceMarkerAgentTest.configuration)
+    ).process(ResourceMarkerAgentTest.configuration, completeFn)
 
     verify(resourceHandler).mark(any(), any())
   }

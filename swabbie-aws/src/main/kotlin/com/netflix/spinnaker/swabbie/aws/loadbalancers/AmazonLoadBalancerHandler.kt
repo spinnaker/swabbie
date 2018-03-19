@@ -47,20 +47,6 @@ class AmazonLoadBalancerHandler(
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService
 ) : AbstractResourceHandler<AmazonElasticLoadBalancer>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
-  override fun postProcessing(configuration: WorkConfiguration, action: Action) {
-    when (action) {
-      Action.MARK -> {
-
-      }
-      Action.DELETE -> {
-      }
-      Action.UNMARK -> {
-      }
-      Action.NOTIFY -> {
-      }
-    }
-  }
-
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonElasticLoadBalancer) {

@@ -61,7 +61,7 @@ class ResourceMarkerAgent(
     log.info("Marker agent starting")
   }
 
-  override fun process(workConfiguration: WorkConfiguration) {
+  override fun process(workConfiguration: WorkConfiguration, complete: () -> Unit) {
     try {
       resourceHandlers.find { handler ->
         handler.handles(workConfiguration)
@@ -73,7 +73,7 @@ class ResourceMarkerAgent(
           } else {
             executor.execute {
               handler.mark(workConfiguration, {
-                handler.postProcessing(workConfiguration, Action.MARK)
+                complete()
               })
             }
           }

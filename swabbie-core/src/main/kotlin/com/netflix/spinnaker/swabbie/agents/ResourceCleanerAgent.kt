@@ -62,7 +62,7 @@ class ResourceCleanerAgent(
     log.info("Cleaner agent starting")
   }
 
-  override fun process(workConfiguration: WorkConfiguration) {
+  override fun process(workConfiguration: WorkConfiguration, complete: () -> Unit) {
     try {
       resourceTrackingRepository.getMarkedResourcesToDelete()
         ?.filter { it.namespace.equals(workConfiguration.namespace, ignoreCase = true) && it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
@@ -75,7 +75,7 @@ class ResourceCleanerAgent(
               } else {
                 executor.execute {
                   handler.clean(markedResource, workConfiguration, {
-                    handler.postProcessing(workConfiguration, Action.DELETE)
+                    complete()
                   })
                 }
               }

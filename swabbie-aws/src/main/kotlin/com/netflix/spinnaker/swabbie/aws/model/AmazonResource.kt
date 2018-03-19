@@ -18,4 +18,4 @@ package com.netflix.spinnaker.swabbie.aws.model
 
 import com.netflix.spinnaker.swabbie.model.Resource
 
-abstract class AmazonResource: Resource()
+abstract class AmazonResource : Resource()

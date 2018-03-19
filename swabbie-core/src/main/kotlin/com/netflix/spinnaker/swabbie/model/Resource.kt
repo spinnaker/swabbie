@@ -21,8 +21,8 @@ import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.swabbie.Excludable
-import com.netflix.spinnaker.swabbie.ExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.Excludable
+import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -35,14 +35,14 @@ const val SERVER_GROUP = "serverGroup"
 /** Provider Types **/
 const val AWS = "aws"
 
-const val RESOURCE_TYPE_INFO_FIELD =  "swabbieTypeInfo"
+const val RESOURCE_TYPE_INFO_FIELD = "swabbieTypeInfo"
 
 /**
  * subtypes specify type by annotating with JsonTypeName
  * Represents a resource that swabbie can visit and act on
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-abstract class Resource: Identifiable, Excludable, HasDetails() {
+abstract class Resource : Identifiable, Excludable, HasDetails() {
   /**
    * requires all subtypes to be annotated with JsonTypeName
    */
@@ -53,6 +53,12 @@ abstract class Resource: Identifiable, Excludable, HasDetails() {
    */
   override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean =
     exclusionPolicies.find { it.apply(this, exclusions) } != null
+
+
+  fun withDetail(name: String, value: Any?): Resource =
+    this.apply {
+      set(name, value)
+    }
 
   override fun equals(other: Any?): Boolean {
     if (this === other) {
@@ -82,7 +88,7 @@ abstract class HasDetails {
   fun details() = details
 }
 
-interface Identifiable: Named {
+interface Identifiable : Named {
   val resourceId: String
   val resourceType: String
   val cloudProvider: String
@@ -106,7 +112,7 @@ data class MarkedResource(
   var createdTs: Long? = null,
   var updateTs: Long? = null,
   val resourceOwner: String? = null
-): Identifiable by resource
+) : Identifiable by resource
 
 data class NotificationInfo(
   val recipient: String? = null,
@@ -127,7 +133,7 @@ data class Status(
 )
 
 fun MarkedResource.humanReadableDeletionTime(clock: Clock): LocalDate {
-  (this.adjustedDeletionStamp?: this.projectedDeletionStamp).let {
+  (this.adjustedDeletionStamp ?: this.projectedDeletionStamp).let {
     return Instant.ofEpochMilli(it)
       .atZone(clock.zone)
       .toLocalDate()

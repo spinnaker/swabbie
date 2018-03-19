@@ -35,15 +35,14 @@ import retrofit.converter.JacksonConverter
 @ComponentScan("com.netflix.spinnaker.swabbie.orca")
 open class OrcaConfiguration {
   @Bean
-  open fun orcaEndpoint(@Value("\${orca.baseUrl}") orcaBaseUrl: String)
-    = Endpoints.newFixedEndpoint(orcaBaseUrl)
+  open fun orcaEndpoint(@Value("\${orca.baseUrl}") orcaBaseUrl: String) = Endpoints.newFixedEndpoint(orcaBaseUrl)
 
-  @Bean open fun orcaService(orcaEndpoint: Endpoint,
-                             objectMapper: ObjectMapper,
-                             retrofitClient: Client,
-                             spinnakerRequestInterceptor: RequestInterceptor,
-                             retrofitLogLevel: RestAdapter.LogLevel)
-    = RestAdapter.Builder()
+  @Bean
+  open fun orcaService(orcaEndpoint: Endpoint,
+                       objectMapper: ObjectMapper,
+                       retrofitClient: Client,
+                       spinnakerRequestInterceptor: RequestInterceptor,
+                       retrofitLogLevel: RestAdapter.LogLevel) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(orcaEndpoint)
     .setClient(retrofitClient)

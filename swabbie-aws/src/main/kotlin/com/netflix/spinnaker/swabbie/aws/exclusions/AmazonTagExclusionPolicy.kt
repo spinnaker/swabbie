@@ -17,17 +17,26 @@
 package com.netflix.spinnaker.swabbie.aws.exclusions
 
 import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.swabbie.Excludable
-import com.netflix.spinnaker.swabbie.ResourceExclusionPolicy
+import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
+import com.netflix.spinnaker.swabbie.exclusions.Excludable
+import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import org.springframework.stereotype.Component
 
 @Component
-class AmazonTagExclusionPolicy: ResourceExclusionPolicy {
+class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
     if (excludable is AmazonResource) {
-//      excludable.details["tags"]
-      //TODO
+      keysAndValues(exclusions, ExclusionType.Tag)
+        .let { excludingTags ->
+          if ("tags" in excludable.details) {
+            (excludable.details["tags"] as? List<Map<*, *>>)?.map { tag ->
+              return tag.keys.any { key ->
+                excludingTags[key] != null && excludingTags[key]!!.contains(tag[key])
+              }
+            }
+          }
+        }
     }
 
     return false

@@ -17,8 +17,13 @@
 package com.netflix.spinnaker.swabbie.tagging
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.*
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.MessageType
+import com.netflix.spinnaker.swabbie.NotificationMessage
+import com.netflix.spinnaker.swabbie.ResourceTagger
+import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -31,7 +36,7 @@ import java.time.Clock
 class ResourceEntityTagger(
   private val taggingService: EntityTaggingService,
   private val clock: Clock
-): ResourceTagger {
+) : ResourceTagger {
   @Value("\${swabbie.optOut.url}")
   lateinit var optOutUrl: String
   private val log: Logger = LoggerFactory.getLogger(javaClass)

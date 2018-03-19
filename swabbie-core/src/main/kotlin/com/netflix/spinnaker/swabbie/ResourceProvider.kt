@@ -18,9 +18,9 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.Resource
 
-interface ResourceProvider<out T: Resource> {
+interface ResourceProvider<out T : Resource> {
   fun getAll(params: Parameters): List<T>?
   fun getOne(params: Parameters): T?
 }
 
-class Parameters(val map: Map<String, Any>): HashMap<String, Any>(map)
+class Parameters(val map: Map<String, Any>) : HashMap<String, Any>(map)

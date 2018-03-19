@@ -22,16 +22,16 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import java.util.concurrent.atomic.AtomicReference
 
-interface Cacheable: Named
+interface Cacheable : Named
 
 interface Cache<out T> {
   fun get(): Set<T>
   fun contains(key: String?): Boolean
 }
 
-open class InMemoryCache<out T: Cacheable>(
+open class InMemoryCache<out T : Cacheable>(
   private val source: Set<T>
-): Cache<T> {
+) : Cache<T> {
   override fun contains(key: String?): Boolean {
     if (key == null) return false
     return cache.get().find { it.name == key } != null

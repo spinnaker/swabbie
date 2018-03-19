@@ -19,11 +19,11 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.ScheduledAgent
 import com.netflix.spinnaker.swabbie.DiscoverySupport
-import com.netflix.spinnaker.swabbie.LockManager
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.ResourceHandler
-import com.netflix.spinnaker.swabbie.model.Work
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.work.Processor
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
@@ -40,21 +40,17 @@ import java.util.concurrent.atomic.AtomicReference
 class ResourceCleanerAgent(
   registry: Registry,
   clock: Clock,
+  workProcessor: Processor,
   discoverySupport: DiscoverySupport,
   private val executor: AgentExecutor,
-  private val lockManager: LockManager,
   private val resourceTrackingRepository: ResourceTrackingRepository,
-  private val work: List<Work>,
   private val resourceHandlers: List<ResourceHandler<*>>
-): ScheduledAgent(clock, registry, discoverySupport) {
+) : ScheduledAgent(clock, registry, workProcessor, discoverySupport) {
   @Value("\${swabbie.agents.clean.intervalSeconds:3600000}")
   private var interval: Long = 3600000
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastCleanerAgentRun: Instant
     get() = _lastAgentRun.get()
-
-  override val agentName: String
-    get() = "CLEANER"
 
   override fun getLastAgentRun(): Temporal? = lastCleanerAgentRun
   override fun getAgentFrequency(): Long = interval
@@ -66,35 +62,27 @@ class ResourceCleanerAgent(
     log.info("Cleaner agent starting")
   }
 
-  override fun run() {
-    var currentConfiguration: WorkConfiguration? = null
+  override fun process(workConfiguration: WorkConfiguration) {
     try {
       resourceTrackingRepository.getMarkedResourcesToDelete()
-        ?.filter { it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
-        ?.forEach {
-          it.takeIf {
-            lockManager.acquire(locksName(it.namespace), lockTtlSeconds = 3600)
-          }?.let { markedResource ->
-              resourceHandlers.find {
-                handler -> handler.handles(markedResource.resourceType, markedResource.cloudProvider)
-              }.let { handler ->
-                  if (handler == null) {
-                    throw IllegalStateException("No Suitable handler found for $markedResource")
-                  } else {
-                    work.find { it.namespace == markedResource.namespace }?.let { w ->
-                      currentConfiguration = w.configuration
-                      executor.execute {
-                        handler.clean(markedResource, w.configuration, {
-                          lockManager.release(locksName(it.namespace))
-                        })
-                      }
-                    }
-                  }
+        ?.filter { it.namespace.equals(workConfiguration.namespace, ignoreCase = true) && it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
+        ?.forEach { markedResource ->
+          resourceHandlers.find { handler ->
+            handler.handles(workConfiguration)
+          }.let { handler ->
+              if (handler == null) {
+                throw IllegalStateException("No Suitable handler found for $markedResource")
+              } else {
+                executor.execute {
+                  handler.clean(markedResource, workConfiguration, {
+                    handler.postProcessing(workConfiguration, Action.DELETE)
+                  })
                 }
+              }
             }
         }
     } catch (e: Exception) {
-      registry.counter(failedAgentId.withTags("agentName", agentName, "configuration", currentConfiguration?.namespace ?: "unknown")).increment()
+      registry.counter(failedAgentId.withTags("agentName", this.javaClass.simpleName, "configuration", workConfiguration.namespace)).increment()
       log.error("Failed to run resource cleaners", e)
     }
   }

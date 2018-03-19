@@ -17,9 +17,12 @@
 package com.netflix.spinnaker.swabbie.controllers
 
 
-import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
-import org.springframework.web.bind.annotation.*
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestMethod
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/resources")
@@ -30,7 +33,7 @@ class ResourceController(
   @RequestMapping(value = "/states", method = arrayOf(RequestMethod.GET))
   fun resourceStates(): List<ResourceState>? = resourceStateRepository.getAll()
 
-  @RequestMapping(value="/state", method = arrayOf(RequestMethod.GET))
+  @RequestMapping(value = "/state", method = arrayOf(RequestMethod.GET))
   fun resourceState(
     @RequestParam provider: String,
     @RequestParam account: String,

@@ -26,6 +26,7 @@ import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -139,7 +140,7 @@ object RedisResourceTrackingRepositoryTest {
         projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
         adjustedDeletionStamp = twoDaysFromNow.toEpochMilli()
       )
-    ).forEach{ resource ->
+    ).forEach { resource ->
       resourceRepository.upsert(resource)
     }
 

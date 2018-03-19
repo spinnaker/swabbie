@@ -16,16 +16,16 @@
 
 package com.netflix.spinnaker.swabbie.agents
 
-import com.netflix.spinnaker.swabbie.LockManager
-import com.netflix.spinnaker.swabbie.ResourceHandler
-import com.netflix.spinnaker.swabbie.model.Work
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
-import org.springframework.stereotype.Component
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.ScheduledAgent
 import com.netflix.spinnaker.swabbie.DiscoverySupport
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.ResourceHandler
+import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.work.Processor
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
+import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.Temporal
@@ -38,22 +38,18 @@ import java.util.concurrent.atomic.AtomicReference
 @ConditionalOnExpression("\${swabbie.agents.mark.enabled}")
 class ResourceMarkerAgent(
   clock: Clock,
-  discoverySupport: DiscoverySupport,
   registry: Registry,
+  workProcessor: Processor,
+  discoverySupport: DiscoverySupport,
   private val executor: AgentExecutor,
-  private val lockManager: LockManager,
-  private val work: List<Work>,
   private val resourceHandlers: List<ResourceHandler<*>>
-): ScheduledAgent(clock, registry, discoverySupport) {
+) : ScheduledAgent(clock, registry, workProcessor, discoverySupport) {
   @Value("\${swabbie.agents.mark.intervalSeconds:3600000}")
   private var interval: Long = 3600000
 
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastMarkerAgentRun: Instant
     get() = _lastAgentRun.get()
-
-  override val agentName: String
-    get() = "MARKER"
 
   override fun getLastAgentRun(): Temporal? = lastMarkerAgentRun
   override fun getAgentFrequency(): Long = interval
@@ -62,36 +58,28 @@ class ResourceMarkerAgent(
   }
 
   override fun initializeAgent() {
-    log.info("Marker agent starting with {}", work)
+    log.info("Marker agent starting")
   }
 
-  override fun run() {
-    var currentConfiguration: WorkConfiguration? = null
+  override fun process(workConfiguration: WorkConfiguration) {
     try {
-      work.forEach {
-        currentConfiguration = it.configuration
-        it.takeIf {
-          lockManager.acquire(locksName(it.namespace), lockTtlSeconds = 3600)
-        }?.let { w ->
-            resourceHandlers.find { handler ->
-              handler.handles(w.configuration.resourceType, w.configuration.cloudProvider)
-            }.let { handler ->
-                if (handler == null) {
-                  throw IllegalStateException(
-                    String.format("No Suitable handler found for %s", w)
-                  )
-                } else {
-                  executor.execute {
-                    handler.mark(w.configuration, {
-                      lockManager.release(locksName(w.namespace))
-                    })
-                  }
-                }
-              }
+      resourceHandlers.find { handler ->
+        handler.handles(workConfiguration)
+      }.let { handler ->
+          if (handler == null) {
+            throw IllegalStateException(
+              String.format("No Suitable handler found for %s", workConfiguration)
+            )
+          } else {
+            executor.execute {
+              handler.mark(workConfiguration, {
+                handler.postProcessing(workConfiguration, Action.MARK)
+              })
+            }
           }
-      }
+        }
     } catch (e: Exception) {
-      registry.counter(failedAgentId.withTags("agentName", agentName, "configuration", currentConfiguration?.namespace ?: "unknown")).increment()
+      registry.counter(failedAgentId.withTags("agentName", this.javaClass.simpleName, "configuration", workConfiguration.namespace)).increment()
       log.error("Failed to run resource marker agent", e)
     }
   }

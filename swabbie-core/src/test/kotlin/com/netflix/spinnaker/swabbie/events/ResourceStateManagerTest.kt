@@ -61,9 +61,10 @@ object ResourceStateManagerTest {
 
     verify(resourceTagger).tag(markedResource, configuration, "${event.markedResource.typeAndName()} scheduled to be cleaned up on ${event.markedResource.humanReadableDeletionTime(clock)}")
     verify(resourceStateRepository).upsert(
-      argWhere { !it.deleted &&
-        it.markedResource == markedResource &&
-        it.statuses.size == 1 && it.statuses[0].name == "MARK"
+      argWhere {
+        !it.deleted &&
+          it.markedResource == markedResource &&
+          it.statuses.size == 1 && it.statuses[0].name == "MARK"
       }
     )
   }
@@ -101,11 +102,12 @@ object ResourceStateManagerTest {
 
     // should have two statuses with UNMARK being the latest
     verify(resourceStateRepository).upsert(
-      argWhere { !it.deleted &&
-        it.markedResource == markedResource &&
-        it.statuses.size == 2 && it.statuses[0].name == "MARK" &&
-        it.statuses[1].name == "UNMARK" &&
-        it.statuses[0].timestamp < it.statuses[1].timestamp
+      argWhere {
+        !it.deleted &&
+          it.markedResource == markedResource &&
+          it.statuses.size == 2 && it.statuses[0].name == "MARK" &&
+          it.statuses[1].name == "UNMARK" &&
+          it.statuses[0].timestamp < it.statuses[1].timestamp
       }
     )
   }
@@ -143,11 +145,12 @@ object ResourceStateManagerTest {
 
     // should have two statuses with DELETE being the latest
     verify(resourceStateRepository).upsert(
-      argWhere { it.deleted &&
-        it.markedResource == markedResource &&
-        it.statuses.size == 2 && it.statuses[0].name == "MARK" &&
-        it.statuses[1].name == "DELETE" &&
-        it.statuses[0].timestamp < it.statuses[1].timestamp
+      argWhere {
+        it.deleted &&
+          it.markedResource == markedResource &&
+          it.statuses.size == 2 && it.statuses[0].name == "MARK" &&
+          it.statuses[1].name == "DELETE" &&
+          it.statuses[0].timestamp < it.statuses[1].timestamp
       }
     )
   }

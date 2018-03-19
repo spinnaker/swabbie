@@ -9,7 +9,6 @@ It applies a set of rules to mark cleanup candidates. Once marked, a resource is
 ## Configuration
 ```
 swabbie:
-  dryRun: true
   taggingEnabled: false
   optOut:
     url: http://localhost:8088/
@@ -19,19 +18,20 @@ swabbie:
     mark:
       enabled: true
       intervalSeconds: 3600000
-
     clean:
-      enabled: false
+      enabled: true
       intervalSeconds: 3600000
-
     notify:
       enabled: false
       intervalSeconds: 3600000
+      fallbackEmail: cloudmonkey@netflix.com
 
   providers:
     - name: aws
       locations:
         - us-east-1
+      accounts:
+        - test
 
       exclusions:
         - type: Tag
@@ -40,16 +40,9 @@ swabbie:
               value:
                 - never
                 - pattern:^\d+(d|m|y)$
-
-        - type: AccountName
-          attributes:
-            - key: name
-              value:
-                - importantAccount
-
       resourceTypes:
         - name: securityGroup
-          enabled: true
+          enabled: false
           dryRun: true
           retentionDays: 10
           exclusions:
@@ -57,7 +50,12 @@ swabbie:
               attributes:
                 - key: name
                   value:
-                    - sg_to_exclude
+                    - nf_infranstructure
+                    - nf_datacenter
+        - name: loadBalancer
+          enabled: true
+          dryRun: true
+          retentionDays: 14
 
 ```
 
@@ -83,13 +81,13 @@ Responsibilities include:
 A single unit of work is scoped to a configuration that defines its granularity.
 
 ```
-data class Work(
+data class WorkConfiguration(
   val namespace: String,
   val account: Account,
   val location: String,
   val cloudProvider: String,
   val resourceType: String,
-  val retentionDays: Int = 14,
+  val retentionDays: Int,
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true
 )
@@ -119,12 +117,7 @@ swabbie:
 It's also possible to turn on dryRun at a resource type level
 
 #### Exclusion Policies
-Swabbie includes all resources defined in the configuration by default.
 Resources can be excluded/opted out from consideration using exclusion policies.
 
-
-There are two types of Exclusion Policies:
-
-- `WorkConfigurationExclusionPolicy`: Excludes work at configuration time
 - `ResourceExclusionPolicy`: Excludes resources at runtime
 - TODO

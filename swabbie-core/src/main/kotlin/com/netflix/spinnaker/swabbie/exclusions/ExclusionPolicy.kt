@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.exclusions
 
-import com.netflix.spinnaker.swabbie.model.Named
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.swabbie.model.Named
 
 interface ExclusionPolicy {
   fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean
@@ -32,12 +32,24 @@ interface ExclusionPolicy {
         exclusion.attributes.map { it.value }.flatten()
       }.flatten()
   }
+
+  fun keysAndValues(exclusions: List<Exclusion>, type: ExclusionType): Map<String, List<String>> {
+    val map = mutableMapOf<String, List<String>>()
+    exclusions.filter {
+      it.type.equals(type.name, true)
+    }.forEach {
+        it.attributes.forEach {
+          map[it.key] = it.value
+        }
+      }
+
+    return map
+  }
 }
 
-interface Excludable: Named {
+interface Excludable : Named {
   fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean
 }
 
-interface WorkConfigurationExclusionPolicy : ExclusionPolicy
-interface ResourceExclusionPolicy: ExclusionPolicy
+interface ResourceExclusionPolicy : ExclusionPolicy
 

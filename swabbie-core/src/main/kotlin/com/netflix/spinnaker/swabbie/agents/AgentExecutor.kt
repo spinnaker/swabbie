@@ -22,4 +22,4 @@ import java.util.concurrent.Executor
 @Component
 class AgentExecutor(
   private val taskExecutor: Executor
-): Executor by taskExecutor
+) : Executor by taskExecutor

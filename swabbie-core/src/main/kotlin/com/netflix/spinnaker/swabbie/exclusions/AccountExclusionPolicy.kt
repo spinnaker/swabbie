@@ -18,15 +18,13 @@ package com.netflix.spinnaker.swabbie.exclusions
 
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.swabbie.Excludable
-import com.netflix.spinnaker.swabbie.WorkConfigurationExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.Account
 import org.springframework.stereotype.Component
 
 @Component
-class AccountNameExclusionPolicy: WorkConfigurationExclusionPolicy {
+class AccountNameExclusionPolicy : ExclusionPolicy {
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
-    if (excludable is WorkConfiguration) {
+    if (excludable is Account) {
       values(exclusions, ExclusionType.AccountName)
         .let { accounts ->
           if (accounts.size == 1 && accounts.first() == "\\*") {
@@ -34,7 +32,7 @@ class AccountNameExclusionPolicy: WorkConfigurationExclusionPolicy {
             return true
           }
 
-          return accounts.find { it.equals(excludable.account.name, ignoreCase = true) || excludable.name.matchPattern(it)} != null
+          return accounts.find { it.equals(excludable.name, ignoreCase = true) || excludable.name.matchPattern(it) } != null
         }
     }
 
@@ -43,9 +41,9 @@ class AccountNameExclusionPolicy: WorkConfigurationExclusionPolicy {
 }
 
 @Component
-class AccountTypeExclusionPolicy: WorkConfigurationExclusionPolicy {
+class AccountTypeExclusionPolicy : ExclusionPolicy {
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
-    if (excludable is WorkConfiguration) {
+    if (excludable is Account) {
       values(exclusions, ExclusionType.AccountType)
         .let { accounts ->
           if (accounts.size == 1 && accounts.first() == "\\*") {
@@ -53,7 +51,7 @@ class AccountTypeExclusionPolicy: WorkConfigurationExclusionPolicy {
             return true
           }
 
-          return accounts.find { it.equals(excludable.account.type, ignoreCase = true) || excludable.name.matchPattern(it) } != null
+          return accounts.find { it.equals(excludable.type, ignoreCase = true) || excludable.type.matchPattern(it) } != null
         }
     }
 

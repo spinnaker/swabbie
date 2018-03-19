@@ -20,7 +20,6 @@ import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig
 import org.springframework.boot.actuate.health.Health
 import org.springframework.boot.actuate.health.HealthIndicator
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -31,41 +30,43 @@ import redis.clients.jedis.Protocol
 import java.net.URI
 
 @Configuration
-//@ConditionalOnProperty("redis.enabled")
 @EnableConfigurationProperties(JedisConfigurationProperties::class)
 open class JedisConfiguration {
   @Bean
   @ConfigurationProperties("redis")
-  open fun redisPoolConfig(): GenericObjectPoolConfig
-    = GenericObjectPoolConfig().apply {
+  open fun redisPoolConfig(): GenericObjectPoolConfig = GenericObjectPoolConfig().apply {
     maxTotal = 100
     maxIdle = 100
     minIdle = 25
   }
 
-  @Bean(name = arrayOf("mainRedisClient")) open fun jedisClientDelegate(jedisPool: JedisPool?): JedisClientDelegate? {
+  @Bean(name = arrayOf("mainRedisClient"))
+  open fun jedisClientDelegate(jedisPool: JedisPool?): JedisClientDelegate? {
     if (jedisPool == null) {
       return null
     }
     return JedisClientDelegate(jedisPool)
   }
 
-  @Bean(name = arrayOf("previousRedisClient")) open fun jedisClientDelegatePrevious(jedisPoolPrevious: JedisPool?): JedisClientDelegate? {
+  @Bean(name = arrayOf("previousRedisClient"))
+  open fun jedisClientDelegatePrevious(jedisPoolPrevious: JedisPool?): JedisClientDelegate? {
     if (jedisPoolPrevious == null) {
       return null
     }
     return JedisClientDelegate(jedisPoolPrevious)
   }
 
-  @Bean open fun jedisPool(redisConfigurationProperties: JedisConfigurationProperties,
-                           genericObjectPoolConfig: GenericObjectPoolConfig?): JedisPool? {
+  @Bean
+  open fun jedisPool(redisConfigurationProperties: JedisConfigurationProperties,
+                     genericObjectPoolConfig: GenericObjectPoolConfig?): JedisPool? {
     if (redisConfigurationProperties.connection == null) {
       return null
     }
     return createPool(genericObjectPoolConfig, redisConfigurationProperties.connection!!, redisConfigurationProperties.timeout)
   }
 
-  @Bean open fun jedisPoolPrevious(redisConfigurationProperties: JedisConfigurationProperties): JedisPool? {
+  @Bean
+  open fun jedisPoolPrevious(redisConfigurationProperties: JedisConfigurationProperties): JedisPool? {
     if (redisConfigurationProperties.connectionPrevious == null) {
       return null
     }
@@ -84,7 +85,8 @@ open class JedisConfiguration {
     return JedisPool(redisPoolConfig ?: GenericObjectPoolConfig(), host, port, timeout, password, db, null)
   }
 
-  @Bean open fun redisHealth(jedisPool: JedisPool) =
+  @Bean
+  open fun redisHealth(jedisPool: JedisPool) =
     HealthIndicator {
       var jedis: Jedis? = null
       var health: Health.Builder?

@@ -14,20 +14,6 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws.securitygroups
+package com.netflix.spinnaker.swabbie.work
 
-import com.netflix.spinnaker.swabbie.model.Result
-import com.netflix.spinnaker.swabbie.model.Rule
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
-
-@Component
-class OrphanedSecurityGroupRule : Rule<AmazonSecurityGroup> {
-  override fun apply(resource: AmazonSecurityGroup): Result {
-    //TODO: implement
-    return Result(null)
-  }
-
-  private val log: Logger = LoggerFactory.getLogger(javaClass)
-}
+object WorkConfiguratorTest

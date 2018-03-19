@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.work.WorkConfiguration
 
 abstract class Event(
   val action: Action,
@@ -47,19 +47,19 @@ enum class Action {
 class OwnerNotifiedEvent(
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
-): Event(Action.NOTIFY, markedResource, workConfiguration)
+) : Event(Action.NOTIFY, markedResource, workConfiguration)
 
 class UnMarkResourceEvent(
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
-): Event(Action.UNMARK, markedResource, workConfiguration)
+) : Event(Action.UNMARK, markedResource, workConfiguration)
 
 class MarkResourceEvent(
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
-): Event(Action.MARK, markedResource, workConfiguration)
+) : Event(Action.MARK, markedResource, workConfiguration)
 
 class DeleteResourceEvent(
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
-): Event(Action.DELETE, markedResource, workConfiguration)
+) : Event(Action.DELETE, markedResource, workConfiguration)

@@ -16,9 +16,9 @@
 
 package com.netflix.spinnaker.swabbie.clouddriver
 
-import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
+import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import org.springframework.stereotype.Component
 
@@ -30,4 +30,4 @@ class ClouddriverAccountProvider(
 }
 
 @Component
-class ClouddriverAccountCache(cloudDriverService: CloudDriverService): InMemoryCache<SpinnakerAccount>(cloudDriverService.getAccounts())
+class ClouddriverAccountCache(cloudDriverService: CloudDriverService) : InMemoryCache<SpinnakerAccount>(cloudDriverService.getAccounts())

@@ -20,7 +20,7 @@ package com.netflix.spinnaker.swabbie.model
  * A resource specific rule
  * If the rule finds the resource to be invalid, it will return a violation summary
  */
-interface Rule<in T: Resource> {
+interface Rule<in T : Resource> {
   fun apply(resource: T): Result
 }
 

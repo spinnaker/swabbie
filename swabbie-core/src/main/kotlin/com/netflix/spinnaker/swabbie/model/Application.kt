@@ -21,4 +21,4 @@ import com.netflix.spinnaker.swabbie.Cacheable
 data class Application(
   val email: String,
   override val name: String
-): HasDetails(), Cacheable
+) : HasDetails(), Cacheable

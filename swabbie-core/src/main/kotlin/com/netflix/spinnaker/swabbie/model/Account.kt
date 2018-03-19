@@ -16,10 +16,12 @@
 
 package com.netflix.spinnaker.swabbie.model
 
+import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.swabbie.Cacheable
+import com.netflix.spinnaker.swabbie.exclusions.Excludable
+import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 
-
-interface Account: Named {
+interface Account : Excludable {
   val accountId: String?
   val type: String
 }
@@ -31,10 +33,16 @@ data class SpinnakerAccount(
   override val accountId: String?,
   override val type: String,
   override val name: String
-) : Account, Cacheable
+) : Account, Cacheable {
+  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean {
+    return exclusionPolicies.find { it.apply(this, exclusions) } != null
+  }
+}
 
 data class EmptyAccount(
   override val accountId: String? = "",
   override val type: String = "",
   override val name: String = ""
-): Account
+) : Account {
+  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean = false
+}

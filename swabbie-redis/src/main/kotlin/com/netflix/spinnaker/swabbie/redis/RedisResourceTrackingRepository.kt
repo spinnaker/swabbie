@@ -32,7 +32,7 @@ class RedisResourceTrackingRepository(
   @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?,
   private val objectMapper: ObjectMapper,
   private val clock: Clock
-): ResourceTrackingRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
+) : ResourceTrackingRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
   override fun find(resourceId: String, namespace: String): MarkedResource? {
     "$namespace:$resourceId".let { key ->
       return getClientForId(key).withCommandsClient<String> { client ->

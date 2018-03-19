@@ -16,7 +16,9 @@
 
 package com.netflix.spinnaker.swabbie.aws.loadbalancers
 
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.Result
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.Summary
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -25,7 +27,7 @@ import org.springframework.stereotype.Component
  * An Elastic Load Balancer is invalid if it's not referenced by any server groups and has no instances
  */
 @Component
-class OrphanedELBRule: Rule<AmazonElasticLoadBalancer> {
+class OrphanedELBRule : Rule<AmazonElasticLoadBalancer> {
   override fun apply(resource: AmazonElasticLoadBalancer): Result {
     if (resource.details["instances"] != null && (resource.details["instances"] as List<*>).size > 0) {
       return Result(null)

@@ -33,15 +33,14 @@ import retrofit.converter.JacksonConverter
 @Import(RetrofitConfiguration::class)
 open class ClouddriverConfiguration {
   @Bean
-  open fun clouddriverEndpoint(@Value("\${clouddriver.baseUrl}") clouddriverBaseUrl: String)
-    = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
+  open fun clouddriverEndpoint(@Value("\${clouddriver.baseUrl}") clouddriverBaseUrl: String) = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
 
-  @Bean open fun clouddriverService(clouddriverEndpoint: Endpoint,
-                                    objectMapper: ObjectMapper,
-                                    retrofitClient: Client,
-                                    spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
-                                    retrofitLogLevel: RestAdapter.LogLevel)
-    = RestAdapter.Builder()
+  @Bean
+  open fun clouddriverService(clouddriverEndpoint: Endpoint,
+                              objectMapper: ObjectMapper,
+                              retrofitClient: Client,
+                              spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
+                              retrofitLogLevel: RestAdapter.LogLevel) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(clouddriverEndpoint)
     .setClient(retrofitClient)

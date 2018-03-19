@@ -30,7 +30,7 @@ import org.springframework.stereotype.Component
 @Component
 open class EddaAutoScalingGroupProvider(
   private val eddaClients: List<EddaClient>
-): ResourceProvider<AmazonAutoScalingGroup> {
+) : ResourceProvider<AmazonAutoScalingGroup> {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonAutoScalingGroup>? {
     try {
@@ -64,7 +64,7 @@ open class EddaAutoScalingGroupProvider(
 @Component
 open class EddaAmazonElasticLoadBalancerProvider(
   private val eddaClients: List<EddaClient>
-): ResourceProvider<AmazonElasticLoadBalancer> {
+) : ResourceProvider<AmazonElasticLoadBalancer> {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonElasticLoadBalancer>? {
     try {
@@ -100,7 +100,7 @@ open class EddaAmazonElasticLoadBalancerProvider(
 @Component
 open class EddaAmazonSecurityGroupProvider(
   private val eddaClients: List<EddaClient>
-): ResourceProvider<AmazonSecurityGroup> {
+) : ResourceProvider<AmazonSecurityGroup> {
   override fun getAll(params: Parameters): List<AmazonSecurityGroup>? =
     eddaServiceForRegionAndAccount(params, eddaClients).let { edda ->
       edda.getSecurityGroupIds().map { edda.getSecurityGroup(it) }
@@ -110,8 +110,7 @@ open class EddaAmazonSecurityGroupProvider(
     eddaServiceForRegionAndAccount(params, eddaClients).getSecurityGroup(params["groupId"] as String)
 }
 
-private fun eddaServiceForRegionAndAccount(params: Parameters, eddaClients: List<EddaClient>): EddaService
-  = eddaClients.find {
+private fun eddaServiceForRegionAndAccount(params: Parameters, eddaClients: List<EddaClient>): EddaService = eddaClients.find {
   it.region == params["region"] && it.account == params["account"]
 }.let { eddaClient ->
     if (eddaClient == null) {

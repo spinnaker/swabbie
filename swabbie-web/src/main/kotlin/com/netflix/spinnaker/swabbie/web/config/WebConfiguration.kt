@@ -45,12 +45,12 @@ open class WebConfiguration
     ))
   }
 
-  @Bean open fun authenticatedRequestFilter()
-    = FilterRegistrationBean(AuthenticatedRequestFilter(true))
+  @Bean
+  open fun authenticatedRequestFilter() = FilterRegistrationBean(AuthenticatedRequestFilter(true))
     .apply { order = Ordered.HIGHEST_PRECEDENCE }
 
-  @Bean open fun simpleCORSFilter()
-    = object : Filter {
+  @Bean
+  open fun simpleCORSFilter() = object : Filter {
     override fun doFilter(request: ServletRequest, response: ServletResponse, chain: FilterChain) {
       if (response is HttpServletResponse) {
         response.setHeader("Access-Control-Allow-Origin", "*")

@@ -18,8 +18,6 @@ package com.netflix.spinnaker.swabbie.exclusions
 
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.swabbie.Excludable
-import com.netflix.spinnaker.swabbie.ResourceExclusionPolicy
 import org.springframework.stereotype.Component
 
 @Component

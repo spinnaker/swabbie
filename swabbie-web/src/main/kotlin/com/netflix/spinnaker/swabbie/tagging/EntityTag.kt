@@ -25,7 +25,7 @@ data class EntityTag(
   val valueType: String = "object",
   val category: String = "Swabbie",
   val name: String = "spinnaker_ui_alert:swabbie_deletion_candidate"
-): Tag
+) : Tag
 
 data class TagValue(
   val message: String,
@@ -45,16 +45,16 @@ data class UpsertEntityTagsRequest(
   val tags: List<EntityTag>?,
   override val application: String,
   override val description: String
-): EntityTagRequest("upsertEntityTags", application, description)
+) : EntityTagRequest("upsertEntityTags", application, description)
 
 data class DeleteEntityTagsRequest(
   val id: String,
   override val application: String,
   override val description: String
-): EntityTagRequest("deleteEntityTags", application, description)
+) : EntityTagRequest("deleteEntityTags", application, description)
 
 open class EntityTagRequest(
   open val type: String,
   open val application: String,
   open val description: String
-): TagRequest
+) : TagRequest

@@ -18,11 +18,11 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
@@ -119,11 +119,10 @@ class ResourceStateManager(
     }
   }
 
-  private val markCountId       = registry.createId("swabbie.resources.markCount")
-  private val unMarkCountId     = registry.createId("swabbie.resources.unMarkCount")
-  private val deleteCountId     = registry.createId("swabbie.resources.deleteCount")
-  private val notifyCountId     = registry.createId("swabbie.resources.notifyCount")
+  private val markCountId = registry.createId("swabbie.resources.markCount")
+  private val unMarkCountId = registry.createId("swabbie.resources.unMarkCount")
+  private val deleteCountId = registry.createId("swabbie.resources.deleteCount")
+  private val notifyCountId = registry.createId("swabbie.resources.notifyCount")
 }
 
-internal fun MarkedResource.typeAndName(): String
-  = this.resourceType.split("(?=[A-Z])".toRegex()).joinToString(" ") + ": " + this.name
+internal fun MarkedResource.typeAndName(): String = this.resourceType.split("(?=[A-Z])".toRegex()).joinToString(" ") + ": " + this.name

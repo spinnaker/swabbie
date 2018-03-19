@@ -20,7 +20,6 @@ import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.LockManager
 import com.netflix.spinnaker.swabbie.ResourceHandler
 import com.netflix.spinnaker.swabbie.ResourceHandlerTest.workConfiguration
-import com.netflix.spinnaker.swabbie.model.Work
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -33,6 +32,7 @@ object ResourceMarkerAgentTest {
   private val clock = Clock.systemDefaultZone()
   private val lockManager = mock<LockManager>()
   private val executor = AgentExecutor(BlockingThreadExecutor())
+  private val configuration = workConfiguration()
 
   @AfterEach
   fun cleanup() {
@@ -40,39 +40,18 @@ object ResourceMarkerAgentTest {
   }
 
   @Test
-  fun `should do nothing if lock cannot be acquired`() {
+  fun `should do nothing if no handler is found for configuration`() {
     val resourceHandler = mock<ResourceHandler<*>>()
-    whenever(lockManager.acquire(any(), any())) doReturn false
-    whenever(resourceHandler.handles(any(), any())) doReturn true
+    whenever(resourceHandler.handles(configuration)) doReturn false
 
     ResourceMarkerAgent(
       clock = clock,
       registry = NoopRegistry(),
+      workProcessor = mock(),
       discoverySupport = mock(),
       executor = executor,
-      lockManager = lockManager,
-      work = emptyList(),
       resourceHandlers = listOf(resourceHandler)
-    ).run()
-
-    verify(resourceHandler, never()).mark(any(), any())
-  }
-
-  @Test
-  fun `should do nothing if there is no work to do`() {
-    val resourceHandler = mock<ResourceHandler<*>>()
-    whenever(lockManager.acquire(any(), any())) doReturn true
-    whenever(resourceHandler.handles(any(), any())) doReturn true
-
-    ResourceMarkerAgent(
-      clock = clock,
-      registry = NoopRegistry(),
-      discoverySupport = mock(),
-      executor = executor,
-      lockManager = lockManager,
-      work = emptyList(),
-      resourceHandlers = listOf(resourceHandler)
-    ).run()
+    ).process(configuration)
 
     verify(resourceHandler, never()).mark(any(), any())
   }
@@ -80,29 +59,22 @@ object ResourceMarkerAgentTest {
   @Test
   fun `should find and dispatch work to a handler`() {
     val resourceHandler = mock<ResourceHandler<*>>()
-    val configuration = workConfiguration()
-    val work = listOf(
-      Work(configuration.namespace, workConfiguration())
-    )
-
-    whenever(lockManager.acquire(any(), any())) doReturn true
-    whenever(resourceHandler.handles(any(), any())) doReturn true
+    whenever(resourceHandler.handles(configuration)) doReturn true
 
     ResourceMarkerAgent(
       clock = clock,
       registry = NoopRegistry(),
+      workProcessor = mock(),
       discoverySupport = mock(),
       executor = executor,
-      lockManager = lockManager,
-      work = work,
       resourceHandlers = listOf(resourceHandler)
-    ).run()
+    ).process(ResourceMarkerAgentTest.configuration)
 
     verify(resourceHandler).mark(any(), any())
   }
 }
 
-internal class BlockingThreadExecutor: Executor {
+internal class BlockingThreadExecutor : Executor {
   private val delegate = Executors.newSingleThreadExecutor()
   override fun execute(command: Runnable) {
     val latch = CountDownLatch(1)

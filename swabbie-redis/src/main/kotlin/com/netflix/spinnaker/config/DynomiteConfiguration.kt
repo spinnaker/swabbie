@@ -45,14 +45,15 @@ open class DynomiteConfiguration {
   @Bean(destroyMethod = "stopClient")
   open fun mainDynoJedisClient(mainDynomiteConfigurationProperties: DynomiteConfigurationProperties,
                                mainConnectionPoolConfiguration: ConnectionPoolConfigurationImpl,
-                               discoveryClient: Optional<EurekaClient>): DynoJedisClient
-    = createDynoJedisClient(mainDynomiteConfigurationProperties, mainConnectionPoolConfiguration, discoveryClient)
+                               discoveryClient: Optional<EurekaClient>): DynoJedisClient = createDynoJedisClient(mainDynomiteConfigurationProperties, mainConnectionPoolConfiguration, discoveryClient)
 
-  @Bean(name = arrayOf("mainRedisClient")) open fun dynomiteClientDelegate(dynoJedisClient: DynoJedisClient): DynomiteClientDelegate {
+  @Bean(name = arrayOf("mainRedisClient"))
+  open fun dynomiteClientDelegate(dynoJedisClient: DynoJedisClient): DynomiteClientDelegate {
     return DynomiteClientDelegate(dynoJedisClient)
   }
 
-  @Bean(name = arrayOf("previousRedisClient")) open fun previousDynomiteClientDelegate(): DynomiteClientDelegate? = null
+  @Bean(name = arrayOf("previousRedisClient"))
+  open fun previousDynomiteClientDelegate(): DynomiteClientDelegate? = null
 
   private fun createDynoJedisClient(dynomiteConfigurationProperties: DynomiteConfigurationProperties,
                                     connectionPoolConfiguration: ConnectionPoolConfigurationImpl,
@@ -66,12 +67,12 @@ open class DynomiteConfiguration {
         .withCPConfig(connectionPoolConfiguration)
     }).orElseGet({
       connectionPoolConfiguration
-        .withTokenSupplier( StaticTokenMapSupplier(dynomiteConfigurationProperties.getDynoHostTokens()))
+        .withTokenSupplier(StaticTokenMapSupplier(dynomiteConfigurationProperties.getDynoHostTokens()))
         .setLocalDataCenter(dynomiteConfigurationProperties.localDataCenter)
         .setLocalRack(dynomiteConfigurationProperties.localRack)
 
       builder
-        .withHostSupplier( StaticHostSupplier(dynomiteConfigurationProperties.getDynoHosts()))
+        .withHostSupplier(StaticHostSupplier(dynomiteConfigurationProperties.getDynoHosts()))
         .withCPConfig(connectionPoolConfiguration)
     }).build()
   }

@@ -32,6 +32,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.LocalDate
 import java.time.Period
+import java.util.concurrent.atomic.AtomicInteger
 
 abstract class AbstractResourceHandler<out T : Resource>(
   private val registry: Registry,
@@ -51,6 +52,8 @@ abstract class AbstractResourceHandler<out T : Resource>(
    */
   override fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
     val timerId = markDurationTimer.start()
+    val candidateCounter = AtomicInteger()
+    val violationCounter = AtomicInteger()
     try {
       log.info("${javaClass.name}: getting resources with namespace {}", workConfiguration.namespace)
       getUpstreamResources(workConfiguration)?.let { upstreamResources ->
@@ -58,6 +61,8 @@ abstract class AbstractResourceHandler<out T : Resource>(
         upstreamResources.filter {
           !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions)
         }.forEach { upstreamResource ->
+            candidateCounter.set(0)
+            violationCounter.set(0)
             rules.mapNotNull {
               it.apply(upstreamResource).summary
             }.let { violationSummaries ->
@@ -70,6 +75,7 @@ abstract class AbstractResourceHandler<out T : Resource>(
                     resourceTrackingRepository.remove(trackedMarkedResource)
                     applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource, workConfiguration))
                   } else if (!violationSummaries.isEmpty() && trackedMarkedResource == null) {
+                    violationCounter.addAndGet(violationSummaries.size)
                     MarkedResource(
                       resource = upstreamResource,
                       summaries = violationSummaries,
@@ -77,12 +83,7 @@ abstract class AbstractResourceHandler<out T : Resource>(
                       resourceOwner = ownerResolver.resolve(upstreamResource),
                       projectedDeletionStamp = workConfiguration.retentionDays.days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
                     ).let {
-                      registry.counter(
-                        candidatesCountId.withTags(
-                          "resourceType", workConfiguration.resourceType,
-                          "configuration", workConfiguration.namespace
-                        )
-                      ).increment()
+                      candidateCounter.incrementAndGet()
                       if (!workConfiguration.dryRun) {
                         resourceTrackingRepository.upsert(it)
                         log.info("Marking resource {} for deletion", it)
@@ -97,6 +98,14 @@ abstract class AbstractResourceHandler<out T : Resource>(
     } catch (e: Exception) {
       log.error("Failed while invoking $javaClass", e)
     } finally {
+      registry.gauge(
+        candidatesCountId.withTags(
+          "resourceType", workConfiguration.resourceType,
+          "configuration", workConfiguration.namespace,
+          "violations", violationCounter.get().toString()
+        )
+      ).set(candidateCounter.toDouble())
+
       postMark.invoke()
       markDurationTimer.stop(timerId)
     }

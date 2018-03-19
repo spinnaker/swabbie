@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
 
 interface SwabbieAgent : ApplicationListener<ApplicationReadyEvent> {
-  fun process(workConfiguration: WorkConfiguration, complete: () -> Unit)
+  fun run(workConfiguration: WorkConfiguration, complete: () -> Unit)
 }
 
 abstract class ScheduledAgent(
@@ -51,12 +51,19 @@ abstract class ScheduledAgent(
   override fun onApplicationEvent(event: ApplicationReadyEvent?) {
     worker.schedulePeriodically({
       discoverySupport.ifUP {
+        initializeAgent()
         log.info("Started agent {}", javaClass.simpleName)
         workProcessor.process(this, { configuration, complete ->
           setLastAgentRun(clock.instant())
           if (configuration != null) {
             log.info("Starting processing of {}", configuration)
-            process(configuration, complete)
+            run(configuration, complete)
+            registry.gauge("swabbie.agents.${javaClass.simpleName.toLowerCase()}.run.age", this, {
+              Duration.between(
+                it.getLastAgentRun(),
+                clock.instant()
+              ).toMillis().toDouble()
+            })
           } else {
             log.info("Skipping work in progress {}", configuration)
           }
@@ -67,13 +74,7 @@ abstract class ScheduledAgent(
 
   @PostConstruct
   private fun init() {
-    initializeAgent()
-    registry.gauge("swabbie.agents.${javaClass.simpleName.toLowerCase()}.run.age", this, {
-      Duration.between(
-        it.getLastAgentRun(),
-        clock.instant()
-      ).toMillis().toDouble()
-    })
+    log.info("Initializing agent ${javaClass.simpleName}")
   }
 
   abstract fun initializeAgent()

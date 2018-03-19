@@ -44,10 +44,6 @@ class AmazonSecurityGroupHandler(
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
 ) : AbstractResourceHandler<AmazonSecurityGroup>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
-  override fun postProcessing(configuration: WorkConfiguration, action: Action) {
-
-  }
-
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup) {

@@ -16,7 +16,6 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.work.WorkConfiguration
@@ -28,6 +27,4 @@ interface ResourceHandler<out T : Resource> {
 
   fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration, postClean: () -> Unit)
   fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit)
-
-  fun postProcessing(configuration: WorkConfiguration, action: Action)
 }

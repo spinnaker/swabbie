@@ -30,23 +30,35 @@ class WorkProcessor(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workConfigurations = workConfigurator.generateWorkConfigurations()
 
-  override fun process(agent: SwabbieAgent, fn: (workConfiguration: WorkConfiguration?) -> Unit) {
-    val agentName = agent.javaClass.simpleName.toLowerCase()
-    log.info("{} processing {}", agentName, workConfigurations)
+  override fun process(agent: SwabbieAgent, fn: (workConfiguration: WorkConfiguration?, complete: () -> Unit) -> Unit) {
+    val agentName = agent.javaClass.simpleName
     workConfigurations.forEach {
       it.takeIf {
-        lockManager.acquire("$agentName:${it.namespace}", lockTtlSeconds = 3600)
+        acquireLock("$agentName:${it.namespace}")
       }?.let {
-          try {
-            fn(it)
-          } finally {
-            lockManager.release("$agentName:${it.namespace}")
-          }
+          log.info("{} processing {}", agentName, workConfigurations)
+          fn(it, {
+            releaseLock("$agentName:${it.namespace}")
+          })
         }
     }
   }
+
+  private fun releaseLock(key: String) {
+    log.info("releasing work for {}", key)
+    lockManager.release(key)
+  }
+
+  private fun acquireLock(key: String): Boolean =
+    lockManager.acquire(key, lockTtlSeconds = 3600).also {
+      if (it) {
+        log.info("Acquired lock for {}", key)
+      } else {
+        log.info("Failed to acquire lock for {}, work already in progress", key)
+      }
+    }
 }
 
 interface Processor {
-  fun process(agent: SwabbieAgent, fn: (workConfiguration: WorkConfiguration?) -> Unit)
+  fun process(agent: SwabbieAgent, fn: (workConfiguration: WorkConfiguration?, complete: () -> Unit) -> Unit)
 }

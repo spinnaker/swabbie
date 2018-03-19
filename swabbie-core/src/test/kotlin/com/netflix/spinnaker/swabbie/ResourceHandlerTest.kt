@@ -296,10 +296,6 @@ object ResourceHandlerTest {
     private val simulatedUpstreamResources: MutableList<TestResource>?,
     registry: Registry = NoopRegistry()
   ) : AbstractResourceHandler<TestResource>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
-    override fun postProcessing(configuration: WorkConfiguration, action: Action) {
-
-    }
-
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }

@@ -74,7 +74,7 @@ class NotificationAgent(
   }
 
   private val notificationsId = registry.createId("swabbie.notifications")
-  override fun process(workConfiguration: WorkConfiguration) {
+  override fun process(workConfiguration: WorkConfiguration, complete: () -> Unit) {
     try {
       log.info("Notification Agent Started ...")
       getResourcesGroupedByOwner(workConfiguration).forEach { ownerToResources ->
@@ -105,6 +105,8 @@ class NotificationAgent(
                   }
               }
             }
+
+            complete()
           }
       }
     } catch (e: Exception) {

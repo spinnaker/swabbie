@@ -57,8 +57,8 @@ class NotificationAgent(
   @Value("\${swabbie.optOut.url}")
   lateinit var optOutUrl: String
 
-  @Value("\${swabbie.agents.notify.intervalSeconds:3600000}")
-  private var interval: Long = 3600000
+  @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
+  private var interval: Long = 3600
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastNotifierAgentRun: Instant
     get() = _lastAgentRun.get()

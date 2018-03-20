@@ -25,7 +25,7 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Rule
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -105,7 +105,6 @@ abstract class AbstractResourceHandler<out T : Resource>(
           "violations", violationCounter.get().toString()
         )
       ).set(candidateCounter.toDouble())
-
       postMark.invoke()
       markDurationTimer.stop(timerId)
     }

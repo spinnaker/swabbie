@@ -17,19 +17,15 @@
 package com.netflix.spinnaker.swabbie.aws.loadbalancers
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
-import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
-import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
-import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock

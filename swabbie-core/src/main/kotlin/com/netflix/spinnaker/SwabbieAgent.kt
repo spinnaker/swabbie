@@ -19,8 +19,8 @@ package com.netflix.spinnaker
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.DiscoverySupport
-import com.netflix.spinnaker.swabbie.work.Processor
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.AgentRunner
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
@@ -29,47 +29,44 @@ import rx.Scheduler
 import rx.schedulers.Schedulers
 import java.time.Clock
 import java.time.Duration
-import java.time.Instant
 import java.time.temporal.Temporal
 import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
 
 interface SwabbieAgent : ApplicationListener<ApplicationReadyEvent> {
-  fun run(workConfiguration: WorkConfiguration, complete: () -> Unit)
+  fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit)
+  fun initialize()
+  fun finalize(workConfiguration: WorkConfiguration)
 }
 
 abstract class ScheduledAgent(
   private val clock: Clock,
   val registry: Registry,
-  private val workProcessor: Processor,
+  private val agentRunner: AgentRunner,
   private val discoverySupport: DiscoverySupport
 ) : SwabbieAgent {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
+  protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
+  private val lastRunAgeId: Id = registry.createId("swabbie.agents.${javaClass.simpleName.toLowerCase()}.run.age")
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
-  val failedAgentId: Id = registry.createId("swabbie.agents.failed")
 
   override fun onApplicationEvent(event: ApplicationReadyEvent?) {
     worker.schedulePeriodically({
       discoverySupport.ifUP {
-        initializeAgent()
-        log.info("Started agent {}", javaClass.simpleName)
-        workProcessor.process(this, { configuration, complete ->
-          setLastAgentRun(clock.instant())
-          if (configuration != null) {
-            log.info("Starting processing of {}", configuration)
-            run(configuration, complete)
-            registry.gauge("swabbie.agents.${javaClass.simpleName.toLowerCase()}.run.age", this, {
-              Duration.between(
-                it.getLastAgentRun(),
-                clock.instant()
-              ).toMillis().toDouble()
-            })
-          } else {
-            log.info("Skipping work in progress {}", configuration)
-          }
-        })
+        agentRunner.run(this)
       }
     }, 0, getAgentFrequency(), TimeUnit.SECONDS)
+  }
+
+  override fun finalize(workConfiguration: WorkConfiguration) {
+    registry.gauge(
+      lastRunAgeId.withTags(
+        "configuration", workConfiguration.namespace,
+        "resourceType", workConfiguration.resourceType,
+        "provider", workConfiguration.cloudProvider
+      ), this, {
+      Duration.between(it.getLastAgentRun(), clock.instant()).toMillis().toDouble()
+    })
   }
 
   @PostConstruct
@@ -77,8 +74,6 @@ abstract class ScheduledAgent(
     log.info("Initializing agent ${javaClass.simpleName}")
   }
 
-  abstract fun initializeAgent()
   abstract fun getLastAgentRun(): Temporal?
-  abstract fun setLastAgentRun(instant: Instant)
   abstract fun getAgentFrequency(): Long
 }

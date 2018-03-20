@@ -18,5 +18,5 @@ package com.netflix.spinnaker.swabbie
 
 interface LockManager {
   fun acquire(name: String, lockTtlSeconds: Long): Boolean
-  fun release(name: String)
+  fun release(name: String): Boolean
 }

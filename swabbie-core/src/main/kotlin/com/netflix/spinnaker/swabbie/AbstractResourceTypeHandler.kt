@@ -16,8 +16,10 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.LongTaskTimer
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
@@ -44,25 +46,26 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val applicationEventPublisher: ApplicationEventPublisher
 ) : ResourceTypeHandler<T> {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
-  private val markDurationTimer: LongTaskTimer = registry.longTaskTimer("swabbie.mark.duration")
-  private val candidatesCountId = registry.createId("swabbie.resources.candidatesCount")
+  private val resourcesExcludedCounter = AtomicInteger(0)
 
   /**
    * finds & tracks cleanup candidates
    */
   override fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
+    // initialize counters
+    resourcesExcludedCounter.set(0)
     val timerId = markDurationTimer.start()
-    val candidateCounter = AtomicInteger()
-    val violationCounter = AtomicInteger()
+    val candidateCounter = AtomicInteger(0)
+    val violationCounter = AtomicInteger(0)
+    val totalResourcesVisitedCounter = AtomicInteger(0)
     try {
       log.info("${javaClass.name}: getting resources with namespace {}", workConfiguration.namespace)
       getUpstreamResources(workConfiguration)?.let { upstreamResources ->
+        totalResourcesVisitedCounter.set(upstreamResources.size)
         log.info("fetched {} resources with namespace {}, dryRun {}", upstreamResources.size, workConfiguration.namespace, workConfiguration.dryRun)
         upstreamResources.filter {
-          !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions)
+          !shouldExclude(it, workConfiguration)
         }.forEach { upstreamResource ->
-            candidateCounter.set(0)
-            violationCounter.set(0)
             rules.mapNotNull {
               it.apply(upstreamResource).summary
             }.let { violationSummaries ->
@@ -96,19 +99,19 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
           }
       }
     } catch (e: Exception) {
-      log.error("Failed while invoking $javaClass", e)
+      recordFailureForAction(Action.MARK, workConfiguration, e)
     } finally {
-      registry.gauge(
-        candidatesCountId.withTags(
-          "resourceType", workConfiguration.resourceType,
-          "configuration", workConfiguration.namespace,
-          "violations", violationCounter.get().toString()
-        )
-      ).set(candidateCounter.toDouble())
+      recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
       postMark.invoke()
-      markDurationTimer.stop(timerId)
     }
   }
+
+  private fun shouldExclude(resource: T, workConfiguration: WorkConfiguration): Boolean =
+    resource.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions).also {
+      if (it) {
+        log.info("Excluding resource {} out of {}", resource, resourcesExcludedCounter.incrementAndGet())
+      }
+    }
 
   /**
    * deletes violating resources
@@ -144,10 +147,55 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
           }
         }
     } catch (e: Exception) {
-      log.error("failed to cleanup resource", markedResource, e)
+      recordFailureForAction(Action.DELETE, workConfiguration, e)
     } finally {
       postClean.invoke()
     }
+  }
+
+  private val markDurationTimer: LongTaskTimer = registry.longTaskTimer("swabbie.resources.mark.duration")
+  private val markViolationsId: Id = registry.createId("swabbie.resources.markViolations")
+  private val resourcesVisitedId: Id = registry.createId("swabbie.resources.visited")
+  private val resourcesExcludedId: Id = registry.createId("swabbie.resources.excluded")
+  private val resourceFailureId: Id = registry.createId("swabbie.resources.failures")
+  private val candidatesCountId: Id = registry.createId("swabbie.resources.candidatesCount")
+  private fun recordMarkMetrics(markerTimerId: Long,
+                                workConfiguration: WorkConfiguration,
+                                violationCounter: AtomicInteger,
+                                candidateCounter: AtomicInteger) {
+    markDurationTimer.stop(markerTimerId)
+    registry.gauge(
+      candidatesCountId.withTags(
+        "resourceType", workConfiguration.resourceType,
+        "configuration", workConfiguration.namespace,
+        "resourceTypeHandler", javaClass.simpleName
+      )).set(candidateCounter.toDouble())
+
+    registry.gauge(
+      markViolationsId.withTags(
+        "resourceType", workConfiguration.resourceType,
+        "configuration", workConfiguration.namespace,
+        "resourceTypeHandler", javaClass.simpleName
+      )).set(violationCounter.toDouble())
+
+    registry.gauge(
+      resourcesExcludedId.withTags(
+        "resourceType", workConfiguration.resourceType,
+        "configuration", workConfiguration.namespace,
+        "resourceTypeHandler", javaClass.simpleName
+      )).set(resourcesExcludedCounter.toDouble())
+  }
+
+  private fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {
+    log.error("Failed while invoking $javaClass", e)
+    registry.counter(
+      resourceFailureId.withTags(
+        "action", action.name,
+        "resourceType", workConfiguration.resourceType,
+        "configuration", workConfiguration.namespace,
+        "resourceTypeHandler", javaClass.simpleName,
+        "exception", e.javaClass.simpleName
+      )).increment()
   }
 
   private val Int.days: Period

@@ -14,6 +14,17 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.work
+package com.netflix.spinnaker.swabbie.model
 
-object WorkConfiguratorTest
+import com.netflix.spinnaker.config.Exclusion
+
+data class WorkConfiguration(
+  val namespace: String,
+  val account: Account,
+  val location: String,
+  val cloudProvider: String,
+  val resourceType: String,
+  val retentionDays: Int,
+  val exclusions: List<Exclusion>,
+  val dryRun: Boolean = true
+)

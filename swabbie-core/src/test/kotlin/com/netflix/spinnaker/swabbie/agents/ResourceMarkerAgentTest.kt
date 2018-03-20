@@ -33,7 +33,7 @@ object ResourceMarkerAgentTest {
   private val lockManager = mock<LockManager>()
   private val executor = AgentExecutor(BlockingThreadExecutor())
   private val configuration = workConfiguration()
-  private val completeFn = {}
+  private val onCompleteCallback = {}
 
   @AfterEach
   fun cleanup() {
@@ -48,11 +48,11 @@ object ResourceMarkerAgentTest {
     ResourceMarkerAgent(
       clock = clock,
       registry = NoopRegistry(),
-      workProcessor = mock(),
+      agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
       resourceHandlers = listOf(resourceHandler)
-    ).run(configuration, completeFn)
+    ).process(configuration, onCompleteCallback)
 
     verify(resourceHandler, never()).mark(any(), any())
   }
@@ -65,11 +65,11 @@ object ResourceMarkerAgentTest {
     ResourceMarkerAgent(
       clock = clock,
       registry = NoopRegistry(),
-      workProcessor = mock(),
+      agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
       resourceHandlers = listOf(resourceHandler)
-    ).run(ResourceMarkerAgentTest.configuration, completeFn)
+    ).process(configuration, onCompleteCallback)
 
     verify(resourceHandler).mark(any(), any())
   }

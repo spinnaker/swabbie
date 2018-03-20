@@ -18,11 +18,10 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.ScheduledAgent
+import com.netflix.spinnaker.swabbie.AgentRunner
 import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.ResourceHandler
-import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.work.Processor
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
@@ -38,12 +37,12 @@ import java.util.concurrent.atomic.AtomicReference
 @ConditionalOnExpression("\${swabbie.agents.mark.enabled}")
 class ResourceMarkerAgent(
   registry: Registry,
-  workProcessor: Processor,
+  agentRunner: AgentRunner,
   discoverySupport: DiscoverySupport,
   private val clock: Clock,
   private val executor: AgentExecutor,
   private val resourceHandlers: List<ResourceHandler<*>>
-) : ScheduledAgent(clock, registry, workProcessor, discoverySupport) {
+) : ScheduledAgent(clock, registry, agentRunner, discoverySupport) {
   @Value("\${swabbie.agents.mark.intervalSeconds:3600}")
   private var interval: Long = 3600
 
@@ -53,16 +52,11 @@ class ResourceMarkerAgent(
 
   override fun getLastAgentRun(): Temporal? = lastMarkerAgentRun
   override fun getAgentFrequency(): Long = interval
-  override fun setLastAgentRun(instant: Instant) {
-    _lastAgentRun.set(instant)
+  override fun initialize() {
+    _lastAgentRun.set(clock.instant())
   }
 
-  override fun initializeAgent() {
-    setLastAgentRun(clock.instant())
-    log.info("Marker agent starting")
-  }
-
-  override fun run(workConfiguration: WorkConfiguration, complete: () -> Unit) {
+  override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
     try {
       resourceHandlers.find { handler ->
         handler.handles(workConfiguration)
@@ -73,9 +67,7 @@ class ResourceMarkerAgent(
             )
           } else {
             executor.execute {
-              handler.mark(workConfiguration, {
-                complete()
-              })
+              handler.mark(workConfiguration, onCompleteCallback)
             }
           }
         }

@@ -23,7 +23,7 @@ import com.netflix.spinnaker.swabbie.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value

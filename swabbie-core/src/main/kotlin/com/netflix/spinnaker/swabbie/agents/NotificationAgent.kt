@@ -18,17 +18,13 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.ScheduledAgent
-import com.netflix.spinnaker.swabbie.DiscoverySupport
-import com.netflix.spinnaker.swabbie.MessageType
-import com.netflix.spinnaker.swabbie.NotificationMessage
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.echo.EchoService
 import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
-import com.netflix.spinnaker.swabbie.work.Processor
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.ApplicationEventPublisher
@@ -47,72 +43,74 @@ import java.util.concurrent.atomic.AtomicReference
 @ConditionalOnExpression("\${swabbie.agents.notify.enabled}")
 class NotificationAgent(
   registry: Registry,
-  workProcessor: Processor,
+  agentRunner: AgentRunner,
   discoverySupport: DiscoverySupport,
   private val clock: Clock,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val notifier: Notifier
-) : ScheduledAgent(clock, registry, workProcessor, discoverySupport) {
+) : ScheduledAgent(clock, registry, agentRunner, discoverySupport) {
   @Value("\${swabbie.optOut.url}")
   lateinit var optOutUrl: String
 
   @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
   private var interval: Long = 3600
+  private val notificationsId = registry.createId("swabbie.notifications")
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastNotifierAgentRun: Instant
     get() = _lastAgentRun.get()
 
   override fun getLastAgentRun(): Temporal? = lastNotifierAgentRun
   override fun getAgentFrequency(): Long = interval
-  override fun setLastAgentRun(instant: Instant) {
-    _lastAgentRun.set(instant)
+  override fun initialize() {
+    _lastAgentRun.set(clock.instant())
   }
 
-  override fun initializeAgent() {
-    log.info("Notification agent starting")
-  }
-
-  private val notificationsId = registry.createId("swabbie.notifications")
-  override fun run(workConfiguration: WorkConfiguration, complete: () -> Unit) {
+  override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
     try {
-      log.info("Notification Agent Started ...")
-      getResourcesGroupedByOwner(workConfiguration).forEach { ownerToResources ->
-        ownerToResources.value.map { markedResource ->
-          val notificationInstant = Instant.now(clock)
-          val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
-          markedResource.apply {
-            this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
-            this.notificationInfo = NotificationInfo(
-              notificationStamp = notificationInstant.toEpochMilli(),
-              recipient = ownerToResources.key,
-              notificationType = EchoService.Notification.Type.EMAIL.name
-            )
-          }
-          ownerToResources
-        }.map {
-            val resources = ownerToResources.value
-            val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
-            val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
-            notifier.notify(it.key, subject, body, "EMAIL").let {
-              resources.forEach { resource ->
-                resource.takeIf {
-                  !workConfiguration.dryRun
-                }?.let {
-                    log.info("notification sent to {} for {}", ownerToResources.key, resources)
-                    resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
-                    applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
+      if (workConfiguration.dryRun) {
+        log.info("Skipping Notification Agent in dryRun mode")
+      } else {
+        log.info("Notification Agent Started ...")
+        getResourcesGroupedByOwner(workConfiguration).forEach { ownerToResources ->
+          ownerToResources.value.map { markedResource ->
+            val notificationInstant = Instant.now(clock)
+            val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
+            markedResource.apply {
+              this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
+              this.notificationInfo = NotificationInfo(
+                notificationStamp = notificationInstant.toEpochMilli(),
+                recipient = ownerToResources.key,
+                notificationType = EchoService.Notification.Type.EMAIL.name
+              )
+            }
+            ownerToResources
+          }.map {
+              if (!workConfiguration.dryRun) {
+                val resources = ownerToResources.value
+                val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
+                val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
+                notifier.notify(it.key, subject, body, "EMAIL").let {
+                  resources.forEach { resource ->
+                    resource.takeIf {
+                      !workConfiguration.dryRun
+                    }?.let {
+                        log.info("notification sent to {} for {}", ownerToResources.key, resources)
+                        resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
+                        applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
+                      }
                   }
+                }
               }
             }
-
-            complete()
-          }
+        }
       }
     } catch (e: Exception) {
       log.error("Failed to run notification agent", e)
       registry.counter(failedAgentId.withTags("agentName", this.javaClass.simpleName, "configuration", workConfiguration.namespace)).increment()
       registry.counter(notificationsId.withTags("failed")).increment()
+    } finally {
+      onCompleteCallback()
     }
   }
 

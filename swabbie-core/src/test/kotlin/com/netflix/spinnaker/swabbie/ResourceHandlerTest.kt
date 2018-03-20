@@ -23,7 +23,6 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
@@ -33,7 +32,7 @@ import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test

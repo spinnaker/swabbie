@@ -18,7 +18,7 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
 interface ResourceHandler<out T : Resource> {
   fun handles(workConfiguration: WorkConfiguration): Boolean

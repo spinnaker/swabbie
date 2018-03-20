@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.work
+package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.config.mergeExclusions
-import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.EmptyAccount
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 

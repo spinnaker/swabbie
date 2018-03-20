@@ -32,7 +32,7 @@ import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.work.WorkConfigurator
+import com.netflix.spinnaker.swabbie.WorkConfigurator
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean

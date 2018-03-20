@@ -14,32 +14,36 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.work
+package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.SwabbieAgent
-import com.netflix.spinnaker.swabbie.LockManager
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
-class WorkProcessor(
+class LockEnabledAgentRunner(
   workConfigurator: WorkConfigurator,
   private val lockManager: LockManager
-) : Processor {
+) : AgentRunner {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workConfigurations = workConfigurator.generateWorkConfigurations()
 
-  override fun process(agent: SwabbieAgent, fn: (workConfiguration: WorkConfiguration?, complete: () -> Unit) -> Unit) {
+  override fun run(agent: SwabbieAgent) {
     val agentName = agent.javaClass.simpleName
-    workConfigurations.forEach {
-      it.takeIf {
-        acquireLock("$agentName:${it.namespace}")
+    agent.initialize()
+    workConfigurations.forEach { workConfiguration ->
+      workConfiguration.takeIf {
+        acquireLock("$agentName:${workConfiguration.namespace}")
       }?.let {
-          log.info("{} processing {}", agentName, workConfigurations)
-          fn(it, {
-            releaseLock("$agentName:${it.namespace}")
-          })
+          log.info("{} processing {}", agentName, workConfiguration)
+          agent.process(
+            workConfiguration = workConfiguration,
+            onCompleteCallback = {
+              releaseLock("${agent.javaClass.simpleName}:${workConfiguration.namespace}")
+              agent.finalize(workConfiguration)
+            }
+          )
         }
     }
   }
@@ -59,6 +63,6 @@ class WorkProcessor(
     }
 }
 
-interface Processor {
-  fun process(agent: SwabbieAgent, fn: (workConfiguration: WorkConfiguration?, complete: () -> Unit) -> Unit)
+interface AgentRunner {
+  fun run(agent: SwabbieAgent)
 }

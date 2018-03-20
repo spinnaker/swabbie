@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.work.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
 abstract class Event(
   val action: Action,

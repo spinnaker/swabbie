@@ -16,7 +16,10 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spectator.api.Id
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.SwabbieAgent
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -24,7 +27,8 @@ import org.springframework.stereotype.Component
 @Component
 class LockEnabledAgentRunner(
   workConfigurator: WorkConfigurator,
-  private val lockManager: LockManager
+  private val lockManager: LockManager,
+  private val registry: Registry
 ) : AgentRunner {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workConfigurations = workConfigurator.generateWorkConfigurations()
@@ -34,13 +38,13 @@ class LockEnabledAgentRunner(
     agent.initialize()
     workConfigurations.forEach { workConfiguration ->
       workConfiguration.takeIf {
-        acquireLock("$agentName:${workConfiguration.namespace}")
+        lock(agent, workConfiguration, acquire = true)
       }?.let {
           log.info("{} processing {}", agentName, workConfiguration)
           agent.process(
             workConfiguration = workConfiguration,
             onCompleteCallback = {
-              releaseLock("${agent.javaClass.simpleName}:${workConfiguration.namespace}")
+              lock(agent, workConfiguration, acquire = false)
               agent.finalize(workConfiguration)
             }
           )
@@ -48,19 +52,39 @@ class LockEnabledAgentRunner(
     }
   }
 
-  private fun releaseLock(key: String) {
-    log.info("releasing work for {}", key)
-    lockManager.release(key)
-  }
-
-  private fun acquireLock(key: String): Boolean =
-    lockManager.acquire(key, lockTtlSeconds = 3600).also {
-      if (it) {
-        log.info("Acquired lock for {}", key)
+  private val lockId: Id = registry.createId("swabbie.locks")
+  private fun lock(agent: SwabbieAgent, workConfiguration: WorkConfiguration, acquire: Boolean): Boolean =
+    "${agent.javaClass.simpleName}:${workConfiguration.namespace}".let { locksName ->
+      if (acquire) {
+        return lockManager.acquire(locksName, lockTtlSeconds = 3600).also { success ->
+          recordLockAcquired(agent.javaClass.simpleName, workConfiguration, success)
+          if (success) {
+            log.info("Acquired lock for {}", locksName)
+          } else {
+            log.info("Failed to acquire lock for {}, work already in progress", locksName)
+          }
+        }
       } else {
-        log.info("Failed to acquire lock for {}, work already in progress", key)
+        return lockManager.release(locksName).also { success ->
+          if (success) {
+            log.info("Released lock for {}", locksName)
+          } else {
+            log.info("Failed to release lock for {}", locksName)
+          }
+        }
       }
     }
+
+  private fun recordLockAcquired(agentName: String, workConfiguration: WorkConfiguration, success: Boolean) {
+    registry.counter(
+      lockId.withTags(
+        "result", if (success) "success" else "failure",
+        "agentName", agentName,
+        "configuration", workConfiguration.namespace,
+        "resourceType", workConfiguration.resourceType
+      )).increment()
+  }
+
 }
 
 interface AgentRunner {

@@ -28,14 +28,15 @@ class RedisLockManager
   @Qualifier("mainRedisClient") private val mainRedisClientDelegate: RedisClientDelegate,
   @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?
 ) : LockManager, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
-  override fun release(name: String) {
+  override fun release(name: String): Boolean =
     locksKey(name).let { key ->
       getClientForId(key)
         .withCommandsClient<Long> { client ->
           client.del(key)
+        }.let { result ->
+          return result > 0
         }
     }
-  }
 
   override fun acquire(name: String, lockTtlSeconds: Long): Boolean =
     locksKey(name).let { key ->

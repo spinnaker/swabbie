@@ -20,11 +20,29 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
-interface ResourceHandler<out T : Resource> {
+interface ResourceTypeHandler<out T : Resource> {
+  /**
+   * Determines if a handler can handle the [WorkConfiguration].
+   */
   fun handles(workConfiguration: WorkConfiguration): Boolean
+
+  /**
+   * Fetches resources from the provider of type defined in the [WorkConfiguration].
+   */
   fun getUpstreamResources(workConfiguration: WorkConfiguration): List<T>?
+
+  /**
+   * Fetches a single resource from the provider of type defined in the [WorkConfiguration].
+   */
   fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): T?
 
+  /**
+   * Deletes a single marked resource matching the granularity of [WorkConfiguration].
+   */
   fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration, postClean: () -> Unit)
+
+  /**
+   * Marks a single marked resource matching the granularity of [WorkConfiguration].
+   */
   fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit)
 }

@@ -20,7 +20,7 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.ScheduledAgent
 import com.netflix.spinnaker.swabbie.AgentRunner
 import com.netflix.spinnaker.swabbie.DiscoverySupport
-import com.netflix.spinnaker.swabbie.ResourceHandler
+import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
@@ -43,7 +43,7 @@ class ResourceCleanerAgent(
   private val clock: Clock,
   private val executor: AgentExecutor,
   private val resourceTrackingRepository: ResourceTrackingRepository,
-  private val resourceHandlers: List<ResourceHandler<*>>
+  private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
 ) : ScheduledAgent(clock, registry, agentRunner, discoverySupport) {
   @Value("\${swabbie.agents.clean.intervalSeconds:3600}")
   private var interval: Long = 3600
@@ -63,7 +63,7 @@ class ResourceCleanerAgent(
       resourceTrackingRepository.getMarkedResourcesToDelete()
         ?.filter { it.namespace.equals(workConfiguration.namespace, ignoreCase = true) && it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
         ?.forEach { markedResource ->
-          resourceHandlers.find { handler ->
+          resourceTypeHandlers.find { handler ->
             handler.handles(workConfiguration)
           }.let { handler ->
               if (handler == null) {

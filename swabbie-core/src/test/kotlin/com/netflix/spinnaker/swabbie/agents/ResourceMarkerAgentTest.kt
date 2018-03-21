@@ -18,8 +18,8 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.LockManager
-import com.netflix.spinnaker.swabbie.ResourceHandler
-import com.netflix.spinnaker.swabbie.ResourceHandlerTest.workConfiguration
+import com.netflix.spinnaker.swabbie.ResourceTypeHandler
+import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -42,7 +42,7 @@ object ResourceMarkerAgentTest {
 
   @Test
   fun `should do nothing if no handler is found for configuration`() {
-    val resourceHandler = mock<ResourceHandler<*>>()
+    val resourceHandler = mock<ResourceTypeHandler<*>>()
     whenever(resourceHandler.handles(configuration)) doReturn false
 
     ResourceMarkerAgent(
@@ -51,7 +51,7 @@ object ResourceMarkerAgentTest {
       agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
-      resourceHandlers = listOf(resourceHandler)
+      resourceTypeHandlers = listOf(resourceHandler)
     ).process(configuration, onCompleteCallback)
 
     verify(resourceHandler, never()).mark(any(), any())
@@ -59,7 +59,7 @@ object ResourceMarkerAgentTest {
 
   @Test
   fun `should find and dispatch work to a handler`() {
-    val resourceHandler = mock<ResourceHandler<*>>()
+    val resourceHandler = mock<ResourceTypeHandler<*>>()
     whenever(resourceHandler.handles(configuration)) doReturn true
 
     ResourceMarkerAgent(
@@ -68,7 +68,7 @@ object ResourceMarkerAgentTest {
       agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
-      resourceHandlers = listOf(resourceHandler)
+      resourceTypeHandlers = listOf(resourceHandler)
     ).process(configuration, onCompleteCallback)
 
     verify(resourceHandler).mark(any(), any())

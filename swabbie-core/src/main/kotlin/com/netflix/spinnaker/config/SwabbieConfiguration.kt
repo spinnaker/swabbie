@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
@@ -72,6 +73,11 @@ open class SwabbieConfiguration {
                             accountProvider: AccountProvider,
                             exclusionPolicies: List<ExclusionPolicy>): WorkConfigurator {
     return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies)
+  }
+
+  @Bean
+  open fun retrySupport(): RetrySupport {
+    return RetrySupport()
   }
 }
 

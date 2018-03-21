@@ -34,19 +34,21 @@ class ResourceOwnerResolver(
   private val resourceOwnerId = registry.createId("swabbie.resources.owner")
   override fun resolve(resource: Resource): String? {
     try {
-      log.info("Looking up resource owner for {}", resource)
       resourceOwnerStrategies.mapNotNull {
         it.resolve(resource)
       }.let { owners ->
           return if (!owners.isEmpty()) {
             registry.counter(resourceOwnerId.withTags("result", "found")).increment()
+            log.info("Found owner {} for {}", owners.first(), resource)
             owners.first()
           } else {
+            log.info("Could not find owner for {}. falling back on {}", resource, fallbackEmail)
             registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
             fallbackEmail
           }
         }
     } catch (e: Exception) {
+      log.info("Failed to find owner for {}. falling back on {}", resource, fallbackEmail)
       registry.counter(resourceOwnerId.withTags("result", "failed")).increment()
       return fallbackEmail
     }

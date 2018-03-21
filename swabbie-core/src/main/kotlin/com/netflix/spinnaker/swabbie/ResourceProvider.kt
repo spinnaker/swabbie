@@ -19,7 +19,16 @@ package com.netflix.spinnaker.swabbie
 import com.netflix.spinnaker.swabbie.model.Resource
 
 interface ResourceProvider<out T : Resource> {
+  /**
+   * Gets all resources with [Parameters]
+   * Implementations MUST throw to bubble up failures to get resources
+   */
   fun getAll(params: Parameters): List<T>?
+
+  /**
+   * Gets a single resource with [Parameters]
+   * Implementations MUST throw to bubble up failures to get resources
+   */
   fun getOne(params: Parameters): T?
 }
 

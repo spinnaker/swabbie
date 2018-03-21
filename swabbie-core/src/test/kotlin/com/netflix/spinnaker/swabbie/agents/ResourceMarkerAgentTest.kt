@@ -42,8 +42,8 @@ object ResourceMarkerAgentTest {
 
   @Test
   fun `should do nothing if no handler is found for configuration`() {
-    val resourceHandler = mock<ResourceTypeHandler<*>>()
-    whenever(resourceHandler.handles(configuration)) doReturn false
+    val resourceTypeHandler = mock<ResourceTypeHandler<*>>()
+    whenever(resourceTypeHandler.handles(configuration)) doReturn false
 
     ResourceMarkerAgent(
       clock = clock,
@@ -51,16 +51,16 @@ object ResourceMarkerAgentTest {
       agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
-      resourceTypeHandlers = listOf(resourceHandler)
+      resourceTypeHandlers = listOf(resourceTypeHandler)
     ).process(configuration, onCompleteCallback)
 
-    verify(resourceHandler, never()).mark(any(), any())
+    verify(resourceTypeHandler, never()).mark(any(), any())
   }
 
   @Test
   fun `should find and dispatch work to a handler`() {
-    val resourceHandler = mock<ResourceTypeHandler<*>>()
-    whenever(resourceHandler.handles(configuration)) doReturn true
+    val resourceTypeHandler = mock<ResourceTypeHandler<*>>()
+    whenever(resourceTypeHandler.handles(configuration)) doReturn true
 
     ResourceMarkerAgent(
       clock = clock,
@@ -68,10 +68,10 @@ object ResourceMarkerAgentTest {
       agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
-      resourceTypeHandlers = listOf(resourceHandler)
+      resourceTypeHandlers = listOf(resourceTypeHandler)
     ).process(configuration, onCompleteCallback)
 
-    verify(resourceHandler).mark(any(), any())
+    verify(resourceTypeHandler).mark(any(), any())
   }
 }
 

@@ -34,7 +34,7 @@ import java.time.LocalDate
 import java.time.Period
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract class AbstractResourceHandler<out T : Resource>(
+abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val registry: Registry,
   private val clock: Clock,
   private val rules: List<Rule<T>>,
@@ -42,7 +42,7 @@ abstract class AbstractResourceHandler<out T : Resource>(
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
   private val ownerResolver: OwnerResolver,
   private val applicationEventPublisher: ApplicationEventPublisher
-) : ResourceHandler<T> {
+) : ResourceTypeHandler<T> {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   private val markDurationTimer: LongTaskTimer = registry.longTaskTimer("swabbie.mark.duration")
   private val candidatesCountId = registry.createId("swabbie.resources.candidatesCount")

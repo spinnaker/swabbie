@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 
-object ResourceHandlerTest {
+object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val clock = Clock.systemDefaultZone()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
@@ -55,7 +55,7 @@ object ResourceHandlerTest {
   @Test
   fun `should track a violating resource and notify user`() {
     val resource = TestResource("testResource")
-    TestResourceHandler(
+    TestResourceTypeHandler(
       clock = clock,
       rules = listOf(TestRule(
         invalidOn = { resource.resourceId == "testResource" },
@@ -92,7 +92,7 @@ object ResourceHandlerTest {
       )
     }
 
-    TestResourceHandler(
+    TestResourceTypeHandler(
       clock = clock,
       rules = rules,
       resourceTrackingRepository = resourceRepository,
@@ -128,7 +128,7 @@ object ResourceHandlerTest {
     whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn
       markedResource
 
-    TestResourceHandler(
+    TestResourceTypeHandler(
       clock = clock,
       rules = listOf(
         TestRule(
@@ -169,7 +169,7 @@ object ResourceHandlerTest {
     )
 
     val fetchedResources = mutableListOf<TestResource>(resource)
-    TestResourceHandler(
+    TestResourceTypeHandler(
       clock = clock,
       rules = listOf(
         TestRule({ true }, Summary("always invalid", "rule1"))
@@ -206,7 +206,7 @@ object ResourceHandlerTest {
         )
     ))
 
-    TestResourceHandler(
+    TestResourceTypeHandler(
       clock = clock,
       rules = listOf(
         TestRule({ true }, Summary("always invalid", "rule1"))
@@ -244,7 +244,7 @@ object ResourceHandlerTest {
     whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn
       markedResource
 
-    TestResourceHandler(
+    TestResourceTypeHandler(
       clock = clock,
       rules = listOf(
         TestRule(invalidOn = { true }, summary = null)
@@ -285,7 +285,7 @@ object ResourceHandlerTest {
     }
   }
 
-  class TestResourceHandler(
+  class TestResourceTypeHandler(
     clock: Clock,
     resourceTrackingRepository: ResourceTrackingRepository,
     ownerResolver: OwnerResolver,
@@ -294,7 +294,7 @@ object ResourceHandlerTest {
     private val rules: List<Rule<TestResource>>,
     private val simulatedUpstreamResources: MutableList<TestResource>?,
     registry: Registry = NoopRegistry()
-  ) : AbstractResourceHandler<TestResource>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
+  ) : AbstractResourceTypeHandler<TestResource>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }

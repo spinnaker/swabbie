@@ -32,7 +32,11 @@ class WorkConfigurator(
 ) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  private fun getAccounts(accountProvider: AccountProvider): List<Account> {
+  /**
+   * Gets a list of [Account] from Spinnaker
+   * Clouddriver is the default account provider
+   */
+  internal fun getAccounts(): List<Account> {
     accountProvider.getAccounts().let { accounts ->
       return if (accounts.isEmpty()) {
         listOf(EmptyAccount())
@@ -42,10 +46,14 @@ class WorkConfigurator(
     }
   }
 
+  /**
+   * Generates a list of [WorkConfiguration] from the application yml configuration
+   * Computes what [WorkConfiguration] needs to be excluded based on a list of [ExclusionPolicy]
+   */
   fun generateWorkConfigurations(): List<WorkConfiguration> {
     val all = mutableListOf<WorkConfiguration>()
-    val spinnakerAccounts = getAccounts(accountProvider)
-    log.info("Loading Swabbie configuration {}", swabbieProperties)
+    val spinnakerAccounts = getAccounts()
+    log.info("Loading Swabbie configuration ...")
     swabbieProperties.providers.forEach { cloudProviderConfiguration ->
       cloudProviderConfiguration.resourceTypes.filter {
         it.enabled
@@ -66,7 +74,7 @@ class WorkConfigurator(
                     dryRun = if (swabbieProperties.dryRun) true else (resourceTypeConfiguration.dryRun || swabbieProperties.dryRun)
                   ).let { configuration ->
                     configuration.takeIf {
-                      !account.shouldBeExcluded(exclusionPolicies, it.exclusions)
+                      !shouldExclude(account, it)
                     }?.let {
                         all.add(configuration)
                       }
@@ -77,7 +85,14 @@ class WorkConfigurator(
         }
     }
 
-    log.info("Generated work configurations {}", all)
+    log.info("Generated {} work configurations {}", all.size, all)
     return all
   }
+
+  private fun shouldExclude(account: Account, workConfiguration: WorkConfiguration) =
+    account.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions).also { excluded ->
+      if (excluded) {
+        log.info("Excluding {}", workConfiguration)
+      }
+    }
 }

@@ -42,10 +42,10 @@ class AmazonSecurityGroupHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
-) : AbstractResourceHandler<AmazonSecurityGroup>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+) : AbstractResourceTypeHandler<AmazonSecurityGroup>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
-      if (resource is AmazonSecurityGroup) {
+      if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
         log.info("This resource is about to be deleted {}", markedResource)
         orcaService.orchestrate(
           OrchestrationRequest(

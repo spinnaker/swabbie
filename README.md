@@ -62,14 +62,14 @@ swabbie:
 
 ## Concepts
 #### Agents
-A `SwabbieAgent` is a scheduled class in charge of initiating and dispatching work to a resource handler:
+An agent is a scheduled class in charge of initiating and dispatching work to a resource type handler:
 
 - `ResourceMarkerAgent`: Marks violating resources.
 - `ResourceCleanerAgent`: Cleans marked resources.
 - `NotificationAgent`: Ensures a notification is sent out to a resource owner.
 
 
-#### Resource Handler
+#### Resource Type Handler
 Handler's lifecycle: `Mark -> Notify -> Delete`.
 
 Responsibilities include:
@@ -94,19 +94,19 @@ data class WorkConfiguration(
 ```
 Work configuration is derived from the YAML configuration.
 
-#### Marking & Redis
+#### Marking resources for deletions & Redis
 A marker agent operates on a unit of work by acquiring a simple lock to avoid operating on work in progress.
-The locking mechanism is backed by `Redis`, a `SETNX ` with a `TTL`.
-Scheduling the cleanup of resources is done by keeping an index in a `ZSET` using the projected deletion time as the `score`.
-This takes advantage of Redis Sorted Sets.
+The locking mechanism is backed by `Redis`, a `SETNX ` with a `TTL` using a key with this granularity: `$agentName:$WorkConfiguration.namespace`
 
-#### Deleting & Redis
-Getting elements from the `ZSET` from `-inf` to `now` and delete them.
+Scheduling the cleanup of resources is done by keeping an index of visited resources in a `ZSET`, using the projected deletion time as the `score`.
+Getting elements from the `ZSET` from `-inf` to `now` will return all resources ready to be deleted.
+Getting elements from the `ZSET` from `0.0` to `+inf` will return all currently marked resources.
 
 
 #### Notifications
 When resources are marked for deletion, a notification is sent to the owner.
 Resource owners are resolved using resolution strategies. Default strategy is getting the email field on the resource's application.
+The deletion of a resource will be adjusted when the notification is sent, respecting the retention days for the resource type.
 
 #### Dry Run
 This will ensure swabbie runs in dryRun, meaning no writes, nor any destructive action of the data will occur

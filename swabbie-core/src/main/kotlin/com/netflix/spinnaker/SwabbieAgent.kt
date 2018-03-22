@@ -47,7 +47,7 @@ abstract class ScheduledAgent(
 ) : SwabbieAgent {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
-  private val lastRunAgeId: Id = registry.createId("swabbie.agents.${javaClass.simpleName.toLowerCase()}.run.age")
+  private val lastRunAgeId: Id = registry.createId("swabbie.agents.${javaClass.simpleName}.run.age")
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
 
   override fun onApplicationEvent(event: ApplicationReadyEvent?) {
@@ -59,19 +59,17 @@ abstract class ScheduledAgent(
   }
 
   override fun finalize(workConfiguration: WorkConfiguration) {
-    registry.gauge(
-      lastRunAgeId.withTags(
-        "configuration", workConfiguration.namespace,
-        "resourceType", workConfiguration.resourceType,
-        "provider", workConfiguration.cloudProvider
-      ), this, {
-      Duration.between(it.getLastAgentRun(), clock.instant()).toMillis().toDouble()
-    })
+    log.info("Completed run for agent {} with configuration", javaClass.simpleName, workConfiguration)
   }
 
   @PostConstruct
   private fun init() {
     log.info("Initializing agent ${javaClass.simpleName}")
+    registry.gauge(lastRunAgeId, this, {
+      Duration
+        .between(it.getLastAgentRun(), clock.instant())
+        .toMillis().toDouble()
+    })
   }
 
   abstract fun getLastAgentRun(): Temporal?

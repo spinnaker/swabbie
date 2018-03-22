@@ -16,85 +16,120 @@
 
 package com.netflix.spinnaker.swabbie.edda
 
+import com.netflix.spectator.api.Id
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaClient
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
+import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
+import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import retrofit.RetrofitError
 
-//TODO: (jeyrs) handle explicit exceptions and add retries
 @Component
 open class EddaAutoScalingGroupProvider(
-  private val eddaClients: List<EddaClient>
+  private val eddaClients: List<EddaClient>,
+  private val retrySupport: RetrySupport,
+  private val registry: Registry
 ) : ResourceProvider<AmazonAutoScalingGroup> {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  override fun getAll(params: Parameters): List<AmazonAutoScalingGroup>? {
-    try {
-      eddaServiceForRegionAndAccount(params, eddaClients).let { edda ->
-        return edda.getAutoScalingGroups().mapNotNull {
-          try {
-            edda.getAutoScalingGroup(it)
-          } catch (e: Exception) {
-            log.error("failed to get server group {}", it, e)
-            null
-          }
-        }
-      }
-    } catch (e: Exception) {
-      log.error("failed to get server groups", e)
-    }
+  private val eddaFailureCountId: Id = registry.createId("swabbie.edda.failures")
+  override fun getAll(params: Parameters): List<AmazonAutoScalingGroup>? =
+    eddaServiceForRegionAndAccount(params, eddaClients).getServerGroups()
 
-    return emptyList()
+  override fun getOne(params: Parameters): AmazonAutoScalingGroup? =
+    eddaServiceForRegionAndAccount(params, eddaClients).getServerGroup(params["autoScalingGroupName"] as String)
+
+  private fun EddaService.getServerGroups(): List<AmazonAutoScalingGroup> {
+    return try {
+      retrySupport.retry({
+        this.getAutoScalingGroups()
+      }, maxRetries, retryBackOffMillis, true)
+        .mapNotNull { id ->
+          this.getServerGroup(id)
+        }
+    } catch (e: Exception) {
+      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      log.error("failed to get server groups", e)
+      throw e
+    }
   }
 
-  override fun getOne(params: Parameters): AmazonAutoScalingGroup? {
-    return try {
-      eddaServiceForRegionAndAccount(params, eddaClients).getAutoScalingGroup(params["autoScalingGroupName"] as String)
+  private fun EddaService.getServerGroup(autoScalingGroupName: String): AmazonAutoScalingGroup? {
+    try {
+      return retrySupport.retry({
+        try {
+          this.getAutoScalingGroup(autoScalingGroupName)
+        } catch (e: Exception) {
+          if (e is RetrofitError && e.response.status == 404) {
+            null
+          } else {
+            throw e
+          }
+        }
+      }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      log.error("failed to get server group {}", e)
-      null
+      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      log.error("failed to get server group {}", autoScalingGroupName, e)
+      throw e
     }
   }
 }
 
 @Component
 open class EddaAmazonElasticLoadBalancerProvider(
-  private val eddaClients: List<EddaClient>
+  private val eddaClients: List<EddaClient>,
+  private val retrySupport: RetrySupport,
+  private val registry: Registry
 ) : ResourceProvider<AmazonElasticLoadBalancer> {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  override fun getAll(params: Parameters): List<AmazonElasticLoadBalancer>? {
-    try {
-      eddaServiceForRegionAndAccount(params, eddaClients).let { edda ->
-        return edda.getLoadBalancers().map {
-          try {
-            edda.getLoadBalancer(it)
-          } catch (e: Exception) {
-            log.error("failed to get load balancer {}", it, e)
-            return null
-          }
+  private val eddaFailureCountId: Id = registry.createId("swabbie.edda.failures")
+  override fun getAll(params: Parameters): List<AmazonElasticLoadBalancer>? =
+    eddaServiceForRegionAndAccount(params, eddaClients).getELBs()
 
-        }
-      }
-    } catch (e: Exception) {
-      log.error("failed to get server groups", e)
-    }
+  override fun getOne(params: Parameters): AmazonElasticLoadBalancer? =
+    eddaServiceForRegionAndAccount(params, eddaClients).getELB(params["loadBalancerName"] as String)
 
-    return emptyList()
-  }
-
-  override fun getOne(params: Parameters): AmazonElasticLoadBalancer? {
+  private fun EddaService.getELBs(): List<AmazonElasticLoadBalancer> {
     return try {
-      eddaServiceForRegionAndAccount(params, eddaClients).getLoadBalancer(params["loadBalancerName"] as String)
+      retrySupport.retry({
+        this.getLoadBalancers()
+      }, maxRetries, retryBackOffMillis, true)
+        .mapNotNull { id ->
+          getELB(id)
+        }
     } catch (e: Exception) {
-      log.error("failed to get load balancer", e)
-      return null
+      registry.counter(eddaFailureCountId.withTags("resourceType", LOAD_BALANCER)).increment()
+      log.error("failed to get load balancers", e)
+      throw e
     }
   }
 
+  private fun EddaService.getELB(loadBalancerName: String): AmazonElasticLoadBalancer? {
+    return try {
+      retrySupport.retry({
+        try {
+          this.getLoadBalancer(loadBalancerName)
+        } catch (e: Exception) {
+          if (e is RetrofitError && e.response.status == 404) {
+            null
+          } else {
+            throw e
+          }
+        }
+      }, maxRetries, retryBackOffMillis, false)
+    } catch (e: Exception) {
+      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      log.error("failed to get load balancer {}", loadBalancerName, e)
+      throw e
+    }
+  }
 }
 
 @Component
@@ -118,3 +153,6 @@ private fun eddaServiceForRegionAndAccount(params: Parameters, eddaClients: List
     }
     return eddaClient.get()
   }
+
+private const val maxRetries: Int = 3
+private const val retryBackOffMillis: Long = 2000

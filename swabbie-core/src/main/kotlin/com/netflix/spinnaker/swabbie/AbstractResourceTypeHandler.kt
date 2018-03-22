@@ -59,7 +59,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     val violationCounter = AtomicInteger(0)
     val totalResourcesVisitedCounter = AtomicInteger(0)
     try {
-      log.info("${javaClass.name}: getting resources with namespace {}", workConfiguration.namespace)
+      log.info("${javaClass.name}: getting resources with namespace {}, dryRun {}", workConfiguration.namespace, workConfiguration.dryRun)
       getUpstreamResources(workConfiguration)?.let { upstreamResources ->
         totalResourcesVisitedCounter.set(upstreamResources.size)
         log.info("fetched {} resources with namespace {}, dryRun {}", upstreamResources.size, workConfiguration.namespace, workConfiguration.dryRun)
@@ -163,6 +163,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
                                 workConfiguration: WorkConfiguration,
                                 violationCounter: AtomicInteger,
                                 candidateCounter: AtomicInteger) {
+    log.info("Found {} clean up candidates with configuration {}", candidateCounter.get(), workConfiguration)
     markDurationTimer.stop(markerTimerId)
     registry.gauge(
       candidatesCountId.withTags(

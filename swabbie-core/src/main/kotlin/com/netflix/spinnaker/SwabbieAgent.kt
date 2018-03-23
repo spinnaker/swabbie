@@ -20,6 +20,9 @@ import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.AgentRunner
+import com.netflix.spinnaker.swabbie.ResourceTypeHandler
+import com.netflix.spinnaker.swabbie.agents.AgentExecutor
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -43,10 +46,12 @@ abstract class ScheduledAgent(
   private val clock: Clock,
   val registry: Registry,
   private val agentRunner: AgentRunner,
-  private val discoverySupport: DiscoverySupport
+  private val executor: AgentExecutor,
+  private val discoverySupport: DiscoverySupport,
+  private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
 ) : SwabbieAgent {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
-  protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
+  private val failedAgentId: Id = registry.createId("swabbie.agents.failed")
   private val lastRunAgeId: Id = registry.createId("swabbie.agents.${javaClass.simpleName}.run.age")
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
 
@@ -59,7 +64,7 @@ abstract class ScheduledAgent(
   }
 
   override fun finalize(workConfiguration: WorkConfiguration) {
-    log.info("Completed run for agent {} with configuration", javaClass.simpleName, workConfiguration)
+    log.info("Completed run for agent {} with configuration {}", javaClass.simpleName, workConfiguration)
   }
 
   @PostConstruct
@@ -70,6 +75,45 @@ abstract class ScheduledAgent(
         .between(it.getLastAgentRun(), clock.instant())
         .toMillis().toDouble()
     })
+  }
+
+  fun processForAction(action: Action, workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
+    val fn: (handler: ResourceTypeHandler<*>) -> Unit
+    try {
+      when {
+        action == Action.MARK -> fn = {
+          it.mark(workConfiguration, onCompleteCallback)
+        }
+        action == Action.DELETE -> fn = {
+          it.clean(workConfiguration, onCompleteCallback)
+        }
+
+        action == Action.NOTIFY -> fn = {
+          it.notify(workConfiguration, onCompleteCallback)
+        }
+        else -> throw IllegalArgumentException("Unsupported action $action")
+      }
+
+      resourceTypeHandlers.find { handler ->
+        handler.handles(workConfiguration)
+      }.let { handler ->
+          if (handler == null) {
+            throw IllegalStateException("No Suitable handler found for $action with $workConfiguration")
+          } else {
+            executor.execute {
+              fn.invoke(handler)
+            }
+          }
+        }
+    } catch (e: Exception) {
+      registry.counter(
+        failedAgentId.withTags(
+          "agentName", this.javaClass.simpleName,
+          "configuration", workConfiguration.namespace,
+          "action", action.name
+        )).increment()
+      log.error("Failed to run agent {}", javaClass.simpleName, e)
+    }
   }
 
   abstract fun getLastAgentRun(): Temporal?

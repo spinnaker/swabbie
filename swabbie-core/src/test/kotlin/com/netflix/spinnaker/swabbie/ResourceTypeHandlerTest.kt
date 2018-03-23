@@ -23,7 +23,7 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
+import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.NameExclusionPolicy
@@ -32,7 +32,6 @@ import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -65,7 +64,8 @@ object ResourceTypeHandlerTest {
       exclusionPolicies = listOf(mock()),
       ownerResolver = mock(),
       applicationEventPublisher = applicationEventPublisher,
-      simulatedUpstreamResources = mutableListOf(resource)
+      simulatedUpstreamResources = mutableListOf(resource),
+      notifier = mock()
     ).mark(
       workConfiguration = workConfiguration(),
       postMark = { postAction(listOf(resource)) }
@@ -98,6 +98,7 @@ object ResourceTypeHandlerTest {
       resourceTrackingRepository = resourceRepository,
       exclusionPolicies = listOf(mock()),
       ownerResolver = mock(),
+      notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = resources.toMutableList()
     ).mark(
@@ -139,6 +140,7 @@ object ResourceTypeHandlerTest {
       resourceTrackingRepository = resourceRepository,
       ownerResolver = mock(),
       exclusionPolicies = listOf(mock()),
+      notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource)
     ).mark(
@@ -153,22 +155,43 @@ object ResourceTypeHandlerTest {
   @Test
   fun `should delete a resource`() {
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val resource = TestResource("marked resource due for deletion now")
     val configuration = workConfiguration()
-    val markedResource = MarkedResource(
-      resource = resource,
-      summaries = listOf(Summary("invalid resource 1", "rule 1")),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = fifteenDaysAgo,
-      adjustedDeletionStamp = fifteenDaysAgo,
-      notificationInfo = NotificationInfo(
-        recipient = "yolo@netflix.com",
-        notificationType = "Email",
-        notificationStamp = clock.millis()
+
+    whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
+      listOf(
+        MarkedResource(
+          resource = TestResource("1"),
+          summaries = listOf(Summary("invalid resource 1", "rule 1")),
+          namespace = configuration.namespace,
+          resourceOwner = "test@netflix.com",
+          projectedDeletionStamp = fifteenDaysAgo,
+          adjustedDeletionStamp = fifteenDaysAgo,
+          notificationInfo = NotificationInfo(
+            recipient = "yolo@netflix.com",
+            notificationType = "Email",
+            notificationStamp = clock.millis()
+          )
+        ),
+        MarkedResource(
+          resource = TestResource("2"),
+          summaries = listOf(Summary("invalid resource 2", "rule 2")),
+          namespace = configuration.namespace,
+          resourceOwner = "test@netflix.com",
+          projectedDeletionStamp = fifteenDaysAgo,
+          adjustedDeletionStamp = fifteenDaysAgo,
+          notificationInfo = NotificationInfo(
+            recipient = "yolo@netflix.com",
+            notificationType = "Email",
+            notificationStamp = clock.millis()
+          )
+        )
       )
+
+    val fetchedResources = mutableListOf(
+      TestResource("1"),
+      TestResource("2")
     )
 
-    val fetchedResources = mutableListOf<TestResource>(resource)
     TestResourceTypeHandler(
       clock = clock,
       rules = listOf(
@@ -177,16 +200,15 @@ object ResourceTypeHandlerTest {
       resourceTrackingRepository = resourceRepository,
       ownerResolver = mock(),
       exclusionPolicies = listOf(mock()),
+      notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = fetchedResources
     ).clean(
-      markedResource = markedResource,
       workConfiguration = configuration,
-      postClean = { postAction(listOf(resource)) }
+      postClean = { postAction(fetchedResources) }
     )
 
-    verify(applicationEventPublisher, atMost(maxNumberOfInvocations = 1)).publishEvent(DeleteResourceEvent(markedResource, configuration))
-    verify(resourceRepository, atMost(maxNumberOfInvocations = 1)).remove(any())
+    verify(resourceRepository, atMost(maxNumberOfInvocations = 2)).remove(any())
     fetchedResources.size shouldMatch equalTo(0)
   }
 
@@ -215,7 +237,8 @@ object ResourceTypeHandlerTest {
       ownerResolver = mock(),
       exclusionPolicies = listOf(NameExclusionPolicy()),
       applicationEventPublisher = applicationEventPublisher,
-      simulatedUpstreamResources = mutableListOf(resource)
+      simulatedUpstreamResources = mutableListOf(resource),
+      notifier = mock()
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -253,7 +276,8 @@ object ResourceTypeHandlerTest {
       ownerResolver = mock(),
       exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
-      simulatedUpstreamResources = mutableListOf(resource)
+      simulatedUpstreamResources = mutableListOf(resource),
+      notifier = mock()
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -265,16 +289,18 @@ object ResourceTypeHandlerTest {
     verify(resourceRepository, never()).upsert(any(), any())
   }
 
-  internal fun workConfiguration(exclusions: List<Exclusion> = emptyList()): WorkConfiguration = WorkConfiguration(
-    namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
-    account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
-    location = "us-east-1",
-    resourceType = TEST_RESOURCE_TYPE,
-    cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
-    retentionDays = 14,
-    dryRun = false,
-    exclusions = exclusions
-  )
+  internal fun workConfiguration(exclusions: List<Exclusion> = emptyList(), dryRun: Boolean = false, notifyOwner: Boolean = true): WorkConfiguration =
+    WorkConfiguration(
+      namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
+      account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
+      location = "us-east-1",
+      resourceType = TEST_RESOURCE_TYPE,
+      cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
+      retentionDays = 14,
+      dryRun = dryRun,
+      exclusions = exclusions,
+      notifyOwner = notifyOwner
+    )
 
   class TestRule(
     private val invalidOn: (Resource) -> Boolean,
@@ -291,10 +317,11 @@ object ResourceTypeHandlerTest {
     ownerResolver: OwnerResolver,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
+    notifier: Notifier,
     private val rules: List<Rule<TestResource>>,
     private val simulatedUpstreamResources: MutableList<TestResource>?,
     registry: Registry = NoopRegistry()
-  ) : AbstractResourceTypeHandler<TestResource>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, applicationEventPublisher) {
+  ) : AbstractResourceTypeHandler<TestResource>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, ownerResolver, notifier, applicationEventPublisher) {
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }

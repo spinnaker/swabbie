@@ -20,6 +20,7 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
@@ -37,15 +38,16 @@ import java.time.Clock
 class AmazonLoadBalancerHandler(
   registry: Registry,
   clock: Clock,
-  private val rules: List<Rule<AmazonElasticLoadBalancer>>,
+  notifier: Notifier,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceOwnerResolver: ResourceOwnerResolver,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
+  private val rules: List<Rule<AmazonElasticLoadBalancer>>,
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService
-) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, applicationEventPublisher) {
+) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, notifier, applicationEventPublisher) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {

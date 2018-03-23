@@ -71,7 +71,8 @@ class WorkConfigurator(
                     resourceType = resourceTypeConfiguration.name,
                     retentionDays = resourceTypeConfiguration.retentionDays,
                     exclusions = mergeExclusions(cloudProviderConfiguration.exclusions, resourceTypeConfiguration.exclusions),
-                    dryRun = if (swabbieProperties.dryRun) true else (resourceTypeConfiguration.dryRun || swabbieProperties.dryRun)
+                    notifyOwner = resourceTypeConfiguration.notifyOwner,
+                    dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun
                   ).let { configuration ->
                     configuration.takeIf {
                       !shouldExclude(account, it)

@@ -125,7 +125,7 @@ open class EddaAmazonElasticLoadBalancerProvider(
         }
       }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      registry.counter(eddaFailureCountId.withTags("resourceType", LOAD_BALANCER)).increment()
       log.error("failed to get load balancer {}", loadBalancerName, e)
       throw e
     }

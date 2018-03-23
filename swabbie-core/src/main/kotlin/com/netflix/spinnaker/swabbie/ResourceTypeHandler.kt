@@ -37,12 +37,14 @@ interface ResourceTypeHandler<out T : Resource> {
   fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): T?
 
   /**
-   * Deletes a single marked resource matching the granularity of [WorkConfiguration].
-   */
-  fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration, postClean: () -> Unit)
-
-  /**
    * Marks a single marked resource matching the granularity of [WorkConfiguration].
    */
   fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit)
+
+  /**
+   * Deletes marked resources matching the granularity of [WorkConfiguration].
+   */
+  fun clean(workConfiguration: WorkConfiguration, postClean: () -> Unit)
+
+  fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit)
 }

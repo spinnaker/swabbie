@@ -117,7 +117,8 @@ data class MarkedResource(
 data class NotificationInfo(
   val recipient: String? = null,
   val notificationType: String? = null,
-  val notificationStamp: Long? = null
+  val notificationStamp: Long? = null,
+  val shouldNotify: Boolean? = true
 )
 
 data class ResourceState(

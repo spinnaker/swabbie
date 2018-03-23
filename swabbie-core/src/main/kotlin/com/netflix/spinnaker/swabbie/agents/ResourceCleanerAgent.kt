@@ -21,7 +21,7 @@ import com.netflix.spinnaker.ScheduledAgent
 import com.netflix.spinnaker.swabbie.AgentRunner
 import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.events.Action.DELETE
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
@@ -40,11 +40,10 @@ class ResourceCleanerAgent(
   registry: Registry,
   agentRunner: AgentRunner,
   discoverySupport: DiscoverySupport,
-  private val clock: Clock,
-  private val executor: AgentExecutor,
-  private val resourceTrackingRepository: ResourceTrackingRepository,
-  private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
-) : ScheduledAgent(clock, registry, agentRunner, discoverySupport) {
+  executor: AgentExecutor,
+  resourceTypeHandlers: List<ResourceTypeHandler<*>>,
+  private val clock: Clock
+) : ScheduledAgent(clock, registry, agentRunner, executor, discoverySupport, resourceTypeHandlers) {
   @Value("\${swabbie.agents.clean.intervalSeconds:3600}")
   private var interval: Long = 3600
 
@@ -59,25 +58,6 @@ class ResourceCleanerAgent(
   }
 
   override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
-    try {
-      resourceTrackingRepository.getMarkedResourcesToDelete()
-        ?.filter { it.namespace.equals(workConfiguration.namespace, ignoreCase = true) && it.notificationInfo.notificationStamp != null && it.adjustedDeletionStamp != null }
-        ?.forEach { markedResource ->
-          resourceTypeHandlers.find { handler ->
-            handler.handles(workConfiguration)
-          }.let { handler ->
-              if (handler == null) {
-                throw IllegalStateException("No Suitable handler found for $markedResource")
-              } else {
-                executor.execute {
-                  handler.clean(markedResource, workConfiguration, onCompleteCallback)
-                }
-              }
-            }
-        }
-    } catch (e: Exception) {
-      registry.counter(failedAgentId.withTags("agentName", this.javaClass.simpleName, "configuration", workConfiguration.namespace)).increment()
-      log.error("Failed to run resource cleaners", e)
-    }
+    processForAction(DELETE, workConfiguration, onCompleteCallback)
   }
 }

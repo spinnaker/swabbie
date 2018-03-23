@@ -19,7 +19,7 @@ swabbie:
       enabled: true
       intervalSeconds: 3600000
     clean:
-      enabled: true
+      enabled: false
       intervalSeconds: 3600000
     notify:
       enabled: false
@@ -45,6 +45,7 @@ swabbie:
           enabled: false
           dryRun: true
           retentionDays: 10
+          notifyOwner: true
           exclusions:
             - type: Name
               attributes:
@@ -56,6 +57,7 @@ swabbie:
           enabled: true
           dryRun: true
           retentionDays: 14
+          notifyOwner: false
 
 ```
 

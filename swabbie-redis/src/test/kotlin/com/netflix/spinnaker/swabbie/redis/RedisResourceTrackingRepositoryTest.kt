@@ -73,7 +73,8 @@ object RedisResourceTrackingRepositoryTest {
       resourceType = "testResourceType",
       cloudProvider = AWS,
       retentionDays = 14,
-      exclusions = emptyList()
+      exclusions = emptyList(),
+      notifyOwner = true
     )
 
     val markedResource = MarkedResource(
@@ -83,9 +84,9 @@ object RedisResourceTrackingRepositoryTest {
       projectedDeletionStamp = 0,
       adjustedDeletionStamp = 0,
       notificationInfo = NotificationInfo(
-        notificationStamp = clock.instant().toEpochMilli(),
         recipient = "yolo@netflixcom",
-        notificationType = "Email"
+        notificationType = "Email",
+        notificationStamp = clock.instant().toEpochMilli()
       )
     )
 
@@ -110,7 +111,8 @@ object RedisResourceTrackingRepositoryTest {
       resourceType = "testResourceType",
       cloudProvider = AWS,
       retentionDays = 14,
-      exclusions = emptyList()
+      exclusions = emptyList(),
+      notifyOwner = true
     )
 
     listOf(
@@ -121,9 +123,10 @@ object RedisResourceTrackingRepositoryTest {
         projectedDeletionStamp = 0,
         adjustedDeletionStamp = 0,
         notificationInfo = NotificationInfo(
-          notificationStamp = clock.instant().toEpochMilli(),
           recipient = "yolo@netflixcom",
-          notificationType = "Email"
+          notificationType = "Email",
+          notificationStamp = clock.instant().toEpochMilli(),
+          shouldNotify = true
         )
       ),
       MarkedResource(

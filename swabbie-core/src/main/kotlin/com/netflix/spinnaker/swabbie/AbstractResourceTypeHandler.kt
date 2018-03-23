@@ -19,21 +19,19 @@ package com.netflix.spinnaker.swabbie
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.LongTaskTimer
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
-import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
+import com.netflix.spinnaker.swabbie.echo.EchoService
+import com.netflix.spinnaker.swabbie.echo.Notifier
+import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.Rule
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 abstract class AbstractResourceTypeHandler<out T : Resource>(
@@ -43,6 +41,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
   private val ownerResolver: OwnerResolver,
+  private val notifier: Notifier,
   private val applicationEventPublisher: ApplicationEventPublisher
 ) : ResourceTypeHandler<T> {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
@@ -116,40 +115,114 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   /**
    * deletes violating resources
    */
-  override fun clean(markedResource: MarkedResource, workConfiguration: WorkConfiguration, postClean: () -> Unit) {
+  override fun clean(workConfiguration: WorkConfiguration, postClean: () -> Unit) {
     try {
-      getUpstreamResource(markedResource, workConfiguration)
-        .let { resource ->
-          if (resource == null) {
-            log.info("Resource {} no longer exists", markedResource)
-            resourceTrackingRepository.remove(markedResource)
-          } else {
-            resource
-              .takeIf { !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions) }
-              ?.let { upstreamResource ->
-                rules.mapNotNull {
-                  it.apply(upstreamResource).summary
-                }.let { violationSummaries ->
-                    if (violationSummaries.isEmpty() && !workConfiguration.dryRun) {
-                      applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
-                      resourceTrackingRepository.remove(markedResource)
-                    } else {
-                      // adjustedDeletionStamp is the adjusted projectedDeletionStamp after notification is sent
-                      log.info("Preparing deletion of {}. dryRun {}", markedResource, workConfiguration.dryRun)
-                      if (markedResource.adjustedDeletionStamp != null && !workConfiguration.dryRun) {
-                        remove(markedResource, workConfiguration)
-                        resourceTrackingRepository.remove(markedResource)
-                        applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
-                      }
+      resourceTrackingRepository.getMarkedResourcesToDelete().let { markedResources ->
+        if (markedResources == null || markedResources.isEmpty()) {
+          log.info("No resources to delete for {}", workConfiguration)
+        } else {
+          markedResources.forEach { markedResource ->
+            getUpstreamResource(markedResource, workConfiguration)
+              .let { resource ->
+                if (resource == null) {
+                  log.info("Resource {} no longer exists", markedResource)
+                  resourceTrackingRepository.remove(markedResource)
+                } else {
+                  resource
+                    .takeIf { !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions) }
+                    ?.let { upstreamResource ->
+                      rules.mapNotNull {
+                        it.apply(upstreamResource).summary
+                      }.let { violationSummaries ->
+                          if (violationSummaries.isEmpty() && !workConfiguration.dryRun) {
+                            applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
+                            resourceTrackingRepository.remove(markedResource)
+                          } else {
+                            // adjustedDeletionStamp is the adjusted projectedDeletionStamp after notification is sent
+                            log.info("Preparing deletion of {}. dryRun {}", markedResource, workConfiguration.dryRun)
+                            if (markedResource.adjustedDeletionStamp != null && !workConfiguration.dryRun) {
+                              remove(markedResource, workConfiguration)
+                              resourceTrackingRepository.remove(markedResource)
+                              applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
+                            }
+                          }
+                        }
                     }
-                  }
+                }
               }
           }
         }
+      }
     } catch (e: Exception) {
       recordFailureForAction(Action.DELETE, workConfiguration, e)
     } finally {
       postClean.invoke()
+    }
+  }
+
+  /**
+   * Notifies resource owners
+   */
+  override fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit) {
+    try {
+      log.info("Notification Agent Started with configuration {}", workConfiguration)
+      val owners = mutableMapOf<String, MutableList<MarkedResource>>()
+      resourceTrackingRepository.getMarkedResources()
+        ?.filter {
+          workConfiguration.namespace.equals(it.namespace, ignoreCase = true) && it.notificationInfo.notificationStamp == null
+        }?.forEach { markedResource ->
+          markedResource.resourceOwner?.let { owner ->
+            if (owners[owner] == null) {
+              owners[owner] = mutableListOf(markedResource)
+            } else {
+              owners[owner]!!.add(markedResource)
+            }
+          }
+        }
+
+      owners.let { ownersToResources ->
+        ownersToResources.forEach {
+          it.value.map { markedResource ->
+            val notificationInstant = Instant.now(clock)
+            val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
+            markedResource.apply {
+              this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
+              this.notificationInfo = NotificationInfo(
+                shouldNotify = workConfiguration.notifyOwner,
+                notificationStamp = if (workConfiguration.notifyOwner) notificationInstant.toEpochMilli() else null,
+                recipient = if (workConfiguration.notifyOwner) it.key else null,
+                notificationType = if (workConfiguration.notifyOwner) EchoService.Notification.Type.EMAIL.name else null
+              )
+            }
+          }
+        }
+
+        val optOutUrl = "https://localhost:1000" //TODO: pass in configuration
+        ownersToResources.forEach { ownerToResource ->
+          log.info("DryRun={}, shouldNotify={}, user={}, {} cleanup candidate(s)",
+            workConfiguration.dryRun, workConfiguration.notifyOwner, ownerToResource.key, ownerToResource.value.size)
+          if (workConfiguration.dryRun || !workConfiguration.notifyOwner) {
+            log.info("Skipping notifications for {}", workConfiguration)
+          } else {
+            ownerToResource.value.let { resources ->
+              val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
+              val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
+
+              notifier.notify(ownerToResource.key, subject, body, EchoService.Notification.Type.EMAIL.name).let {
+                log.info("Notification sent to {} for {}", ownerToResource.key, resources)
+                resources.forEach { resource ->
+                  resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
+                  applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e: Exception) {
+      recordFailureForAction(Action.NOTIFY, workConfiguration, e)
+    } finally {
+      postNotify.invoke()
     }
   }
 
@@ -159,6 +232,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val resourcesExcludedId: Id = registry.createId("swabbie.resources.excluded")
   private val resourceFailureId: Id = registry.createId("swabbie.resources.failures")
   private val candidatesCountId: Id = registry.createId("swabbie.resources.candidatesCount")
+  private val notificationsId = registry.createId("swabbie.resources.notifications")
   private fun recordMarkMetrics(markerTimerId: Long,
                                 workConfiguration: WorkConfiguration,
                                 violationCounter: AtomicInteger,

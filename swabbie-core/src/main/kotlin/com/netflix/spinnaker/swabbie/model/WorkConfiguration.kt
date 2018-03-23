@@ -26,5 +26,6 @@ data class WorkConfiguration(
   val resourceType: String,
   val retentionDays: Int,
   val exclusions: List<Exclusion>,
-  val dryRun: Boolean = true
+  val dryRun: Boolean = true,
+  val notifyOwner: Boolean
 )

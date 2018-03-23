@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.ScheduledAgent
+import com.netflix.spinnaker.swabbie.ScheduledAgent
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration

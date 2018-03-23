@@ -17,7 +17,7 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.ScheduledAgent
+import com.netflix.spinnaker.swabbie.ScheduledAgent
 import com.netflix.spinnaker.swabbie.AgentRunner
 import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler

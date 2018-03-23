@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker
+package com.netflix.spinnaker.swabbie
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.DiscoverySupport
-import com.netflix.spinnaker.swabbie.AgentRunner
-import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.agents.AgentExecutor
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration

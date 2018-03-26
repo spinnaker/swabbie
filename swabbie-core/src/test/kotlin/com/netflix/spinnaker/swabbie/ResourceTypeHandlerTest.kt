@@ -118,12 +118,7 @@ object ResourceTypeHandlerTest {
       resource = resource,
       summaries = listOf(Summary("violates rule 1", "ruleName")),
       namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis(),
-      notificationInfo = NotificationInfo(
-        recipient = "yolo@netflix.com",
-        notificationType = "Email",
-        notificationStamp = clock.millis()
-      )
+      projectedDeletionStamp = clock.millis()
     )
 
     whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn
@@ -165,7 +160,6 @@ object ResourceTypeHandlerTest {
           namespace = configuration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
-          adjustedDeletionStamp = fifteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
             notificationType = "Email",
@@ -178,7 +172,6 @@ object ResourceTypeHandlerTest {
           namespace = configuration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
-          adjustedDeletionStamp = fifteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
             notificationType = "Email",
@@ -256,12 +249,7 @@ object ResourceTypeHandlerTest {
       resource = resource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
       namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis(),
-      notificationInfo = NotificationInfo(
-        recipient = "yolo@netflix.com",
-        notificationType = "Email",
-        notificationStamp = clock.millis()
-      )
+      projectedDeletionStamp = clock.millis()
     )
 
     whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn

@@ -82,7 +82,6 @@ object RedisResourceTrackingRepositoryTest {
       summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
       namespace = configuration.namespace,
       projectedDeletionStamp = 0,
-      adjustedDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
         notificationType = "Email",
@@ -121,27 +120,23 @@ object RedisResourceTrackingRepositoryTest {
         summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
         namespace = configuration.namespace,
         projectedDeletionStamp = 0,
-        adjustedDeletionStamp = 0,
         notificationInfo = NotificationInfo(
           recipient = "yolo@netflixcom",
           notificationType = "Email",
-          notificationStamp = clock.instant().toEpochMilli(),
-          shouldNotify = true
+          notificationStamp = clock.instant().toEpochMilli()
         )
       ),
       MarkedResource(
         resource = TestResource("marked resourceHash not due for deletion 2 seconds later"),
         summaries = listOf(Summary("invalid resourceHash 2", "rule 2")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
-        adjustedDeletionStamp = twoDaysFromNow.toEpochMilli()
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
       ),
       MarkedResource(
         resource = TestResource("random"),
         summaries = listOf(Summary("invalid resourceHash 3", "rule 3")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
-        adjustedDeletionStamp = twoDaysFromNow.toEpochMilli()
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
       )
     ).forEach { resource ->
       resourceRepository.upsert(resource)

@@ -62,7 +62,7 @@ class ResourceStateManager(
       is OwnerNotifiedEvent -> {
         id = notifyCountId
         removeTag = false
-        msg = "Notified ${event.markedResource.notificationInfo.recipient} about soon to be cleaned up ${event.markedResource.typeAndName()}"
+        msg = "Notified ${event.markedResource.notificationInfo?.recipient} about soon to be cleaned up ${event.markedResource.typeAndName()}"
       }
     }
 

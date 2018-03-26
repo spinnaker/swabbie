@@ -138,12 +138,12 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
                             applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
                             resourceTrackingRepository.remove(markedResource)
                           } else {
-                            // adjustedDeletionStamp is the adjusted projectedDeletionStamp after notification is sent
                             log.info("Preparing deletion of {}. dryRun {}", markedResource, workConfiguration.dryRun)
-                            if (markedResource.adjustedDeletionStamp != null && !workConfiguration.dryRun) {
+                            if (markedResource.notificationInfo != null && !workConfiguration.dryRun) {
                               remove(markedResource, workConfiguration)
                               resourceTrackingRepository.remove(markedResource)
                               applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
+                              log.info("Deleted {}", resource)
                             }
                           }
                         }
@@ -169,7 +169,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
       val owners = mutableMapOf<String, MutableList<MarkedResource>>()
       resourceTrackingRepository.getMarkedResources()
         ?.filter {
-          workConfiguration.namespace.equals(it.namespace, ignoreCase = true) && it.notificationInfo.notificationStamp == null
+          workConfiguration.namespace.equals(it.namespace, ignoreCase = true) && it.notificationInfo == null
         }?.forEach { markedResource ->
           markedResource.resourceOwner?.let { owner ->
             if (owners[owner] == null) {
@@ -181,22 +181,6 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         }
 
       owners.let { ownersToResources ->
-        ownersToResources.forEach {
-          it.value.map { markedResource ->
-            val notificationInstant = Instant.now(clock)
-            val offset: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(markedResource.createdTs!!), notificationInstant)
-            markedResource.apply {
-              this.adjustedDeletionStamp = offset + markedResource.projectedDeletionStamp
-              this.notificationInfo = NotificationInfo(
-                shouldNotify = workConfiguration.notifyOwner,
-                notificationStamp = if (workConfiguration.notifyOwner) notificationInstant.toEpochMilli() else null,
-                recipient = if (workConfiguration.notifyOwner) it.key else null,
-                notificationType = if (workConfiguration.notifyOwner) EchoService.Notification.Type.EMAIL.name else null
-              )
-            }
-          }
-        }
-
         val optOutUrl = "https://localhost:1000" //TODO: pass in configuration
         ownersToResources.forEach { ownerToResource ->
           log.info("DryRun={}, shouldNotify={}, user={}, {} cleanup candidate(s)",
@@ -207,12 +191,21 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
             ownerToResource.value.let { resources ->
               val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
               val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
-
               notifier.notify(ownerToResource.key, subject, body, EchoService.Notification.Type.EMAIL.name).let {
                 log.info("Notification sent to {} for {}", ownerToResource.key, resources)
                 resources.forEach { resource ->
-                  resourceTrackingRepository.upsert(resource, resource.adjustedDeletionStamp!!)
-                  applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
+                  val offsetStampSinceMarked: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(resource.createdTs!!), Instant.now(clock))
+                  resource.apply {
+                    projectedDeletionStamp = offsetStampSinceMarked + projectedDeletionStamp!!
+                    notificationInfo = NotificationInfo(
+                      recipient = ownerToResource.key,
+                      notificationStamp = Instant.now(clock).toEpochMilli(),
+                      notificationType = EchoService.Notification.Type.EMAIL.name
+                    )
+                  }.also {
+                      resourceTrackingRepository.upsert(it)
+                      applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
+                    }
                 }
               }
             }

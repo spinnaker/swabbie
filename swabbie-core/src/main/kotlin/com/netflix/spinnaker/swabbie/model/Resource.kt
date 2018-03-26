@@ -106,9 +106,8 @@ data class MarkedResource(
   val resource: Resource,
   val summaries: List<Summary>,
   val namespace: String,
-  val projectedDeletionStamp: Long,
-  var adjustedDeletionStamp: Long? = null,
-  var notificationInfo: NotificationInfo = NotificationInfo(),
+  var projectedDeletionStamp: Long,
+  var notificationInfo: NotificationInfo? = null,
   var createdTs: Long? = null,
   var updateTs: Long? = null,
   val resourceOwner: String? = null
@@ -117,8 +116,7 @@ data class MarkedResource(
 data class NotificationInfo(
   val recipient: String? = null,
   val notificationType: String? = null,
-  val notificationStamp: Long? = null,
-  val shouldNotify: Boolean? = true
+  val notificationStamp: Long? = null
 )
 
 data class ResourceState(
@@ -134,7 +132,7 @@ data class Status(
 )
 
 fun MarkedResource.humanReadableDeletionTime(clock: Clock): LocalDate {
-  (this.adjustedDeletionStamp ?: this.projectedDeletionStamp).let {
+  this.projectedDeletionStamp.let {
     return Instant.ofEpochMilli(it)
       .atZone(clock.zone)
       .toLocalDate()

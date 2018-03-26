@@ -17,11 +17,9 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.nhaarman.mockito_kotlin.*
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
 
@@ -29,12 +27,6 @@ object NotificationAgentTest {
   private val clock = Clock.systemDefaultZone()
   private val executor = AgentExecutor(BlockingThreadExecutor())
   private val onCompleteCallback = {}
-  private val resourceTrackingRepository: ResourceTrackingRepository = mock()
-
-  @AfterEach
-  fun cleanup() {
-    reset(resourceTrackingRepository)
-  }
 
   @Test
   fun `should not notify if no handler found`() {

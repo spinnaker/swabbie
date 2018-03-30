@@ -40,7 +40,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val rules: List<Rule<T>>,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
-  private val ownerResolver: OwnerResolver,
+  private val ownerResolver: OwnerResolver<T>,
   private val notifier: Notifier,
   private val applicationEventPublisher: ApplicationEventPublisher
 ) : ResourceTypeHandler<T> {

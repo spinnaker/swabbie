@@ -40,7 +40,7 @@ class AmazonLoadBalancerHandler(
   clock: Clock,
   notifier: Notifier,
   resourceTrackingRepository: ResourceTrackingRepository,
-  resourceOwnerResolver: ResourceOwnerResolver,
+  resourceOwnerResolver: ResourceOwnerResolver<AmazonElasticLoadBalancer>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,

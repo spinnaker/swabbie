@@ -39,7 +39,7 @@ class AmazonSecurityGroupHandler(
   notifier: Notifier,
   rules: List<Rule<AmazonSecurityGroup>>,
   resourceTrackingRepository: ResourceTrackingRepository,
-  resourceOwnerResolver: ResourceOwnerResolver,
+  resourceOwnerResolver: ResourceOwnerResolver<AmazonSecurityGroup>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,

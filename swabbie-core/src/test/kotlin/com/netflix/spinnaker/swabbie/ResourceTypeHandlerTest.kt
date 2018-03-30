@@ -302,7 +302,7 @@ object ResourceTypeHandlerTest {
   class TestResourceTypeHandler(
     clock: Clock,
     resourceTrackingRepository: ResourceTrackingRepository,
-    ownerResolver: OwnerResolver,
+    ownerResolver: OwnerResolver<TestResource>,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
     notifier: Notifier,

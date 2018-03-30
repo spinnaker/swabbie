@@ -27,9 +27,9 @@ import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Test
 
-object Front50ApplicationResourceOwnerResolutionStrategyTest {
-  val front50ApplicationCache: InMemoryCache<Application> = mock()
-  private val subject = Front50ApplicationResourceOwnerResolutionStrategy(front50ApplicationCache)
+object ApplicationResourceOwnerResolutionStrategyTest {
+  private val front50ApplicationCache: InMemoryCache<Application> = mock()
+  private val subject = ApplicationResourceOwnerResolutionStrategy(front50ApplicationCache)
 
   @Test
   fun `should resolve resource owner from application config`() {

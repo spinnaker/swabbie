@@ -24,17 +24,17 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
 @Component
-class ResourceOwnerResolver(
-  private val resourceOwnerStrategies: List<ResourceOwnerResolutionStrategy>,
-  private val registry: Registry
-) : OwnerResolver {
+class ResourceOwnerResolver<in T : Resource>(
+  private val registry: Registry,
+  private val resourceOwnerResolutionStrategies: List<ResourceOwnerResolutionStrategy<T>>
+) : OwnerResolver<T> {
   @Value("\${swabbie.notify.fallbackEmail:cloudmonkeyalerts@netflix.com}")
   private lateinit var fallbackEmail: String
 
   private val resourceOwnerId = registry.createId("swabbie.resources.owner")
-  override fun resolve(resource: Resource): String? {
+  override fun resolve(resource: T): String? {
     try {
-      resourceOwnerStrategies.mapNotNull {
+      resourceOwnerResolutionStrategies.mapNotNull {
         it.resolve(resource)
       }.let { owners ->
           return if (!owners.isEmpty()) {
@@ -57,23 +57,10 @@ class ResourceOwnerResolver(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 }
 
-interface OwnerResolver {
-  fun resolve(resource: Resource): String?
+interface OwnerResolver<in T : Resource> {
+  fun resolve(resource: T): String?
 }
 
-interface ResourceOwnerResolutionStrategy {
-  fun resolve(resource: Resource): String?
-}
-
-@Component
-class TagOwnerResolutionStrategy : ResourceOwnerResolutionStrategy {
-  override fun resolve(resource: Resource): String? {
-    if ("tags" in resource.details) {
-      (resource.details["tags"] as? List<Map<*, *>>)?.let {
-        return it.find { it.containsKey("owner") }?.get("owner") as String
-      }
-    }
-
-    return null
-  }
+interface ResourceOwnerResolutionStrategy<in T : Resource> {
+  fun resolve(resource: T): String?
 }

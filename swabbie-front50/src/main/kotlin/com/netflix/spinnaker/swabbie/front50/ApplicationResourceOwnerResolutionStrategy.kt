@@ -24,9 +24,9 @@ import com.netflix.spinnaker.swabbie.model.Resource
 import org.springframework.stereotype.Component
 
 @Component
-class Front50ApplicationResourceOwnerResolutionStrategy(
+class ApplicationResourceOwnerResolutionStrategy(
   private val front50ApplicationCache: InMemoryCache<Application>
-) : ResourceOwnerResolutionStrategy {
+) : ResourceOwnerResolutionStrategy<Resource> {
   override fun resolve(resource: Resource): String? =
     FriggaReflectiveNamer().deriveMoniker(resource).app?.let { derivedApp ->
       front50ApplicationCache.get().find { it.name.equals(derivedApp, ignoreCase = true) }?.email

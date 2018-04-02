@@ -22,36 +22,40 @@ import com.netflix.spinnaker.swabbie.model.Account
 import org.springframework.stereotype.Component
 
 @Component
-class AccountNameExclusionPolicy : ExclusionPolicy {
-  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
-    if (excludable is Account) {
-      values(exclusions, ExclusionType.AccountName)
-        .let { accounts ->
-          if (accounts.size == 1 && accounts.first() == "\\*") {
-            // wildcard
-            return true
-          }
-
-          return accounts.find { it.equals(excludable.name, ignoreCase = true) || excludable.name.matchPattern(it) } != null
-        }
-    }
-
-    return false
-  }
+class AccountNameExclusionPolicy : AccountExclusionPolicy(ExclusionType.AccountName) {
+  override fun getValue(account: Account): String = account.name
 }
 
 @Component
-class AccountTypeExclusionPolicy : ExclusionPolicy {
+class AccountTypeExclusionPolicy : AccountExclusionPolicy(ExclusionType.AccountType) {
+  override fun getValue(account: Account): String = account.type
+}
+
+abstract class AccountExclusionPolicy(
+  private val exclusionType: ExclusionType
+) : ExclusionPolicy {
+  abstract fun getValue(account: Account): String
+
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
     if (excludable is Account) {
-      values(exclusions, ExclusionType.AccountType)
+      val value = getValue(excludable)
+      whitelist(exclusions, exclusionType).let { list ->
+        if (!list.isEmpty() && !list.contains(value) && list.find { value.matchPattern(it) } == null) {
+          log.info("Skipping {} because not in provided whitelist", value)
+          return true
+        }
+      }
+
+      values(exclusions, exclusionType)
         .let { accounts ->
           if (accounts.size == 1 && accounts.first() == "\\*") {
             // wildcard
             return true
           }
 
-          return accounts.find { it.equals(excludable.type, ignoreCase = true) || excludable.type.matchPattern(it) } != null
+          return accounts.find {
+            it.equals(value, ignoreCase = true) || value.matchPattern(it)
+          } != null
         }
     }
 

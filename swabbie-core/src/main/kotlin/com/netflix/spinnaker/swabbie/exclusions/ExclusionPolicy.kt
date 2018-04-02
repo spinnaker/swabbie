@@ -19,8 +19,13 @@ package com.netflix.spinnaker.swabbie.exclusions
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.model.Named
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 interface ExclusionPolicy {
+  val log: Logger
+    get() = LoggerFactory.getLogger(javaClass)
+
   fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean
   fun String.matchPattern(p: String): Boolean =
     p.startsWith("pattern:") && this.contains(p.split(":").last().toRegex())
@@ -31,6 +36,16 @@ interface ExclusionPolicy {
     }.map { exclusion ->
         exclusion.attributes.map { it.value }.flatten()
       }.flatten()
+  }
+
+  fun whitelist(exclusions: List<Exclusion>, type: ExclusionType): List<String> {
+    keysAndValues(exclusions, ExclusionType.Whitelist).let {
+      it[type.name.toLowerCase()]?.let { list ->
+        return list
+      }
+    }
+
+    return emptyList()
   }
 
   fun keysAndValues(exclusions: List<Exclusion>, type: ExclusionType): Map<String, List<String>> {

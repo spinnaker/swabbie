@@ -17,25 +17,44 @@
 package com.netflix.spinnaker.swabbie.front50
 
 import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.Resource
 import org.springframework.stereotype.Component
 
 @Component
 class Front50ApplicationExclusionPolicy(
-  private val front50ApplicationCache: Front50ApplicationCache
+  private val front50ApplicationCache: InMemoryCache<Application>
 ) : ResourceExclusionPolicy {
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
-    if (excludable is Resource) {
-      FriggaReflectiveNamer().deriveMoniker(excludable).app.let { derivedApp ->
-        //        front50ApplicationCache.get().find { it.name.equals(derivedApp, ignoreCase = true)}?.details!!["swabbie"]?.let {
-//          return (it as HashMap<*, *>)["excludeAll"] as Boolean
-//        }
+    val derivedApp: String? = FriggaReflectiveNamer().deriveMoniker(excludable).app?.toLowerCase()
+    if (excludable is Resource && derivedApp != null) {
+      whitelist(exclusions, ExclusionType.Application).let { list ->
+        if (!list.isEmpty()) {
+          if (!list.contains(derivedApp) && list.find { derivedApp.matchPattern(it) } == null) {
+            log.info("Skipping {} because {} not in provided application whitelist", excludable.name, derivedApp)
+            return true
+          }
+        }
       }
+    }
 
-      // TODO: implement this, should exclude based on exclusions and application configuration
+    keysAndValues(exclusions, ExclusionType.Application).let { map ->
+      front50ApplicationCache.get().find { it.name.equals(derivedApp, ignoreCase = true) }?.let {
+        if (map["name"] != null && map["name"]!!.contains(it.name)) {
+          log.info("Skipping {} excluded by name", excludable.name)
+          return true
+        }
+
+        if (map["email"] != null && map["email"]!!.contains(it.email)) {
+          log.info("Skipping {} excluded by email", excludable.name)
+          return true
+        }
+      }
     }
 
     return false

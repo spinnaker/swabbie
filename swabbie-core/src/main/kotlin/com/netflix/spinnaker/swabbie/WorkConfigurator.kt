@@ -21,6 +21,7 @@ import com.netflix.spinnaker.config.mergeExclusions
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.EmptyAccount
+import com.netflix.spinnaker.swabbie.model.NotificationConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -71,8 +72,13 @@ class WorkConfigurator(
                     resourceType = resourceTypeConfiguration.name,
                     retentionDays = resourceTypeConfiguration.retentionDays,
                     exclusions = mergeExclusions(cloudProviderConfiguration.exclusions, resourceTypeConfiguration.exclusions),
-                    notifyOwner = resourceTypeConfiguration.notifyOwner,
-                    dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun
+                    dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
+                    notificationConfiguration = NotificationConfiguration(
+                      notifyOwner = resourceTypeConfiguration.notifyOwner,
+                      spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,
+                      optOutUrl = swabbieProperties.optOutBaseUrl,
+                      resourcesPerNotification = cloudProviderConfiguration.resourcesPerNotification
+                    )
                   ).let { configuration ->
                     configuration.takeIf {
                       !shouldExclude(account, it)

@@ -10,9 +10,8 @@ It applies a set of rules to mark cleanup candidates. Once marked, a resource is
 ```
 swabbie:
   taggingEnabled: false
-  optOut:
-    url: http://localhost:8088/
-    defaultTtlDays: 14
+  optOutBaseUrl: http://localhost:8088/
+  spinnakerResourceSearchUrl: https://spinnaker/infrastructure?q=
 
   agents:
     mark:
@@ -58,6 +57,12 @@ swabbie:
           dryRun: true
           retentionDays: 14
           notifyOwner: false
+          exclusions:
+            - type: Whitelist
+              attributes:
+                - key: application
+                  value:
+                    - appname
 
 ```
 

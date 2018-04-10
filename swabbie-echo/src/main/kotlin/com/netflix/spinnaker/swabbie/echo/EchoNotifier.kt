@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component
 class EchoNotifier(
   private val echoService: EchoService
 ) : Notifier {
-  override fun notify(recipient: String, subject: String, body: String, messageType: String) {
+  override fun notify(recipient: String, additionalContext: Map<String, Any>, messageType: String) {
     echoService.create(
       EchoService.Notification(
         notificationType = EchoService.Notification.Type.valueOf(messageType),
@@ -30,10 +30,8 @@ class EchoNotifier(
         cc = listOf(recipient),
         severity = NotificationSeverity.HIGH,
         source = EchoService.Notification.Source("swabbie"),
-        additionalContext = mapOf(
-          "subject" to subject,
-          "body" to body
-        )
+        templateGroup = "swabbie",
+        additionalContext = additionalContext
       )
     )
   }

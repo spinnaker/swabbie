@@ -17,5 +17,5 @@
 package com.netflix.spinnaker.swabbie.echo
 
 interface Notifier {
-  fun notify(recipient: String, subject: String, body: String, messageType: String)
+  fun notify(recipient: String, additionalContext: Map<String, Any>, messageType: String)
 }

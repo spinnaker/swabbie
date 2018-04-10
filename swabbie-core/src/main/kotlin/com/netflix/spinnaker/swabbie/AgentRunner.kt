@@ -39,7 +39,7 @@ class LockEnabledAgentRunner(
       workConfiguration.takeIf {
         lock(agent, workConfiguration, acquire = true)
       }?.let {
-          log.info("{} processing {}", agentName, workConfiguration)
+          log.info("{} running with configuration {}", agentName, workConfiguration)
           agent.process(
             workConfiguration = workConfiguration,
             onCompleteCallback = {

@@ -29,8 +29,7 @@ object EchoNotifierTest {
   fun `should notify`() {
     subject.notify(
       recipient = "yolo@netflix.com",
-      subject = "subject",
-      body = "body",
+      additionalContext = mapOf(),
       messageType = EchoService.Notification.Type.EMAIL.name
     )
 

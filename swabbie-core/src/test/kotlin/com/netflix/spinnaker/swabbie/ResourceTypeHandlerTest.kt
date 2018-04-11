@@ -286,8 +286,7 @@ object ResourceTypeHandlerTest {
       cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
       retentionDays = 14,
       dryRun = dryRun,
-      exclusions = exclusions,
-      notifyOwner = notifyOwner
+      exclusions = exclusions
     )
 
   class TestRule(

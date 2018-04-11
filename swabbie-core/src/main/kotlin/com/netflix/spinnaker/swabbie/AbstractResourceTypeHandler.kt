@@ -181,24 +181,32 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         }
 
       owners.let { ownersToResources ->
-        val optOutUrl = "https://localhost:1000" //TODO: pass in configuration
-        ownersToResources.forEach { ownerToResource ->
+        ownersToResources.forEach { ownerToResources ->
           log.info("DryRun={}, shouldNotify={}, user={}, {} cleanup candidate(s)",
-            workConfiguration.dryRun, workConfiguration.notifyOwner, ownerToResource.key, ownerToResource.value.size)
-          if (workConfiguration.dryRun || !workConfiguration.notifyOwner) {
+            workConfiguration.dryRun, workConfiguration.notificationConfiguration!!.notifyOwner, ownerToResources.key, ownerToResources.value.size)
+          if (workConfiguration.dryRun || !workConfiguration.notificationConfiguration.notifyOwner) {
             log.info("Skipping notifications for {}", workConfiguration)
           } else {
-            ownerToResource.value.let { resources ->
-              val subject = NotificationMessage.subject(MessageType.EMAIL, clock, *resources.toTypedArray())
-              val body = NotificationMessage.body(MessageType.EMAIL, clock, optOutUrl, *resources.toTypedArray())
-              notifier.notify(ownerToResource.key, subject, body, EchoService.Notification.Type.EMAIL.name).let {
-                log.info("Notification sent to {} for {}", ownerToResource.key, resources)
+            ownerToResources.value.let { resources ->
+              notifier.notify(
+                recipient = ownerToResources.key,
+                messageType = EchoService.Notification.Type.EMAIL.name,
+                additionalContext = mapOf(
+                  "resourceOwner" to ownerToResources.key,
+                  "resources" to resources,
+                  "configuration" to workConfiguration,
+                  "resourceType" to workConfiguration.resourceType.formatted(),
+                  "spinnakerLink" to workConfiguration.notificationConfiguration.spinnakerResourceUrl,
+                  "optOutLink" to workConfiguration.notificationConfiguration.optOutUrl
+                )
+              ).let {
+                log.info("Notification sent to {} for {}", ownerToResources.key, resources)
                 resources.forEach { resource ->
                   val offsetStampSinceMarked: Long = ChronoUnit.MILLIS.between(Instant.ofEpochMilli(resource.createdTs!!), Instant.now(clock))
                   resource.apply {
-                    projectedDeletionStamp = offsetStampSinceMarked + projectedDeletionStamp!!
+                    projectedDeletionStamp += offsetStampSinceMarked
                     notificationInfo = NotificationInfo(
-                      recipient = ownerToResource.key,
+                      recipient = ownerToResources.key,
                       notificationStamp = Instant.now(clock).toEpochMilli(),
                       notificationType = EchoService.Notification.Type.EMAIL.name
                     )

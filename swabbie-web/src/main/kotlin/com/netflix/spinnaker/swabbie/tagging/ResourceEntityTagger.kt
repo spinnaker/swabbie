@@ -16,17 +16,12 @@
 
 package com.netflix.spinnaker.swabbie.tagging
 
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.MessageType
-import com.netflix.spinnaker.swabbie.NotificationMessage
 import com.netflix.spinnaker.swabbie.ResourceTagger
-import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -34,11 +29,10 @@ import java.time.Clock
 @Component
 @ConditionalOnExpression("\${swabbie.taggingEnabled}")
 class ResourceEntityTagger(
-  private val taggingService: EntityTaggingService,
-  private val clock: Clock
+  private val clock: Clock,
+  private val swabbieProperties: SwabbieProperties,
+  private val taggingService: EntityTaggingService
 ) : ResourceTagger {
-  @Value("\${swabbie.optOut.url}")
-  lateinit var optOutUrl: String
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun tag(markedResource: MarkedResource, workConfiguration: WorkConfiguration, description: String) {
     markedResource
@@ -56,7 +50,7 @@ class ResourceEntityTagger(
           tags = listOf(
             EntityTag(
               namespace = "swabbie:${workConfiguration.namespace.toLowerCase()}",
-              value = TagValue(message = NotificationMessage.body(MessageType.TAG, clock, optOutUrl, markedResource))
+              value = TagValue(message = tagMessage(markedResource))
             )
           ),
           application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
@@ -66,6 +60,16 @@ class ResourceEntityTagger(
         }
       }
   }
+
+  private fun tagMessage(markedResource: MarkedResource): String =
+    markedResource.summaries.joinToString(", ") {
+      it.description
+    }.let { summary ->
+        val time = markedResource.humanReadableDeletionTime(clock)
+        "Scheduled to be cleaned up on $time<br /> \n " +
+          "* $summary <br /> \n" +
+          "* Click <a href='${swabbieProperties.optOutBaseUrl}' target='_blank'>here</a> to keep the it for 2 additional weeks."
+      }
 
   private fun supportedForResource(markedResource: MarkedResource): Boolean =
     markedResource.resourceType in SUPPORTED_RESOURCE_TYPES

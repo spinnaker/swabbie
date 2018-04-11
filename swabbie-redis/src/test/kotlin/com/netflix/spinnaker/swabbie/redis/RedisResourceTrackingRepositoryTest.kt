@@ -73,8 +73,7 @@ object RedisResourceTrackingRepositoryTest {
       resourceType = "testResourceType",
       cloudProvider = AWS,
       retentionDays = 14,
-      exclusions = emptyList(),
-      notifyOwner = true
+      exclusions = emptyList()
     )
 
     val markedResource = MarkedResource(
@@ -110,8 +109,7 @@ object RedisResourceTrackingRepositoryTest {
       resourceType = "testResourceType",
       cloudProvider = AWS,
       retentionDays = 14,
-      exclusions = emptyList(),
-      notifyOwner = true
+      exclusions = emptyList()
     )
 
     listOf(

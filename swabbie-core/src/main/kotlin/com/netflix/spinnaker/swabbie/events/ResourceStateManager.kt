@@ -126,3 +126,4 @@ class ResourceStateManager(
 }
 
 internal fun MarkedResource.typeAndName(): String = this.resourceType.split("(?=[A-Z])".toRegex()).joinToString(" ") + ": " + this.name
+internal fun String.formatted(): String = this.split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()

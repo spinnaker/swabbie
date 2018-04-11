@@ -22,6 +22,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 open class SwabbieProperties {
   var dryRun: Boolean = true
   var providers: List<CloudProviderConfiguration> = mutableListOf()
+  var optOutBaseUrl: String = ""
+  var spinnakerResourceSearchUrl: String = ""
 }
 
 class CloudProviderConfiguration {
@@ -30,9 +32,11 @@ class CloudProviderConfiguration {
   var locations: List<String> = mutableListOf()
   var accounts: List<String> = mutableListOf()
   var resourceTypes: List<ResourceTypeConfiguration> = mutableListOf()
+  var resourcesPerNotification: Int = 10
   override fun toString(): String {
-    return "CloudProviderConfiguration(exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes)"
+    return "CloudProviderConfiguration(exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes, resourcesPerNotification=$resourcesPerNotification)"
   }
+
 }
 
 class Exclusion {

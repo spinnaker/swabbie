@@ -27,5 +27,14 @@ data class WorkConfiguration(
   val retentionDays: Int,
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true,
-  val notifyOwner: Boolean
+  val notificationConfiguration: NotificationConfiguration? = EmptyNotificationConfiguration()
 )
+
+open class NotificationConfiguration(
+  val notifyOwner: Boolean,
+  val optOutUrl: String,
+  val resourcesPerNotification: Int,
+  val spinnakerResourceUrl: String
+)
+
+class EmptyNotificationConfiguration : NotificationConfiguration(false, "", 0, "")

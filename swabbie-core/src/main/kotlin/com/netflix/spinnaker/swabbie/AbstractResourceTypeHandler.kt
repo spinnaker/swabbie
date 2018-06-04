@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.swabbie.echo.EchoService
 import com.netflix.spinnaker.swabbie.echo.Notifier
@@ -39,7 +38,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val ownerResolver: OwnerResolver<T>,
   private val notifier: Notifier,
   private val applicationEventPublisher: ApplicationEventPublisher,
-  private val lockManager: Optional<LockManager>
+  private val lockingService: Optional<LockingService>
 ) : ResourceTypeHandler<T>, AgentMetricsSupport(registry) {
 
   /**
@@ -64,32 +63,35 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   }
 
   private fun execute(workConfiguration: WorkConfiguration, callback: () -> Unit, action: Action) {
-    val normalizedName = workConfiguration.namespace
-      .replace(":", ".")
-      .toLowerCase()
-
-    val useLocks = lockManager.isPresent
-    val lockOptions = LockOptions()
-      .withLockName("${action.name}.$normalizedName")
-      .withMaximumLockDuration(Duration.ofSeconds(3600))
-
     when (action) {
-      Action.MARK -> withLocking(useLocks, lockOptions, {
+      Action.MARK -> executeWithLockingIfEnabled(action, workConfiguration) {
         doMark(workConfiguration, callback)
-      })
-      Action.DELETE -> withLocking(useLocks, lockOptions, {
+      }
+
+      Action.DELETE -> executeWithLockingIfEnabled(action, workConfiguration) {
         doClean(workConfiguration, callback)
-      })
-      Action.NOTIFY -> withLocking(useLocks, lockOptions, {
+      }
+
+      Action.NOTIFY -> executeWithLockingIfEnabled(action, workConfiguration) {
         doNotify(workConfiguration, callback)
-      })
+      }
+
       else -> log.warn("Invalid action {}", action.name)
     }
   }
 
-  private fun withLocking(useLocks: Boolean, lockOptions: LockOptions, callback: () -> Unit) {
-    if (useLocks) {
-      lockManager.get().acquireLock(lockOptions, {
+  private fun executeWithLockingIfEnabled(action: Action,
+                                          workConfiguration: WorkConfiguration,
+                                          callback: () -> Unit
+  ) {
+    if (lockingService.isPresent) {
+      val normalizedName = workConfiguration.namespace
+        .replace(":", ".")
+
+      val lockOptions = LockOptions()
+        .withLockName("${action.name}.$normalizedName".toLowerCase())
+        .withMaximumLockDuration(lockingService.get().swabbieMaxLockDuration)
+      lockingService.get().acquireLock(lockOptions, {
         callback.invoke()
       })
     } else {

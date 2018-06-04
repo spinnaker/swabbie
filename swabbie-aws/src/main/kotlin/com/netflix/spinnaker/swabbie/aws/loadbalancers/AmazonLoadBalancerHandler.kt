@@ -45,7 +45,7 @@ class AmazonLoadBalancerHandler(
   resourceOwnerResolver: ResourceOwnerResolver<AmazonElasticLoadBalancer>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  lockManager: Optional<LockManager>,
+  lockingService: Optional<LockingService>,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
@@ -59,7 +59,7 @@ class AmazonLoadBalancerHandler(
   resourceOwnerResolver,
   notifier,
   applicationEventPublisher,
-  lockManager
+  lockingService
 ) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->

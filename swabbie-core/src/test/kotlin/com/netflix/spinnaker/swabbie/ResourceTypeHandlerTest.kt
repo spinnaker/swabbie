@@ -23,7 +23,6 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
@@ -44,7 +43,7 @@ object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val clock = Clock.systemDefaultZone()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
-  private val lockManager = Optional.empty<LockManager>()
+  private val lockingService = Optional.empty<LockingService>()
   private val postAction: (resource: List<Resource>) -> Unit = {
     println("swabbie post action on $it")
   }
@@ -69,7 +68,7 @@ object ResourceTypeHandlerTest {
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
       notifier = mock(),
-      lockManager = lockManager
+      lockingService = lockingService
     ).mark(
       workConfiguration = workConfiguration(),
       postMark = { postAction(listOf(resource)) }
@@ -105,7 +104,7 @@ object ResourceTypeHandlerTest {
       notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = resources.toMutableList(),
-      lockManager = lockManager
+      lockingService = lockingService
     ).mark(
       workConfiguration = workConfiguration(),
       postMark = { postAction(resources) }
@@ -143,7 +142,7 @@ object ResourceTypeHandlerTest {
       notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
-      lockManager = lockManager
+      lockingService = lockingService
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -202,7 +201,7 @@ object ResourceTypeHandlerTest {
       notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = fetchedResources,
-      lockManager = lockManager
+      lockingService = lockingService
     ).clean(
       workConfiguration = configuration,
       postClean = { postAction(fetchedResources) }
@@ -239,7 +238,7 @@ object ResourceTypeHandlerTest {
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
       notifier = mock(),
-      lockManager = lockManager
+      lockingService = lockingService
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -274,7 +273,7 @@ object ResourceTypeHandlerTest {
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
       notifier = mock(),
-      lockManager = lockManager
+      lockingService = lockingService
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -319,7 +318,7 @@ object ResourceTypeHandlerTest {
     private val rules: List<Rule<TestResource>>,
     private val simulatedUpstreamResources: MutableList<TestResource>?,
     registry: Registry = NoopRegistry(),
-    lockManager: Optional<LockManager>
+    lockingService: Optional<LockingService>
   ) : AbstractResourceTypeHandler<TestResource>(
     registry,
     clock,
@@ -329,7 +328,7 @@ object ResourceTypeHandlerTest {
     ownerResolver,
     notifier,
     applicationEventPublisher,
-    lockManager
+    lockingService
   ) {
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }

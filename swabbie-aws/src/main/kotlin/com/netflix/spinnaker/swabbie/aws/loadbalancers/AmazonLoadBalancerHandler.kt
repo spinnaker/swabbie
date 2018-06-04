@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.loadbalancers
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
@@ -33,6 +34,7 @@ import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
+import java.util.*
 
 @Component
 class AmazonLoadBalancerHandler(
@@ -43,11 +45,22 @@ class AmazonLoadBalancerHandler(
   resourceOwnerResolver: ResourceOwnerResolver<AmazonElasticLoadBalancer>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
+  lockManager: Optional<LockManager>,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService
-) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, notifier, applicationEventPublisher) {
+) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(
+  registry,
+  clock,
+  rules,
+  resourceTrackingRepository,
+  exclusionPolicies,
+  resourceOwnerResolver,
+  notifier,
+  applicationEventPublisher,
+  lockManager
+) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
@@ -74,8 +87,9 @@ class AmazonLoadBalancerHandler(
     }
   }
 
-  override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): AmazonElasticLoadBalancer? =
-    loadBalancerProvider.getOne(
+  override fun getUpstreamResource(markedResource: MarkedResource,
+                                   workConfiguration: WorkConfiguration
+  ): AmazonElasticLoadBalancer? = loadBalancerProvider.getOne(
       Parameters(
         mapOf(
           "loadBalancerName" to markedResource.name,
@@ -85,7 +99,8 @@ class AmazonLoadBalancerHandler(
       )
     )
 
-  override fun handles(workConfiguration: WorkConfiguration): Boolean = workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration): Boolean
+    = workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
   override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =
     loadBalancerProvider.getAll(
@@ -104,7 +119,8 @@ class AmazonLoadBalancerHandler(
     }
 
   private fun referenceServerGroups(workConfiguration: WorkConfiguration,
-                                    loadBalancers: List<AmazonElasticLoadBalancer>): List<AmazonElasticLoadBalancer> {
+                                    loadBalancers: List<AmazonElasticLoadBalancer>
+  ): List<AmazonElasticLoadBalancer> {
     serverGroupProvider.getAll(
       Parameters(
         mapOf(
@@ -125,8 +141,8 @@ class AmazonLoadBalancerHandler(
     return loadBalancers
   }
 
-  private fun List<AmazonElasticLoadBalancer>.addServerGroupReferences(serverGroup: AmazonAutoScalingGroup) =
-    this.filter {
+  private fun List<AmazonElasticLoadBalancer>.addServerGroupReferences(serverGroup: AmazonAutoScalingGroup)
+    = filter {
       (serverGroup.details["loadBalancerNames"] as List<*>).contains(it.name)
     }.map { elb ->
         elb.details["serverGroups"] = elb.details["serverGroups"] ?: mutableListOf<String>()

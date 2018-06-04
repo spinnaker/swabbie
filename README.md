@@ -103,7 +103,8 @@ Work configuration is derived from the YAML configuration.
 
 #### Marking resources for deletions & Redis
 A marker agent operates on a unit of work by acquiring a simple lock to avoid operating on work in progress.
-The locking mechanism is backed by `Redis`, a `SETNX ` with a `TTL` using a key with this granularity: `$agentName:$WorkConfiguration.namespace`
+The locking mechanism is backed by a distributed redis locking manager. The granularity of the lock name is 
+`$action:$workConfiguration.namespace` and the default max duration for a lock to be kept alive is 3600s.
 
 Scheduling the cleanup of resources is done by keeping an index of visited resources in a `ZSET`, using the projected deletion time as the `score`.
 Getting elements from the `ZSET` from `-inf` to `now` will return all resources ready to be deleted.

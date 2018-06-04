@@ -26,7 +26,7 @@ import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class WorkConfigurator(
+open class WorkConfigurator(
   private val swabbieProperties: SwabbieProperties,
   private val accountProvider: AccountProvider,
   private val exclusionPolicies: List<ExclusionPolicy>
@@ -60,32 +60,41 @@ class WorkConfigurator(
         it.enabled
       }.forEach { resourceTypeConfiguration ->
           spinnakerAccounts.filter {
-            cloudProviderConfiguration.accounts.contains(it.name) && it.type.equals(cloudProviderConfiguration.name, ignoreCase = true)
+            cloudProviderConfiguration.accounts.contains(it.name) &&
+              it.type.equals(cloudProviderConfiguration.name, ignoreCase = true)
           }.forEach { account ->
               cloudProviderConfiguration.locations.forEach { location ->
-                "${cloudProviderConfiguration.name}:${account.name}:$location:${resourceTypeConfiguration.name}".let { namespace ->
-                  WorkConfiguration(
-                    namespace = namespace.toLowerCase(),
-                    account = account,
-                    location = location,
-                    cloudProvider = cloudProviderConfiguration.name,
-                    resourceType = resourceTypeConfiguration.name,
-                    retentionDays = resourceTypeConfiguration.retentionDays,
-                    exclusions = mergeExclusions(cloudProviderConfiguration.exclusions, resourceTypeConfiguration.exclusions),
-                    dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
-                    notificationConfiguration = NotificationConfiguration(
-                      notifyOwner = resourceTypeConfiguration.notifyOwner,
-                      spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,
-                      optOutUrl = swabbieProperties.optOutBaseUrl,
-                      resourcesPerNotification = cloudProviderConfiguration.resourcesPerNotification
-                    )
-                  ).let { configuration ->
-                    configuration.takeIf {
-                      !shouldExclude(account, it)
-                    }?.let {
-                        all.add(configuration)
-                      }
-                  }
+                val namespace = String.format("%s:%s:%s:%s",
+                  cloudProviderConfiguration.name,
+                  account.name,
+                  location,
+                  resourceTypeConfiguration.name
+                )
+
+                WorkConfiguration(
+                  namespace = namespace.toLowerCase(),
+                  account = account,
+                  location = location,
+                  cloudProvider = cloudProviderConfiguration.name,
+                  resourceType = resourceTypeConfiguration.name,
+                  retentionDays = resourceTypeConfiguration.retentionDays,
+                  exclusions = mergeExclusions(
+                    cloudProviderConfiguration.exclusions,
+                    resourceTypeConfiguration.exclusions
+                  ),
+                  dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
+                  notificationConfiguration = NotificationConfiguration(
+                    notifyOwner = resourceTypeConfiguration.notifyOwner,
+                    spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,
+                    optOutUrl = swabbieProperties.optOutBaseUrl,
+                    resourcesPerNotification = cloudProviderConfiguration.resourcesPerNotification
+                  )
+                ).let { configuration ->
+                  configuration.takeIf {
+                    !shouldExclude(account, it)
+                  }?.let {
+                      all.add(configuration)
+                    }
                 }
               }
             }

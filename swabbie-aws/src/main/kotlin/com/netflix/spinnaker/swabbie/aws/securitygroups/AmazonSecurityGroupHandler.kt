@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.securitygroups
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.echo.Notifier
@@ -30,6 +31,7 @@ import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
+import java.util.*
 
 //TODO: add rules for this handler
 @Component
@@ -42,9 +44,20 @@ class AmazonSecurityGroupHandler(
   resourceOwnerResolver: ResourceOwnerResolver<AmazonSecurityGroup>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
+  lockManager: Optional<LockManager>,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
-) : AbstractResourceTypeHandler<AmazonSecurityGroup>(registry, clock, rules, resourceTrackingRepository, exclusionPolicies, resourceOwnerResolver, notifier, applicationEventPublisher) {
+) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
+  registry,
+  clock,
+  rules,
+  resourceTrackingRepository,
+  exclusionPolicies,
+  resourceOwnerResolver,
+  notifier,
+  applicationEventPublisher,
+  lockManager
+) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
@@ -71,8 +84,9 @@ class AmazonSecurityGroupHandler(
     }
   }
 
-  override fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): AmazonSecurityGroup? =
-    securityGroupProvider.getOne(
+  override fun getUpstreamResource(markedResource: MarkedResource,
+                                   workConfiguration: WorkConfiguration
+  ): AmazonSecurityGroup? = securityGroupProvider.getOne(
       Parameters(
         mapOf(
           "groupId" to markedResource.resourceId,

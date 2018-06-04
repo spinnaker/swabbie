@@ -42,10 +42,10 @@ interface SwabbieAgent : ApplicationListener<ApplicationReadyEvent> {
 abstract class ScheduledAgent(
   private val clock: Clock,
   val registry: Registry,
-  private val agentRunner: AgentRunner,
   private val executor: AgentExecutor,
   private val discoverySupport: DiscoverySupport,
-  private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
+  private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
+  private val workConfigurator: WorkConfigurator
 ) : SwabbieAgent {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   private val failedAgentId: Id = registry.createId("swabbie.agents.failed")
@@ -53,9 +53,19 @@ abstract class ScheduledAgent(
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
 
   override fun onApplicationEvent(event: ApplicationReadyEvent?) {
+    val workConfigurations = workConfigurator.generateWorkConfigurations()
     worker.schedulePeriodically({
       discoverySupport.ifUP {
-        agentRunner.run(this)
+        initialize()
+        workConfigurations.forEach { workConfiguration ->
+          log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
+          process(
+            workConfiguration = workConfiguration,
+            onCompleteCallback = {
+              finalize(workConfiguration)
+            }
+          )
+        }
       }
     }, 0, getAgentFrequency(), TimeUnit.SECONDS)
   }
@@ -75,31 +85,21 @@ abstract class ScheduledAgent(
   }
 
   fun processForAction(action: Action, workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
-    val fn: (handler: ResourceTypeHandler<*>) -> Unit
     try {
-      when {
-        action == Action.MARK -> fn = {
-          it.mark(workConfiguration, onCompleteCallback)
+      val handlerAction: (handler: ResourceTypeHandler<*>) -> Unit = {
+        when(action) {
+          Action.MARK -> it.mark(workConfiguration, onCompleteCallback)
+          Action.NOTIFY -> it.notify(workConfiguration, onCompleteCallback)
+          Action.DELETE -> it.clean(workConfiguration, onCompleteCallback)
+          else -> log.warn("Unknown action {}", action.name)
         }
-        action == Action.DELETE -> fn = {
-          it.clean(workConfiguration, onCompleteCallback)
-        }
-
-        action == Action.NOTIFY -> fn = {
-          it.notify(workConfiguration, onCompleteCallback)
-        }
-        else -> throw IllegalArgumentException("Unsupported action $action")
       }
 
       resourceTypeHandlers.find { handler ->
         handler.handles(workConfiguration)
-      }.let { handler ->
-          if (handler == null) {
-            throw IllegalStateException("No Suitable handler found for $action with $workConfiguration")
-          } else {
-            executor.execute {
-              fn.invoke(handler)
-            }
+      }?.let { handler ->
+          executor.execute {
+            handlerAction.invoke(handler)
           }
         }
     } catch (e: Exception) {

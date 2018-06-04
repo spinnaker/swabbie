@@ -37,12 +37,12 @@ import java.util.concurrent.atomic.AtomicReference
 @ConditionalOnExpression("\${swabbie.agents.notify.enabled}")
 class NotificationAgent(
   registry: Registry,
-  agentRunner: AgentRunner,
   discoverySupport: DiscoverySupport,
   executor: AgentExecutor,
   resourceTypeHandlers: List<ResourceTypeHandler<*>>,
+  workConfigurator: WorkConfigurator,
   private val clock: Clock
-) : ScheduledAgent(clock, registry, agentRunner, executor, discoverySupport, resourceTypeHandlers) {
+) : ScheduledAgent(clock, registry, executor, discoverySupport, resourceTypeHandlers, workConfigurator) {
   @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
   private var interval: Long = 3600
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())

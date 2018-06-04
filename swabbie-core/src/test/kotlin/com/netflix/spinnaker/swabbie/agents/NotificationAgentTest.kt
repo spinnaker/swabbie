@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
+import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -27,21 +28,21 @@ object NotificationAgentTest {
   private val clock = Clock.systemDefaultZone()
   private val executor = AgentExecutor(BlockingThreadExecutor())
   private val onCompleteCallback = {}
+  private val workConfigurator = mock<WorkConfigurator>()
 
   @Test
   fun `should not notify if no handler found`() {
     val configuration = workConfiguration()
     val resourceTypeHandler = mock<ResourceTypeHandler<*>>()
-
     whenever(resourceTypeHandler.handles(configuration)) doReturn false
 
     NotificationAgent(
       registry = NoopRegistry(),
-      agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
       clock = clock,
-      resourceTypeHandlers = listOf(resourceTypeHandler)
+      resourceTypeHandlers = listOf(resourceTypeHandler),
+      workConfigurator = workConfigurator
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).notify(any(), any())
@@ -53,14 +54,13 @@ object NotificationAgentTest {
     val resourceTypeHandler = mock<ResourceTypeHandler<*>>()
 
     whenever(resourceTypeHandler.handles(configuration)) doReturn true
-
     NotificationAgent(
       registry = NoopRegistry(),
-      agentRunner = mock(),
       discoverySupport = mock(),
       executor = executor,
       resourceTypeHandlers = listOf(resourceTypeHandler),
-      clock = clock
+      clock = clock,
+      workConfigurator = workConfigurator
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, atMost(maxNumberOfInvocations = 1)).notify(

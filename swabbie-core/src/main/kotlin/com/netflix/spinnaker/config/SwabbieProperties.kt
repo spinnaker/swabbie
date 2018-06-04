@@ -34,7 +34,9 @@ class CloudProviderConfiguration {
   var resourceTypes: List<ResourceTypeConfiguration> = mutableListOf()
   var resourcesPerNotification: Int = 10
   override fun toString(): String {
-    return "CloudProviderConfiguration(exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes, resourcesPerNotification=$resourcesPerNotification)"
+    return "CloudProviderConfiguration(" +
+      "exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes, " +
+      "resourcesPerNotification=$resourcesPerNotification)"
   }
 
 }

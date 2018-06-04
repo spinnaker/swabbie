@@ -44,7 +44,7 @@ class AmazonSecurityGroupHandler(
   resourceOwnerResolver: ResourceOwnerResolver<AmazonSecurityGroup>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  lockManager: Optional<LockManager>,
+  lockingService: Optional<LockingService>,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
 ) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
@@ -56,7 +56,7 @@ class AmazonSecurityGroupHandler(
   resourceOwnerResolver,
   notifier,
   applicationEventPublisher,
-  lockManager
+  lockingService
 ) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->

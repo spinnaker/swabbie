@@ -18,14 +18,23 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.LockingConfigurationProperties
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.lock.RedisLockManager
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Clock
+import java.time.Duration
+import java.util.*
 
 @Configuration
-open class LockingConfiguration {
+@ConditionalOnProperty("locking.enabled")
+@EnableConfigurationProperties(LockingConfigurationProperties::class)
+open class LockingConfiguration(
+  private val lockingConfigurationProperties: LockingConfigurationProperties
+) {
   @Bean
   open fun lockManager(
     clock: Clock,
@@ -34,11 +43,17 @@ open class LockingConfiguration {
     mainRedisClient: RedisClientDelegate
   ): RedisLockManager {
     return RedisLockManager(
-      "swabbie",
+      null, //Will default to node name
       clock,
       registry,
       objectMapper,
-      mainRedisClient
+      mainRedisClient,
+      Optional.of(lockingConfigurationProperties.heartbeatRateMillis),
+      Optional.of(lockingConfigurationProperties.leaseDurationMillis)
     )
   }
+
+  internal val RedisLockManager.swabbieLockDuration: Duration
+    get() = Duration.ofSeconds(lockingConfigurationProperties.maximumLockDurationMillis!!)
 }
+

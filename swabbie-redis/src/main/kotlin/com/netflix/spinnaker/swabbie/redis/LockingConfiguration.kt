@@ -21,12 +21,13 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.LockingConfigurationProperties
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.lock.RedisLockManager
+import com.netflix.spinnaker.kork.lock.LockManager
+import com.netflix.spinnaker.swabbie.LockingService
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Clock
-import java.time.Duration
 import java.util.*
 
 @Configuration
@@ -35,6 +36,12 @@ import java.util.*
 open class LockingConfiguration(
   private val lockingConfigurationProperties: LockingConfigurationProperties
 ) {
+
+  @Bean
+  open fun lockingService(lockManager: LockManager): LockingService {
+    return LockingService(lockManager, lockingConfigurationProperties)
+  }
+
   @Bean
   open fun lockManager(
     clock: Clock,
@@ -52,8 +59,5 @@ open class LockingConfiguration(
       Optional.of(lockingConfigurationProperties.leaseDurationMillis)
     )
   }
-
-  internal val RedisLockManager.swabbieLockDuration: Duration
-    get() = Duration.ofSeconds(lockingConfigurationProperties.maximumLockDurationMillis!!)
 }
 

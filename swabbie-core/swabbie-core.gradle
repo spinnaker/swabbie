@@ -19,14 +19,14 @@ dependencies {
   compile "org.slf4j:slf4j-api:1.7.+"
   compile "com.netflix.spinnaker.kork:kork-core:+"
   compile "net.logstash.logback:logstash-logback-encoder:4.+"
-  testCompile "com.squareup.retrofit:retrofit-mock:1.9.+"
 
-  compile "com.fasterxml.jackson.core:jackson-databind:2.9.+"
-  compile "com.fasterxml.jackson.core:jackson-annotations:2.9.+"
+  compile "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
+  compile "com.fasterxml.jackson.core:jackson-annotations:$jacksonVersion"
 
-  compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+"
+  compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion"
   compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.+"
   compile spinnaker.dependency("rxJava")
 
+  testCompile "com.squareup.retrofit:retrofit-mock:1.9.+"
   testCompile project(":swabbie-test")
 }

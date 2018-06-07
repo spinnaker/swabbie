@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.retrofit
 
+import com.netflix.spinnaker.config.OkHttp3ClientConfiguration
 import com.netflix.spinnaker.config.OkHttpClientConfiguration
 import com.squareup.okhttp.ConnectionPool
 import com.squareup.okhttp.Interceptor
@@ -33,7 +34,7 @@ import retrofit.client.OkClient
 
 
 @Configuration
-@Import(OkHttpClientConfiguration::class)
+@Import(OkHttp3ClientConfiguration::class)
 @EnableConfigurationProperties
 open class SwabbieRetrofitConfiguration {
 

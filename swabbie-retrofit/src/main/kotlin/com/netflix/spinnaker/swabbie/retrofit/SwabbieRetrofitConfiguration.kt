@@ -16,7 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.retrofit
 
-import com.netflix.spinnaker.config.OkHttp3ClientConfiguration
 import com.netflix.spinnaker.config.OkHttpClientConfiguration
 import com.squareup.okhttp.ConnectionPool
 import com.squareup.okhttp.Interceptor
@@ -34,7 +33,7 @@ import retrofit.client.OkClient
 
 
 @Configuration
-@Import(OkHttp3ClientConfiguration::class)
+@Import(OkHttpClientConfiguration::class)
 @EnableConfigurationProperties
 open class SwabbieRetrofitConfiguration {
 
@@ -54,9 +53,10 @@ open class SwabbieRetrofitConfiguration {
 
   @Bean(name = arrayOf("retrofitClient", "okClient"))
   @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-  open fun retrofitClient(@Qualifier("okHttpClientConfiguration") okHttpClientConfig: OkHttpClientConfiguration): OkClient {
-    val userAgent = "Spinnaker-${System.getProperty("spring.application.name", "unknown")}/${javaClass.`package`.implementationVersion
-      ?: "1.0"}"
+  open fun retrofitClient(
+    @Qualifier("okHttpClientConfiguration") okHttpClientConfig: OkHttpClientConfiguration): OkClient {
+    val userAgent = "Spinnaker-${System.getProperty("spring.application.name", "unknown")}/" +
+      (javaClass.`package`.implementationVersion ?: "1.0")
     val cfg = okHttpClientConfig.create().apply {
       networkInterceptors().add(Interceptor { chain ->
         chain.proceed(chain.request().newBuilder()
@@ -72,6 +72,7 @@ open class SwabbieRetrofitConfiguration {
   }
 
   @Bean
-  open fun retrofitLogLevel(@Value("\${retrofit.logLevel:BASIC}") retrofitLogLevel: String) = RestAdapter.LogLevel.valueOf(retrofitLogLevel)
+  open fun retrofitLogLevel(@Value("\${retrofit.logLevel:BASIC}") retrofitLogLevel: String)
+    = RestAdapter.LogLevel.valueOf(retrofitLogLevel)
 }
 

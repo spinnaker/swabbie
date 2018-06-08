@@ -128,4 +128,8 @@ It's also possible to turn on dryRun at a resource type level
 Resources can be excluded/opted out from consideration using exclusion policies.
 
 - `ResourceExclusionPolicy`: Excludes resources at runtime
-- TODO
+
+
+#### Whitelisting
+Whitelisting is part of the exclusion mechanism. When defined, only resources whitelisted will be considered, 
+skipping everything else not whitelisted. 

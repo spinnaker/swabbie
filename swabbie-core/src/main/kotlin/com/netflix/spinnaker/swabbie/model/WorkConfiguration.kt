@@ -37,4 +37,9 @@ open class NotificationConfiguration(
   val spinnakerResourceUrl: String
 )
 
-class EmptyNotificationConfiguration : NotificationConfiguration(false, "", 0, "")
+class EmptyNotificationConfiguration : NotificationConfiguration(
+  false,
+  "",
+  0,
+  ""
+)

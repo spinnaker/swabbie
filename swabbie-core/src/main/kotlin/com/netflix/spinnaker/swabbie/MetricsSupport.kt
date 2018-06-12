@@ -5,14 +5,11 @@ import com.netflix.spectator.api.LongTaskTimer
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 
-open class AgentMetricsSupport(
+open class MetricsSupport(
   private val registry: Registry
 ) {
-  protected val log: Logger = LoggerFactory.getLogger(javaClass)
   protected val resourcesExcludedCounter = AtomicInteger(0)
   protected val markDurationTimer: LongTaskTimer = registry.longTaskTimer("swabbie.resources.mark.duration")
   protected val resourcesVisitedId: Id = registry.createId("swabbie.resources.visited")
@@ -22,11 +19,19 @@ open class AgentMetricsSupport(
   private val resourcesExcludedId: Id = registry.createId("swabbie.resources.excluded")
   private val resourceFailureId: Id = registry.createId("swabbie.resources.failures")
   private val candidatesCountId: Id = registry.createId("swabbie.resources.candidatesCount")
+
+  protected val markCountId: Id = registry.createId("swabbie.resources.markCount")
+  protected val unMarkCountId: Id = registry.createId("swabbie.resources.unMarkCount")
+  protected val deleteCountId: Id = registry.createId("swabbie.resources.deleteCount")
+  protected val notifyCountId: Id = registry.createId("swabbie.resources.notifyCount")
+
+  protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
+  protected val lastRunAgeId: Id = registry.createId("swabbie.agents.run.age")
+
   protected fun recordMarkMetrics(markerTimerId: Long,
                                   workConfiguration: WorkConfiguration,
                                   violationCounter: AtomicInteger,
                                   candidateCounter: AtomicInteger) {
-    log.info("Found {} clean up candidates with configuration {}", candidateCounter.get(), workConfiguration)
     markDurationTimer.stop(markerTimerId)
     registry.gauge(
       candidatesCountId.withTags(
@@ -51,7 +56,6 @@ open class AgentMetricsSupport(
   }
 
   protected fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {
-    log.error("Failed while invoking $javaClass", e)
     registry.counter(
       resourceFailureId.withTags(
         "action", action.name,

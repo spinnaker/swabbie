@@ -16,7 +16,6 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.agents.AgentExecutor
 import com.netflix.spinnaker.swabbie.events.Action
@@ -46,10 +45,8 @@ abstract class ScheduledAgent(
   private val discoverySupport: DiscoverySupport,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   private val workConfigurator: WorkConfigurator
-) : SwabbieAgent {
-  protected val log: Logger = LoggerFactory.getLogger(javaClass)
-  private val failedAgentId: Id = registry.createId("swabbie.agents.failed")
-  private val lastRunAgeId: Id = registry.createId("swabbie.agents.${javaClass.simpleName}.run.age")
+) : SwabbieAgent, MetricsSupport(registry) {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
 
   override fun onApplicationEvent(event: ApplicationReadyEvent?) {
@@ -77,7 +74,7 @@ abstract class ScheduledAgent(
   @PostConstruct
   private fun init() {
     log.info("Initializing agent ${javaClass.simpleName}")
-    registry.gauge(lastRunAgeId, this, {
+    registry.gauge(lastRunAgeId.withTag("agentName", javaClass.simpleName), this, {
       Duration
         .between(it.getLastAgentRun(), clock.instant())
         .toMillis().toDouble()

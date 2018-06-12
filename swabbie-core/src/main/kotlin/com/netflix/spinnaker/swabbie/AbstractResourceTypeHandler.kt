@@ -23,6 +23,8 @@ import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.time.*
 import java.time.temporal.ChronoUnit
@@ -39,7 +41,8 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val notifier: Notifier,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val lockingService: Optional<LockingService>
-) : ResourceTypeHandler<T>, AgentMetricsSupport(registry) {
+) : ResourceTypeHandler<T>, MetricsSupport(registry) {
+  protected val log: Logger = LoggerFactory.getLogger(javaClass)
 
   /**
    * finds & tracks cleanup candidates
@@ -154,8 +157,10 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         }
       }
     } catch (e: Exception) {
+      log.error("Failed while invoking $javaClass", e)
       recordFailureForAction(Action.MARK, workConfiguration, e)
     } finally {
+      log.info("Found {} clean up candidates with configuration {}", candidateCounter.get(), workConfiguration)
       recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
       postMark.invoke()
     }

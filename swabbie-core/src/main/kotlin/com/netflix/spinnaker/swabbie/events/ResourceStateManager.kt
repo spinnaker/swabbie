@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.MarkedResource
@@ -35,7 +36,7 @@ class ResourceStateManager(
   private val clock: Clock,
   private val registry: Registry,
   @Autowired(required = false) private val resourceTagger: ResourceTagger?
-) {
+) : MetricsSupport(registry) {
 
   @EventListener
   fun handleEvents(event: Event) {
@@ -46,7 +47,8 @@ class ResourceStateManager(
     when (event) {
       is MarkResourceEvent -> {
         id = markCountId
-        msg = "${event.markedResource.typeAndName()} scheduled to be cleaned up on ${event.markedResource.humanReadableDeletionTime(clock)}"
+        msg = "${event.markedResource.typeAndName()} scheduled to be cleaned up on " +
+          "${event.markedResource.humanReadableDeletionTime(clock)}"
       }
 
       is UnMarkResourceEvent -> {
@@ -62,7 +64,8 @@ class ResourceStateManager(
       is OwnerNotifiedEvent -> {
         id = notifyCountId
         removeTag = false
-        msg = "Notified ${event.markedResource.notificationInfo?.recipient} about soon to be cleaned up ${event.markedResource.typeAndName()}"
+        msg = "Notified ${event.markedResource.notificationInfo?.recipient} about soon to be cleaned up " +
+          event.markedResource.typeAndName()
       }
     }
 
@@ -118,12 +121,9 @@ class ResourceStateManager(
       }
     }
   }
-
-  private val markCountId = registry.createId("swabbie.resources.markCount")
-  private val unMarkCountId = registry.createId("swabbie.resources.unMarkCount")
-  private val deleteCountId = registry.createId("swabbie.resources.deleteCount")
-  private val notifyCountId = registry.createId("swabbie.resources.notifyCount")
 }
 
-internal fun MarkedResource.typeAndName(): String = this.resourceType.split("(?=[A-Z])".toRegex()).joinToString(" ") + ": " + this.name
-internal fun String.formatted(): String = this.split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()
+internal fun MarkedResource.typeAndName(): String
+  = this.resourceType.split("(?=[A-Z])".toRegex()).joinToString(" ") + ": " + this.name
+internal fun String.formatted(): String
+  = this.split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()

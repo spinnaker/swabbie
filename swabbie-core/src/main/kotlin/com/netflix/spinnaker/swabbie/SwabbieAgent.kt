@@ -81,7 +81,8 @@ abstract class ScheduledAgent(
     })
   }
 
-  fun processForAction(action: Action, workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
+  override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
+    val action = getAction()
     try {
       val handlerAction: (handler: ResourceTypeHandler<*>) -> Unit = {
         when(action) {
@@ -112,4 +113,5 @@ abstract class ScheduledAgent(
 
   abstract fun getLastAgentRun(): Temporal?
   abstract fun getAgentFrequency(): Long
+  abstract fun getAction(): Action
 }

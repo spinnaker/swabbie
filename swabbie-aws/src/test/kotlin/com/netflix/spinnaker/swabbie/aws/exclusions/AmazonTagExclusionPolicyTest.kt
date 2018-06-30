@@ -50,7 +50,7 @@ object AmazonTagExclusionPolicyTest {
     )
 
     resources.filter {
-      !AmazonTagExclusionPolicy().apply(it, exclusions)
+      AmazonTagExclusionPolicy().apply(it, exclusions) == null
     }.let { filteredResources ->
         filteredResources.size shouldMatch equalTo(1)
         filteredResources.first().resourceId shouldMatch equalTo("2")

@@ -20,40 +20,35 @@ import com.fasterxml.jackson.annotation.JsonAnyGetter
 import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonTypeName
-import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
-import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 
 /** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"
+const val IMAGE = "image"
+const val INSTANCE = "instance"
 const val LOAD_BALANCER = "loadBalancer"
 const val SERVER_GROUP = "serverGroup"
+const val LAUNCH_CONFIGURATION = "launchConfiguration"
 
 /** Provider Types **/
 const val AWS = "aws"
 
 const val RESOURCE_TYPE_INFO_FIELD = "swabbieTypeInfo"
+const val NAIVE_EXCLUSION = "swabbieNaiveExclusion"
 
 /**
  * subtypes specify type by annotating with JsonTypeName
  * Represents a resource that swabbie can visit and act on
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-abstract class Resource : Identifiable, Excludable, HasDetails() {
+abstract class Resource : Excludable, HasDetails() {
   /**
    * requires all subtypes to be annotated with JsonTypeName
    */
   val swabbieTypeInfo: String = javaClass.getAnnotation(JsonTypeName::class.java).value
-
-  /**
-   * Determines if a resource should be spared by Swabbie
-   */
-  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean =
-    exclusionPolicies.find { it.apply(this, exclusions) } != null
-
 
   fun withDetail(name: String, value: Any?): Resource =
     this.apply {
@@ -71,6 +66,10 @@ abstract class Resource : Identifiable, Excludable, HasDetails() {
   override fun hashCode(): Int {
     return super.hashCode() + this.resourceType.hashCode() + this.resourceId.hashCode()
   }
+
+  override fun toString(): String {
+    return details.toString()
+  }
 }
 
 /**
@@ -86,6 +85,10 @@ abstract class HasDetails {
 
   @JsonAnyGetter
   fun details() = details
+
+  override fun toString(): String {
+    return "HasDetails(details=$details)"
+  }
 }
 
 interface Identifiable : Named {
@@ -95,7 +98,7 @@ interface Identifiable : Named {
 }
 
 interface Named {
-  val name: String
+  val name: String?
 }
 
 /**

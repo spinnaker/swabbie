@@ -14,12 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.agents
+package com.netflix.spinnaker.swabbie.aws.instances
 
-import org.springframework.stereotype.Component
-import java.util.concurrent.Executor
+import com.fasterxml.jackson.annotation.JsonTypeName
+import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.INSTANCE
 
-@Component
-class AgentExecutor(
-  private val taskExecutor: Executor
-) : Executor by taskExecutor
+@JsonTypeName("amazonInstance")
+data class AmazonInstance(
+  private val instanceId: String,
+  val imageId: String,
+  override val resourceId: String = instanceId,
+  override val resourceType: String = INSTANCE,
+  override val cloudProvider: String = AWS,
+  override val name: String = instanceId
+) : AmazonResource()
+

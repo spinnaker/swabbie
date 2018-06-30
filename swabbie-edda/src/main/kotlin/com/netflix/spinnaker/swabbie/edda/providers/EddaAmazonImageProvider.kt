@@ -1,0 +1,67 @@
+package com.netflix.spinnaker.swabbie.edda.providers
+
+import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.EddaApiClient
+import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
+import com.netflix.spinnaker.swabbie.edda.EddaService
+import com.netflix.spinnaker.swabbie.model.IMAGE
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
+import retrofit.RetrofitError
+
+@Component
+open class EddaAmazonImageProvider(
+  private val eddaApiClients: List<EddaApiClient>,
+  private val retrySupport: RetrySupport,
+  private val registry: Registry
+) : ResourceProvider<AmazonImage>, EddaApiSupport(eddaApiClients, registry) {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+
+  override fun getAll(params: Parameters): List<AmazonImage>? {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+      return getAmis()
+    }
+  }
+
+  override fun getOne(params: Parameters): AmazonImage? {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+      return getAmi(params["imageId"] as String)
+    }
+  }
+
+  private fun EddaService.getAmis(): List<AmazonImage> {
+    return try {
+      retrySupport.retry({
+        this.getImages()
+      }, maxRetries, retryBackOffMillis, true)
+    } catch (e: Exception) {
+      registry.counter(eddaFailureCountId.withTags("resourceType", IMAGE)).increment()
+      log.error("failed to get images", e)
+      throw e
+    }
+  }
+
+  private fun EddaService.getAmi(imageId: String): AmazonImage? {
+    return try {
+      retrySupport.retry({
+        try {
+          this.getImage(imageId)
+        } catch (e: Exception) {
+          if (e is RetrofitError && e.response.status == 404) {
+            null
+          } else {
+            throw e
+          }
+        }
+      }, maxRetries, retryBackOffMillis, false)
+    } catch (e: Exception) {
+      registry.counter(eddaFailureCountId.withTags("resourceType", IMAGE)).increment()
+      log.error("failed to get image {}", imageId, e)
+      throw e
+    }
+  }
+}

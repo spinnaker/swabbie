@@ -19,7 +19,8 @@ package com.netflix.spinnaker.swabbie
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.*
-import com.netflix.spinnaker.swabbie.exclusions.AccountNameExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
@@ -40,8 +41,22 @@ object WorkConfiguratorTest {
 
     whenever(accountProvider.getAccounts()) doReturn
       setOf(
-        SpinnakerAccount(name = "test", accountId = "testId", type = "aws"),
-        SpinnakerAccount(name = "testTitus", accountId = "prodId", type = "titus")
+        SpinnakerAccount(
+          name = "test",
+          accountId = "testId",
+          type = "aws",
+          edda = "",
+          regions = emptyList(),
+          eddaEnabled = false
+        ),
+        SpinnakerAccount(
+          name = "testTitus",
+          accountId = "prodId",
+          type = "titus",
+          edda = "",
+          regions = emptyList(),
+          eddaEnabled = false
+        )
       )
 
     workConfigurator.getAccounts().size shouldMatch equalTo(2)
@@ -76,8 +91,22 @@ object WorkConfiguratorTest {
 
     whenever(accountProvider.getAccounts()) doReturn
       setOf(
-        SpinnakerAccount(name = "test", accountId = "testId", type = "aws"),
-        SpinnakerAccount(name = "testTitus", accountId = "prodId", type = "titus")
+        SpinnakerAccount(
+          name = "test",
+          accountId = "testId",
+          type = "aws",
+          edda = "",
+          regions = listOf(Region(name = "us-east-1")),
+          eddaEnabled = true
+        ),
+        SpinnakerAccount(
+          name = "testTitus",
+          accountId = "prodId",
+          type = "titus",
+          edda = "",
+          regions = listOf(Region(name = "us-east-1")),
+          eddaEnabled = true
+        )
       )
 
     workConfigurator.generateWorkConfigurations().let { workConfigurations ->
@@ -127,7 +156,7 @@ object WorkConfiguratorTest {
               dryRun = false
               exclusions = mutableListOf(
                 Exclusion()
-                  .withType(ExclusionType.AccountName.toString())
+                  .withType(ExclusionType.Account.toString())
                   .withAttributes(
                     listOf(
                       Attribute()
@@ -147,17 +176,32 @@ object WorkConfiguratorTest {
     val workConfigurator = WorkConfigurator(
       swabbieProperties = swabbieProperties,
       accountProvider = accountProvider,
-      exclusionPolicies = listOf(AccountNameExclusionPolicy())
+      exclusionPolicies = listOf(AccountExclusionPolicy())
     )
 
     whenever(accountProvider.getAccounts()) doReturn
       setOf(
-        SpinnakerAccount(name = "test", accountId = "testId", type = "aws"),
-        SpinnakerAccount(name = "testTitus", accountId = "prodId", type = "titus")
+        SpinnakerAccount(
+          name = "test",
+          accountId = "testId",
+          type = "aws",
+          edda = "",
+          regions = listOf(Region(name = "us-east-1")),
+          eddaEnabled = false
+        ),
+        SpinnakerAccount(
+          name = "testTitus",
+          accountId = "prodId",
+          type = "titus",
+          edda = "",
+          regions = listOf(Region(name = "us-east-1")),
+          eddaEnabled = false
+        )
       )
 
     workConfigurator.generateWorkConfigurations().let { workConfigurations ->
-      assertEquals(workConfigurations.size, 2, "excludes disabled securityGroup & ami because of the account exclusion by name")
+      assertEquals(workConfigurations.size, 2,
+        "excludes disabled securityGroup & ami because of the account exclusion by name")
       with(workConfigurations[0]) {
         assertEquals("aws:test:us-east-1:loadbalancer", namespace, "granularity")
         assertEquals(false, dryRun, "dryRun is false")

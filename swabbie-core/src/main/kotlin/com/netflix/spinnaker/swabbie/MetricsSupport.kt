@@ -1,8 +1,24 @@
+/*
+ * Copyright 2018 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License")
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.spinnaker.swabbie
 
 import com.netflix.spectator.api.Id
-import com.netflix.spectator.api.LongTaskTimer
 import com.netflix.spectator.api.Registry
+import com.netflix.spectator.api.patterns.LongTaskTimer
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.util.concurrent.atomic.AtomicInteger
@@ -10,8 +26,13 @@ import java.util.concurrent.atomic.AtomicInteger
 open class MetricsSupport(
   private val registry: Registry
 ) {
-  protected val resourcesExcludedCounter = AtomicInteger(0)
-  protected val markDurationTimer: LongTaskTimer = registry.longTaskTimer("swabbie.resources.mark.duration")
+  protected val excludedResourcesDuringMarkCounter = AtomicInteger(0)
+  protected val excludedResourcesDuringDeleteCounter = AtomicInteger(0)
+
+  protected val markDurationTimer: LongTaskTimer = LongTaskTimer.get(
+    registry, registry.createId("swabbie.resources.mark.duration")
+  )
+
   protected val resourcesVisitedId: Id = registry.createId("swabbie.resources.visited")
   protected val noxtificationsId: Id = registry.createId("swabbie.resources.notifications")
 
@@ -52,7 +73,7 @@ open class MetricsSupport(
         "resourceType", workConfiguration.resourceType,
         "configuration", workConfiguration.namespace,
         "resourceTypeHandler", javaClass.simpleName
-      )).set(resourcesExcludedCounter.toDouble())
+      )).set(excludedResourcesDuringMarkCounter.toDouble())
   }
 
   protected fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {

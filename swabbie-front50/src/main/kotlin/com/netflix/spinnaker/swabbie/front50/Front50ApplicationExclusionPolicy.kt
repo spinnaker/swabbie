@@ -23,40 +23,33 @@ import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Application
-import com.netflix.spinnaker.swabbie.model.Resource
 import org.springframework.stereotype.Component
 
 @Component
 class Front50ApplicationExclusionPolicy(
   private val front50ApplicationCache: InMemoryCache<Application>
 ) : ResourceExclusionPolicy {
-  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
-    val derivedApp: String? = FriggaReflectiveNamer().deriveMoniker(excludable).app?.toLowerCase()
-    if (excludable is Resource && derivedApp != null) {
-      whitelist(exclusions, ExclusionType.Application).let { list ->
-        if (!list.isEmpty()) {
-          if (!list.contains(derivedApp) && list.find { derivedApp.matchPattern(it) } == null) {
-            log.info("Skipping {} because {} not in provided application whitelist", excludable.name, derivedApp)
-            return true
-          }
-        }
+  private fun findApplication(excludable: Excludable, names: Set<String>): Excludable? {
+    FriggaReflectiveNamer().deriveMoniker(excludable).app?.toLowerCase()?.let { appName ->
+      return front50ApplicationCache.get().find { matchesApplication(it, appName, names) }
+    }
+
+    return null
+  }
+
+  private fun matchesApplication(application: Application, name: String, names: Set<String>): Boolean {
+    return application.name.equals(name, ignoreCase = true) ||
+      names.any { it.equals(application.name, ignoreCase = true) || application.name.matchPattern(it) }
+  }
+
+  override fun getType(): ExclusionType = ExclusionType.Application
+  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
+    keysAndValues(exclusions, ExclusionType.Whitelist).let { kv ->
+      findApplication(excludable, kv.values.flatten().toSet())?.let {
+        return byPropertyMatchingResult(exclusions, it)
       }
     }
 
-    keysAndValues(exclusions, ExclusionType.Application).let { map ->
-      front50ApplicationCache.get().find { it.name.equals(derivedApp, ignoreCase = true) }?.let {
-        if (map["name"] != null && map["name"]!!.contains(it.name)) {
-          log.info("Skipping {} excluded by name", excludable.name)
-          return true
-        }
-
-        if (map["email"] != null && map["email"]!!.contains(it.email)) {
-          log.info("Skipping {} excluded by email", excludable.name)
-          return true
-        }
-      }
-    }
-
-    return false
+    return null
   }
 }

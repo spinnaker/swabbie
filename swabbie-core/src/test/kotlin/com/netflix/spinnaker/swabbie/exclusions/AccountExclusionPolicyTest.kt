@@ -29,7 +29,7 @@ object AccountExclusionPolicyTest {
   fun `should exclude accounts by name`() {
     val exclusions = listOf(
       Exclusion()
-        .withType(ExclusionType.AccountName.toString())
+        .withType(ExclusionType.Account.toString())
         .withAttributes(
           listOf(
             Attribute()
@@ -42,13 +42,34 @@ object AccountExclusionPolicyTest {
     )
 
     val accounts = listOf(
-      SpinnakerAccount(name = "test", accountId = "1", type = "aws"),
-      SpinnakerAccount(name = "testing", accountId = "2", type = "aws"),
-      SpinnakerAccount(name = "titustest", accountId = "2", type = "titus")
+      SpinnakerAccount(
+        name = "test",
+        accountId = "1",
+        type = "aws",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false
+      ),
+      SpinnakerAccount(
+        name = "testing",
+        accountId = "2",
+        type = "aws",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false
+      ),
+      SpinnakerAccount(
+        name = "titustest",
+        accountId = "2",
+        type = "titus",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false
+      )
     )
 
     accounts.filter {
-      !AccountNameExclusionPolicy().apply(it, exclusions)
+      AccountExclusionPolicy().apply(it, exclusions) == null
     }.let { filteredAccounts ->
         filteredAccounts.size shouldMatch equalTo(1)
         filteredAccounts.first().name shouldMatch equalTo("testing")
@@ -59,7 +80,7 @@ object AccountExclusionPolicyTest {
   fun `should exclude accounts by type`() {
     val exclusions = listOf(
       Exclusion()
-        .withType(ExclusionType.AccountType.toString())
+        .withType(ExclusionType.Account.toString())
         .withAttributes(
           listOf(
             Attribute()
@@ -72,14 +93,42 @@ object AccountExclusionPolicyTest {
     )
 
     val accounts = listOf(
-      SpinnakerAccount(name = "test", accountId = "1", type = "aws"),
-      SpinnakerAccount(name = "testing", accountId = "2", type = "aws"),
-      SpinnakerAccount(name = "titustest", accountId = "3", type = "titus"),
-      SpinnakerAccount(name = "other", accountId = "4", type = "other")
+      SpinnakerAccount(
+        name = "test",
+        accountId = "1",
+        type = "aws",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false
+      ),
+      SpinnakerAccount(
+        name = "testing",
+        accountId = "2",
+        type = "aws",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false
+      ),
+      SpinnakerAccount(
+        name = "titustest",
+        accountId = "3",
+        type = "titus",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false
+      ),
+      SpinnakerAccount(
+        name = "other",
+        accountId = "4",
+        type = "other",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false
+      )
     )
 
     accounts.filter {
-      !AccountTypeExclusionPolicy().apply(it, exclusions)
+      AccountExclusionPolicy().apply(it, exclusions) == null
     }.let { filteredAccounts ->
         filteredAccounts.size shouldMatch equalTo(1)
         filteredAccounts.first().type shouldMatch equalTo("other")

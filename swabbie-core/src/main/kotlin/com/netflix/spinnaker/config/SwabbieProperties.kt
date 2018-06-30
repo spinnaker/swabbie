@@ -38,7 +38,6 @@ class CloudProviderConfiguration {
       "exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes, " +
       "resourcesPerNotification=$resourcesPerNotification)"
   }
-
 }
 
 class Exclusion {
@@ -84,10 +83,16 @@ class Attribute {
     this.apply {
       value = v
     }
-
 }
 
-enum class ExclusionType { Name, AccountType, AccountName, Tag, Whitelist, Application }
+enum class ExclusionType {
+  Naive,
+  Literal,
+  Tag,
+  Whitelist,
+  Application,
+  Account
+}
 
 // TODO: rework this
 internal fun mergeExclusions(global: MutableList<Exclusion>?, local: MutableList<Exclusion>?): List<Exclusion> {

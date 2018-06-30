@@ -25,20 +25,23 @@ import org.springframework.stereotype.Component
 
 @Component
 class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
-  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
+  override fun getType(): ExclusionType = ExclusionType.Tag
+  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     if (excludable is AmazonResource) {
       keysAndValues(exclusions, ExclusionType.Tag)
         .let { excludingTags ->
           if ("tags" in excludable.details) {
             (excludable.details["tags"] as? List<Map<*, *>>)?.map { tag ->
-              return tag.keys.any { key ->
+              tag.keys.find { key ->
                 excludingTags[key] != null && excludingTags[key]!!.contains(tag[key])
+              }?.let { key ->
+                return patternMatchMessage(tag[key] as String, excludingTags.flatMap { it.value }.toSet())
               }
             }
           }
         }
     }
 
-    return false
+    return null
   }
 }

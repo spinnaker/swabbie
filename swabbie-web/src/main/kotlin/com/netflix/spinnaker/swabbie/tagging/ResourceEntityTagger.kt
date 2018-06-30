@@ -45,7 +45,7 @@ class ResourceEntityTagger(
             cloudProvider = markedResource.cloudProvider,
             entityId = markedResource.resourceId,
             region = workConfiguration.location,
-            account = workConfiguration.account.name
+            account = workConfiguration.account.name!!
           ),
           tags = listOf(
             EntityTag(

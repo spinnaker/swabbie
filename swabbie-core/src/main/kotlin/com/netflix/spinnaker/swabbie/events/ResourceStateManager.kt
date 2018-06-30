@@ -79,7 +79,7 @@ class ResourceStateManager(
       ).increment()
     }
 
-    if (resourceTagger != null && id != null && msg != null) {
+    if (resourceTagger != null && msg != null) {
       tag(resourceTagger, event, msg, removeTag)
     }
   }

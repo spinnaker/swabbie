@@ -29,8 +29,10 @@ swabbie:
     - name: aws
       locations:
         - us-east-1
+        - us-west-2
       accounts:
         - test
+        - prod
 
       exclusions:
         - type: Tag
@@ -46,7 +48,7 @@ swabbie:
           retentionDays: 10
           notifyOwner: true
           exclusions:
-            - type: Name
+            - type: Literal
               attributes:
                 - key: name
                   value:
@@ -63,6 +65,10 @@ swabbie:
                 - key: application
                   value:
                     - appname
+        - name: image
+          enabled: true
+          dryRun: true
+          retentionDays: 14
 
 ```
 

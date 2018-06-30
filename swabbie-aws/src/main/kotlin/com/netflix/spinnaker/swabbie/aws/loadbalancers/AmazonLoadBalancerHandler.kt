@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.loadbalancers
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
@@ -46,6 +47,7 @@ class AmazonLoadBalancerHandler(
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   lockingService: Optional<LockingService>,
+  retrySupport: RetrySupport,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
@@ -59,7 +61,8 @@ class AmazonLoadBalancerHandler(
   resourceOwnerResolver,
   notifier,
   applicationEventPublisher,
-  lockingService
+  lockingService,
+  retrySupport
 ) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
@@ -87,13 +90,13 @@ class AmazonLoadBalancerHandler(
     }
   }
 
-  override fun getUpstreamResource(markedResource: MarkedResource,
-                                   workConfiguration: WorkConfiguration
+  override fun getCandidate(markedResource: MarkedResource,
+                            workConfiguration: WorkConfiguration
   ): AmazonElasticLoadBalancer? = loadBalancerProvider.getOne(
       Parameters(
         mapOf(
-          "loadBalancerName" to markedResource.name,
-          "account" to workConfiguration.account.name,
+          "loadBalancerName" to markedResource.name!!,
+          "account" to workConfiguration.account.name!!,
           "region" to workConfiguration.location
         )
       )
@@ -102,11 +105,11 @@ class AmazonLoadBalancerHandler(
   override fun handles(workConfiguration: WorkConfiguration): Boolean
     = workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
-  override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =
+  override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =
     loadBalancerProvider.getAll(
       Parameters(
         mapOf(
-          "account" to workConfiguration.account.name,
+          "account" to workConfiguration.account.name!!,
           "region" to workConfiguration.location
         )
       )
@@ -124,7 +127,7 @@ class AmazonLoadBalancerHandler(
     serverGroupProvider.getAll(
       Parameters(
         mapOf(
-          "account" to workConfiguration.account.name,
+          "account" to workConfiguration.account.name!!,
           "region" to workConfiguration.location
         )
       )

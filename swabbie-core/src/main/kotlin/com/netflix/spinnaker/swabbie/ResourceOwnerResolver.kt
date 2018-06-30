@@ -24,11 +24,11 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
 @Component
-class ResourceOwnerResolver<in T : Resource>(
+open class ResourceOwnerResolver<in T : Resource>(
   private val registry: Registry,
   private val resourceOwnerResolutionStrategies: List<ResourceOwnerResolutionStrategy<T>>
 ) : OwnerResolver<T> {
-  @Value("\${swabbie.notify.fallbackEmail:cloudmonkeyalerts@netflix.com}")
+  @Value("\${swabbie.notify.fallbackEmail:swabbie@netflix.com}")
   private lateinit var fallbackEmail: String
 
   private val resourceOwnerId = registry.createId("swabbie.resources.owner")
@@ -39,16 +39,14 @@ class ResourceOwnerResolver<in T : Resource>(
       }.let { owners ->
           return if (!owners.isEmpty()) {
             registry.counter(resourceOwnerId.withTags("result", "found")).increment()
-            log.info("Found owner {} for {}", owners.first(), resource)
             owners.first()
           } else {
-            log.info("Could not find owner for {}. falling back on {}", resource, fallbackEmail)
             registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
             fallbackEmail
           }
         }
     } catch (e: Exception) {
-      log.info("Failed to find owner for {}. falling back on {}", resource, fallbackEmail)
+      log.info("Failed to find owner for {}. falling back on {}", resource, fallbackEmail, e)
       registry.counter(resourceOwnerId.withTags("result", "failed")).increment()
       return fallbackEmail
     }

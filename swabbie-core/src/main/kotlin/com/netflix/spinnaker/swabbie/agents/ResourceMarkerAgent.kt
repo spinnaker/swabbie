@@ -22,7 +22,6 @@ import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
@@ -53,11 +52,8 @@ class ResourceMarkerAgent(
 
   override fun getLastAgentRun(): Temporal? = lastMarkerAgentRun
   override fun getAgentFrequency(): Long = interval
+  override fun getAction(): Action = Action.MARK
   override fun initialize() {
     _lastAgentRun.set(clock.instant())
-  }
-
-  override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
-    processForAction(Action.MARK, workConfiguration, onCompleteCallback)
   }
 }

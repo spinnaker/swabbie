@@ -21,8 +21,7 @@ import com.netflix.spinnaker.swabbie.ScheduledAgent
 import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.WorkConfigurator
-import com.netflix.spinnaker.swabbie.events.Action.DELETE
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.events.Action
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
@@ -53,11 +52,8 @@ class ResourceCleanerAgent(
 
   override fun getLastAgentRun(): Temporal? = lastCleanerAgentRun
   override fun getAgentFrequency(): Long = interval
+  override fun getAction(): Action = Action.DELETE
   override fun initialize() {
     _lastAgentRun.set(clock.instant())
-  }
-
-  override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
-    processForAction(DELETE, workConfiguration, onCompleteCallback)
   }
 }

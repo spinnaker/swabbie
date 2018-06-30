@@ -51,11 +51,8 @@ class NotificationAgent(
 
   override fun getLastAgentRun(): Temporal? = lastNotifierAgentRun
   override fun getAgentFrequency(): Long = interval
+  override fun getAction(): Action = Action.NOTIFY
   override fun initialize() {
     _lastAgentRun.set(clock.instant())
-  }
-
-  override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
-    processForAction(Action.NOTIFY, workConfiguration, onCompleteCallback)
   }
 }

@@ -21,22 +21,9 @@ import com.netflix.spinnaker.config.ExclusionType
 import org.springframework.stereotype.Component
 
 @Component
-class NameExclusionPolicy : ResourceExclusionPolicy {
-  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): Boolean {
-    whitelist(exclusions, ExclusionType.Name).let { list ->
-      if (!list.isEmpty() && !list.contains(excludable.name) && list.find { excludable.name.matchPattern(it) } == null) {
-        log.info("Skipping {} because not in provided whitelist", excludable.name)
-        return true
-      }
-    }
-
-    values(exclusions, ExclusionType.Name).let { names ->
-      if (names.size == 1 && names[0] == "\\*") {
-        // wildcard
-        return true
-      }
-
-      return names.find { it.equals(excludable.name, ignoreCase = true) || excludable.name.matchPattern(it) } != null
-    }
+class LiteralExclusionPolicy : ResourceExclusionPolicy {
+  override fun getType(): ExclusionType = ExclusionType.Literal
+  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
+    return byPropertyMatchingResult(exclusions, excludable)
   }
 }

@@ -16,33 +16,53 @@
 
 package com.netflix.spinnaker.swabbie.model
 
-import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.swabbie.Cacheable
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
-import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 
 interface Account : Excludable {
   val accountId: String?
+  val eddaEnabled: Boolean
+  val edda: String?
   val type: String
+  val regions: List<Region>?
 }
+
+data class Region(
+  val deprecated: Boolean = false,
+  val name: String
+)
 
 /**
  * An account managed by Spinnaker
  */
 data class SpinnakerAccount(
+  override val eddaEnabled: Boolean,
   override val accountId: String?,
   override val type: String,
-  override val name: String
-) : Account, Cacheable {
-  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean {
-    return exclusionPolicies.find { it.apply(this, exclusions) } != null
-  }
+  override val name: String,
+  override val edda: String?,
+  override val regions: List<Region>?
+) : Account, Cacheable, HasDetails() {
+  override val resourceId: String
+    get() = accountId!!
+  override val resourceType: String
+    get() = "account"
+  override val cloudProvider: String
+    get() = type
 }
 
 data class EmptyAccount(
   override val accountId: String? = "",
   override val type: String = "",
-  override val name: String = ""
-) : Account {
-  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean = false
+  override val name: String = "",
+  override val eddaEnabled: Boolean = false,
+  override val edda: String? = "",
+  override val regions: List<Region> = emptyList()
+) : Account, HasDetails() {
+  override val resourceId: String
+    get() = accountId!!
+  override val resourceType: String
+    get() = type
+  override val cloudProvider: String
+    get() = type
 }

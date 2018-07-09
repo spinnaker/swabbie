@@ -16,16 +16,17 @@
 
 package com.netflix.spinnaker.swabbie.model
 
-import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.swabbie.Cacheable
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
-import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 
 data class Application(
   val email: String,
   override val name: String
 ) : HasDetails(), Cacheable, Excludable {
-  override fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): Boolean {
-    return exclusionPolicies.find { it.apply(this, exclusions) } != null
-  }
+  override val resourceId: String
+    get() = name
+  override val resourceType: String
+    get() = "application"
+  override val cloudProvider: String
+    get() = "*"
 }

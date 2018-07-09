@@ -15,6 +15,9 @@
  */
 
 dependencies {
+  compile "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
+  compile "com.fasterxml.jackson.core:jackson-annotations:$jacksonVersion"
+
   compile project(":swabbie-core")
   compile project(":swabbie-orca")
   compile project(":swabbie-retrofit")

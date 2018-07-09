@@ -17,16 +17,15 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.ScheduledAgent
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.Temporal
+import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -38,11 +37,18 @@ import java.util.concurrent.atomic.AtomicReference
 class NotificationAgent(
   registry: Registry,
   discoverySupport: DiscoverySupport,
-  executor: AgentExecutor,
   resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   workConfigurator: WorkConfigurator,
+  agentExecutor: Executor,
   private val clock: Clock
-) : ScheduledAgent(clock, registry, executor, discoverySupport, resourceTypeHandlers, workConfigurator) {
+) : ScheduledAgent(
+  clock,
+  registry,
+  discoverySupport,
+  resourceTypeHandlers,
+  workConfigurator,
+  agentExecutor
+) {
   @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
   private var interval: Long = 3600
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())

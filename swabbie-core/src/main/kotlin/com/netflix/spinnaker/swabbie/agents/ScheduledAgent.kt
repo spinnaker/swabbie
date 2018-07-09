@@ -14,37 +14,34 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.agents.AgentExecutor
+import com.netflix.spinnaker.swabbie.DiscoverySupport
+import com.netflix.spinnaker.swabbie.MetricsSupport
+import com.netflix.spinnaker.swabbie.ResourceTypeHandler
+import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
-import org.springframework.context.ApplicationListener
 import rx.Scheduler
 import rx.schedulers.Schedulers
 import java.time.Clock
 import java.time.Duration
 import java.time.temporal.Temporal
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
-
-interface SwabbieAgent : ApplicationListener<ApplicationReadyEvent> {
-  fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit)
-  fun initialize()
-  fun finalize(workConfiguration: WorkConfiguration)
-}
 
 abstract class ScheduledAgent(
   private val clock: Clock,
   val registry: Registry,
-  private val executor: AgentExecutor,
   private val discoverySupport: DiscoverySupport,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
-  private val workConfigurator: WorkConfigurator
+  private val workConfigurator: WorkConfigurator,
+  private val agentExecutor: Executor
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
@@ -88,7 +85,7 @@ abstract class ScheduledAgent(
         when(action) {
           Action.MARK -> it.mark(workConfiguration, onCompleteCallback)
           Action.NOTIFY -> it.notify(workConfiguration, onCompleteCallback)
-          Action.DELETE -> it.clean(workConfiguration, onCompleteCallback)
+          Action.DELETE -> it.delete(workConfiguration, onCompleteCallback)
           else -> log.warn("Unknown action {}", action.name)
         }
       }
@@ -96,10 +93,10 @@ abstract class ScheduledAgent(
       resourceTypeHandlers.find { handler ->
         handler.handles(workConfiguration)
       }?.let { handler ->
-          executor.execute {
-            handlerAction.invoke(handler)
-          }
+        agentExecutor.execute {
+          handlerAction.invoke(handler)
         }
+      }
     } catch (e: Exception) {
       registry.counter(
         failedAgentId.withTags(

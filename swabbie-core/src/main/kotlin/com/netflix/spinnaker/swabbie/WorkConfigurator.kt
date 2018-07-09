@@ -18,7 +18,9 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.config.mergeExclusions
+import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.EmptyAccount
 import com.netflix.spinnaker.swabbie.model.NotificationConfiguration
@@ -26,10 +28,40 @@ import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
+/*
+Flattens the YAML configuration into units of work called [WorkConfiguration]
+  swabbie:
+    providers:
+      - name: aws
+        locations:
+          - us-east-1
+        accounts:
+          - test
+        exclusions:
+          - type: Tag
+            attributes:
+              - key: expiration_time
+                value:
+                  - never
+                  - pattern:^\d+(d|m|y)$
+    resourceTypes:
+      - name: securityGroup
+        enabled: false
+        dryRun: true
+        retentionDays: 10
+        notifyOwner: true
+        exclusions:
+          - type: Literal
+            attributes:
+              - key: name
+                value:
+                  - nf_infranstructure
+                  - nf_datacenter
+*/
 open class WorkConfigurator(
   private val swabbieProperties: SwabbieProperties,
   private val accountProvider: AccountProvider,
-  private val exclusionPolicies: List<ExclusionPolicy>
+  private val exclusionPolicies: List<BasicExclusionPolicy>
 ) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
@@ -50,6 +82,7 @@ open class WorkConfigurator(
   /**
    * Generates a list of [WorkConfiguration] from the application yml configuration
    * Computes what [WorkConfiguration] needs to be excluded based on a list of [ExclusionPolicy]
+   *
    */
   fun generateWorkConfigurations(): List<WorkConfiguration> {
     val all = mutableListOf<WorkConfiguration>()
@@ -63,52 +96,48 @@ open class WorkConfigurator(
             cloudProviderConfiguration.accounts.contains(it.name) &&
               it.type.equals(cloudProviderConfiguration.name, ignoreCase = true)
           }.forEach { account ->
-              cloudProviderConfiguration.locations.forEach { location ->
-                val namespace = String.format("%s:%s:%s:%s",
-                  cloudProviderConfiguration.name,
-                  account.name,
-                  location,
-                  resourceTypeConfiguration.name
-                )
+            val accountRegions = account.regions?.filter { !it.deprecated }?.map { it.name } ?: emptyList()
+            cloudProviderConfiguration.locations.filter {
+              accountRegions.contains(it)
+            }.forEach { location ->
+              val namespace = String.format("%s:%s:%s:%s",
+                cloudProviderConfiguration.name,
+                account.name,
+                location,
+                resourceTypeConfiguration.name
+              )
 
-                WorkConfiguration(
-                  namespace = namespace.toLowerCase(),
-                  account = account,
-                  location = location,
-                  cloudProvider = cloudProviderConfiguration.name,
-                  resourceType = resourceTypeConfiguration.name,
-                  retentionDays = resourceTypeConfiguration.retentionDays,
-                  exclusions = mergeExclusions(
-                    cloudProviderConfiguration.exclusions,
-                    resourceTypeConfiguration.exclusions
-                  ),
-                  dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
-                  notificationConfiguration = NotificationConfiguration(
-                    notifyOwner = resourceTypeConfiguration.notifyOwner,
-                    spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,
-                    optOutUrl = swabbieProperties.optOutBaseUrl,
-                    resourcesPerNotification = cloudProviderConfiguration.resourcesPerNotification
-                  )
-                ).let { configuration ->
-                  configuration.takeIf {
-                    !shouldExclude(account, it)
-                  }?.let {
-                      all.add(configuration)
-                    }
-                }
+              WorkConfiguration(
+                namespace = namespace.toLowerCase(),
+                account = account,
+                location = location,
+                cloudProvider = cloudProviderConfiguration.name,
+                resourceType = resourceTypeConfiguration.name,
+                retentionDays = resourceTypeConfiguration.retentionDays,
+                exclusions = mergeExclusions(
+                  cloudProviderConfiguration.exclusions,
+                  resourceTypeConfiguration.exclusions
+                ),
+                dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
+                notificationConfiguration = NotificationConfiguration(
+                  notifyOwner = resourceTypeConfiguration.notifyOwner,
+                  spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,
+                  optOutUrl = swabbieProperties.optOutBaseUrl,
+                  resourcesPerNotification = cloudProviderConfiguration.resourcesPerNotification
+                )
+              ).let { configuration ->
+                configuration.takeIf {
+                  !shouldExclude(account, it, exclusionPolicies, log)
+                }?.let {
+                    all.add(configuration)
+                  }
               }
             }
+          }
         }
     }
 
     log.info("Generated {} work configurations {}", all.size, all)
     return all
   }
-
-  private fun shouldExclude(account: Account, workConfiguration: WorkConfiguration) =
-    account.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions).also { excluded ->
-      if (excluded) {
-        log.info("Excluding {}", workConfiguration)
-      }
-    }
 }

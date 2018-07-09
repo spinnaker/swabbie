@@ -17,19 +17,24 @@
 package com.netflix.spinnaker.swabbie.aws
 
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolutionStrategy
-import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
+import com.netflix.spinnaker.swabbie.model.Resource
 import org.springframework.stereotype.Component
 
 @Component
-class AmazonTagOwnerResolutionStrategy : ResourceOwnerResolutionStrategy<AmazonResource> {
-  override fun resolve(resource: AmazonResource): String? {
+class AmazonTagOwnerResolutionStrategy : ResourceOwnerResolutionStrategy<Resource> {
+  override fun resolve(resource: Resource): String? {
     if ("tags" in resource.details) {
-      (resource.details["tags"] as? List<Map<*, *>>)?.let {
-        return it.find { it.containsKey("owner") }?.get("owner") as String
+      (resource.details["tags"] as? List<Map<*, *>>)?.let { tags ->
+        return getOwner(tags)
       }
     }
 
     return null
+  }
+
+  private fun getOwner(tags: List<Map<*, *>>): String? {
+    return tags.find { it["key"] == "creator" || it["key"] == "owner"}?.get("value") as? String ?:
+      return tags.find {"owner" in it || "creator" in it}?.map { it.value }?.first() as? String
   }
 }
 

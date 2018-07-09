@@ -31,8 +31,8 @@ import java.util.concurrent.Executors
 object ResourceMarkerAgentTest {
   private val clock = Clock.systemDefaultZone()
   private val lockManager = mock<LockManager>()
-  private val executor = AgentExecutor(BlockingThreadExecutor())
   private val configuration = workConfiguration()
+  private val agentExecutor = BlockingThreadExecutor()
   private val onCompleteCallback = {}
 
   @AfterEach
@@ -49,9 +49,9 @@ object ResourceMarkerAgentTest {
       clock = clock,
       registry = NoopRegistry(),
       discoverySupport = mock(),
-      executor = executor,
       resourceTypeHandlers = listOf(resourceTypeHandler),
-      workConfigurator = mock()
+      workConfigurator = mock(),
+      agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).mark(any(), any())
@@ -66,9 +66,9 @@ object ResourceMarkerAgentTest {
       clock = clock,
       registry = NoopRegistry(),
       discoverySupport = mock(),
-      executor = executor,
       resourceTypeHandlers = listOf(resourceTypeHandler),
-      workConfigurator = mock()
+      workConfigurator = mock(),
+      agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler).mark(any(), any())

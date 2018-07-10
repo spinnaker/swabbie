@@ -17,17 +17,15 @@
 package com.netflix.spinnaker.swabbie.aws.securitygroups
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.kork.lock.LockManager
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -39,12 +37,13 @@ class AmazonSecurityGroupHandler(
   registry: Registry,
   clock: Clock,
   notifier: Notifier,
-  rules: List<Rule<AmazonSecurityGroup>>,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceOwnerResolver: ResourceOwnerResolver<AmazonSecurityGroup>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   lockingService: Optional<LockingService>,
+  retrySupport: RetrySupport,
+  private val rules: List<Rule<AmazonSecurityGroup>>,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService
 ) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
@@ -56,7 +55,8 @@ class AmazonSecurityGroupHandler(
   resourceOwnerResolver,
   notifier,
   applicationEventPublisher,
-  lockingService
+  lockingService,
+  retrySupport
 ) {
   override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
@@ -84,27 +84,27 @@ class AmazonSecurityGroupHandler(
     }
   }
 
-  override fun getUpstreamResource(markedResource: MarkedResource,
-                                   workConfiguration: WorkConfiguration
+  override fun getCandidate(markedResource: MarkedResource,
+                            workConfiguration: WorkConfiguration
   ): AmazonSecurityGroup? = securityGroupProvider.getOne(
-      Parameters(
-        mapOf(
-          "groupId" to markedResource.resourceId,
-          "account" to workConfiguration.account.name,
-          "region" to workConfiguration.location
-        )
+    Parameters(
+      mapOf(
+        "groupId" to markedResource.resourceId,
+        "account" to workConfiguration.account.accountId!!,
+        "region" to workConfiguration.location
       )
     )
+  )
 
-  //TODO: enable when rules are added
-  override fun handles(workConfiguration: WorkConfiguration): Boolean = false
-//    = workConfiguration.resourceType == SECURITY_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
-  override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
+  override fun handles(workConfiguration: WorkConfiguration): Boolean
+    = workConfiguration.resourceType == SECURITY_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+
+  override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
     securityGroupProvider.getAll(
       Parameters(
         mapOf(
-          "account" to workConfiguration.account.name,
+          "account" to workConfiguration.account.accountId!!,
           "region" to workConfiguration.location
         )
       )

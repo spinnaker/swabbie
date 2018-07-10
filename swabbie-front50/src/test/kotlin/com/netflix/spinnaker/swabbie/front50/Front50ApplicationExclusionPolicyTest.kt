@@ -69,45 +69,11 @@ object Front50ApplicationExclusionPolicyTest {
     )
 
     resources.filter {
-      !Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions)
+      Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions) == null
     }.let { filteredResources ->
-        assertEquals(1, filteredResources.size, "excluded one by name and the other by email")
-        filteredResources.first().resourceId shouldMatch equalTo("random")
-        filteredResources.size shouldMatch equalTo(1)
-      }
-  }
-
-  @Test
-  fun `should exclude if not whitelisted`() {
-    val exclusions = listOf(
-      Exclusion()
-        .withType(ExclusionType.Whitelist.toString())
-        .withAttributes(
-          listOf(
-            Attribute()
-              .withKey("application")
-              .withValue(
-                listOf("testapp", "pattern:^important")
-              )
-          )
-        )
-    )
-
-    val resources = listOf(
-      TestResource("testapp-v001"),
-      TestResource("important-v001"),
-      TestResource("test-v001")
-    )
-
-    resources.filter {
-      !Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions)
-    }.let { filteredResources ->
-        filteredResources.size shouldMatch equalTo(2)
-        filteredResources.map { it.resourceId }.let {
-          assertTrue( it.contains("important-v001"), "whitelisted by pattern")
-          assertTrue( it.contains("testapp-v001"), "whitelisted by name")
-        }
-        filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
-      }
+      assertEquals(1, filteredResources.size, "excluded one by name and the other by email")
+      filteredResources.first().resourceId shouldMatch equalTo("random")
+      filteredResources.size shouldMatch equalTo(1)
+    }
   }
 }

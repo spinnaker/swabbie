@@ -17,11 +17,13 @@
 package com.netflix.spinnaker.swabbie
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.swabbie.echo.EchoService
 import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -35,14 +37,16 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   registry: Registry,
   private val clock: Clock,
   private val rules: List<Rule<T>>,
-  private val resourceTrackingRepository: ResourceTrackingRepository,
+  private val resourceRepository: ResourceTrackingRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
   private val ownerResolver: OwnerResolver<T>,
   private val notifier: Notifier,
   private val applicationEventPublisher: ApplicationEventPublisher,
-  private val lockingService: Optional<LockingService>
+  private val lockingService: Optional<LockingService>,
+  private val retrySupport: RetrySupport
 ) : ResourceTypeHandler<T>, MetricsSupport(registry) {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
+  private val resourceOwnerField: String = "swabbieResourceOwner"
 
   /**
    * finds & tracks cleanup candidates
@@ -54,8 +58,8 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   /**
    * deletes violating resources
    */
-  override fun clean(workConfiguration: WorkConfiguration, postClean: () -> Unit) {
-    execute(workConfiguration, postClean, Action.DELETE)
+  override fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit) {
+    execute(workConfiguration, postDelete, Action.DELETE)
   }
 
   /**
@@ -65,6 +69,9 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     execute(workConfiguration, postNotify, Action.NOTIFY)
   }
 
+  /**
+   * Dispatches work based on passed action
+   */
   private fun execute(workConfiguration: WorkConfiguration, callback: () -> Unit, action: Action) {
     when (action) {
       Action.MARK -> executeWithLockingIfEnabled(action, workConfiguration) {
@@ -72,7 +79,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
       }
 
       Action.DELETE -> executeWithLockingIfEnabled(action, workConfiguration) {
-        doClean(workConfiguration, callback)
+        doDelete(workConfiguration, callback)
       }
 
       Action.NOTIFY -> executeWithLockingIfEnabled(action, workConfiguration) {
@@ -98,123 +105,179 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         callback.invoke()
       })
     } else {
-      log.warn("***Locking not ENABLED")
+      log.warn("***Locking not ENABLED***")
       callback.invoke()
     }
   }
 
   private fun doMark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
     // initialize counters
-    resourcesExcludedCounter.set(0)
+    excludedResourcesDuringMarkCounter.set(0)
     val timerId = markDurationTimer.start()
     val candidateCounter = AtomicInteger(0)
     val violationCounter = AtomicInteger(0)
     val totalResourcesVisitedCounter = AtomicInteger(0)
+    val markedResourceIds = mutableMapOf<String, List<Summary>>()
     try {
-      log.info("${javaClass.name}: getting resources with namespace {}, dryRun {}",
-        workConfiguration.namespace, workConfiguration.dryRun)
+      log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration)
+      val candidates: List<T>? = getCandidates(workConfiguration)
+      log.info("fetched {} resources. Configuration: {}", candidates?.size, workConfiguration)
+      if (candidates == null || candidates.isEmpty()) {
+        return
+      }
 
-      getUpstreamResources(workConfiguration)?.let { upstreamResources ->
-        totalResourcesVisitedCounter.set(upstreamResources.size)
-        log.info("fetched {} resources with namespace {}, dryRun {}",
-          upstreamResources.size, workConfiguration.namespace, workConfiguration.dryRun)
+      totalResourcesVisitedCounter.set(candidates.size)
+      candidates.forEach { candidate ->
+        candidate.set(resourceOwnerField, ownerResolver.resolve(candidate))
+      }
 
-        upstreamResources.filter {
-          !shouldExclude(it, workConfiguration)
-        }.forEach { upstreamResource ->
-          rules.mapNotNull {
-            it.apply(upstreamResource).summary
-          }.let { violationSummaries ->
-            resourceTrackingRepository.find(
-              resourceId = upstreamResource.resourceId,
-              namespace = workConfiguration.namespace
-            ).let { trackedMarkedResource ->
-              if (trackedMarkedResource != null && violationSummaries.isEmpty() && !workConfiguration.dryRun) {
-                log.info("Forgetting now valid resource {}", upstreamResource)
+      // filter out resources that should be excluded
+      candidates.filter {
+        !shouldExcludeResource(it, workConfiguration, Action.MARK)
+      }.forEach { candidate ->
+        try {
+          getViolations(candidate).let { violations ->
+            if (violations.isEmpty()) {
+              ensureResourceUnmarked(candidate.resourceId, workConfiguration)
+            } else {
+              val newMarkedResource = MarkedResource(
+                resource = candidate,
+                summaries = violations,
+                namespace = workConfiguration.namespace,
+                resourceOwner = candidate.details[resourceOwnerField] as? String,
+                projectedDeletionStamp = deletionTimestamp(workConfiguration)
+              )
 
-                resourceTrackingRepository.remove(trackedMarkedResource)
-                applicationEventPublisher.publishEvent(UnMarkResourceEvent(trackedMarkedResource, workConfiguration))
-              } else if (!violationSummaries.isEmpty() && trackedMarkedResource == null) {
-                violationCounter.addAndGet(violationSummaries.size)
-                MarkedResource(
-                  resource = upstreamResource,
-                  summaries = violationSummaries,
-                  namespace = workConfiguration.namespace,
-                  resourceOwner = ownerResolver.resolve(upstreamResource),
-                  projectedDeletionStamp = workConfiguration.retentionDays.days.
-                    fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
-                ).let {
-                  candidateCounter.incrementAndGet()
-                  if (!workConfiguration.dryRun) {
-                    resourceTrackingRepository.upsert(it)
-                    log.info("Marking resource {} for deletion", it)
-                    applicationEventPublisher.publishEvent(MarkResourceEvent(it, workConfiguration))
-                  }
-                }
+              if (!workConfiguration.dryRun) {
+                resourceRepository.upsert(newMarkedResource)
+                applicationEventPublisher.publishEvent(MarkResourceEvent(newMarkedResource, workConfiguration))
+                log.info("Marked resource {} for deletion", newMarkedResource)
               }
+
+              candidateCounter.incrementAndGet()
+              violationCounter.addAndGet(violations.size)
+              markedResourceIds[newMarkedResource.resourceId] = violations
             }
           }
+        } catch (e: Exception) {
+          log.error("Failed while invoking ${javaClass.simpleName}", e)
+          recordFailureForAction(Action.MARK, workConfiguration, e)
         }
       }
-    } catch (e: Exception) {
-      log.error("Failed while invoking $javaClass", e)
-      recordFailureForAction(Action.MARK, workConfiguration, e)
+
+      printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResourceIds, Action.MARK)
     } finally {
-      log.info("Found {} clean up candidates with configuration {}", candidateCounter.get(), workConfiguration)
       recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
       postMark.invoke()
     }
   }
 
-  private fun shouldExclude(resource: T, workConfiguration: WorkConfiguration): Boolean =
-    resource.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions).also {
-      if (it) {
-        log.info("Excluding resource {} out of {}", resource, resourcesExcludedCounter.incrementAndGet())
+  private fun ensureResourceUnmarked(
+    id: String,
+    workConfiguration: WorkConfiguration,
+    preferredResourceWhenProvided: MarkedResource? = null
+  ) {
+    preferredResourceWhenProvided ?: resourceRepository.find(id, workConfiguration.namespace)?.let {
+      if (!workConfiguration.dryRun) {
+        log.info("{} is no longer a candidate.", it)
+        resourceRepository.remove(it)
+        applicationEventPublisher.publishEvent(UnMarkResourceEvent(it, workConfiguration))
       }
     }
+  }
 
-  private fun doClean(workConfiguration: WorkConfiguration, postClean: () -> Unit) {
-    try {
-      resourceTrackingRepository.getMarkedResourcesToDelete().let { markedResources ->
-        if (markedResources == null || markedResources.isEmpty()) {
-          log.info("No resources to delete for {}", workConfiguration)
-        } else {
-          markedResources.forEach { markedResource ->
-            getUpstreamResource(markedResource, workConfiguration)
-              .let { resource ->
-                if (resource == null) {
-                  log.info("Resource {} no longer exists", markedResource)
-                  resourceTrackingRepository.remove(markedResource)
-                } else {
-                  resource
-                    .takeIf { !it.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions) }
-                    ?.let { upstreamResource ->
-                      rules.mapNotNull {
-                        it.apply(upstreamResource).summary
-                      }.let { violationSummaries ->
-                        if (violationSummaries.isEmpty() && !workConfiguration.dryRun) {
-                          applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
-                          resourceTrackingRepository.remove(markedResource)
-                        } else {
-                          log.info("Preparing deletion of {}. dryRun {}", markedResource, workConfiguration.dryRun)
-                          if (markedResource.notificationInfo != null && !workConfiguration.dryRun) {
-                            remove(markedResource, workConfiguration)
-                            resourceTrackingRepository.remove(markedResource)
-                            applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
-                            log.info("Deleted {}", resource)
-                          }
-                        }
-                      }
-                    }
-                }
-              }
-          }
+  private fun deletionTimestamp(workConfiguration: WorkConfiguration): Long =
+    (workConfiguration.retentionDays + 1).days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+
+  private fun printResult(
+    candidateCounter: AtomicInteger,
+    totalResourcesVisitedCounter: AtomicInteger,
+    workConfiguration: WorkConfiguration,
+    markedResourceIds: MutableMap<String, List<Summary>>,
+    action: Action
+  ) {
+    log.info("** ${action.name} Summary: {} CLEANUP CANDIDATES OUT OF {} SCANNED. EXCLUDED {}. CONFIGURATION: {}**",
+      candidateCounter.get(),
+      totalResourcesVisitedCounter.get(),
+      excludedResourcesDuringMarkCounter.get(),
+      workConfiguration
+    )
+
+    if (candidateCounter.get() > 0) {
+      log.debug("** ${action.name} list Configuration: {} **", workConfiguration)
+      markedResourceIds.forEach {
+        log.debug("$it")
+      }
+    }
+  }
+
+  private fun shouldExcludeResource(
+    resource: T,
+    workConfiguration: WorkConfiguration,
+    action: Action? = null
+  ): Boolean {
+    return shouldExclude(resource, workConfiguration, exclusionPolicies, log).also { excluded ->
+      if (excluded) {
+        if (action == Action.MARK) {
+          excludedResourcesDuringMarkCounter.incrementAndGet()
+        } else if (action == Action.DELETE) {
+          excludedResourcesDuringDeleteCounter.incrementAndGet()
         }
       }
-    } catch (e: Exception) {
-      recordFailureForAction(Action.DELETE, workConfiguration, e)
+    }
+  }
+
+  private fun doDelete(workConfiguration: WorkConfiguration, postClean: () -> Unit) {
+    val candidateCounter = AtomicInteger(0)
+    val markedResourceIds = mutableMapOf<String, List<Summary>>()
+    try {
+      val toDelete: List<MarkedResource>? = resourceRepository.getMarkedResourcesToDelete()
+      if (toDelete == null || toDelete.isEmpty()) {
+        log.info("Nothing to delete. Configuration: {}", workConfiguration)
+        return
+      }
+
+      for (r in toDelete) {
+        try {
+          val candidate: T? = getCandidate(r, workConfiguration)
+          if (candidate == null || shouldExcludeResource(candidate, workConfiguration, Action.DELETE)) {
+            ensureResourceUnmarked(r.resourceId, workConfiguration, r)
+            continue
+          }
+
+          getViolations(candidate).let { violations ->
+            if (violations.isEmpty()) {
+              ensureResourceUnmarked(r.resourceId, workConfiguration, r)
+            } else {
+              if (r.notificationInfo != null && !workConfiguration.dryRun) {
+                retrySupport.retry({
+                  remove(r, workConfiguration)
+                }, 3, 5000, true)
+
+                applicationEventPublisher.publishEvent(DeleteResourceEvent(r, workConfiguration))
+                resourceRepository.remove(r)
+                log.info("Deleted {}. Configuration: {}", candidate, workConfiguration)
+
+                candidateCounter.incrementAndGet()
+                markedResourceIds[r.resourceId] = violations
+              }
+            }
+          }
+        } catch (e: Exception) {
+          log.error("Failed to inspect ${r.resourceId} for deletion. Configuration: {}", workConfiguration, e)
+          recordFailureForAction(Action.DELETE, workConfiguration, e)
+        }
+      }
+
+      printResult(candidateCounter, AtomicInteger(toDelete.size), workConfiguration, markedResourceIds, Action.DELETE)
     } finally {
       postClean.invoke()
+    }
+  }
+
+  private fun getViolations(candidate: T): List<Summary> {
+    return rules.mapNotNull {
+      it.apply(candidate).summary
     }
   }
 
@@ -222,7 +285,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     try {
       log.info("Notification Agent Started with configuration {}", workConfiguration)
       val owners = mutableMapOf<String, MutableList<MarkedResource>>()
-      resourceTrackingRepository.getMarkedResources()
+      resourceRepository.getMarkedResources()
         ?.filter {
           workConfiguration.namespace.equals(it.namespace, ignoreCase = true) && it.notificationInfo == null
         }?.forEach { markedResource ->
@@ -245,7 +308,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
           )
 
           if (workConfiguration.dryRun || !workConfiguration.notificationConfiguration.notifyOwner) {
-            log.info("Skipping notifications for {}", workConfiguration)
+            log.info("Skipping notifications. Configuration: {}", workConfiguration)
           } else {
             ownerToResources.value.let { resources ->
               notifier.notify(
@@ -259,25 +322,25 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
                   "spinnakerLink" to workConfiguration.notificationConfiguration.spinnakerResourceUrl,
                   "optOutLink" to workConfiguration.notificationConfiguration.optOutUrl
                 )
-              ).let {
-                log.info("Notification sent to {} for {}", ownerToResources.key, resources)
-                resources.forEach { resource ->
-                  val offsetStampSinceMarked: Long = ChronoUnit.MILLIS.between(
-                    Instant.ofEpochMilli(resource.createdTs!!),
-                    Instant.now(clock)
-                  )
+              )
 
-                  resource.apply {
-                    projectedDeletionStamp += offsetStampSinceMarked
-                    notificationInfo = NotificationInfo(
-                      recipient = ownerToResources.key,
-                      notificationStamp = Instant.now(clock).toEpochMilli(),
-                      notificationType = EchoService.Notification.Type.EMAIL.name
-                    )
-                  }.also {
-                    resourceTrackingRepository.upsert(it)
-                    applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
-                  }
+              log.debug("Notification sent to {} for {}", ownerToResources.key, resources)
+              resources.forEach { resource ->
+                val offsetStampSinceMarked: Long = ChronoUnit.MILLIS.between(
+                  Instant.ofEpochMilli(resource.createdTs!!),
+                  Instant.now(clock)
+                )
+
+                resource.apply {
+                  projectedDeletionStamp += offsetStampSinceMarked
+                  notificationInfo = NotificationInfo(
+                    recipient = ownerToResources.key,
+                    notificationStamp = Instant.now(clock).toEpochMilli(),
+                    notificationType = EchoService.Notification.Type.EMAIL.name
+                  )
+                }.also {
+                  resourceRepository.upsert(it)
+                  applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
                 }
               }
             }

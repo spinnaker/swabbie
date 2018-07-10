@@ -50,11 +50,11 @@ object AmazonTagExclusionPolicyTest {
     )
 
     resources.filter {
-      !AmazonTagExclusionPolicy().apply(it, exclusions)
+      AmazonTagExclusionPolicy().apply(it, exclusions) == null
     }.let { filteredResources ->
-        filteredResources.size shouldMatch equalTo(1)
-        filteredResources.first().resourceId shouldMatch equalTo("2")
-      }
+      filteredResources.size shouldMatch equalTo(1)
+      filteredResources.first().resourceId shouldMatch equalTo("2")
+    }
   }
 }
 
@@ -66,4 +66,3 @@ data class AwsTestResource(
   override val resourceType: String = "type",
   override val cloudProvider: String = "provider"
 ) : AmazonResource()
-

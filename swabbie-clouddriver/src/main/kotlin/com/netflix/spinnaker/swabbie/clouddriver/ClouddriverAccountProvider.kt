@@ -30,4 +30,6 @@ class ClouddriverAccountProvider(
 }
 
 @Component
-class ClouddriverAccountCache(cloudDriverService: CloudDriverService) : InMemoryCache<SpinnakerAccount>(cloudDriverService.getAccounts())
+class ClouddriverAccountCache(
+  cloudDriverService: CloudDriverService
+) : InMemoryCache<SpinnakerAccount>(cloudDriverService.getAccounts())

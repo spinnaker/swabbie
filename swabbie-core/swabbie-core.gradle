@@ -25,6 +25,8 @@ dependencies {
 
   compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion"
   compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.+"
+  compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.23.4'
+  compile "com.netflix.spinnaker.moniker:moniker:+"
   compile spinnaker.dependency("rxJava")
 
   testCompile "com.squareup.retrofit:retrofit-mock:1.9.+"

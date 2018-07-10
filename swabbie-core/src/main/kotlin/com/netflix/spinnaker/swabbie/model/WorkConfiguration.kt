@@ -35,7 +35,15 @@ open class NotificationConfiguration(
   val optOutUrl: String,
   val resourcesPerNotification: Int,
   val spinnakerResourceUrl: String
-)
+) {
+  override fun toString(): String {
+    return "NotificationConfiguration(" +
+      "notifyOwner=$notifyOwner, " +
+      "optOutUrl='$optOutUrl', " +
+      "resourcesPerNotification=$resourcesPerNotification, " +
+      "spinnakerResourceUrl='$spinnakerResourceUrl')"
+  }
+}
 
 class EmptyNotificationConfiguration : NotificationConfiguration(
   false,

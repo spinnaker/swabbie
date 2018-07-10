@@ -29,8 +29,10 @@ swabbie:
     - name: aws
       locations:
         - us-east-1
+        - us-west-2
       accounts:
         - test
+        - prod
 
       exclusions:
         - type: Tag
@@ -46,7 +48,7 @@ swabbie:
           retentionDays: 10
           notifyOwner: true
           exclusions:
-            - type: Name
+            - type: Literal
               attributes:
                 - key: name
                   value:
@@ -60,9 +62,9 @@ swabbie:
           exclusions:
             - type: Whitelist
               attributes:
-                - key: application
+                - key: swabbieResourceOwner
                   value:
-                    - appname
+                    - user@netflix.com
 
 ```
 
@@ -140,4 +142,4 @@ Resources can be excluded/opted out from consideration using exclusion policies.
 
 #### Whitelisting
 Whitelisting is part of the exclusion mechanism. When defined, only resources whitelisted will be considered, 
-skipping everything else not whitelisted. 
+skipping everything else not whitelisted.

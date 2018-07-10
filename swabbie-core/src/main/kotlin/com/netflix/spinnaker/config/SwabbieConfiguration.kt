@@ -30,10 +30,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.WorkConfigurator
+import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -63,17 +63,17 @@ open class SwabbieConfiguration {
   open fun clock(): Clock = Clock.systemDefaultZone()
 
   @Bean
-  open fun taskExecutor(): ThreadPoolTaskExecutor =
+  open fun workConfigurator(swabbieProperties: SwabbieProperties,
+                            accountProvider: AccountProvider,
+                            exclusionPolicies: List<BasicExclusionPolicy>): WorkConfigurator {
+    return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies)
+  }
+
+  @Bean
+  open fun agentExecutor(): ThreadPoolTaskExecutor =
     ThreadPoolTaskExecutor().apply {
       corePoolSize = 20
     }
-
-  @Bean
-  open fun workConfigurator(swabbieProperties: SwabbieProperties,
-                            accountProvider: AccountProvider,
-                            exclusionPolicies: List<ExclusionPolicy>): WorkConfigurator {
-    return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies)
-  }
 
   @Bean
   open fun retrySupport(): RetrySupport {

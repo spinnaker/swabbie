@@ -27,14 +27,17 @@ interface ResourceTypeHandler<out T : Resource> {
   fun handles(workConfiguration: WorkConfiguration): Boolean
 
   /**
-   * Fetches resources from the provider of type defined in the [WorkConfiguration].
+   * Gets cleanup candidates.
+   * Perform any needed data massaging, add metadata that can be used in a [Rule].
+   * Implementations should not filter out candidates, leave that to [ExclusionPolicy].
    */
-  fun getUpstreamResources(workConfiguration: WorkConfiguration): List<T>?
+  fun getCandidates(workConfiguration: WorkConfiguration): List<T>?
 
   /**
-   * Fetches a single resource from the provider of type defined in the [WorkConfiguration].
+   * Fetches a single resource.
+   * Decorate metadata that can be used in a [Rule]
    */
-  fun getUpstreamResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration): T?
+  fun getCandidate(markedResource: MarkedResource, workConfiguration: WorkConfiguration): T?
 
   /**
    * Marks a single marked resource matching the granularity of [WorkConfiguration].
@@ -44,7 +47,7 @@ interface ResourceTypeHandler<out T : Resource> {
   /**
    * Deletes marked resources matching the granularity of [WorkConfiguration].
    */
-  fun clean(workConfiguration: WorkConfiguration, postClean: () -> Unit)
+  fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit)
 
   fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit)
 }

@@ -16,10 +16,12 @@
 
 package com.netflix.spinnaker.swabbie.agents
 
-import org.springframework.stereotype.Component
-import java.util.concurrent.Executor
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import org.springframework.boot.context.event.ApplicationReadyEvent
+import org.springframework.context.ApplicationListener
 
-@Component
-class AgentExecutor(
-  private val taskExecutor: Executor
-) : Executor by taskExecutor
+interface SwabbieAgent : ApplicationListener<ApplicationReadyEvent> {
+  fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit)
+  fun initialize()
+  fun finalize(workConfiguration: WorkConfiguration)
+}

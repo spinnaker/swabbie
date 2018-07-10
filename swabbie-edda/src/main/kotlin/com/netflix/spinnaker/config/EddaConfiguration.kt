@@ -19,6 +19,7 @@ package com.netflix.spinnaker.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.edda.EddaService
+import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
@@ -30,9 +31,6 @@ import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
-
-// TODO: jeyrs -- Edda should be added as a seperate module in swabbie-nflx. Leaving here for now to scaffold service
-
 @Configuration
 @ComponentScan(basePackages = arrayOf(
   "com.netflix.spinnaker.swabbie.edda",
@@ -41,27 +39,31 @@ import retrofit.converter.JacksonConverter
 @Import(SwabbieRetrofitConfiguration::class)
 open class EddaConfiguration {
   @Bean
-  open fun eddaClients(accountProvider: AccountProvider,
-                       objectMapper: ObjectMapper,
-                       retrofitClient: Client,
-                       spinnakerRequestInterceptor: RequestInterceptor,
-                       retrofitLogLevel: RestAdapter.LogLevel): List<EddaClient> {
-    val clients = mutableListOf<EddaClient>()
-    accountProvider.getAccounts().forEach { account ->
-      regions.forEach { region ->
-        clients += EddaClient(region, account.name, objectMapper, retrofitClient, spinnakerRequestInterceptor, retrofitLogLevel)
+  open fun eddaApiClients(accountProvider: AccountProvider,
+                          objectMapper: ObjectMapper,
+                          retrofitClient: Client,
+                          spinnakerRequestInterceptor: RequestInterceptor,
+                          retrofitLogLevel: RestAdapter.LogLevel): List<EddaApiClient> {
+    return accountProvider.getAccounts().filter{
+      it.eddaEnabled
+    }.map { account ->
+      account.regions!!.map { region ->
+        EddaApiClient(
+          region.name,
+          account,
+          objectMapper,
+          retrofitClient,
+          spinnakerRequestInterceptor,
+          retrofitLogLevel
+        )
       }
-    }
-
-    return clients
+    }.flatten()
   }
-
-  private val regions = listOf("us-west-1", "us-west-2", "us-east-1", "eu-west-1", "eu-west-2")
 }
 
-data class EddaClient(
+data class EddaApiClient(
   val region: String,
-  val account: String,
+  val account: Account,
   private val objectMapper: ObjectMapper,
   private val retrofitClient: Client,
   private val spinnakerRequestInterceptor: RequestInterceptor,
@@ -70,12 +72,10 @@ data class EddaClient(
   fun get(): EddaService =
     RestAdapter.Builder()
       .setRequestInterceptor(spinnakerRequestInterceptor)
-      .setEndpoint(Endpoints.newFixedEndpoint("http://edda-main.${region}.${account}.netflix.net:7001"))
+      .setEndpoint(Endpoints.newFixedEndpoint(account.edda!!.replace("{{region}}", region)))
       .setClient(retrofitClient)
       .setLogLevel(retrofitLogLevel)
       .setConverter(JacksonConverter(objectMapper))
       .build()
       .create(EddaService::class.java)
 }
-
-

@@ -17,6 +17,9 @@
 package com.netflix.spinnaker.swabbie.edda
 
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
+import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
+import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import retrofit.http.GET
@@ -43,4 +46,22 @@ interface EddaService {
 
   @GET("/api/v2/aws/autoScalingGroups;_expand")
   fun getAutoScalingGroups(): List<AmazonAutoScalingGroup>
+
+  @GET("/api/v2/aws/images;_expand:(imageId,name,description,state,tags)")
+  fun getImages(): List<AmazonImage>
+
+  @GET("/api/v2/aws/images/{imageId}")
+  fun getImage(@Path("imageId") imageId: String): AmazonImage
+
+  @GET("/api/v2/view/instances/{instanceId}")
+  fun getInstance(@Path("instanceId") instanceId: String): AmazonInstance
+
+  @GET("/api/v2/view/instances;state.name=running,stopped,starting,rebooting;_expand:(instanceId,tags,imageId,state:(name))")
+  fun getInstances(): List<AmazonInstance>
+
+  @GET("/api/v2/aws/launchConfigurations;_expand:(launchConfigurationName,imageId)")
+  fun getLaunchConfigs(): List<AmazonLaunchConfiguration>
+
+  @GET("/api/v2/aws/launchConfigurations/{launchConfigurationName}")
+  fun getLaunchConfig(@Path("launchConfigurationName") launchConfigurationName: String): AmazonLaunchConfiguration
 }

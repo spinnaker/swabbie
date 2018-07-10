@@ -26,9 +26,9 @@ import java.time.Clock
 
 object NotificationAgentTest {
   private val clock = Clock.systemDefaultZone()
-  private val executor = AgentExecutor(BlockingThreadExecutor())
   private val onCompleteCallback = {}
   private val workConfigurator = mock<WorkConfigurator>()
+  private val agentExecutor = BlockingThreadExecutor()
 
   @Test
   fun `should not notify if no handler found`() {
@@ -39,10 +39,10 @@ object NotificationAgentTest {
     NotificationAgent(
       registry = NoopRegistry(),
       discoverySupport = mock(),
-      executor = executor,
       clock = clock,
       resourceTypeHandlers = listOf(resourceTypeHandler),
-      workConfigurator = workConfigurator
+      workConfigurator = workConfigurator,
+      agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).notify(any(), any())
@@ -57,10 +57,10 @@ object NotificationAgentTest {
     NotificationAgent(
       registry = NoopRegistry(),
       discoverySupport = mock(),
-      executor = executor,
       resourceTypeHandlers = listOf(resourceTypeHandler),
       clock = clock,
-      workConfigurator = workConfigurator
+      workConfigurator = workConfigurator,
+      agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, atMost(maxNumberOfInvocations = 1)).notify(

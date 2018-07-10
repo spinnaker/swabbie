@@ -45,7 +45,7 @@ class ResourceEntityTagger(
             cloudProvider = markedResource.cloudProvider,
             entityId = markedResource.resourceId,
             region = workConfiguration.location,
-            account = workConfiguration.account.name
+            account = workConfiguration.account.name!!
           ),
           tags = listOf(
             EntityTag(
@@ -65,11 +65,11 @@ class ResourceEntityTagger(
     markedResource.summaries.joinToString(", ") {
       it.description
     }.let { summary ->
-        val time = markedResource.humanReadableDeletionTime(clock)
-        "Scheduled to be cleaned up on $time<br /> \n " +
-          "* $summary <br /> \n" +
-          "* Click <a href='${swabbieProperties.optOutBaseUrl}' target='_blank'>here</a> to keep the it for 2 additional weeks."
-      }
+      val time = markedResource.humanReadableDeletionTime(clock)
+      "Scheduled to be cleaned up on $time<br /> \n " +
+        "* $summary <br /> \n" +
+        "* Click <a href='${swabbieProperties.optOutBaseUrl}' target='_blank'>here</a> to opt out."
+    }
 
   private fun supportedForResource(markedResource: MarkedResource): Boolean =
     markedResource.resourceType in SUPPORTED_RESOURCE_TYPES
@@ -91,8 +91,14 @@ class ResourceEntityTagger(
       }
   }
 
-  private fun tagId(workConfiguration: WorkConfiguration, markedResource: MarkedResource) =
-    "${workConfiguration.cloudProvider}:${workConfiguration.resourceType.toLowerCase()}:${markedResource.resourceId}:${workConfiguration.account.accountId}:${workConfiguration.location}"
+  private fun tagId(workConfiguration: WorkConfiguration, markedResource: MarkedResource): String =
+    String.format("%s:%s:%s:%s:%s",
+      workConfiguration.cloudProvider,
+      workConfiguration.resourceType.toLowerCase(),
+      markedResource.resourceId,
+      workConfiguration.account.accountId,
+      workConfiguration.location
+    )
 }
 
 private val SUPPORTED_RESOURCE_TYPES = listOf(SECURITY_GROUP, LOAD_BALANCER)

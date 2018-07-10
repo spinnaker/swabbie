@@ -17,7 +17,6 @@
 dependencies {
   compile project(":swabbie-retrofit")
   compile project(":swabbie-core")
-  compile "com.netflix.spinnaker.moniker:moniker:+"
 
   testCompile project(":swabbie-test")
   testCompile "com.squareup.retrofit:retrofit-mock:1.9.+"

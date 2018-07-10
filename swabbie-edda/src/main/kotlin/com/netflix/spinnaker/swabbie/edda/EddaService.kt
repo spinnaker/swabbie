@@ -22,19 +22,17 @@ import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import retrofit.http.GET
 import retrofit.http.Path
 
-
-//TODO: jeyrs move to -nflx
 interface EddaService {
   // security groups
   @GET("/api/v2/aws/securityGroups/{groupId}")
   fun getSecurityGroup(@Path("groupId") groupId: String): AmazonSecurityGroup
 
-  @GET("/api/v2/aws/securityGroups")
-  fun getSecurityGroupIds(): List<String>
+  @GET("/api/v2/aws/securityGroups;_expand")
+  fun getSecurityGroups(): List<AmazonSecurityGroup>
 
   // load balancers
-  @GET("/api/v2/aws/loadBalancers")
-  fun getLoadBalancers(): List<String>
+  @GET("/api/v2/aws/loadBalancers;_expand")
+  fun getLoadBalancers(): List<AmazonElasticLoadBalancer>
 
   @GET("/api/v2/aws/loadBalancers/{loadBalancerName}")
   fun getLoadBalancer(@Path("loadBalancerName") loadBalancerName: String): AmazonElasticLoadBalancer
@@ -43,6 +41,6 @@ interface EddaService {
   @GET("/api/v2/aws/autoScalingGroups/{autoScalingGroupName}")
   fun getAutoScalingGroup(@Path("autoScalingGroupName") autoScalingGroupName: String): AmazonAutoScalingGroup
 
-  @GET("/api/v2/aws/autoScalingGroups")
-  fun getAutoScalingGroups(): List<String>
+  @GET("/api/v2/aws/autoScalingGroups;_expand")
+  fun getAutoScalingGroups(): List<AmazonAutoScalingGroup>
 }

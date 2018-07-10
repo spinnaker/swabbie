@@ -14,27 +14,26 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws
+package com.netflix.spinnaker.swabbie.exclusions
 
-import com.netflix.spinnaker.swabbie.ResourceOwnerResolutionStrategy
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
 import com.netflix.spinnaker.swabbie.model.Resource
 import org.springframework.stereotype.Component
 
 @Component
-class AmazonTagOwnerResolutionStrategy : ResourceOwnerResolutionStrategy<Resource> {
-  override fun resolve(resource: Resource): String? {
-    if ("tags" in resource.details) {
-      (resource.details["tags"] as? List<Map<*, *>>)?.let { tags ->
-        return getOwner(tags)
+class NaiveExclusionPolicy : ResourceExclusionPolicy {
+  override fun getType(): ExclusionType = ExclusionType.Naive
+  override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
+    if (excludable is Resource) {
+      (excludable.details[NAIVE_EXCLUSION] as? Boolean)?.let {
+        if (it) {
+          return "Naive exclusion of ${excludable.name}"
+        }
       }
     }
 
     return null
   }
-
-  private fun getOwner(tags: List<Map<*, *>>): String? {
-    return tags.find { it["key"] == "creator" || it["key"] == "owner"}?.get("value") as? String ?:
-    return tags.find {"owner" in it || "creator" in it}?.map { it.value }?.first() as? String
-  }
 }
-

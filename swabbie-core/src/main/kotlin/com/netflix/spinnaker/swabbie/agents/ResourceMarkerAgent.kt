@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.ScheduledAgent
 import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.WorkConfigurator
@@ -28,21 +27,29 @@ import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.Temporal
+import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Searches for clean up candidates and marks them for deletion in the near future
+ * Searches for candidates and marks them for deletion in the near future
  */
 @Component
 @ConditionalOnExpression("\${swabbie.agents.mark.enabled}")
 class ResourceMarkerAgent(
   registry: Registry,
   discoverySupport: DiscoverySupport,
-  executor: AgentExecutor,
   resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   workConfigurator: WorkConfigurator,
+  agentExecutor: Executor,
   private val clock: Clock
-) : ScheduledAgent(clock, registry, executor, discoverySupport, resourceTypeHandlers, workConfigurator) {
+) : ScheduledAgent(
+  clock,
+  registry,
+  discoverySupport,
+  resourceTypeHandlers,
+  workConfigurator,
+  agentExecutor
+) {
   @Value("\${swabbie.agents.mark.intervalSeconds:3600}")
   private var interval: Long = 3600
 

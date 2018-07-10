@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.model
 /**
  * A resource specific rule
  * If the rule finds the resource to be invalid, it will return a violation summary
+ * Rules should be kept to simple logic and not perform any I/O operations
  */
 interface Rule<in T : Resource> {
   fun apply(resource: T): Result

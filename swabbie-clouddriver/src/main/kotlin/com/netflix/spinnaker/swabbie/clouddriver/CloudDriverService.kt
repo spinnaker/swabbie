@@ -20,6 +20,6 @@ import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import retrofit.http.GET
 
 interface CloudDriverService {
-  @GET("/credentials")
+  @GET("/credentials?expand=true")
   fun getAccounts(): Set<SpinnakerAccount>
 }

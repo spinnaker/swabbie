@@ -23,10 +23,11 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
-import com.netflix.spinnaker.swabbie.exclusions.NameExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
@@ -44,6 +45,7 @@ object ResourceTypeHandlerTest {
   private val clock = Clock.systemDefaultZone()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
+  private val retrySupport = RetrySupport()
   private val postAction: (resource: List<Resource>) -> Unit = {
     println("swabbie post action on $it")
   }
@@ -68,7 +70,8 @@ object ResourceTypeHandlerTest {
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
       notifier = mock(),
-      lockingService = lockingService
+      lockingService = lockingService,
+      retrySupport = retrySupport
     ).mark(
       workConfiguration = workConfiguration(),
       postMark = { postAction(listOf(resource)) }
@@ -104,7 +107,8 @@ object ResourceTypeHandlerTest {
       notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = resources.toMutableList(),
-      lockingService = lockingService
+      lockingService = lockingService,
+      retrySupport = retrySupport
     ).mark(
       workConfiguration = workConfiguration(),
       postMark = { postAction(resources) }
@@ -142,7 +146,8 @@ object ResourceTypeHandlerTest {
       notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
-      lockingService = lockingService
+      lockingService = lockingService,
+      retrySupport = retrySupport
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -201,10 +206,11 @@ object ResourceTypeHandlerTest {
       notifier = mock(),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = fetchedResources,
-      lockingService = lockingService
-    ).clean(
+      lockingService = lockingService,
+      retrySupport = retrySupport
+    ).delete(
       workConfiguration = configuration,
-      postClean = { postAction(fetchedResources) }
+      postDelete = { postAction(fetchedResources) }
     )
 
     verify(resourceRepository, atMost(maxNumberOfInvocations = 2)).remove(any())
@@ -217,7 +223,7 @@ object ResourceTypeHandlerTest {
     // configuration with a name exclusion strategy
     val configuration = workConfiguration(exclusions = listOf(
       Exclusion()
-        .withType(ExclusionType.Name.toString())
+        .withType(ExclusionType.Literal.toString())
         .withAttributes(
           listOf(
             Attribute()
@@ -234,11 +240,12 @@ object ResourceTypeHandlerTest {
       ),
       resourceTrackingRepository = resourceRepository,
       ownerResolver = mock(),
-      exclusionPolicies = listOf(NameExclusionPolicy()),
+      exclusionPolicies = listOf(LiteralExclusionPolicy()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
       notifier = mock(),
-      lockingService = lockingService
+      lockingService = lockingService,
+      retrySupport = retrySupport
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -273,7 +280,8 @@ object ResourceTypeHandlerTest {
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
       notifier = mock(),
-      lockingService = lockingService
+      lockingService = lockingService,
+      retrySupport = mock()
     ).mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
@@ -289,15 +297,22 @@ object ResourceTypeHandlerTest {
   internal fun workConfiguration(exclusions: List<Exclusion> = emptyList(),
                                  dryRun: Boolean = false
   ): WorkConfiguration = WorkConfiguration(
-      namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
-      account = SpinnakerAccount(name = "test", accountId = "id", type = "type"),
-      location = "us-east-1",
-      resourceType = TEST_RESOURCE_TYPE,
-      cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
-      retentionDays = 14,
-      dryRun = dryRun,
-      exclusions = exclusions
-    )
+    namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
+    account = SpinnakerAccount(
+      name = "test",
+      accountId = "id",
+      type = "type",
+      edda = "",
+      regions = emptyList(),
+      eddaEnabled = false
+    ),
+    location = "us-east-1",
+    resourceType = TEST_RESOURCE_TYPE,
+    cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
+    retentionDays = 14,
+    dryRun = dryRun,
+    exclusions = exclusions
+  )
 
   class TestRule(
     private val invalidOn: (Resource) -> Boolean,
@@ -318,7 +333,8 @@ object ResourceTypeHandlerTest {
     private val rules: List<Rule<TestResource>>,
     private val simulatedUpstreamResources: MutableList<TestResource>?,
     registry: Registry = NoopRegistry(),
-    lockingService: Optional<LockingService>
+    lockingService: Optional<LockingService>,
+    retrySupport: RetrySupport
   ) : AbstractResourceTypeHandler<TestResource>(
     registry,
     clock,
@@ -328,15 +344,16 @@ object ResourceTypeHandlerTest {
     ownerResolver,
     notifier,
     applicationEventPublisher,
-    lockingService
+    lockingService,
+    retrySupport
   ) {
     override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }
 
     // simulates querying for a resource upstream
-    override fun getUpstreamResource(markedResource: MarkedResource,
-                                     workConfiguration: WorkConfiguration
+    override fun getCandidate(markedResource: MarkedResource,
+                              workConfiguration: WorkConfiguration
     ): TestResource? {
       return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId }
     }
@@ -345,7 +362,7 @@ object ResourceTypeHandlerTest {
       return !rules.isEmpty()
     }
 
-    override fun getUpstreamResources(workConfiguration: WorkConfiguration): List<TestResource>? {
+    override fun getCandidates(workConfiguration: WorkConfiguration): List<TestResource>? {
       return simulatedUpstreamResources
     }
   }

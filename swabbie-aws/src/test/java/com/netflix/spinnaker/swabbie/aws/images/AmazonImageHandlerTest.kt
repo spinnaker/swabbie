@@ -373,7 +373,8 @@ object AmazonImageHandlerTest {
     return WorkConfigurator(
       swabbieProperties = swabbieProperties,
       accountProvider = accountProvider,
-      exclusionPolicies = listOf(AccountExclusionPolicy())
+      exclusionPolicies = listOf(AccountExclusionPolicy()),
+      exclusionsSuppliers = Optional.empty()
     ).generateWorkConfigurations()[0]
   }
 }

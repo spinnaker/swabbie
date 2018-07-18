@@ -57,6 +57,26 @@ class Exclusion {
     this.apply {
       attributes = attrs
     }
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (javaClass != other?.javaClass) return false
+
+    other as Exclusion
+
+    if (type != other.type) return false
+    if (attributes != other.attributes) return false
+
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var result = type.hashCode()
+    result = 31 * result + attributes.hashCode()
+    return result
+  }
+
+
 }
 
 class ResourceTypeConfiguration {
@@ -87,6 +107,25 @@ class Attribute {
       value = v
     }
 
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (javaClass != other?.javaClass) return false
+
+    other as Attribute
+
+    if (key != other.key) return false
+    if (value != other.value) return false
+
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var result = key.hashCode()
+    result = 31 * result + value.hashCode()
+    return result
+  }
+
+
 }
 
 enum class ExclusionType {
@@ -96,18 +135,4 @@ enum class ExclusionType {
   Literal,
   Account,
   Naive
-}
-
-// TODO: rework this
-internal fun mergeExclusions(global: MutableList<Exclusion>?, local: MutableList<Exclusion>?): List<Exclusion> {
-  if (global == null && local == null) {
-    return emptyList()
-  } else if (global == null && local != null) {
-    return local
-  } else if (global != null && local == null) {
-    return global
-  }
-
-  // TODO: local is additive to global. local can override global
-  return HashSet(global!! + local!!).toList()
 }

@@ -27,6 +27,7 @@ import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.util.*
 
 object WorkConfiguratorTest {
   private val accountProvider: AccountProvider = mock()
@@ -36,7 +37,8 @@ object WorkConfiguratorTest {
     val workConfigurator = WorkConfigurator(
       swabbieProperties = SwabbieProperties(),
       accountProvider = accountProvider,
-      exclusionPolicies = listOf(mock())
+      exclusionPolicies = listOf(mock()),
+      exclusionsSuppliers = Optional.empty()
     )
 
     whenever(accountProvider.getAccounts()) doReturn
@@ -86,7 +88,8 @@ object WorkConfiguratorTest {
     val workConfigurator = WorkConfigurator(
       swabbieProperties = swabbieProperties,
       accountProvider = accountProvider,
-      exclusionPolicies = listOf(mock())
+      exclusionPolicies = listOf(mock()),
+      exclusionsSuppliers = Optional.empty()
     )
 
     whenever(accountProvider.getAccounts()) doReturn
@@ -176,7 +179,8 @@ object WorkConfiguratorTest {
     val workConfigurator = WorkConfigurator(
       swabbieProperties = swabbieProperties,
       accountProvider = accountProvider,
-      exclusionPolicies = listOf(AccountExclusionPolicy())
+      exclusionPolicies = listOf(AccountExclusionPolicy()),
+      exclusionsSuppliers = Optional.empty()
     )
 
     whenever(accountProvider.getAccounts()) doReturn

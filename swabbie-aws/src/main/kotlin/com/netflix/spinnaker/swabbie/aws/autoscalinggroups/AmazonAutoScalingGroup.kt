@@ -23,7 +23,9 @@ import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 
 @JsonTypeName("amazonAutoScalingGroup")
 data class AmazonAutoScalingGroup(
-  private val autoScalingGroupName: String,
+  val autoScalingGroupName: String,
+  val instances: List<Map<String, Any>>?,
+  val loadBalancerNames: List<String>?,
   override val resourceId: String = autoScalingGroupName,
   override val resourceType: String = SERVER_GROUP,
   override val cloudProvider: String = AWS,

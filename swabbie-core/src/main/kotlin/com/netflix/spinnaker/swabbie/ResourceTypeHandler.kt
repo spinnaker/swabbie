@@ -51,3 +51,5 @@ interface ResourceTypeHandler<out T : Resource> {
 
   fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit)
 }
+
+class FailedDeleteException(message: String) : RuntimeException(message)

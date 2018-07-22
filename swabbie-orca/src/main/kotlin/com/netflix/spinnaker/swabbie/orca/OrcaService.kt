@@ -21,10 +21,38 @@ import retrofit.http.*
 interface OrcaService {
   @POST("/ops")
   @Headers("Content-Type: application/context+json")
-  fun orchestrate(@Body request: OrchestrationRequest): Map<String, Any>
+  fun orchestrate(@Body request: OrchestrationRequest): TaskResponse
 
   @GET("/tasks/{id}")
-  fun getTask(@Path("id") id: String): Map<String, Any>
+  fun getTask(@Path("id") id: String): TaskDetailResponse
+}
+
+data class TaskResponse(
+  val ref: String
+)
+
+data class TaskDetailResponse(
+  val id: String,
+  val name: String,
+  val application: String,
+  val buildTime: String,
+  val startTime: String,
+  val endTime: String,
+  val status: OrcaExecutionStatus
+)
+
+enum class OrcaExecutionStatus {
+  NOT_STARTED,
+  RUNNING,
+  SUCCEEDED,
+  FAILED_CONTINUE,
+  TERMINAL,
+  CANCELED,
+  STOPPED;
+
+  fun isFailure() = listOf(TERMINAL, FAILED_CONTINUE, STOPPED, CANCELED).contains(this)
+  fun isSuccess() = listOf(SUCCEEDED).contains(this)
+  fun isIncomplete() = listOf(NOT_STARTED, RUNNING).contains(this)
 }
 
 class OrchestrationRequest(

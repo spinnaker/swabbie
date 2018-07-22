@@ -58,7 +58,7 @@ class AmazonSecurityGroupHandler(
   lockingService,
   retrySupport
 ) {
-  override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+  override fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
         log.info("This resource is about to be deleted {}", markedResource)

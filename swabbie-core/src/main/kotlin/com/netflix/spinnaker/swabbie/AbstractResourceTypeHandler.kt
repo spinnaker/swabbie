@@ -49,6 +49,11 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private val resourceOwnerField: String = "swabbieResourceOwner"
 
   /**
+   * deletes a marked resource. Each handler must implement this function.
+   */
+  abstract fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
+
+  /**
    * finds & tracks cleanup candidates
    */
   override fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
@@ -251,7 +256,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
             } else {
               if (r.notificationInfo != null && !workConfiguration.dryRun) {
                 retrySupport.retry({
-                  remove(r, workConfiguration)
+                  deleteMarkedResource(r, workConfiguration)
                 }, 3, 5000, true)
 
                 applicationEventPublisher.publishEvent(DeleteResourceEvent(r, workConfiguration))
@@ -359,6 +364,4 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
 
   private val Period.fromNow: LocalDate
     get() = LocalDate.now(clock) + this
-
-  abstract fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
 }

@@ -347,7 +347,7 @@ object ResourceTypeHandlerTest {
     lockingService,
     retrySupport
   ) {
-    override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+    override fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
       simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
     }
 

@@ -64,7 +64,7 @@ class AmazonLoadBalancerHandler(
   lockingService,
   retrySupport
 ) {
-  override fun remove(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+  override fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
     markedResource.resource.let { resource ->
       if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
         //TODO: consider also removing dns records for the ELB

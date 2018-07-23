@@ -37,7 +37,7 @@ data class TaskDetailResponse(
   val application: String,
   val buildTime: String,
   val startTime: String,
-  val endTime: String,
+  val endTime: String?,
   val status: OrcaExecutionStatus
 )
 

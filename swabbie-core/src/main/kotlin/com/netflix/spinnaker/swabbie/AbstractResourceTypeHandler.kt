@@ -28,7 +28,10 @@ import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import java.time.*
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.Period
 import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -255,7 +258,13 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
       for (r in toDelete) {
         try {
           val candidate: T? = getCandidate(r, workConfiguration)
-          if (candidate == null || shouldExcludeResource(candidate, workConfiguration, Action.DELETE)) {
+          if (candidate == null) {
+            ensureResourceUnmarked(r, workConfiguration)
+            continue
+          }
+
+          candidate.set(resourceOwnerField, ownerResolver.resolve(candidate))
+          if (shouldExcludeResource(candidate, workConfiguration, Action.DELETE)) {
             ensureResourceUnmarked(r, workConfiguration)
             continue
           }

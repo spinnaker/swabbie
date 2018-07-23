@@ -53,12 +53,16 @@ class ResourceMarkerAgent(
   @Value("\${swabbie.agents.mark.intervalSeconds:3600}")
   private var interval: Long = 3600
 
+  @Value("\${swabbie.agents.mark.delaySeconds:0}")
+  private var delay: Long = 0
+
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastMarkerAgentRun: Instant
     get() = _lastAgentRun.get()
 
   override fun getLastAgentRun(): Temporal? = lastMarkerAgentRun
   override fun getAgentFrequency(): Long = interval
+  override fun getAgentDelay(): Long = delay
   override fun getAction(): Action = Action.MARK
   override fun initialize() {
     _lastAgentRun.set(clock.instant())

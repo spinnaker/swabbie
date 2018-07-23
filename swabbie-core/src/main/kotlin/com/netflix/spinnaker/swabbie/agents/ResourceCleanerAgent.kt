@@ -53,12 +53,16 @@ class ResourceCleanerAgent(
   @Value("\${swabbie.agents.clean.intervalSeconds:3600}")
   private var interval: Long = 3600
 
+  @Value("\${swabbie.agents.clean.delaySeconds:5}")
+  private var delay: Long = 5
+
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastCleanerAgentRun: Instant
     get() = _lastAgentRun.get()
 
   override fun getLastAgentRun(): Temporal? = lastCleanerAgentRun
   override fun getAgentFrequency(): Long = interval
+  override fun getAgentDelay(): Long = delay
   override fun getAction(): Action = Action.DELETE
   override fun initialize() {
     _lastAgentRun.set(clock.instant())

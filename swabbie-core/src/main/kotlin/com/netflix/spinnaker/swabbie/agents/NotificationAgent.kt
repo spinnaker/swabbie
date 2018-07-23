@@ -51,12 +51,17 @@ class NotificationAgent(
 ) {
   @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
   private var interval: Long = 3600
+
+  @Value("\${swabbie.agents.notify.delaySeconds:10}")
+  private var delay: Long = 10
+
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())
   private val lastNotifierAgentRun: Instant
     get() = _lastAgentRun.get()
 
   override fun getLastAgentRun(): Temporal? = lastNotifierAgentRun
   override fun getAgentFrequency(): Long = interval
+  override fun getAgentDelay(): Long = delay
   override fun getAction(): Action = Action.NOTIFY
   override fun initialize() {
     _lastAgentRun.set(clock.instant())

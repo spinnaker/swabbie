@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 abstract class AbstractResourceTypeHandler<out T : Resource>(
   registry: Registry,
-  private val clock: Clock,
+  val clock: Clock,
   private val rules: List<Rule<T>>,
   private val resourceRepository: ResourceTrackingRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
@@ -79,15 +79,15 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
    */
   private fun execute(workConfiguration: WorkConfiguration, callback: () -> Unit, action: Action) {
     when (action) {
-      Action.MARK -> executeWithLockingIfEnabled(action, workConfiguration) {
+      Action.MARK -> withLocking(workConfiguration) {
         doMark(workConfiguration, callback)
       }
 
-      Action.DELETE -> executeWithLockingIfEnabled(action, workConfiguration) {
+      Action.DELETE -> withLocking(workConfiguration) {
         doDelete(workConfiguration, callback)
       }
 
-      Action.NOTIFY -> executeWithLockingIfEnabled(action, workConfiguration) {
+      Action.NOTIFY -> withLocking(workConfiguration) {
         doNotify(workConfiguration, callback)
       }
 
@@ -95,16 +95,15 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     }
   }
 
-  private fun executeWithLockingIfEnabled(action: Action,
-                                          workConfiguration: WorkConfiguration,
-                                          callback: () -> Unit
+  private fun withLocking(workConfiguration: WorkConfiguration,
+                          callback: () -> Unit
   ) {
     if (lockingService.isPresent) {
       val normalizedName = workConfiguration.namespace
         .replace(":", ".")
 
       val lockOptions = LockOptions()
-        .withLockName("${action.name}.$normalizedName".toLowerCase())
+        .withLockName(normalizedName.toLowerCase())
         .withMaximumLockDuration(lockingService.get().swabbieMaxLockDuration)
       lockingService.get().acquireLock(lockOptions, {
         callback.invoke()
@@ -136,32 +135,46 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         candidate.set(resourceOwnerField, ownerResolver.resolve(candidate))
       }
 
+      val markedCandidates: List<MarkedResource> = Optional.ofNullable(resourceRepository.getMarkedResources())
+        .orElse(emptyList())
+        .filter {
+          it.namespace == workConfiguration.namespace
+        }
+
       // filter out resources that should be excluded
       candidates.filter {
         !shouldExcludeResource(it, workConfiguration, Action.MARK)
       }.forEach { candidate ->
         try {
           getViolations(candidate).let { violations ->
-            if (violations.isEmpty()) {
-              ensureResourceUnmarked(candidate.resourceId, workConfiguration)
-            } else {
-              val newMarkedResource = MarkedResource(
-                resource = candidate,
-                summaries = violations,
-                namespace = workConfiguration.namespace,
-                resourceOwner = candidate.details[resourceOwnerField] as? String,
-                projectedDeletionStamp = deletionTimestamp(workConfiguration)
-              )
+            markedCandidates.find {
+              it.resourceId == candidate.resourceId
+            }.let { alreadyMarkedCandidate ->
+              when {
+                alreadyMarkedCandidate != null && violations.isEmpty() -> ensureResourceUnmarked(
+                  alreadyMarkedCandidate,
+                  workConfiguration
+                )
+                alreadyMarkedCandidate == null && !violations.isEmpty() -> {
+                  val newMarkedResource = MarkedResource(
+                    resource = candidate,
+                    summaries = violations,
+                    namespace = workConfiguration.namespace,
+                    resourceOwner = candidate.details[resourceOwnerField] as? String,
+                    projectedDeletionStamp = deletionTimestamp(workConfiguration)
+                  )
 
-              if (!workConfiguration.dryRun) {
-                resourceRepository.upsert(newMarkedResource)
-                applicationEventPublisher.publishEvent(MarkResourceEvent(newMarkedResource, workConfiguration))
-                log.info("Marked resource {} for deletion", newMarkedResource)
+                  if (!workConfiguration.dryRun) {
+                    resourceRepository.upsert(newMarkedResource)
+                    applicationEventPublisher.publishEvent(MarkResourceEvent(newMarkedResource, workConfiguration))
+                    log.info("Marked resource {} for deletion", newMarkedResource)
+                  }
+
+                  candidateCounter.incrementAndGet()
+                  violationCounter.addAndGet(violations.size)
+                  markedResourceIds[newMarkedResource.resourceId] = violations
+                }
               }
-
-              candidateCounter.incrementAndGet()
-              violationCounter.addAndGet(violations.size)
-              markedResourceIds[newMarkedResource.resourceId] = violations
             }
           }
         } catch (e: Exception) {
@@ -178,16 +191,13 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   }
 
   private fun ensureResourceUnmarked(
-    id: String,
-    workConfiguration: WorkConfiguration,
-    preferredResourceWhenProvided: MarkedResource? = null
+    markedResource: MarkedResource,
+    workConfiguration: WorkConfiguration
   ) {
-    preferredResourceWhenProvided ?: resourceRepository.find(id, workConfiguration.namespace)?.let {
-      if (!workConfiguration.dryRun) {
-        log.info("{} is no longer a candidate.", it)
-        resourceRepository.remove(it)
-        applicationEventPublisher.publishEvent(UnMarkResourceEvent(it, workConfiguration))
-      }
+    if (!workConfiguration.dryRun) {
+      log.info("{} is no longer a candidate.", markedResource)
+      resourceRepository.remove(markedResource)
+      applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
     }
   }
 
@@ -246,13 +256,13 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         try {
           val candidate: T? = getCandidate(r, workConfiguration)
           if (candidate == null || shouldExcludeResource(candidate, workConfiguration, Action.DELETE)) {
-            ensureResourceUnmarked(r.resourceId, workConfiguration, r)
+            ensureResourceUnmarked(r, workConfiguration)
             continue
           }
 
           getViolations(candidate).let { violations ->
             if (violations.isEmpty()) {
-              ensureResourceUnmarked(r.resourceId, workConfiguration, r)
+              ensureResourceUnmarked(r, workConfiguration)
             } else {
               if (r.notificationInfo != null && !workConfiguration.dryRun) {
                 retrySupport.retry({

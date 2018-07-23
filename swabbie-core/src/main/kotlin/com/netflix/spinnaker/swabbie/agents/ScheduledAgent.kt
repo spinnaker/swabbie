@@ -61,7 +61,7 @@ abstract class ScheduledAgent(
           )
         }
       }
-    }, 0, getAgentFrequency(), TimeUnit.SECONDS)
+    }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
   }
 
   override fun finalize(workConfiguration: WorkConfiguration) {
@@ -110,5 +110,6 @@ abstract class ScheduledAgent(
 
   abstract fun getLastAgentRun(): Temporal?
   abstract fun getAgentFrequency(): Long
+  abstract fun getAgentDelay(): Long
   abstract fun getAction(): Action
 }

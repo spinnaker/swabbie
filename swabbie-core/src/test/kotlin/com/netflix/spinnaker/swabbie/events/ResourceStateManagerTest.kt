@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.events
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.ResourceTagger
+import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.*

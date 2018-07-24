@@ -119,6 +119,7 @@ open class WorkConfigurator(
                 resourceTypeConfiguration.exclusions
               ),
               dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
+              entityTaggingEnabled = resourceTypeConfiguration.entityTaggingEnabled,
               notificationConfiguration = NotificationConfiguration(
                 notifyOwner = resourceTypeConfiguration.notifyOwner,
                 spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,

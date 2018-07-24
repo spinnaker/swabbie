@@ -18,6 +18,8 @@ package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.swabbie.orca.tagging.EntityTaggingService
+import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
@@ -35,14 +37,16 @@ import retrofit.converter.JacksonConverter
 @ComponentScan("com.netflix.spinnaker.swabbie.orca")
 open class OrcaConfiguration {
   @Bean
-  open fun orcaEndpoint(@Value("\${orca.baseUrl}") orcaBaseUrl: String) = Endpoints.newFixedEndpoint(orcaBaseUrl)
+  open fun orcaEndpoint(@Value("\${orca.baseUrl}") orcaBaseUrl: String): Endpoint
+    = Endpoints.newFixedEndpoint(orcaBaseUrl)
 
   @Bean
   open fun orcaService(orcaEndpoint: Endpoint,
                        objectMapper: ObjectMapper,
                        retrofitClient: Client,
                        spinnakerRequestInterceptor: RequestInterceptor,
-                       retrofitLogLevel: RestAdapter.LogLevel) = RestAdapter.Builder()
+                       retrofitLogLevel: RestAdapter.LogLevel): OrcaService
+    = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(orcaEndpoint)
     .setClient(retrofitClient)
@@ -51,4 +55,8 @@ open class OrcaConfiguration {
     .build()
     .create(OrcaService::class.java)
 
+  @Bean
+  open fun entityTaggingService(orcaService: OrcaService): TaggingService {
+    return EntityTaggingService(orcaService)
+  }
 }

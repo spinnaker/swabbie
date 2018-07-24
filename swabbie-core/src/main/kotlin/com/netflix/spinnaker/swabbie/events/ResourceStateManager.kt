@@ -20,7 +20,7 @@ import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.ResourceTagger
+import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status

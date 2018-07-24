@@ -66,6 +66,7 @@ class ResourceTypeConfiguration {
   var retentionDays: Int = 14
   var exclusions: MutableList<Exclusion> = mutableListOf()
   lateinit var name: String
+  var entityTaggingEnabled: Boolean = false
 }
 
 class Attribute {

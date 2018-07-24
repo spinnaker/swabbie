@@ -27,6 +27,7 @@ data class WorkConfiguration(
   val retentionDays: Int,
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true,
+  val entityTaggingEnabled: Boolean = false,
   val notificationConfiguration: NotificationConfiguration? = EmptyNotificationConfiguration()
 )
 

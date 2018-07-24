@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.tagging
 
 interface TaggingService {
   fun tag(tagRequest: TagRequest)

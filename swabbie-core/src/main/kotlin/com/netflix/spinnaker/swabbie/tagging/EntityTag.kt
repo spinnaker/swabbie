@@ -16,9 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.tagging
 
-import com.netflix.spinnaker.swabbie.Tag
-import com.netflix.spinnaker.swabbie.TagRequest
-
 data class EntityTag(
   val namespace: String,
   val value: TagValue?,

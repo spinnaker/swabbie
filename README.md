@@ -9,7 +9,6 @@ It applies a set of rules to mark cleanup candidates. Once marked, a resource is
 ## Configuration
 ```
 swabbie:
-  taggingEnabled: false
   optOutBaseUrl: http://localhost:8088/
   spinnakerResourceSearchUrl: https://spinnaker/infrastructure?q=
 
@@ -47,6 +46,7 @@ swabbie:
           dryRun: true
           retentionDays: 10
           notifyOwner: true
+          entityTaggingEnabled: false 
           exclusions:
             - type: Literal
               attributes:
@@ -59,6 +59,7 @@ swabbie:
           dryRun: true
           retentionDays: 14
           notifyOwner: false
+          entityTaggingEnabled: false
           exclusions:
             - type: Whitelist
               attributes:

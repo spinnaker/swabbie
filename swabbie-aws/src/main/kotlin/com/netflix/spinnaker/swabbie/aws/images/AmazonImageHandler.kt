@@ -79,7 +79,7 @@ class AmazonImageHandler(
               "credentials" to workConfiguration.account.name,
               "imageId" to markedResource.resource.resourceId,
               "cloudProvider" to markedResource.resource.cloudProvider,
-              "regions" to listOf(workConfiguration.location)
+              "region" to listOf(workConfiguration.location)
             )
           )
         ),

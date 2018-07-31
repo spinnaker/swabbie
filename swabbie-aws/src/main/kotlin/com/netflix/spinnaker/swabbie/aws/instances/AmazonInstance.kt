@@ -20,14 +20,19 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.INSTANCE
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 @JsonTypeName("amazonInstance")
 data class AmazonInstance(
   private val instanceId: String,
   val imageId: String,
+  private val launchTime: Long,
   override val resourceId: String = instanceId,
   override val resourceType: String = INSTANCE,
   override val cloudProvider: String = AWS,
   override val name: String = instanceId,
-  private val creationDate: String?
+  private val creationDate: String? =
+    LocalDateTime.ofInstant(Instant.ofEpochMilli(launchTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate)

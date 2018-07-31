@@ -21,7 +21,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 
 abstract class AmazonResource(
-  creationDate: String? // ISO_LOCAL_DATE_TIME format, nullable as legacy resource might not have a createDate
+  creationDate: String? // ISO_LOCAL_DATE_TIME format
 ) : Resource() {
   // falling back to 3 years prior if creationDate is nil
   override val createTs: Long = if (creationDate != null)

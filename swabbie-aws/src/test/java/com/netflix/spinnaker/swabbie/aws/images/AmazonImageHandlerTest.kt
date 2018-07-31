@@ -258,7 +258,7 @@ object AmazonImageHandlerTest {
           instanceId = "i-123",
           cloudProvider = AWS,
           imageId = "ami-123", // reference to ami-123
-          creationDate = LocalDateTime.now().toString()
+          launchTime = System.currentTimeMillis()
         )
       )
 

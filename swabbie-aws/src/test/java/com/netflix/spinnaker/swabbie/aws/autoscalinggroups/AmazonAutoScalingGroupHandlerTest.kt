@@ -38,10 +38,8 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDateTime
+import java.time.*
+import java.time.temporal.ChronoUnit
 import java.util.*
 
 object AmazonAutoScalingGroupHandlerTest {
@@ -125,7 +123,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        creationDate = LocalDateTime.now().toString()
+        createdTime = System.currentTimeMillis()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
@@ -133,7 +131,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-00000")
         ),
         loadBalancerNames = listOf(),
-        creationDate = LocalDateTime.now().toString()
+        createdTime = System.currentTimeMillis()
       )
     )
 
@@ -152,13 +150,13 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        creationDate = LocalDateTime.now().minusDays(2).toString()
+        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
         instances = listOf(),
         loadBalancerNames = listOf(),
-        creationDate = LocalDateTime.now().minusDays(2).toString()
+        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
       ).apply {
         set("suspendedProcesses", listOf(
           mapOf("processName" to "AddToLoadBalancer")
@@ -209,7 +207,7 @@ object AmazonAutoScalingGroupHandlerTest {
       autoScalingGroupName = "app-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      creationDate = LocalDateTime.now().minusDays(3).toString()
+      createdTime = Instant.now().minus(3, ChronoUnit.DAYS).toEpochMilli()
     ).apply {
       set("suspendedProcesses", listOf(
         mapOf("processName" to "AddToLoadBalancer")

@@ -28,11 +28,9 @@ import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import java.time.Clock
-import java.time.Instant
-import java.time.LocalDate
-import java.time.Period
+import java.time.*
 import java.time.temporal.ChronoUnit
+import java.time.temporal.ChronoUnit.DAYS
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -205,7 +203,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   }
 
   private fun deletionTimestamp(workConfiguration: WorkConfiguration): Long =
-    (workConfiguration.retentionDays + 1).days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+    (workConfiguration.retention + 1).days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
 
   private fun printResult(
     candidateCounter: AtomicInteger,
@@ -234,6 +232,12 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     workConfiguration: WorkConfiguration,
     action: Action? = null
   ): Boolean {
+    val creationDate = Instant.ofEpochMilli(resource.createTs).atZone(ZoneId.systemDefault()).toLocalDate()
+    if (DAYS.between(creationDate, LocalDate.now()) < workConfiguration.maxAge) {
+      log.debug("Excluding {} newer than {} days", resource, workConfiguration.maxAge)
+      return true
+    }
+
     return shouldExclude(resource, workConfiguration, exclusionPolicies, log).also { excluded ->
       if (excluded) {
         if (action == Action.MARK) {

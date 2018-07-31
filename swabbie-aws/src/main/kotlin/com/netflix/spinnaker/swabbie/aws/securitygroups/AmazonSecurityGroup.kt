@@ -31,5 +31,6 @@ data class AmazonSecurityGroup(
   override val resourceId: String = groupId,
   override val name: String = groupName,
   override val resourceType: String = SECURITY_GROUP,
-  override val cloudProvider: String = AWS
-) : AmazonResource()
+  override val cloudProvider: String = AWS,
+  private val creationDate: String?
+) : AmazonResource(creationDate)

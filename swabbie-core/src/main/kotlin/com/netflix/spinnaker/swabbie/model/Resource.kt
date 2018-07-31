@@ -44,7 +44,7 @@ const val NAIVE_EXCLUSION = "swabbieNaiveExclusion"
  * Represents a resource that swabbie can visit and act on
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-abstract class Resource : Excludable, HasDetails() {
+abstract class Resource : Excludable, Timestamped, HasDetails() {
   /**
    * requires all subtypes to be annotated with JsonTypeName
    */
@@ -101,9 +101,13 @@ interface Named {
   val name: String?
 }
 
+interface Timestamped {
+  val createTs: Long
+}
+
 /**
  * Cleanup candidate decorated with additional metadata
- * 'adjustedDeletionStamp' is the scheduled deletion time
+ * 'projectedDeletionStamp' is the scheduled deletion time
  */
 data class MarkedResource(
   val resource: Resource,

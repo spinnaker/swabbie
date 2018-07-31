@@ -24,6 +24,7 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import org.junit.jupiter.api.Test
+import java.time.LocalDateTime
 
 object AmazonTagExclusionPolicyTest {
   @Test
@@ -64,5 +65,6 @@ data class AwsTestResource(
   override val resourceId: String = id,
   override val name: String = "name",
   override val resourceType: String = "type",
-  override val cloudProvider: String = "provider"
-) : AmazonResource()
+  override val cloudProvider: String = "provider",
+  private val creationTime: String = LocalDateTime.now().toString()
+) : AmazonResource(creationTime)

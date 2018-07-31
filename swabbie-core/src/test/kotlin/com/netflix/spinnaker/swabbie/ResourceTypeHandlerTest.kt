@@ -307,11 +307,12 @@ object ResourceTypeHandlerTest {
       eddaEnabled = false
     ),
     location = "us-east-1",
-    resourceType = TEST_RESOURCE_TYPE,
     cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
-    retentionDays = 14,
+    resourceType = TEST_RESOURCE_TYPE,
+    retention = 14,
+    exclusions = exclusions,
     dryRun = dryRun,
-    exclusions = exclusions
+    maxAge = 0
   )
 
   class TestRule(

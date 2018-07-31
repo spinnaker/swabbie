@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import java.time.LocalDateTime
 
 object ZeroInstanceDisabledServerGroupRuleTest {
   @Test
@@ -27,7 +28,8 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       instances = listOf(
         mapOf("instanceId" to "i-01234")
       ),
-      loadBalancerNames = listOf()
+      loadBalancerNames = listOf(),
+      creationDate = LocalDateTime.now().toString()
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -41,7 +43,8 @@ object ZeroInstanceDisabledServerGroupRuleTest {
     val asg = AmazonAutoScalingGroup(
       autoScalingGroupName = "testapp-v001",
       instances = listOf(),
-      loadBalancerNames = listOf()
+      loadBalancerNames = listOf(),
+      creationDate = LocalDateTime.now().toString()
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)

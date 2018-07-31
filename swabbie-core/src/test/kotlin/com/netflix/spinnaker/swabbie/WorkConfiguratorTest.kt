@@ -76,7 +76,7 @@ object WorkConfiguratorTest {
               name = "loadBalancer"
               enabled = true
               dryRun = false
-              retentionDays = 2
+              retention = 2
             }
           )
         }

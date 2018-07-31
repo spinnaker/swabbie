@@ -45,6 +45,7 @@ import java.util.*
 import org.mockito.Mockito.validateMockitoUsage
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 
 object AmazonImageHandlerTest {
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()
@@ -119,7 +120,8 @@ object AmazonImageHandlerTest {
         state = "available",
         resourceType = IMAGE,
         cloudProvider = AWS,
-        name = "123-xenial-hvm-sriov-ebs"
+        name = "123-xenial-hvm-sriov-ebs",
+        creationDate = LocalDateTime.now().minusDays(3).toString()
       ),
       AmazonImage(
         imageId = "ami-132",
@@ -129,7 +131,8 @@ object AmazonImageHandlerTest {
         state = "available",
         resourceType = IMAGE,
         cloudProvider = AWS,
-        name = "132-xenial-hvm-sriov-ebs"
+        name = "132-xenial-hvm-sriov-ebs",
+        creationDate = LocalDateTime.now().minusDays(3).toString()
       )
     )
   }
@@ -197,6 +200,7 @@ object AmazonImageHandlerTest {
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
     val workConfiguration = getWorkConfiguration(
+      maxAgeDays = 1,
       exclusionList = mutableListOf(
         Exclusion()
           .withType(ExclusionType.Whitelist.toString())
@@ -253,7 +257,8 @@ object AmazonImageHandlerTest {
         AmazonInstance(
           instanceId = "i-123",
           cloudProvider = AWS,
-          imageId = "ami-123" // reference to ami-123
+          imageId = "ami-123", // reference to ami-123
+          creationDate = LocalDateTime.now().toString()
         )
       )
 
@@ -274,7 +279,7 @@ object AmazonImageHandlerTest {
   @Test
   fun `should delete images`() {
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val workConfiguration = getWorkConfiguration()
+    val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
     val image = AmazonImage(
       imageId = "ami-123",
       resourceId = "ami-123",
@@ -283,7 +288,8 @@ object AmazonImageHandlerTest {
       state = "available",
       resourceType = IMAGE,
       cloudProvider = AWS,
-      name = "123-xenial-hvm-sriov-ebs"
+      name = "123-xenial-hvm-sriov-ebs",
+      creationDate = LocalDateTime.now().minusDays(3).toString()
     )
 
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
@@ -339,7 +345,8 @@ object AmazonImageHandlerTest {
     dryRunMode: Boolean = false,
     accountIds: List<String> = listOf("test"),
     regions: List<String> = listOf("us-east-1"),
-    exclusionList: MutableList<Exclusion> = mutableListOf()
+    exclusionList: MutableList<Exclusion> = mutableListOf(),
+    maxAgeDays: Int = 1
   ): WorkConfiguration {
     val swabbieProperties = SwabbieProperties().apply {
       dryRun = dryRunMode
@@ -355,7 +362,8 @@ object AmazonImageHandlerTest {
               enabled = isEnabled
               dryRun = dryRunMode
               exclusions = exclusionList
-              retentionDays = 2
+              retention = 2
+              maxAge = maxAgeDays
             }
           )
         }

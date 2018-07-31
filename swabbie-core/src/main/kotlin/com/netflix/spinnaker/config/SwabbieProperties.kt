@@ -63,10 +63,11 @@ class ResourceTypeConfiguration {
   var enabled: Boolean = false
   var dryRun: Boolean = true
   var notifyOwner: Boolean = true
-  var retentionDays: Int = 14
+  var retention: Int = 14
   var exclusions: MutableList<Exclusion> = mutableListOf()
   lateinit var name: String
   var entityTaggingEnabled: Boolean = false
+  var maxAge: Int = 14
 }
 
 class Attribute {

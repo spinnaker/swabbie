@@ -28,5 +28,6 @@ data class AmazonInstance(
   override val resourceId: String = instanceId,
   override val resourceType: String = INSTANCE,
   override val cloudProvider: String = AWS,
-  override val name: String = instanceId
-) : AmazonResource()
+  override val name: String = instanceId,
+  private val creationDate: String?
+) : AmazonResource(creationDate)

@@ -48,6 +48,7 @@ data class R(
   override val resourceId: String = "id",
   override val name: String = "name",
   override val resourceType: String = "type",
-  override val cloudProvider: String = "provider"
+  override val cloudProvider: String = "provider",
+  override val createTs: Long = System.currentTimeMillis()
 ) : Resource()
 

@@ -30,5 +30,6 @@ data class AmazonImage(
   override val resourceId: String = imageId,
   override val resourceType: String = IMAGE,
   override val cloudProvider: String = AWS,
-  override val name: String?
-) : AmazonResource()
+  override val name: String?,
+  private val creationDate: String?
+) : AmazonResource(creationDate)

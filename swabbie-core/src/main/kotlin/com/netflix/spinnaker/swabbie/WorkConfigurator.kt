@@ -113,7 +113,7 @@ open class WorkConfigurator(
               location = location,
               cloudProvider = cloudProviderConfiguration.name,
               resourceType = resourceTypeConfiguration.name,
-              retentionDays = resourceTypeConfiguration.retentionDays,
+              retention = resourceTypeConfiguration.retention,
               exclusions = mergeExclusions(
                 cloudProviderConfiguration.exclusions,
                 resourceTypeConfiguration.exclusions
@@ -125,7 +125,8 @@ open class WorkConfigurator(
                 spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,
                 optOutUrl = swabbieProperties.optOutBaseUrl,
                 resourcesPerNotification = cloudProviderConfiguration.resourcesPerNotification
-              )
+              ),
+              maxAge = resourceTypeConfiguration.maxAge
             ).let { configuration ->
               configuration.takeIf {
                 !shouldExclude(account, it, exclusionPolicies, log)

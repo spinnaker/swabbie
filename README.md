@@ -44,7 +44,8 @@ swabbie:
         - name: securityGroup
           enabled: false
           dryRun: true
-          retentionDays: 10
+          retention: 10 #days
+          maxAge: 10 #days
           notifyOwner: true
           entityTaggingEnabled: false 
           exclusions:
@@ -57,7 +58,8 @@ swabbie:
         - name: loadBalancer
           enabled: true
           dryRun: true
-          retentionDays: 14
+          retention: 10 #days
+          maxAge: 10 #days
           notifyOwner: false
           entityTaggingEnabled: false
           exclusions:
@@ -92,14 +94,17 @@ A single unit of work is scoped to a configuration that defines its granularity.
 
 ```
 data class WorkConfiguration(
-  val namespace: String,
+  val namespace: String, // ${cloudProvider:account.name:location:resourceTyoe}
   val account: Account,
-  val location: String,
+  val location: String, // A region in aws, depends on what cloudProvider
   val cloudProvider: String,
   val resourceType: String,
-  val retentionDays: Int,
+  val retention: Int, // How many days swabbie will wait until deletion
   val exclusions: List<Exclusion>,
-  val dryRun: Boolean = true
+  val dryRun: Boolean = true,
+  val entityTaggingEnabled: Boolean = false, //Controls
+  val notificationConfiguration: NotificationConfiguration? = EmptyNotificationConfiguration(),
+  val maxAge: Int = 14 // resources newer than the maxAge in days will be excluded
 )
 ```
 Work configuration is derived from the YAML configuration.

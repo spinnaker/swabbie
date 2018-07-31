@@ -28,5 +28,6 @@ data class AmazonLaunchConfiguration(
   override val resourceId: String = launchConfigurationName,
   override val resourceType: String = LAUNCH_CONFIGURATION,
   override val cloudProvider: String = AWS,
-  override val name: String = launchConfigurationName
-) : AmazonResource()
+  override val name: String = launchConfigurationName,
+  private val creationDate: String?
+) : AmazonResource(creationDate)

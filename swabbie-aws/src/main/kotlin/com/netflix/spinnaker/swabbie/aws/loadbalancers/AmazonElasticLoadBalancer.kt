@@ -27,5 +27,6 @@ data class AmazonElasticLoadBalancer(
   override val resourceType: String = LOAD_BALANCER,
   override val name: String = loadBalancerName!!,
   override val resourceId: String = loadBalancerName!!,
-  override val cloudProvider: String = AWS
-) : AmazonResource()
+  override val cloudProvider: String = AWS,
+  private val creationDate: String?
+) : AmazonResource(creationDate)

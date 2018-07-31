@@ -79,10 +79,11 @@ object RedisResourceTrackingRepositoryTest {
         eddaEnabled = false
       ),
       location = "us-east-1",
-      resourceType = "testResourceType",
       cloudProvider = AWS,
-      retentionDays = 14,
-      exclusions = emptyList()
+      resourceType = "testResourceType",
+      retention = 14,
+      exclusions = emptyList(),
+      maxAge = 1
     )
 
     val markedResource = MarkedResource(
@@ -122,10 +123,11 @@ object RedisResourceTrackingRepositoryTest {
         eddaEnabled = false
       ),
       location = "us-east-1",
-      resourceType = "testResourceType",
       cloudProvider = AWS,
-      retentionDays = 14,
-      exclusions = emptyList()
+      resourceType = "testResourceType",
+      retention = 14,
+      exclusions = emptyList(),
+      maxAge = 1
     )
 
     listOf(

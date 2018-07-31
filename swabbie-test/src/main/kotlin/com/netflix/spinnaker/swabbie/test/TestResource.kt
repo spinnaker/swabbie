@@ -24,7 +24,8 @@ data class TestResource(
   override val resourceId: String,
   override val resourceType: String = TEST_RESOURCE_TYPE,
   override val cloudProvider: String = TEST_RESOURCE_PROVIDER_TYPE,
-  override val name: String = resourceId
+  override val name: String = resourceId,
+  override val createTs: Long = System.currentTimeMillis()
 ) : Resource()
 
 const val TEST_RESOURCE_PROVIDER_TYPE = "testProvider"

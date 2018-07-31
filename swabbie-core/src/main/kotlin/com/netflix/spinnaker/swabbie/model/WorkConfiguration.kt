@@ -24,11 +24,12 @@ data class WorkConfiguration(
   val location: String,
   val cloudProvider: String,
   val resourceType: String,
-  val retentionDays: Int,
+  val retention: Int, // How many days swabbie will wait until deletion
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true,
   val entityTaggingEnabled: Boolean = false,
-  val notificationConfiguration: NotificationConfiguration? = EmptyNotificationConfiguration()
+  val notificationConfiguration: NotificationConfiguration? = EmptyNotificationConfiguration(),
+  val maxAge: Int = 14 // resources newer than the maxAge in days will be excluded
 )
 
 open class NotificationConfiguration(

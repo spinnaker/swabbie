@@ -41,6 +41,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 import java.util.*
 
 object AmazonAutoScalingGroupHandlerTest {
@@ -123,14 +124,16 @@ object AmazonAutoScalingGroupHandlerTest {
         instances = listOf(
           mapOf("instanceId" to "i-01234")
         ),
-        loadBalancerNames = listOf()
+        loadBalancerNames = listOf(),
+        creationDate = LocalDateTime.now().toString()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
         instances = listOf(
           mapOf("instanceId" to "i-00000")
         ),
-        loadBalancerNames = listOf()
+        loadBalancerNames = listOf(),
+        creationDate = LocalDateTime.now().toString()
       )
     )
 
@@ -148,12 +151,14 @@ object AmazonAutoScalingGroupHandlerTest {
         instances = listOf(
           mapOf("instanceId" to "i-01234")
         ),
-        loadBalancerNames = listOf()
+        loadBalancerNames = listOf(),
+        creationDate = LocalDateTime.now().minusDays(2).toString()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
         instances = listOf(),
-        loadBalancerNames = listOf()
+        loadBalancerNames = listOf(),
+        creationDate = LocalDateTime.now().minusDays(2).toString()
       ).apply {
         set("suspendedProcesses", listOf(
           mapOf("processName" to "AddToLoadBalancer")
@@ -162,6 +167,7 @@ object AmazonAutoScalingGroupHandlerTest {
     )
 
     val workConfiguration = getWorkConfiguration(
+      maxAgeDays = 1,
       exclusionList = mutableListOf(
         Exclusion()
           .withType(ExclusionType.Whitelist.toString())
@@ -198,11 +204,12 @@ object AmazonAutoScalingGroupHandlerTest {
   @Test
   fun `should delete server groups`() {
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val workConfiguration = getWorkConfiguration()
+    val workConfiguration = getWorkConfiguration(maxAgeDays = 1)
     val serverGroup = AmazonAutoScalingGroup(
       autoScalingGroupName = "app-v001",
       instances = listOf(),
-      loadBalancerNames = listOf()
+      loadBalancerNames = listOf(),
+      creationDate = LocalDateTime.now().minusDays(3).toString()
     ).apply {
       set("suspendedProcesses", listOf(
         mapOf("processName" to "AddToLoadBalancer")
@@ -254,12 +261,13 @@ object AmazonAutoScalingGroupHandlerTest {
     = Duration.between(Instant.ofEpochMilli(clock.millis()), Instant.ofEpochMilli(this)).toDays().toInt()
 
 
-  private fun getWorkConfiguration(
+  internal fun getWorkConfiguration(
     isEnabled: Boolean = true,
     dryRunMode: Boolean = false,
     accountIds: List<String> = listOf("test"),
     regions: List<String> = listOf("us-east-1"),
-    exclusionList: MutableList<Exclusion> = mutableListOf()
+    exclusionList: MutableList<Exclusion> = mutableListOf(),
+    maxAgeDays: Int = 1
   ): WorkConfiguration {
     val swabbieProperties = SwabbieProperties().apply {
       dryRun = dryRunMode
@@ -275,7 +283,8 @@ object AmazonAutoScalingGroupHandlerTest {
               enabled = isEnabled
               dryRun = dryRunMode
               exclusions = exclusionList
-              retentionDays = 2
+              retention = 2
+              maxAge = maxAgeDays
             }
           )
         }

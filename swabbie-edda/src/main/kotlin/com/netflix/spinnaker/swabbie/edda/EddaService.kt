@@ -47,7 +47,7 @@ interface EddaService {
   @GET("/api/v2/aws/autoScalingGroups;_expand")
   fun getAutoScalingGroups(): List<AmazonAutoScalingGroup>
 
-  @GET("/api/v2/aws/images;_expand:(imageId,name,description,state,tags)")
+  @GET("/api/v2/aws/images;_expand")
   fun getImages(): List<AmazonImage>
 
   @GET("/api/v2/aws/images/{imageId}")
@@ -56,10 +56,10 @@ interface EddaService {
   @GET("/api/v2/view/instances/{instanceId}")
   fun getInstance(@Path("instanceId") instanceId: String): AmazonInstance
 
-  @GET("/api/v2/view/instances;state.name=running,stopped,starting,rebooting;_expand:(instanceId,tags,imageId,state:(name))")
+  @GET("/api/v2/view/instances;state.name=running,stopped,starting,rebooting;_expand")
   fun getInstances(): List<AmazonInstance>
 
-  @GET("/api/v2/aws/launchConfigurations;_expand:(launchConfigurationName,imageId)")
+  @GET("/api/v2/aws/launchConfigurations;_expand")
   fun getLaunchConfigs(): List<AmazonLaunchConfiguration>
 
   @GET("/api/v2/aws/launchConfigurations/{launchConfigurationName}")

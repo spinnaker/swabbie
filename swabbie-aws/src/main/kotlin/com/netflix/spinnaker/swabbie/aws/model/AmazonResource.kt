@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.model
 
+import com.netflix.spinnaker.swabbie.Dates
 import com.netflix.spinnaker.swabbie.model.Resource
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -23,8 +24,17 @@ import java.time.ZoneId
 abstract class AmazonResource(
   creationDate: String? // ISO_LOCAL_DATE_TIME format
 ) : Resource() {
-  // falling back to 3 years prior if creationDate is nil
-  override val createTs: Long = if (creationDate != null)
-    LocalDateTime.parse(creationDate).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-  else LocalDateTime.now().minusYears(3).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+  override val createTs: Long =
+    if (!creationDate.isNullOrBlank())
+      Dates.toLocalDateTime(creationDate!!)
+        .atZone(ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
+    else
+      LocalDateTime.now()
+        .minusYears(3) // falling back to 3 years prior if creationDate is nil to support legacy resources
+        .atZone(ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
 }

@@ -16,10 +16,11 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.config.mergeExclusions
 import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.EmptyAccount
@@ -27,6 +28,7 @@ import com.netflix.spinnaker.swabbie.model.NotificationConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.*
 
 /*
 Flattens the YAML configuration into units of work called [WorkConfiguration]
@@ -61,7 +63,8 @@ Flattens the YAML configuration into units of work called [WorkConfiguration]
 open class WorkConfigurator(
   private val swabbieProperties: SwabbieProperties,
   private val accountProvider: AccountProvider,
-  private val exclusionPolicies: List<BasicExclusionPolicy>
+  private val exclusionPolicies: List<BasicExclusionPolicy>,
+  private val exclusionsSuppliers: Optional<List<ExclusionsSupplier>>
 ) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
@@ -141,5 +144,43 @@ open class WorkConfigurator(
 
     log.info("Generated {} work configurations {}", all.size, all)
     return all
+  }
+
+  private fun mergeExclusions(global: MutableList<Exclusion>?, local: MutableList<Exclusion>?): List<Exclusion> {
+    if ((global == null || global.isEmpty()) && (local == null || local.isEmpty())) {
+      return emptyList()
+    } else if ((global == null || global.isEmpty()) && local != null) {
+      return local
+    } else if (global != null && (local == null || local.isEmpty())) {
+      return global
+    }
+
+    // local is additive to global. local can override global
+    merge(local!!, global!!)
+
+    // include runtime exclusions
+    exclusionsSuppliers.ifPresent { exclusionsProviders ->
+      exclusionsProviders.forEach { exclusionProvider ->
+        merge(exclusionProvider.get(), global)
+      }
+    }
+
+    return global.toList()
+  }
+
+  private fun merge(from: List<Exclusion>, to: MutableList<Exclusion>) {
+    from.forEach { f ->
+      var found = false
+      to.forEach { t ->
+        if (t.type == f.type) {
+          (t.attributes as MutableList).addAll(f.attributes)
+          found = true
+        }
+      }
+
+      if (!found) {
+        to.add(f)
+      }
+    }
   }
 }

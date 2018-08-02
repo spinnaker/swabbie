@@ -34,7 +34,10 @@ import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
+import com.netflix.spinnaker.swabbie.services.DynamicPropertyService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
@@ -43,7 +46,14 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.type.filter.AssignableTypeFilter
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.util.ClassUtils
+import retrofit.Endpoint
+import retrofit.Endpoints
+import retrofit.RequestInterceptor
+import retrofit.RestAdapter
+import retrofit.client.Client
+import retrofit.converter.JacksonConverter
 import java.time.Clock
+import java.util.*
 
 @Configuration
 @EnableConfigurationProperties(SwabbieProperties::class)
@@ -65,8 +75,9 @@ open class SwabbieConfiguration {
   @Bean
   open fun workConfigurator(swabbieProperties: SwabbieProperties,
                             accountProvider: AccountProvider,
-                            exclusionPolicies: List<BasicExclusionPolicy>): WorkConfigurator {
-    return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies)
+                            exclusionPolicies: List<BasicExclusionPolicy>,
+                            exclusionsProviders: Optional<List<ExclusionsSupplier>>): WorkConfigurator {
+    return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies, exclusionsProviders)
   }
 
   @Bean
@@ -79,6 +90,25 @@ open class SwabbieConfiguration {
   open fun retrySupport(): RetrySupport {
     return RetrySupport()
   }
+
+  @Bean
+  open fun maheEndpoint(@Value("\${mahe.baseUrl}") maheBaseUrl: String): Endpoint
+    = Endpoints.newFixedEndpoint(maheBaseUrl)
+
+  @Bean
+  open fun dynamicPropertiesService(maheEndpoint: Endpoint,
+                                    objectMapper: ObjectMapper,
+                                    retrofitClient: Client,
+                                    spinnakerRequestInterceptor: RequestInterceptor,
+                                    retrofitLogLevel: RestAdapter.LogLevel): DynamicPropertyService
+    = RestAdapter.Builder()
+      .setRequestInterceptor(spinnakerRequestInterceptor)
+      .setEndpoint(maheEndpoint)
+      .setClient(retrofitClient)
+      .setLogLevel(retrofitLogLevel)
+      .setConverter(JacksonConverter(objectMapper))
+      .build()
+      .create(DynamicPropertyService::class.java)
 }
 
 class ResourceDeserializer : JsonDeserializer<Resource>() {

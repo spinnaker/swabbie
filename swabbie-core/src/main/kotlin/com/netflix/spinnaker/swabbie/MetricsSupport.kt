@@ -26,8 +26,11 @@ import java.util.concurrent.atomic.AtomicInteger
 open class MetricsSupport(
   private val registry: Registry
 ) {
-  protected val excludedResourcesDuringMarkCounter = AtomicInteger(0)
-  protected val excludedResourcesDuringDeleteCounter = AtomicInteger(0)
+  protected val exclusionCounters = mutableMapOf(
+    Action.MARK to AtomicInteger(0),
+    Action.DELETE to AtomicInteger(0),
+    Action.NOTIFY to AtomicInteger(0)
+  )
 
   protected val markDurationTimer: LongTaskTimer = LongTaskTimer.get(
     registry, registry.createId("swabbie.resources.mark.duration")
@@ -73,7 +76,7 @@ open class MetricsSupport(
         "resourceType", workConfiguration.resourceType,
         "configuration", workConfiguration.namespace,
         "resourceTypeHandler", javaClass.simpleName
-      )).set(excludedResourcesDuringMarkCounter.toDouble())
+      )).set(exclusionCounters[Action.MARK]!!.toDouble())
   }
 
   protected fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {

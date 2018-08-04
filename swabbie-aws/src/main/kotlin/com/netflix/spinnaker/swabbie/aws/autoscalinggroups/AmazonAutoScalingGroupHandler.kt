@@ -20,9 +20,9 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
-import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
@@ -37,7 +37,7 @@ import kotlin.system.measureTimeMillis
 class AmazonAutoScalingGroupHandler(
   registry: Registry,
   clock: Clock,
-  notifier: Notifier,
+  notifiers: List<Notifier>,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceOwnerResolver: ResourceOwnerResolver<AmazonAutoScalingGroup>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
@@ -54,7 +54,7 @@ class AmazonAutoScalingGroupHandler(
   resourceTrackingRepository,
   exclusionPolicies,
   resourceOwnerResolver,
-  notifier,
+  notifiers,
   applicationEventPublisher,
   lockingService,
   retrySupport

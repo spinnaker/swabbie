@@ -14,8 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.echo
+package com.netflix.spinnaker.swabbie.notifications
 
 interface Notifier {
   fun notify(recipient: String, additionalContext: Map<String, Any>, messageType: String)
+
+  enum class NotificationType {
+    SLACK,
+    EMAIL
+  }
+
+  enum class NotificationSeverity {
+    NORMAL,
+    HIGH
+  }
 }
+
+

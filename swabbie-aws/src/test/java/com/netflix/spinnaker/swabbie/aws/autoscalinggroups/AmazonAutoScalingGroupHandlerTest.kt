@@ -56,7 +56,7 @@ object AmazonAutoScalingGroupHandlerTest {
   private val subject = AmazonAutoScalingGroupHandler(
     clock = clock,
     registry = NoopRegistry(),
-    notifier = mock(),
+    notifiers = listOf(mock()),
     rules = listOf(ZeroInstanceDisabledServerGroupRule()),
     resourceTrackingRepository = resourceRepository,
     exclusionPolicies = listOf(
@@ -74,6 +74,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @BeforeEach
   fun setup() {
+    whenever(resourceOwnerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     whenever(front50ApplicationCache.get()) doReturn
       setOf(
         Application(name = "testapp", email = "name@netflix.com"),

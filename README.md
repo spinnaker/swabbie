@@ -9,9 +9,6 @@ It applies a set of rules to mark cleanup candidates. Once marked, a resource is
 ## Configuration
 ```
 swabbie:
-  optOutBaseUrl: http://localhost:8088/
-  spinnakerResourceSearchUrl: https://spinnaker/infrastructure?q=
-
   agents:
     mark:
       enabled: true
@@ -22,7 +19,6 @@ swabbie:
     notify:
       enabled: false
       intervalSeconds: 3600000
-      fallbackEmail: cloudmonkey@netflix.com
 
   providers:
     - name: aws
@@ -32,7 +28,8 @@ swabbie:
       accounts:
         - test
         - prod
-
+      maxItemsProcessedPerCycle: 100
+      itemsProcessedBatchSize: 25
       exclusions:
         - type: Tag
           attributes:
@@ -45,9 +42,7 @@ swabbie:
           enabled: false
           dryRun: true
           retention: 10 #days
-          maxAge: 10 #days
-          notifyOwner: true
-          entityTaggingEnabled: false 
+          maxAge: 10 #days 
           exclusions:
             - type: Literal
               attributes:
@@ -60,8 +55,16 @@ swabbie:
           dryRun: true
           retention: 10 #days
           maxAge: 10 #days
-          notifyOwner: false
-          entityTaggingEnabled: false
+          entityTaggingEnabled: true
+          notification:
+            enabled: true
+            types: 
+              - email
+              - slack
+            itemsPerMessage: 5
+            defaultDestination: swabbie@spinnaker.io
+            optOutBaseUrl: http://localhost:8088/
+            resourceUrl: https://spinnaker/infrastructure?q=
           exclusions:
             - type: Whitelist
               attributes:

@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.echo
 
+import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.verify
@@ -30,7 +31,7 @@ object EchoNotifierTest {
     subject.notify(
       recipient = "yolo@netflix.com",
       additionalContext = mapOf(),
-      messageType = EchoService.Notification.Type.EMAIL.name
+      messageType = Notifier.NotificationType.EMAIL.name
     )
 
     verify(echoService).create(any())

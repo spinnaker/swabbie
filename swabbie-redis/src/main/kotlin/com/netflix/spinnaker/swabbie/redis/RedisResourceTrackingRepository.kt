@@ -74,8 +74,8 @@ class RedisResourceTrackingRepository(
   override fun upsert(markedResource: MarkedResource, score: Long) {
     "${markedResource.namespace}:${markedResource.resourceId}".let { id ->
       markedResource.apply {
-        createdTs = if (createdTs != null) createdTs else Instant.now(clock).toEpochMilli()
-        updateTs = if (createdTs != null) Instant.now(clock).toEpochMilli() else null
+        markTs = if (markTs != null) markTs else Instant.now(clock).toEpochMilli()
+        updateTs = if (markTs != null) Instant.now(clock).toEpochMilli() else null
       }
 
       resourceKey(id).let { key ->

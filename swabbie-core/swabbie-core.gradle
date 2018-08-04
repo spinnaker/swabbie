@@ -15,7 +15,6 @@
  */
 
 dependencies {
-  compile project(":swabbie-echo")
   compile "org.slf4j:slf4j-api:1.7.+"
   compile "com.netflix.spinnaker.kork:kork-core:+"
   compile "net.logstash.logback:logstash-logback-encoder:4.+"
@@ -27,6 +26,8 @@ dependencies {
   compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.+"
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.23.4'
   compile "com.netflix.spinnaker.moniker:moniker:+"
+  compile "com.netflix.spinnaker.kork:kork-web:+"
+  compile "com.squareup.retrofit:converter-jackson:1.+"
   compile spinnaker.dependency("rxJava")
 
   testCompile "com.squareup.retrofit:retrofit-mock:1.9.+"

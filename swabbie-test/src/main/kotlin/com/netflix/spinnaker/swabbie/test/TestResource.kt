@@ -18,6 +18,8 @@ package com.netflix.spinnaker.swabbie.test
 
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.model.Resource
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 @JsonTypeName("testResource")
 data class TestResource(
@@ -25,7 +27,7 @@ data class TestResource(
   override val resourceType: String = TEST_RESOURCE_TYPE,
   override val cloudProvider: String = TEST_RESOURCE_PROVIDER_TYPE,
   override val name: String = resourceId,
-  override val createTs: Long = System.currentTimeMillis()
+  override val createTs: Long = Instant.now().minus(10, ChronoUnit.DAYS).toEpochMilli()
 ) : Resource()
 
 const val TEST_RESOURCE_PROVIDER_TYPE = "testProvider"

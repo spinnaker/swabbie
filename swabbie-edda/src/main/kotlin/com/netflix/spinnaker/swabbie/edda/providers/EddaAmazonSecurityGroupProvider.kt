@@ -32,14 +32,18 @@ open class EddaAmazonSecurityGroupProvider(
 ) : ResourceProvider<AmazonSecurityGroup>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonSecurityGroup>? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
       return getSecurityGroups()
     }
+
+    return emptyList()
   }
 
   override fun getOne(params: Parameters): AmazonSecurityGroup? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
       return getSecurityGroup(params["groupId"] as String)
     }
+
+    return null
   }
 }

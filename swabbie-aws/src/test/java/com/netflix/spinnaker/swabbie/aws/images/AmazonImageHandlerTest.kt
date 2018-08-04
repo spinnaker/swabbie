@@ -62,7 +62,7 @@ object AmazonImageHandlerTest {
   private val subject = AmazonImageHandler(
     clock = clock,
     registry = NoopRegistry(),
-    notifier = mock(),
+    notifiers = listOf(mock()),
     rules = listOf(OrphanedImageRule()),
     resourceTrackingRepository = resourceRepository,
     exclusionPolicies = listOf(
@@ -83,6 +83,7 @@ object AmazonImageHandlerTest {
 
   @BeforeEach
   fun setup() {
+    whenever(resourceOwnerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     whenever(front50ApplicationCache.get()) doReturn
       setOf(
         Application(name = "testapp", email = "name@netflix.com"),

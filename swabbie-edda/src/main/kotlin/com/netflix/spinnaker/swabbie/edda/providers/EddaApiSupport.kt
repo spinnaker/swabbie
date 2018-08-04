@@ -20,18 +20,22 @@ import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.swabbie.edda.EddaService
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 open class EddaApiSupport(
   private val eddaApiClients: List<EddaApiClient>,
   registry: Registry
 ) {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
   val eddaFailureCountId: Id = registry.createId("swabbie.edda.failures")
-  fun withEddaClient(region: String, accountId: String): EddaService {
+  fun withEddaClient(region: String, accountId: String): EddaService? {
     eddaApiClients.find {
       it.region == region && it.account.accountId == accountId
     }.let { eddaClient ->
       if (eddaClient == null) {
-        throw IllegalArgumentException("Invalid region/account specified $region/$accountId")
+        log.warn("No edda available for $accountId/$region")
+        return null
       }
 
       return eddaClient.get()

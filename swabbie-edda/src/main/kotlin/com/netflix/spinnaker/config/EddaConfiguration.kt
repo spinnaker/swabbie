@@ -44,7 +44,7 @@ open class EddaConfiguration {
                           retrofitClient: Client,
                           spinnakerRequestInterceptor: RequestInterceptor,
                           retrofitLogLevel: RestAdapter.LogLevel): List<EddaApiClient> {
-    return accountProvider.getAccounts().filter{
+    return accountProvider.getAccounts().filter {
       it.eddaEnabled
     }.map { account ->
       account.regions!!.map { region ->

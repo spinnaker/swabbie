@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.echo
 
+import com.netflix.spinnaker.swabbie.notifications.Notifier
 import org.springframework.stereotype.Component
 
 @Component
@@ -25,10 +26,10 @@ class EchoNotifier(
   override fun notify(recipient: String, additionalContext: Map<String, Any>, messageType: String) {
     echoService.create(
       EchoService.Notification(
-        notificationType = EchoService.Notification.Type.valueOf(messageType),
+        notificationType = Notifier.NotificationType.valueOf(messageType),
         to = listOf(recipient),
         cc = listOf(recipient),
-        severity = NotificationSeverity.HIGH,
+        severity = Notifier.NotificationSeverity.HIGH,
         source = EchoService.Notification.Source("swabbie"),
         templateGroup = "swabbie",
         additionalContext = additionalContext

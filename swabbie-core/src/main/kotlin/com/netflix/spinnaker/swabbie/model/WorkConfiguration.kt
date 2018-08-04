@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.model
 
 import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.NotificationConfiguration
 
 data class WorkConfiguration(
   val namespace: String,
@@ -28,28 +29,14 @@ data class WorkConfiguration(
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true,
   val entityTaggingEnabled: Boolean = false,
-  val notificationConfiguration: NotificationConfiguration? = EmptyNotificationConfiguration(),
-  val maxAge: Int = 14 // resources newer than the maxAge in days will be excluded
+  val notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration(),
+  val maxAge: Int = 14, // resources newer than the maxAge in days will be excluded
+  val maxItemsProcessedPerCycle: Int = 10,
+  val itemsProcessedBatchSize: Int = 5
 )
 
-open class NotificationConfiguration(
-  val notifyOwner: Boolean,
-  val optOutUrl: String,
-  val resourcesPerNotification: Int,
-  val spinnakerResourceUrl: String
-) {
-  override fun toString(): String {
-    return "NotificationConfiguration(" +
-      "notifyOwner=$notifyOwner, " +
-      "optOutUrl='$optOutUrl', " +
-      "resourcesPerNotification=$resourcesPerNotification, " +
-      "spinnakerResourceUrl='$spinnakerResourceUrl')"
-  }
-}
-
 class EmptyNotificationConfiguration : NotificationConfiguration(
-  false,
-  "",
-  0,
-  ""
+  enabled = false,
+  types = mutableListOf(),
+  optOutBaseUrl = ""
 )

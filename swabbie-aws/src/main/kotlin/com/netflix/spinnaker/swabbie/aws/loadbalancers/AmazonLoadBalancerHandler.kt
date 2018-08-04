@@ -18,11 +18,9 @@ package com.netflix.spinnaker.swabbie.aws.loadbalancers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
-import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
@@ -30,6 +28,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import org.springframework.context.ApplicationEventPublisher
@@ -41,7 +40,7 @@ import java.util.*
 class AmazonLoadBalancerHandler(
   registry: Registry,
   clock: Clock,
-  notifier: Notifier,
+  notifiers: List<Notifier>,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceOwnerResolver: ResourceOwnerResolver<AmazonElasticLoadBalancer>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
@@ -59,7 +58,7 @@ class AmazonLoadBalancerHandler(
   resourceTrackingRepository,
   exclusionPolicies,
   resourceOwnerResolver,
-  notifier,
+  notifiers,
   applicationEventPublisher,
   lockingService,
   retrySupport

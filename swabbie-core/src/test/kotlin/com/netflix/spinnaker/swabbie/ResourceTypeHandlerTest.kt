@@ -24,17 +24,18 @@ import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.swabbie.echo.Notifier
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
@@ -46,18 +47,26 @@ object ResourceTypeHandlerTest {
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
   private val retrySupport = RetrySupport()
+  private val ownerResolver = mock<ResourceOwnerResolver<TestResource>>()
+
   private val postAction: (resource: List<Resource>) -> Unit = {
     println("swabbie post action on $it")
   }
 
+  @BeforeEach
+  fun setup() {
+    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
+  }
+
   @AfterEach
   fun cleanup() {
-    reset(resourceRepository, applicationEventPublisher)
+    reset(resourceRepository, applicationEventPublisher, ownerResolver)
   }
 
   @Test
-  fun `should track a violating resource and notify user`() {
+  fun `should track a violating resource`() {
     val resource = TestResource("testResource")
+    val configuration = workConfiguration()
     TestResourceTypeHandler(
       clock = clock,
       rules = listOf(TestRule(
@@ -66,14 +75,14 @@ object ResourceTypeHandlerTest {
       ),
       resourceTrackingRepository = resourceRepository,
       exclusionPolicies = listOf(mock()),
-      ownerResolver = mock(),
+      ownerResolver = ownerResolver,
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
-      notifier = mock(),
+      notifiers = listOf(mock()),
       lockingService = lockingService,
       retrySupport = retrySupport
     ).mark(
-      workConfiguration = workConfiguration(),
+      workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
     )
 
@@ -84,7 +93,7 @@ object ResourceTypeHandlerTest {
   }
 
   @Test
-  fun `should track violating resources and notify user`() {
+  fun `should track violating resources`() {
     val resources: List<TestResource> = listOf(
       TestResource("invalid resource 1"),
       TestResource("invalid resource 2"),
@@ -103,8 +112,8 @@ object ResourceTypeHandlerTest {
       rules = rules,
       resourceTrackingRepository = resourceRepository,
       exclusionPolicies = listOf(mock()),
-      ownerResolver = mock(),
-      notifier = mock(),
+      ownerResolver = ownerResolver,
+      notifiers = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = resources.toMutableList(),
       lockingService = lockingService,
@@ -116,45 +125,6 @@ object ResourceTypeHandlerTest {
 
     verify(resourceRepository, atMost(maxNumberOfInvocations = 2)).upsert(any(), any())
     verify(applicationEventPublisher, atMost(maxNumberOfInvocations = 2)).publishEvent(any<MarkResourceEvent>())
-  }
-
-  @Test
-  fun `should update already tracked resource if still invalid and don't generate a mark event again`() {
-    val resource = TestResource("testResource")
-    val configuration = workConfiguration()
-    val markedResource = MarkedResource(
-      resource = resource,
-      summaries = listOf(Summary("violates rule 1", "ruleName")),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis()
-    )
-
-    whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn
-      markedResource
-
-    TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule(
-          invalidOn = { resource.resourceId == "testResource" },
-          summary = Summary("always invalid", "rule1")
-        )
-      ),
-      resourceTrackingRepository = resourceRepository,
-      ownerResolver = mock(),
-      exclusionPolicies = listOf(mock()),
-      notifier = mock(),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedUpstreamResources = mutableListOf(resource),
-      lockingService = lockingService,
-      retrySupport = retrySupport
-    ).mark(
-      workConfiguration = configuration,
-      postMark = { postAction(listOf(resource)) }
-    )
-
-    verify(applicationEventPublisher, never()).publishEvent(MarkResourceEvent(markedResource, configuration))
-    verify(resourceRepository, atMost(maxNumberOfInvocations = 1)).upsert(any(), any())
   }
 
   @Test
@@ -201,9 +171,9 @@ object ResourceTypeHandlerTest {
         TestRule({ true }, Summary("always invalid", "rule1"))
       ),
       resourceTrackingRepository = resourceRepository,
-      ownerResolver = mock(),
+      ownerResolver = ownerResolver,
       exclusionPolicies = listOf(mock()),
-      notifier = mock(),
+      notifiers = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = fetchedResources,
       lockingService = lockingService,
@@ -239,11 +209,11 @@ object ResourceTypeHandlerTest {
         TestRule({ true }, Summary("always invalid", "rule1"))
       ),
       resourceTrackingRepository = resourceRepository,
-      ownerResolver = mock(),
+      ownerResolver = ownerResolver,
       exclusionPolicies = listOf(LiteralExclusionPolicy()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
-      notifier = mock(),
+      notifiers = listOf(mock()),
       lockingService = lockingService,
       retrySupport = retrySupport
     ).mark(
@@ -256,8 +226,8 @@ object ResourceTypeHandlerTest {
   }
 
   @Test
-  fun `should forget resource if no longer violate a rule and don't notify user`() {
-    val resource = TestResource("testResource")
+  fun `should forget resource if no longer violate a rule`() {
+    val resource = TestResource(resourceId = "testResource")
     val configuration = workConfiguration()
     val markedResource = MarkedResource(
       resource = resource,
@@ -275,11 +245,11 @@ object ResourceTypeHandlerTest {
         TestRule(invalidOn = { true }, summary = null)
       ),
       resourceTrackingRepository = resourceRepository,
-      ownerResolver = mock(),
+      ownerResolver = ownerResolver,
       exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
       simulatedUpstreamResources = mutableListOf(resource),
-      notifier = mock(),
+      notifiers = listOf(mock()),
       lockingService = lockingService,
       retrySupport = mock()
     ).mark(
@@ -294,8 +264,9 @@ object ResourceTypeHandlerTest {
     verify(resourceRepository, never()).upsert(any(), any())
   }
 
-  internal fun workConfiguration(exclusions: List<Exclusion> = emptyList(),
-                                 dryRun: Boolean = false
+  internal fun workConfiguration(
+    exclusions: List<Exclusion> = emptyList(),
+    dryRun: Boolean = false
   ): WorkConfiguration = WorkConfiguration(
     namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
     account = SpinnakerAccount(
@@ -312,7 +283,7 @@ object ResourceTypeHandlerTest {
     retention = 14,
     exclusions = exclusions,
     dryRun = dryRun,
-    maxAge = 0
+    maxAge = 1
   )
 
   class TestRule(
@@ -330,7 +301,7 @@ object ResourceTypeHandlerTest {
     ownerResolver: OwnerResolver<TestResource>,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
-    notifier: Notifier,
+    notifiers: List<Notifier>,
     private val rules: List<Rule<TestResource>>,
     private val simulatedUpstreamResources: MutableList<TestResource>?,
     registry: Registry = NoopRegistry(),
@@ -343,7 +314,7 @@ object ResourceTypeHandlerTest {
     resourceTrackingRepository,
     exclusionPolicies,
     ownerResolver,
-    notifier,
+    notifiers,
     applicationEventPublisher,
     lockingService,
     retrySupport

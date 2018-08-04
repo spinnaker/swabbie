@@ -37,15 +37,19 @@ open class EddaInstanceProvider(
 ) : ResourceProvider<AmazonInstance>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonInstance>? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
       return getNonTerminatedInstances()
     }
+
+    return emptyList()
   }
 
   override fun getOne(params: Parameters): AmazonInstance? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
       return getSingleInstance(params["instanceId"] as String)
     }
+
+    return null
   }
 
   private fun EddaService.getNonTerminatedInstances(): List<AmazonInstance> {

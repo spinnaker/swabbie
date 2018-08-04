@@ -20,35 +20,46 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.model.Resource
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.util.regex.Pattern
 
 @Component
 open class ResourceOwnerResolver<in T : Resource>(
   private val registry: Registry,
   private val resourceOwnerResolutionStrategies: List<ResourceOwnerResolutionStrategy<T>>
 ) : OwnerResolver<T> {
-  @Value("\${swabbie.notify.fallbackEmail:swabbie@netflix.com}")
-  private lateinit var fallbackEmail: String
-
   private val resourceOwnerId = registry.createId("swabbie.resources.owner")
   override fun resolve(resource: T): String? {
     try {
       resourceOwnerResolutionStrategies.mapNotNull {
         it.resolve(resource)
       }.let { owners ->
-        return if (!owners.isEmpty()) {
+        val email = findValidEmail(owners)
+        return if (email != null) {
           registry.counter(resourceOwnerId.withTags("result", "found")).increment()
-          owners.first()
+          email
         } else {
           registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
-          fallbackEmail
+          null
         }
       }
     } catch (e: Exception) {
-      log.info("Failed to find owner for {}. falling back on {}", resource, fallbackEmail, e)
+      log.info("Failed to find owner for {}.", resource, e)
       registry.counter(resourceOwnerId.withTags("result", "failed")).increment()
-      return fallbackEmail
+      return null
+    }
+  }
+
+  private fun findValidEmail(emails: List<String>): String? {
+    return emails.find {
+      Pattern.compile(
+        "^(([\\w-]+\\.)+[\\w-]+|([a-zA-Z]|[\\w-]{2,}))@"
+          + "((([0-1]?[0-9]{1,2}|25[0-5]|2[0-4][0-9])\\.([0-1]?"
+          + "[0-9]{1,2}|25[0-5]|2[0-4][0-9])\\."
+          + "([0-1]?[0-9]{1,2}|25[0-5]|2[0-4][0-9])\\.([0-1]?"
+          + "[0-9]{1,2}|25[0-5]|2[0-4][0-9]))|"
+          + "([a-zA-Z]+[\\w-]+\\.)+[a-zA-Z]{2,4})$"
+      ).matcher(it).matches()
     }
   }
 

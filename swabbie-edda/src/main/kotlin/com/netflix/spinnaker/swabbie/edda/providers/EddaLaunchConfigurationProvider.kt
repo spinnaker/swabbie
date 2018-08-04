@@ -36,15 +36,20 @@ open class EddaLaunchConfigurationProvider(
   private val registry: Registry
 ) : ResourceProvider<AmazonLaunchConfiguration>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  override fun getAll(params: Parameters): List<AmazonLaunchConfiguration>? =
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+  override fun getAll(params: Parameters): List<AmazonLaunchConfiguration>? {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
       return getLaunchConfigurations()
     }
 
+    return emptyList()
+  }
+
   override fun getOne(params: Parameters): AmazonLaunchConfiguration? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String).run {
+    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
       return getLaunchConfiguration(params["launchConfigurationName"] as String)
     }
+
+    return null
   }
 
   private fun EddaService.getLaunchConfigurations(): List<AmazonLaunchConfiguration> {

@@ -16,7 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.tagging
 
-import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.model.*
 import org.slf4j.Logger
@@ -27,7 +26,6 @@ import java.time.Clock
 @Component
 class ResourceEntityTagger(
   private val clock: Clock,
-  private val swabbieProperties: SwabbieProperties,
   private val taggingService: TaggingService
 ) : ResourceTagger {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
@@ -50,7 +48,7 @@ class ResourceEntityTagger(
       tags = listOf(
         EntityTag(
           namespace = "swabbie:${workConfiguration.namespace.toLowerCase()}",
-          value = TagValue(message = tagMessage(markedResource))
+          value = TagValue(message = tagMessage(markedResource, workConfiguration))
         )
       ),
       application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
@@ -59,7 +57,7 @@ class ResourceEntityTagger(
     )
   }
 
-  private fun tagMessage(markedResource: MarkedResource): String {
+  private fun tagMessage(markedResource: MarkedResource, workConfiguration: WorkConfiguration): String {
     return markedResource.summaries
       .joinToString(", ") {
         it.description
@@ -67,7 +65,8 @@ class ResourceEntityTagger(
         val time = markedResource.humanReadableDeletionTime(clock)
         "Scheduled to be cleaned up on $time<br /> \n " +
           "* $summary <br /> \n" +
-          "* Click <a href='${swabbieProperties.optOutBaseUrl}' target='_blank'>here</a> to opt out."
+          "* Click <a href='" +
+          "${workConfiguration.notificationConfiguration.optOutBaseUrl}' target='_blank'>here</a> to opt out."
       }
   }
 

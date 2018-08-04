@@ -115,15 +115,16 @@ data class MarkedResource(
   val namespace: String,
   var projectedDeletionStamp: Long,
   var notificationInfo: NotificationInfo? = null,
-  var createdTs: Long? = null,
+  var markTs: Long? = null,
   var updateTs: Long? = null,
-  val resourceOwner: String? = null
+  val resourceOwner: String = ""
 ) : Identifiable by resource
 
 data class NotificationInfo(
   val recipient: String? = null,
   val notificationType: String? = null,
-  val notificationStamp: Long? = null
+  val notificationStamp: Long? = null,
+  var notificationCount: Int = 0
 )
 
 data class ResourceState(

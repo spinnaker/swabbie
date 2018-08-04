@@ -16,14 +16,13 @@
 
 package com.netflix.spinnaker.config
 
+import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties("swabbie")
 open class SwabbieProperties {
   var dryRun: Boolean = true
   var providers: List<CloudProviderConfiguration> = mutableListOf()
-  var optOutBaseUrl: String = ""
-  var spinnakerResourceSearchUrl: String = ""
 }
 
 class CloudProviderConfiguration {
@@ -32,13 +31,29 @@ class CloudProviderConfiguration {
   var locations: List<String> = mutableListOf()
   var accounts: List<String> = mutableListOf()
   var resourceTypes: List<ResourceTypeConfiguration> = mutableListOf()
-  var resourcesPerNotification: Int = 10
+  var maxItemsProcessedPerCycle: Int = 10
+  var itemsProcessedBatchSize: Int = 5
   override fun toString(): String {
     return "CloudProviderConfiguration(" +
       "exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes, " +
-      "resourcesPerNotification=$resourcesPerNotification)"
+      "maxItemsProcessedPerCycle=$maxItemsProcessedPerCycle, itemsProcessedBatchSize=$itemsProcessedBatchSize)"
   }
 
+}
+
+open class NotificationConfiguration(
+  var enabled: Boolean = false,
+  var types: MutableList<String> = mutableListOf("Email"),
+  var optOutBaseUrl: String = "",
+  var itemsPerMessage: Int = 10,
+  var resourceUrl: String = "",
+  var defaultDestination: String = "swabbie@spinnaker.io"
+) {
+  override fun toString(): String {
+    return "NotificationConfiguration(" +
+      "enabled=$enabled, types=$types, optOutBaseUrl='$optOutBaseUrl', itemsPerMessage=$itemsPerMessage, " +
+      "resourceUrl='$resourceUrl', defaultDestination='$defaultDestination')"
+  }
 }
 
 class Exclusion {
@@ -75,19 +90,17 @@ class Exclusion {
     result = 31 * result + attributes.hashCode()
     return result
   }
-
-
 }
 
 class ResourceTypeConfiguration {
   var enabled: Boolean = false
   var dryRun: Boolean = true
-  var notifyOwner: Boolean = true
   var retention: Int = 14
   var exclusions: MutableList<Exclusion> = mutableListOf()
   lateinit var name: String
   var entityTaggingEnabled: Boolean = false
   var maxAge: Int = 14
+  var notification: NotificationConfiguration = EmptyNotificationConfiguration()
 }
 
 class Attribute {
@@ -124,8 +137,6 @@ class Attribute {
     result = 31 * result + value.hashCode()
     return result
   }
-
-
 }
 
 enum class ExclusionType {

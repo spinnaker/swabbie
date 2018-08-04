@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.echo
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.netflix.spinnaker.swabbie.notifications.Notifier
 import retrofit.client.Response
 import retrofit.http.Body
 import retrofit.http.POST
@@ -27,25 +28,15 @@ interface EchoService {
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   data class Notification(
-    val notificationType: Type,
+    val notificationType: Notifier.NotificationType,
     val to: Collection<String>,
     val cc: Collection<String> = listOf(),
-    val severity: NotificationSeverity,
+    val severity: Notifier.NotificationSeverity,
     val source: Source,
     val templateGroup: String,
     val additionalContext: Map<String, Any?> = mapOf()
   ) {
 
     data class Source(val application: String)
-
-    enum class Type {
-      SLACK,
-      EMAIL
-    }
   }
-}
-
-enum class NotificationSeverity {
-  NORMAL,
-  HIGH
 }

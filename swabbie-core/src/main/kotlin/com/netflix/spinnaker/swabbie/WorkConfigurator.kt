@@ -24,42 +24,15 @@ import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.EmptyAccount
-import com.netflix.spinnaker.swabbie.model.NotificationConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
 
-/*
-Flattens the YAML configuration into units of work called [WorkConfiguration]
-  swabbie:
-    providers:
-      - name: aws
-        locations:
-          - us-east-1
-        accounts:
-          - test
-        exclusions:
-          - type: Tag
-            attributes:
-              - key: expiration_time
-                value:
-                  - never
-                  - pattern:^\d+(d|m|y)$
-    resourceTypes:
-      - name: securityGroup
-        enabled: false
-        dryRun: true
-        retentionDays: 10
-        notifyOwner: true
-        exclusions:
-          - type: Literal
-            attributes:
-              - key: name
-                value:
-                  - nf_infranstructure
-                  - nf_datacenter
-*/
+/**
+ * Flattens the YAML configuration into units of work called [WorkConfiguration]
+**/
+
 open class WorkConfigurator(
   private val swabbieProperties: SwabbieProperties,
   private val accountProvider: AccountProvider,
@@ -122,14 +95,11 @@ open class WorkConfigurator(
                 resourceTypeConfiguration.exclusions
               ),
               dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
+              notificationConfiguration = resourceTypeConfiguration.notification,
               entityTaggingEnabled = resourceTypeConfiguration.entityTaggingEnabled,
-              notificationConfiguration = NotificationConfiguration(
-                notifyOwner = resourceTypeConfiguration.notifyOwner,
-                spinnakerResourceUrl = swabbieProperties.spinnakerResourceSearchUrl,
-                optOutUrl = swabbieProperties.optOutBaseUrl,
-                resourcesPerNotification = cloudProviderConfiguration.resourcesPerNotification
-              ),
-              maxAge = resourceTypeConfiguration.maxAge
+              maxAge = resourceTypeConfiguration.maxAge,
+              maxItemsProcessedPerCycle = cloudProviderConfiguration.maxItemsProcessedPerCycle,
+              itemsProcessedBatchSize = cloudProviderConfiguration.itemsProcessedBatchSize
             ).let { configuration ->
               configuration.takeIf {
                 !shouldExclude(account, it, exclusionPolicies, log)

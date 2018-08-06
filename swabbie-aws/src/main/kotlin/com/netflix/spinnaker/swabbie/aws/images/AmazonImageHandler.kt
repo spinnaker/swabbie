@@ -31,6 +31,8 @@ import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import kotlinx.coroutines.experimental.channels.produce
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.runBlocking
 import org.springframework.context.ApplicationEventPublisher
@@ -68,36 +70,44 @@ class AmazonImageHandler(
   lockingService,
   retrySupport
 ) {
-  override fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
-    orcaService.orchestrate(
-      OrchestrationRequest(
-        application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
-        job = listOf(
-          OrcaJob(
-            type = "deleteImage",
-            context = mutableMapOf(
-              "credentials" to workConfiguration.account.name,
-              "imageId" to markedResource.resource.resourceId,
-              "cloudProvider" to markedResource.resource.cloudProvider,
-              "region" to listOf(workConfiguration.location)
+  override fun deleteResources(
+    markedResources: List<MarkedResource>,
+    workConfiguration: WorkConfiguration
+  ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+    // TODO: refactor to use stage taking a list of image ids
+    markedResources.forEach { markedResource ->
+      orcaService.orchestrate(
+        OrchestrationRequest(
+          application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
+          job = listOf(
+            OrcaJob(
+              type = "deleteImage",
+              context = mutableMapOf(
+                "credentials" to workConfiguration.account.name,
+                "imageId" to markedResource.resource.resourceId,
+                "cloudProvider" to markedResource.resource.cloudProvider,
+                "region" to listOf(workConfiguration.location)
+              )
             )
-          )
-        ),
-        description = "Deleting Image Id:${markedResource.resourceId} Name: ${markedResource.name}"
-      )
-    ).let { taskResponse ->
-      // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
-      val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
-      var taskStatus = orcaService.getTask(taskId).status
-      runBlocking {
-        while (taskStatus.isIncomplete()) {
-          delay(checkStatusDelay)
-          taskStatus = orcaService.getTask(taskId).status
+          ),
+          description = "Deleting Image Id:${markedResource.resourceId} Name: ${markedResource.name}"
+        )
+      ).let { taskResponse ->
+        // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
+        val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
+        var taskStatus = orcaService.getTask(taskId).status
+        runBlocking {
+          while (taskStatus.isIncomplete()) {
+            delay(checkStatusDelay)
+            taskStatus = orcaService.getTask(taskId).status
+          }
         }
-      }
 
-      if (!taskStatus.isSuccess()) {
-        throw FailedDeleteException("Failed to delete Image ${markedResource.resourceId}")
+        if (!taskStatus.isSuccess()) {
+          log.error("Failed to delete Image ${markedResource.resourceId}")
+        } else {
+          send(markedResource)
+        }
       }
     }
   }

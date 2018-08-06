@@ -141,7 +141,14 @@ object AmazonImageHandlerTest {
   @AfterEach
   fun cleanup() {
     validateMockitoUsage()
-    reset(imageProvider, accountProvider, instanceProvider, launchConfigurationProvider, applicationEventPublisher)
+    reset(
+      resourceRepository,
+      imageProvider,
+      accountProvider,
+      instanceProvider,
+      launchConfigurationProvider,
+      applicationEventPublisher
+    )
   }
 
   @Test

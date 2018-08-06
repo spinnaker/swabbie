@@ -41,7 +41,7 @@ abstract class Event(
 }
 
 enum class Action {
-  MARK, UNMARK, DELETE, NOTIFY
+  MARK, UNMARK, DELETE, NOTIFY, OPTOUT
 }
 
 class OwnerNotifiedEvent(
@@ -63,3 +63,8 @@ class DeleteResourceEvent(
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
 ) : Event(Action.DELETE, markedResource, workConfiguration)
+
+class OptOutResourceEvent(
+  override val markedResource: MarkedResource,
+  override val workConfiguration: WorkConfiguration
+) : Event(Action.OPTOUT, markedResource, workConfiguration)

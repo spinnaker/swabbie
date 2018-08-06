@@ -20,7 +20,6 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
-import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
@@ -40,14 +39,13 @@ abstract class ScheduledAgent(
   val registry: Registry,
   private val discoverySupport: DiscoverySupport,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
-  private val workConfigurator: WorkConfigurator,
+  private val workConfigurations: List<WorkConfiguration>,
   private val agentExecutor: Executor
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
 
   override fun onApplicationEvent(event: ApplicationReadyEvent?) {
-    val workConfigurations = workConfigurator.generateWorkConfigurations()
     worker.schedulePeriodically({
       discoverySupport.ifUP {
         initialize()

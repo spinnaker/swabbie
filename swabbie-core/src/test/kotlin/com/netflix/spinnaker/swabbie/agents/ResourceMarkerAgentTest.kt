@@ -50,7 +50,7 @@ object ResourceMarkerAgentTest {
       registry = NoopRegistry(),
       discoverySupport = mock(),
       resourceTypeHandlers = listOf(resourceTypeHandler),
-      workConfigurator = mock(),
+      workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 
@@ -67,7 +67,7 @@ object ResourceMarkerAgentTest {
       registry = NoopRegistry(),
       discoverySupport = mock(),
       resourceTypeHandlers = listOf(resourceTypeHandler),
-      workConfigurator = mock(),
+      workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 

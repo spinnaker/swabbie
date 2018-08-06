@@ -43,15 +43,15 @@ class RedisResourceTrackingRepository(
     }
   }
 
-  override fun getMarkedResources(): List<MarkedResource>? {
+  override fun getMarkedResources(): List<MarkedResource> {
     return doGetAll(true)
   }
 
-  override fun getMarkedResourcesToDelete(): List<MarkedResource>? {
+  override fun getMarkedResourcesToDelete(): List<MarkedResource> {
     return doGetAll(false)
   }
 
-  private fun doGetAll(includeAll: Boolean): List<MarkedResource>? =
+  private fun doGetAll(includeAll: Boolean): List<MarkedResource> =
     ALL_RESOURCES_KEY.let { key ->
       return getClientForId(key).run {
         this.withCommandsClient<Set<String>> { client ->

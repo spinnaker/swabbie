@@ -16,35 +16,76 @@
 
 package com.netflix.spinnaker.swabbie.controllers
 
-
+import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
+import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestMethod
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/resources")
 class ResourceController(
-  private val resourceStateRepository: ResourceStateRepository
-) {
+  private val resourceStateRepository: ResourceStateRepository,
+  private val resourceTrackingRepository: ResourceTrackingRepository,
+  private val applicationEventPublisher: ApplicationEventPublisher,
+  private val workConfigurations: List<WorkConfiguration>
+  ) {
+  @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
+  fun markedResources(): List<MarkedResource>? = resourceTrackingRepository.getMarkedResources()
 
-  @RequestMapping(value = "/states", method = arrayOf(RequestMethod.GET))
-  fun resourceStates(): List<ResourceState>? = resourceStateRepository.getAll()
+  @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])
+  fun markedResourcesReadyForDeletion(): List<MarkedResource>? = resourceTrackingRepository.getMarkedResourcesToDelete()
 
-  @RequestMapping(value = "/state", method = arrayOf(RequestMethod.GET))
-  fun resourceState(
+  @RequestMapping(value = ["/states"], method = [RequestMethod.GET])
+  fun states(
+    @RequestParam(required = false) start: Int?,
+    @RequestParam(required = false) limit: Int?
+  ): List<ResourceState> {
+    return resourceStateRepository.getAll().apply {
+      this.subList(start ?: 0, Math.min(this.size, limit ?: Int.MAX_VALUE ))
+    }
+  }
+
+  @RequestMapping(value = ["/state"], method = [RequestMethod.GET])
+  fun state(
     @RequestParam provider: String,
     @RequestParam account: String,
     @RequestParam location: String,
     @RequestParam resourceId: String,
     @RequestParam resourceType: String
-  ): ResourceState? =
+  ): ResourceState =
     "$provider:$account:$location:$resourceType".toLowerCase()
       .let {
-        return resourceStateRepository.get(resourceId, it)
+        return resourceStateRepository.get(resourceId, it) ?: throw NotFoundException()
       }
+
+  @RequestMapping(value = ["/state/{resourceId}"], method = [RequestMethod.GET])
+  fun state(
+    @PathVariable resourceId: String
+  ): List<ResourceState> =
+    resourceStateRepository.getAll().filter { it.markedResource.resourceId == resourceId }
+
+
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}/optOut"], method = [RequestMethod.GET])
+  fun optOut(
+    @PathVariable resourceId: String,
+    @PathVariable namespace: String
+  ) : ResourceState {
+    resourceTrackingRepository.find(resourceId, namespace)?.let { markedResource ->
+      resourceTrackingRepository.remove(markedResource)
+      workConfigurations.find {
+        it.namespace.equals(namespace, true)
+      }?.also { configuration ->
+        applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, configuration))
+      }
+    }
+
+    return resourceStateRepository.get(resourceId, namespace) ?: throw NotFoundException()
+  }
 }
 
 

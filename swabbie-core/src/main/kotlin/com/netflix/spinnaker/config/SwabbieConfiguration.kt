@@ -35,6 +35,7 @@ import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.services.DynamicPropertyService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -79,6 +80,11 @@ open class SwabbieConfiguration {
                             exclusionsProviders: Optional<List<ExclusionsSupplier>>): WorkConfigurator {
     return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies, exclusionsProviders)
   }
+
+  @Bean
+  open fun workConfigurations(workConfigurator: WorkConfigurator): List<WorkConfiguration> =
+    workConfigurator.generateWorkConfigurations()
+
 
   @Bean
   open fun agentExecutor(): ThreadPoolTaskExecutor =

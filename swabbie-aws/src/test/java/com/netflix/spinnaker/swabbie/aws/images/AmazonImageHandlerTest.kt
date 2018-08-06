@@ -51,6 +51,7 @@ object AmazonImageHandlerTest {
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()
   private val accountProvider = mock<AccountProvider>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
+  private val resourceStateRepository = mock<ResourceStateRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonImage>>()
   private val clock = Clock.systemDefaultZone()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
@@ -65,6 +66,7 @@ object AmazonImageHandlerTest {
     notifiers = listOf(mock()),
     rules = listOf(OrphanedImageRule()),
     resourceTrackingRepository = resourceRepository,
+    resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
       WhiteListExclusionPolicy(front50ApplicationCache, accountProvider)
@@ -147,7 +149,8 @@ object AmazonImageHandlerTest {
       accountProvider,
       instanceProvider,
       launchConfigurationProvider,
-      applicationEventPublisher
+      applicationEventPublisher,
+      resourceOwnerResolver
     )
   }
 

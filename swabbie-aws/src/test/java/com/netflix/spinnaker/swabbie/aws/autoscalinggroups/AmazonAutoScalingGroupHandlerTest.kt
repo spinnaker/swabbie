@@ -47,6 +47,7 @@ object AmazonAutoScalingGroupHandlerTest {
   private val accountProvider = mock<AccountProvider>()
   private val serverGroupProvider = mock<ResourceProvider<AmazonAutoScalingGroup>>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
+  private val resourceStateRepository = mock<ResourceStateRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
   private val clock = Clock.systemDefaultZone()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
@@ -59,6 +60,7 @@ object AmazonAutoScalingGroupHandlerTest {
     notifiers = listOf(mock()),
     rules = listOf(ZeroInstanceDisabledServerGroupRule()),
     resourceTrackingRepository = resourceRepository,
+    resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
       WhiteListExclusionPolicy(front50ApplicationCache, accountProvider)

@@ -21,5 +21,5 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 interface ResourceStateRepository {
   fun get(resourceId: String, namespace: String): ResourceState?
   fun upsert(resourceState: ResourceState)
-  fun getAll(): List<ResourceState>?
+  fun getAll(): List<ResourceState>
 }

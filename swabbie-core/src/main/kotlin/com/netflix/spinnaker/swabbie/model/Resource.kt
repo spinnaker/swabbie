@@ -130,8 +130,9 @@ data class NotificationInfo(
 data class ResourceState(
   var markedResource: MarkedResource,
   val deleted: Boolean = false,
+  val optedOut: Boolean = false,
   val statuses: MutableList<Status>,
-  val currentStatus: Status = statuses.last()
+  val currentStatus: Status? = null
 )
 
 data class Status(

@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
@@ -38,7 +39,7 @@ class NotificationAgent(
   registry: Registry,
   discoverySupport: DiscoverySupport,
   resourceTypeHandlers: List<ResourceTypeHandler<*>>,
-  workConfigurator: WorkConfigurator,
+  workConfigurations: List<WorkConfiguration>,
   agentExecutor: Executor,
   private val clock: Clock
 ) : ScheduledAgent(
@@ -46,7 +47,7 @@ class NotificationAgent(
   registry,
   discoverySupport,
   resourceTypeHandlers,
-  workConfigurator,
+  workConfigurations,
   agentExecutor
 ) {
   @Value("\${swabbie.agents.notify.intervalSeconds:3600}")

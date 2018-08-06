@@ -41,6 +41,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   val clock: Clock,
   private val rules: List<Rule<T>>,
   private val resourceRepository: ResourceTrackingRepository,
+  private val resourceStateRepository: ResourceStateRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
   private val ownerResolver: OwnerResolver<T>,
   private val notifiers: List<Notifier>,
@@ -134,6 +135,11 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     try {
       log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration)
       val candidates: List<T>? = getCandidates(workConfiguration)
+      val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
+        .filter {
+          it.markedResource.namespace == workConfiguration.namespace && it.optedOut
+        }
+
       if (candidates == null || candidates.isEmpty()) {
         return
       }
@@ -144,12 +150,13 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         resolveOwners(workConfiguration, it)
       }
 
-      candidates.filterOutExcludedCandidates(workConfiguration).let { filteredCandidates ->
+      candidates.filter {
+        !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
+      }.let { filteredCandidates ->
         val maxItemsToProcess = Math.min(filteredCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
 
         // list of currently marked & stored resources
-        val markedCandidates: List<MarkedResource> = Optional.ofNullable(resourceRepository.getMarkedResources())
-          .orElse(emptyList())
+        val markedCandidates: List<MarkedResource> = resourceRepository.getMarkedResources()
           .filter {
             it.namespace == workConfiguration.namespace
           }
@@ -198,12 +205,6 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     } finally {
       recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
       postMark.invoke()
-    }
-  }
-
-  private fun List<T>.filterOutExcludedCandidates(workConfiguration: WorkConfiguration): List<T> {
-    return this.filter {
-      !shouldExcludeResource(it, workConfiguration, Action.MARK)
     }
   }
 
@@ -264,12 +265,18 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private fun shouldExcludeResource(
     resource: T,
     workConfiguration: WorkConfiguration,
-    action: Action? = null
+    optedOutResourceStates: List<ResourceState>,
+    action: Action
   ): Boolean {
     val creationDate = Instant.ofEpochMilli(resource.createTs).atZone(ZoneId.systemDefault()).toLocalDate()
-    if ((action != null && action != Action.NOTIFY) &&
-      DAYS.between(creationDate, LocalDate.now()) < workConfiguration.maxAge) {
+    if (action != Action.NOTIFY && DAYS.between(creationDate, LocalDate.now()) < workConfiguration.maxAge) {
       log.debug("Excluding {} newer than {} days", resource, workConfiguration.maxAge)
+      return true
+    }
+
+    optedOutResourceStates.find { it.markedResource.resourceId == resource.resourceId }?.let {
+      // TODO: opting out should expire based on configured time
+      log.info("Skipping Opted out resource {}", resource)
       return true
     }
 
@@ -285,21 +292,27 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     val candidateCounter = AtomicInteger(0)
     val markedResourceIds = mutableMapOf<String, List<Summary>>()
     try {
-      resourceRepository.getMarkedResourcesToDelete()?.filter {
+      resourceRepository.getMarkedResourcesToDelete().filter {
         it.notificationInfo != null && !workConfiguration.dryRun
-      }?.sortedBy {
+      }.sortedBy {
         it.resource.createTs
       }.let { toDelete ->
-        if (toDelete == null || toDelete.isEmpty()) {
+        if (toDelete.isEmpty()) {
           log.info("Nothing to delete. Configuration: {}", workConfiguration)
           return
         }
+
+        val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
+          .filter {
+            it.markedResource.namespace == workConfiguration.namespace && it.optedOut
+          }
 
         val postDeleteProcessingJobs = mutableListOf<Job>()
         toDelete.filter { r ->
           val shouldSkip = try {
             getCandidate(r, workConfiguration).let {
-              it == null || shouldExcludeResource(it, workConfiguration, Action.DELETE) || it.getViolations().isEmpty()
+              it == null || it.getViolations().isEmpty() ||
+                shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.DELETE)
             }
           } catch (e: Exception) {
             log.error("Failed to inspect ${r.resourceId} for deletion. Configuration: {}", workConfiguration, e)
@@ -322,7 +335,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
                   postDeleteProcessor(workConfiguration, deleteChannel, candidateCounter, markedResourceIds)
                 )
               } catch (e: Exception) {
-                log.error("Failed to delete ${it}. Configuration: {}", workConfiguration, e)
+                log.error("Failed to delete $it. Configuration: {}", workConfiguration, e)
                 recordFailureForAction(Action.DELETE, workConfiguration, e)
               }
             }
@@ -371,7 +384,16 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
       }
 
       val markedResources = resourceRepository.getMarkedResources()
-      if (markedResources == null || markedResources.isEmpty()) {
+        .filter {
+          it.notificationInfo == null && workConfiguration.namespace == it.namespace
+        }
+
+      val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
+        .filter {
+          it.markedResource.namespace == workConfiguration.namespace && it.optedOut
+        }
+
+      if (markedResources.isEmpty()) {
         log.info("Nothing to notify. Skipping...", workConfiguration)
         return
       }
@@ -380,8 +402,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
       val maxItemsToProcess = Math.min(markedResources.size, workConfiguration.maxItemsProcessedPerCycle)
       markedResources.subList(0, maxItemsToProcess)
         .filter {
-          workConfiguration.namespace == it.namespace &&
-            !shouldExcludeResource(it.resource as T, workConfiguration, Action.NOTIFY) && it.notificationInfo == null
+          !shouldExcludeResource(it.resource as T, workConfiguration, optedOutResourceStates, Action.NOTIFY)
         }.groupBy {
           it.resourceOwner
         }.forEach { ownersAndResources ->

@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
-import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -27,12 +26,11 @@ import java.time.Clock
 object NotificationAgentTest {
   private val clock = Clock.systemDefaultZone()
   private val onCompleteCallback = {}
-  private val workConfigurator = mock<WorkConfigurator>()
+  private val configuration = workConfiguration()
   private val agentExecutor = BlockingThreadExecutor()
 
   @Test
   fun `should not notify if no handler found`() {
-    val configuration = workConfiguration()
     val resourceTypeHandler = mock<ResourceTypeHandler<*>>()
     whenever(resourceTypeHandler.handles(configuration)) doReturn false
 
@@ -41,7 +39,7 @@ object NotificationAgentTest {
       discoverySupport = mock(),
       clock = clock,
       resourceTypeHandlers = listOf(resourceTypeHandler),
-      workConfigurator = workConfigurator,
+      workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 
@@ -50,7 +48,6 @@ object NotificationAgentTest {
 
   @Test
   fun `should notify`() {
-    val configuration = workConfiguration()
     val resourceTypeHandler = mock<ResourceTypeHandler<*>>()
 
     whenever(resourceTypeHandler.handles(configuration)) doReturn true
@@ -59,11 +56,11 @@ object NotificationAgentTest {
       discoverySupport = mock(),
       resourceTypeHandlers = listOf(resourceTypeHandler),
       clock = clock,
-      workConfigurator = workConfigurator,
+      workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor
     ).process(configuration, onCompleteCallback)
 
-    verify(resourceTypeHandler, atMost(maxNumberOfInvocations = 1)).notify(
+    verify(resourceTypeHandler, times(1)).notify(
       argWhere { it == configuration }, any()
     )
   }

@@ -24,6 +24,7 @@ import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
@@ -42,10 +43,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
+import java.time.Instant
 import java.util.*
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
+  private val resourceStateRepository = mock<ResourceStateRepository>()
   private val clock = Clock.systemDefaultZone()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
@@ -63,7 +66,7 @@ object ResourceTypeHandlerTest {
 
   @AfterEach
   fun cleanup() {
-    reset(resourceRepository, applicationEventPublisher, ownerResolver)
+    reset(resourceRepository, resourceStateRepository, applicationEventPublisher, ownerResolver)
   }
 
   @Test
@@ -77,6 +80,7 @@ object ResourceTypeHandlerTest {
         summary = Summary("violates rule 1", "ruleName"))
       ),
       resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
       exclusionPolicies = listOf(mock()),
       ownerResolver = ownerResolver,
       applicationEventPublisher = applicationEventPublisher,
@@ -114,6 +118,7 @@ object ResourceTypeHandlerTest {
       clock = clock,
       rules = rules,
       resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
       exclusionPolicies = listOf(mock()),
       ownerResolver = ownerResolver,
       notifiers = listOf(mock()),
@@ -174,6 +179,7 @@ object ResourceTypeHandlerTest {
         TestRule({ true }, Summary("always invalid", "rule1"))
       ),
       resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
       ownerResolver = ownerResolver,
       exclusionPolicies = listOf(mock()),
       notifiers = listOf(mock()),
@@ -212,6 +218,118 @@ object ResourceTypeHandlerTest {
         TestRule({ true }, Summary("always invalid", "rule1"))
       ),
       resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(LiteralExclusionPolicy()),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedUpstreamResources = mutableListOf(resource),
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = retrySupport
+    ).mark(
+      workConfiguration = configuration,
+      postMark = { postAction(listOf(resource)) }
+    )
+
+    verify(applicationEventPublisher, never()).publishEvent(any())
+    verify(resourceRepository, never()).upsert(any(), any())
+  }
+
+  @Test
+  fun `should ignore opted out resources during delete`() {
+    val resource = TestResource(resourceId = "testResource", name = "testResourceName")
+    val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
+    val configuration = workConfiguration()
+    val markedResource = MarkedResource(
+      resource = resource,
+      summaries = listOf(Summary("invalid resource 2", "rule 2")),
+      namespace = configuration.namespace,
+      resourceOwner = "test@netflix.com",
+      projectedDeletionStamp = fifteenDaysAgo,
+      notificationInfo = NotificationInfo(
+        recipient = "yolo@netflix.com",
+        notificationType = "Email",
+        notificationStamp = clock.millis()
+      )
+    )
+
+    whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
+      listOf(markedResource)
+
+    whenever(resourceStateRepository.getAll()) doReturn
+      listOf(
+        ResourceState(
+          optedOut = true,
+          currentStatus = Status(Action.OPTOUT.name, Instant.now().toEpochMilli()),
+          statuses = mutableListOf(
+            Status(Action.MARK.name, Instant.now().toEpochMilli()),
+            Status(Action.OPTOUT.name, Instant.now().toEpochMilli())
+          ),
+          markedResource = markedResource
+        )
+      )
+
+    TestResourceTypeHandler(
+      clock = clock,
+      rules = listOf(
+        TestRule({ true }, Summary("always invalid", "rule1"))
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(LiteralExclusionPolicy()),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedUpstreamResources = mutableListOf(resource),
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = retrySupport
+    ).delete(
+      workConfiguration = configuration,
+      postDelete = { postAction(listOf(resource)) }
+    )
+
+    verify(applicationEventPublisher, never()).publishEvent(any())
+    verify(resourceRepository, never()).upsert(any(), any())
+  }
+
+  @Test
+  fun `should ignore opted out resources during mark`() {
+    val resource = TestResource(resourceId = "testResource", name = "testResourceName")
+    val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
+    val configuration = workConfiguration()
+
+    val markedResource = MarkedResource(
+      resource = resource,
+      summaries = listOf(Summary("invalid resource 2", "rule 2")),
+      namespace = configuration.namespace,
+      resourceOwner = "test@netflix.com",
+      projectedDeletionStamp = fifteenDaysAgo,
+      notificationInfo = NotificationInfo(
+        recipient = "yolo@netflix.com",
+        notificationType = "Email",
+        notificationStamp = clock.millis()
+      )
+    )
+
+    whenever(resourceStateRepository.getAll()) doReturn
+      listOf(
+        ResourceState(
+          optedOut = true,
+          currentStatus = Status(Action.OPTOUT.name, Instant.now().toEpochMilli()),
+          statuses = mutableListOf(
+            Status(Action.MARK.name, Instant.now().toEpochMilli()),
+            Status(Action.OPTOUT.name, Instant.now().toEpochMilli())
+          ),
+          markedResource = markedResource
+        )
+      )
+    TestResourceTypeHandler(
+      clock = clock,
+      rules = listOf(
+        TestRule({ true }, Summary("always invalid", "rule1"))
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
       ownerResolver = ownerResolver,
       exclusionPolicies = listOf(LiteralExclusionPolicy()),
       applicationEventPublisher = applicationEventPublisher,
@@ -248,6 +366,7 @@ object ResourceTypeHandlerTest {
         TestRule(invalidOn = { true }, summary = null)
       ),
       resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
       ownerResolver = ownerResolver,
       exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
@@ -304,6 +423,7 @@ object ResourceTypeHandlerTest {
   class TestResourceTypeHandler(
     clock: Clock,
     resourceTrackingRepository: ResourceTrackingRepository,
+    resourceStateRepository: ResourceStateRepository,
     ownerResolver: OwnerResolver<TestResource>,
     applicationEventPublisher: ApplicationEventPublisher,
     exclusionPolicies: List<ResourceExclusionPolicy>,
@@ -318,6 +438,7 @@ object ResourceTypeHandlerTest {
     clock,
     rules,
     resourceTrackingRepository,
+    resourceStateRepository,
     exclusionPolicies,
     ownerResolver,
     notifiers,

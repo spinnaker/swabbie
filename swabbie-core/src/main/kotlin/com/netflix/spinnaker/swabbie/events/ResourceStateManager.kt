@@ -56,6 +56,11 @@ class ResourceStateManager(
         removeTag = true
         msg = "${event.markedResource.typeAndName()}. No longer a cleanup candidate"
       }
+      is OptOutResourceEvent -> {
+        id = unMarkCountId
+        removeTag = true
+        msg = "${event.markedResource.typeAndName()}. Opted Out"
+      }
       is DeleteResourceEvent -> {
         id = deleteCountId
         removeTag = true
@@ -106,15 +111,20 @@ class ResourceStateManager(
         resourceId = it.resourceId,
         namespace = it.namespace
       ).let { currentState ->
-        currentState?.statuses?.add(Status(event.action.name, clock.instant().toEpochMilli()))
+        val status = Status(event.action.name, clock.instant().toEpochMilli())
+        currentState?.statuses?.add(status)
         (currentState?.copy(
           statuses = currentState.statuses,
           markedResource = it,
-          deleted = event is DeleteResourceEvent
+          deleted = event is DeleteResourceEvent,
+          optedOut = event is OptOutResourceEvent,
+          currentStatus = status
         ) ?: ResourceState(
           markedResource = it,
           deleted = event is DeleteResourceEvent,
-          statuses = mutableListOf(Status(event.action.name, clock.instant().toEpochMilli()))
+          optedOut = event is OptOutResourceEvent,
+          statuses = mutableListOf(status),
+          currentStatus = status
         )).let {
           resourceStateRepository.upsert(it)
         }

@@ -41,7 +41,7 @@ class RedisResourceStateRepository(
     }
   }
 
-  override fun getAll(): List<ResourceState>? {
+  override fun getAll(): List<ResourceState> {
     ALL_STATES_KEY.let { key ->
       return getClientForId(key).run {
         this.withCommandsClient<Set<String>> { client ->

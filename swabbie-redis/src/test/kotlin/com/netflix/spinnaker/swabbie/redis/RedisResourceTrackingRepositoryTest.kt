@@ -104,7 +104,7 @@ object RedisResourceTrackingRepositoryTest {
     resourceRepository.remove(markedResource)
 
     resourceRepository.getMarkedResources().let { result ->
-      result?.size shouldMatch equalTo(0)
+      result.size shouldMatch equalTo(0)
     }
   }
 
@@ -159,11 +159,11 @@ object RedisResourceTrackingRepositoryTest {
     }
 
     resourceRepository.getMarkedResources().let { result ->
-      result?.size shouldMatch equalTo(3)
+      result.size shouldMatch equalTo(3)
     }
 
     resourceRepository.getMarkedResourcesToDelete().let { result ->
-      result?.size shouldMatch equalTo(1)
+      result.size shouldMatch equalTo(1)
     }
   }
 }

@@ -25,8 +25,8 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -53,8 +53,12 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
 
   /**
    * deletes a marked resource. Each handler must implement this function.
+   * Asynchronously produces resources that were successfully deleted for additional processing
    */
-  abstract fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration)
+  abstract fun deleteResources(
+    markedResources: List<MarkedResource>,
+    workConfiguration: WorkConfiguration
+  ): ReceiveChannel<MarkedResource>
 
   /**
    * finds & tracks cleanup candidates
@@ -222,9 +226,13 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     workConfiguration: WorkConfiguration
   ) {
     if (markedResource != null && !workConfiguration.dryRun) {
-      log.info("{} is no longer a candidate.", markedResource)
-      resourceRepository.remove(markedResource)
-      applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
+      try {
+        log.info("{} is no longer a candidate.", markedResource)
+        resourceRepository.remove(markedResource)
+        applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
+      } catch (e: Exception) {
+        log.error("Failed to unmark resource {}", markedResource, e)
+      }
     }
   }
 
@@ -277,59 +285,73 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     val candidateCounter = AtomicInteger(0)
     val markedResourceIds = mutableMapOf<String, List<Summary>>()
     try {
-      val toDelete: List<MarkedResource>? = resourceRepository.getMarkedResourcesToDelete()
-      if (toDelete == null || toDelete.isEmpty()) {
-        log.info("Nothing to delete. Configuration: {}", workConfiguration)
-        return
-      }
-
-      val maxItemsToProcess = Math.min(toDelete.size, workConfiguration.maxItemsProcessedPerCycle)
-      for (r in toDelete) {
-        if (candidateCounter.get() > maxItemsToProcess) {
-          log.info("Max items to process reached {}...", maxItemsToProcess)
-          break
+      resourceRepository.getMarkedResourcesToDelete()?.filter {
+        it.notificationInfo != null && !workConfiguration.dryRun
+      }?.sortedBy {
+        it.resource.createTs
+      }.let { toDelete ->
+        if (toDelete == null || toDelete.isEmpty()) {
+          log.info("Nothing to delete. Configuration: {}", workConfiguration)
+          return
         }
 
-        try {
-          val candidate: T? = getCandidate(r, workConfiguration)
-          if (candidate == null) {
-            ensureResourceUnmarked(r, workConfiguration)
-            continue
+        val postDeleteProcessingJobs = mutableListOf<Job>()
+        toDelete.filter { r ->
+          val shouldSkip = try {
+            getCandidate(r, workConfiguration).let {
+              it == null || shouldExcludeResource(it, workConfiguration, Action.DELETE) || it.getViolations().isEmpty()
+            }
+          } catch (e: Exception) {
+            log.error("Failed to inspect ${r.resourceId} for deletion. Configuration: {}", workConfiguration, e)
+            true
           }
 
-          candidate.set(resourceOwnerField, ownerResolver.resolve(candidate))
-          if (shouldExcludeResource(candidate, workConfiguration, Action.DELETE)) {
+          if (shouldSkip) {
             ensureResourceUnmarked(r, workConfiguration)
-            continue
           }
 
-          candidate.getViolations().let { violations ->
-            if (violations.isEmpty()) {
-              ensureResourceUnmarked(r, workConfiguration)
-            } else {
-              if (r.notificationInfo != null && !workConfiguration.dryRun) {
-                retrySupport.retry({
-                  deleteMarkedResource(r, workConfiguration)
-                }, maxAttempts, timeoutMillis, true)
+          !shouldSkip
+        }.let { filteredCandidateList ->
+          val maxItemsToProcess = Math.min(filteredCandidateList.size, workConfiguration.maxItemsProcessedPerCycle)
 
-                applicationEventPublisher.publishEvent(DeleteResourceEvent(r, workConfiguration))
-                resourceRepository.remove(r)
-                log.info("Deleted {}. Configuration: {}", candidate, workConfiguration)
-
-                candidateCounter.incrementAndGet()
-                markedResourceIds[r.resourceId] = violations
+          filteredCandidateList.subList(0, maxItemsToProcess).let {
+            Lists.partition(it, workConfiguration.itemsProcessedBatchSize).forEach { partition ->
+              try {
+                val deleteChannel: ReceiveChannel<MarkedResource> = deleteResources(partition, workConfiguration)
+                postDeleteProcessingJobs.add(
+                  postDeleteProcessor(workConfiguration, deleteChannel, candidateCounter, markedResourceIds)
+                )
+              } catch (e: Exception) {
+                log.error("Failed to delete ${it}. Configuration: {}", workConfiguration, e)
+                recordFailureForAction(Action.DELETE, workConfiguration, e)
               }
             }
           }
-        } catch (e: Exception) {
-          log.error("Failed to inspect ${r.resourceId} for deletion. Configuration: {}", workConfiguration, e)
-          recordFailureForAction(Action.DELETE, workConfiguration, e)
         }
-      }
 
-      printResult(candidateCounter, AtomicInteger(toDelete.size), workConfiguration, markedResourceIds, Action.DELETE)
+        runBlocking {
+          postDeleteProcessingJobs.joinAll()
+        }
+
+        printResult(candidateCounter, AtomicInteger(toDelete.size), workConfiguration, markedResourceIds, Action.DELETE)
+      }
     } finally {
       postClean.invoke()
+    }
+  }
+
+  private fun postDeleteProcessor(
+    workConfiguration: WorkConfiguration,
+    channel: ReceiveChannel<MarkedResource>,
+    candidateCounter: AtomicInteger,
+    markedResourceIds: MutableMap<String, List<Summary>>
+  ): Job = async {
+    for (msg in channel) {
+      log.info("Deleted {}. Configuration: {}", msg, workConfiguration)
+      applicationEventPublisher.publishEvent(DeleteResourceEvent(msg, workConfiguration))
+      resourceRepository.remove(msg)
+      candidateCounter.incrementAndGet()
+      markedResourceIds[msg.resourceId] = msg.summaries
     }
   }
 
@@ -384,7 +406,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
                   }.also {
                     resourceRepository.upsert(it)
                     applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
-                    candidateCounter.set(partition.size)
+                    candidateCounter.addAndGet(partition.size)
                   }
 
                 markedResourceIds[resource.resourceId] = resource.summaries

@@ -27,6 +27,8 @@ import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import kotlinx.coroutines.experimental.channels.produce
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -59,36 +61,43 @@ class AmazonAutoScalingGroupHandler(
   lockingService,
   retrySupport
 ) {
-  override fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
-    orcaService.orchestrate(
-      OrchestrationRequest(
-        application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
-        job = listOf(
-          OrcaJob(
-            type = "destroyServerGroup",
-            context = mutableMapOf(
-              "credentials" to workConfiguration.account.name,
-              "serverGroupName" to markedResource.resource.resourceId,
-              "cloudProvider" to markedResource.resource.cloudProvider,
-              "region" to workConfiguration.location
+  override fun deleteResources(
+    markedResources: List<MarkedResource>,
+    workConfiguration: WorkConfiguration
+  ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+    markedResources.forEach { markedResource ->
+      orcaService.orchestrate(
+        OrchestrationRequest(
+          application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
+          job = listOf(
+            OrcaJob(
+              type = "destroyServerGroup",
+              context = mutableMapOf(
+                "credentials" to workConfiguration.account.name,
+                "serverGroupName" to markedResource.resource.resourceId,
+                "cloudProvider" to markedResource.resource.cloudProvider,
+                "region" to workConfiguration.location
+              )
             )
-          )
-        ),
-        description = "Deleting Server Group :${markedResource.resourceId}"
-      )
-    ).let { taskResponse ->
-      // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
-      val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
-      var taskStatus = orcaService.getTask(taskId).status
-      runBlocking {
-        while (taskStatus.isIncomplete()) {
-          delay(checkStatusDelay)
-          taskStatus = orcaService.getTask(taskId).status
+          ),
+          description = "Deleting Server Group :${markedResource.resourceId}"
+        )
+      ).let { taskResponse ->
+        // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
+        val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
+        var taskStatus = orcaService.getTask(taskId).status
+        runBlocking {
+          while (taskStatus.isIncomplete()) {
+            delay(checkStatusDelay)
+            taskStatus = orcaService.getTask(taskId).status
+          }
         }
-      }
 
-      if (!taskStatus.isSuccess()) {
-        throw FailedDeleteException("Failed to delete server group ${markedResource.resourceId}")
+        if (!taskStatus.isSuccess()) {
+          log.error("Failed to delete server group ${markedResource.resourceId}")
+        } else {
+          send(markedResource)
+        }
       }
     }
   }

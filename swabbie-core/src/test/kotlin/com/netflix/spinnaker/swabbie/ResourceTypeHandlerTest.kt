@@ -34,7 +34,10 @@ import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.*
+import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import kotlinx.coroutines.experimental.channels.produce
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
@@ -123,8 +126,8 @@ object ResourceTypeHandlerTest {
       postMark = { postAction(resources) }
     )
 
-    verify(resourceRepository, atMost(maxNumberOfInvocations = 2)).upsert(any(), any())
-    verify(applicationEventPublisher, atMost(maxNumberOfInvocations = 2)).publishEvent(any<MarkResourceEvent>())
+    verify(resourceRepository, times(2)).upsert(any(), any())
+    verify(applicationEventPublisher, times(2)).publishEvent(any<MarkResourceEvent>())
   }
 
   @Test
@@ -183,7 +186,7 @@ object ResourceTypeHandlerTest {
       postDelete = { postAction(fetchedResources) }
     )
 
-    verify(resourceRepository, atMost(maxNumberOfInvocations = 2)).remove(any())
+    verify(resourceRepository, times(2)).remove(any())
     fetchedResources.size shouldMatch equalTo(0)
   }
 
@@ -236,8 +239,8 @@ object ResourceTypeHandlerTest {
       projectedDeletionStamp = clock.millis()
     )
 
-    whenever(resourceRepository.find(markedResource.resourceId, markedResource.namespace)) doReturn
-      markedResource
+    whenever(resourceRepository.getMarkedResources()) doReturn
+      listOf(markedResource)
 
     TestResourceTypeHandler(
       clock = clock,
@@ -257,10 +260,13 @@ object ResourceTypeHandlerTest {
       postMark = { postAction(listOf(resource)) }
     )
 
-    verify(applicationEventPublisher, atMost(maxNumberOfInvocations = 1))
-      .publishEvent(UnMarkResourceEvent(markedResource, configuration))
-    verify(resourceRepository, atMost(maxNumberOfInvocations = 1)).remove(any())
-
+    verify(applicationEventPublisher, times(1)).publishEvent(
+      check<UnMarkResourceEvent> { event ->
+        Assertions.assertTrue((event.markedResource.resourceId == markedResource.resourceId))
+        Assertions.assertTrue((event.workConfiguration.namespace == configuration.namespace))
+      }
+    )
+    verify(resourceRepository, times(1)).remove(any())
     verify(resourceRepository, never()).upsert(any(), any())
   }
 
@@ -319,13 +325,24 @@ object ResourceTypeHandlerTest {
     lockingService,
     retrySupport
   ) {
-    override fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
-      simulatedUpstreamResources?.removeIf { markedResource.resourceId == it.resourceId }
+    override fun deleteResources(
+      markedResources: List<MarkedResource>,
+      workConfiguration: WorkConfiguration
+    ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+      markedResources.forEach { m ->
+        simulatedUpstreamResources
+          ?.removeIf { r -> m.resourceId == r.resourceId }.also {
+            if (it != null && it) {
+              send(m)
+            }
+          }
+      }
     }
 
     // simulates querying for a resource upstream
-    override fun getCandidate(markedResource: MarkedResource,
-                              workConfiguration: WorkConfiguration
+    override fun getCandidate(
+      markedResource: MarkedResource,
+      workConfiguration: WorkConfiguration
     ): TestResource? {
       return simulatedUpstreamResources?.find { markedResource.resourceId == it.resourceId }
     }

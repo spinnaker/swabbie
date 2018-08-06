@@ -31,6 +31,8 @@ import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
+import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import kotlinx.coroutines.experimental.channels.produce
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -63,29 +65,37 @@ class AmazonLoadBalancerHandler(
   lockingService,
   retrySupport
 ) {
-  override fun deleteMarkedResource(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
-    markedResource.resource.let { resource ->
-      if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
-        //TODO: consider also removing dns records for the ELB
-        log.info("This load balancer is about to be deleted {}", markedResource)
-        orcaService.orchestrate(
-          OrchestrationRequest(
-            application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
-            job = listOf(
-              OrcaJob(
-                type = "deleteLoadBalancer",
-                context = mutableMapOf(
-                  "credentials" to workConfiguration.account.name,
-                  "loadBalancerName" to resource.name,
-                  "cloudProvider" to resource.cloudProvider,
-                  "regions" to listOf(workConfiguration.location)
+  override fun deleteResources(
+    markedResources: List<MarkedResource>,
+    workConfiguration: WorkConfiguration
+  ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+    markedResources.forEach { markedResource ->
+      markedResource.resource.let { resource ->
+        if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
+          //TODO: consider also removing dns records for the ELB
+          log.info("This load balancer is about to be deleted {}", markedResource)
+          orcaService.orchestrate(
+            OrchestrationRequest(
+              application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+              job = listOf(
+                OrcaJob(
+                  type = "deleteLoadBalancer",
+                  context = mutableMapOf(
+                    "credentials" to workConfiguration.account.name,
+                    "loadBalancerName" to resource.name,
+                    "cloudProvider" to resource.cloudProvider,
+                    "regions" to listOf(workConfiguration.location)
+                  )
                 )
-              )
-            ),
-            description = "Cleaning up Load Balancer for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+              ),
+              description = "Cleaning up Load Balancer for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+            )
           )
-        )
+        }
       }
+
+      //TODO: check to see if the task was successful
+      send(markedResource)
     }
   }
 

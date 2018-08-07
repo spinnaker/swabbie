@@ -70,7 +70,7 @@ class ResourceController(
     resourceStateRepository.getAll().filter { it.markedResource.resourceId == resourceId }
 
 
-  @RequestMapping(value = ["/state/{namespace}/{resourceId}/optOut"], method = [RequestMethod.GET])
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}/optOut"], method = [RequestMethod.PUT])
   fun optOut(
     @PathVariable resourceId: String,
     @PathVariable namespace: String

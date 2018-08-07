@@ -131,7 +131,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     val candidateCounter = AtomicInteger(0)
     val violationCounter = AtomicInteger(0)
     val totalResourcesVisitedCounter = AtomicInteger(0)
-    val markedResourceIds = mutableMapOf<String, List<Summary>>()
+    val markedResources = mutableListOf<MarkedResource>()
     try {
       log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration)
       val candidates: List<T>? = getCandidates(workConfiguration)
@@ -174,7 +174,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
             }.let { alreadyMarkedCandidate ->
               when {
                 violations.isEmpty() -> ensureResourceUnmarked(alreadyMarkedCandidate, workConfiguration)
-                !violations.isEmpty() && alreadyMarkedCandidate == null -> {
+                alreadyMarkedCandidate == null -> {
                   val newMarkedResource = MarkedResource(
                     resource = candidate,
                     summaries = violations,
@@ -191,7 +191,11 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
 
                   candidateCounter.incrementAndGet()
                   violationCounter.addAndGet(violations.size)
-                  markedResourceIds[newMarkedResource.resourceId] = violations
+                  markedResources.add(newMarkedResource)
+                }
+                else -> {
+                  // already marked, skipping.
+                  log.debug("Already marked resource " + alreadyMarkedCandidate.resource.resourceId + " ...skipping")
                 }
               }
             }
@@ -201,7 +205,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
           }
         }
       }
-      printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResourceIds, Action.MARK)
+      printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)
     } finally {
       recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
       postMark.invoke()
@@ -244,7 +248,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     candidateCounter: AtomicInteger,
     totalResourcesVisitedCounter: AtomicInteger,
     workConfiguration: WorkConfiguration,
-    markedResourceIds: MutableMap<String, List<Summary>>,
+    markedResources: List<MarkedResource>,
     action: Action
   ) {
     log.info("** ${action.name} Summary: {} CANDIDATES OUT OF {} SCANNED. EXCLUDED {}. CONFIGURATION: {}**",
@@ -256,8 +260,8 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
 
     if (candidateCounter.get() > 0) {
       log.debug("** ${action.name} Result. Configuration: {} **", workConfiguration)
-      markedResourceIds.forEach {
-        log.debug("$it")
+      markedResources.forEach {
+        log.debug(it.toString())
       }
     }
   }
@@ -290,7 +294,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private fun doDelete(workConfiguration: WorkConfiguration, postClean: () -> Unit) {
     exclusionCounters[Action.DELETE] = AtomicInteger(0)
     val candidateCounter = AtomicInteger(0)
-    val markedResourceIds = mutableMapOf<String, List<Summary>>()
+    val markedResources = mutableListOf<MarkedResource>()
     try {
       resourceRepository.getMarkedResourcesToDelete().filter {
         it.notificationInfo != null && !workConfiguration.dryRun
@@ -332,7 +336,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
               try {
                 val deleteChannel: ReceiveChannel<MarkedResource> = deleteResources(partition, workConfiguration)
                 postDeleteProcessingJobs.add(
-                  postDeleteProcessor(workConfiguration, deleteChannel, candidateCounter, markedResourceIds)
+                  postDeleteProcessor(workConfiguration, deleteChannel, candidateCounter, markedResources)
                 )
               } catch (e: Exception) {
                 log.error("Failed to delete $it. Configuration: {}", workConfiguration, e)
@@ -346,7 +350,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
           postDeleteProcessingJobs.joinAll()
         }
 
-        printResult(candidateCounter, AtomicInteger(toDelete.size), workConfiguration, markedResourceIds, Action.DELETE)
+        printResult(candidateCounter, AtomicInteger(toDelete.size), workConfiguration, markedResources, Action.DELETE)
       }
     } finally {
       postClean.invoke()
@@ -357,14 +361,14 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     workConfiguration: WorkConfiguration,
     channel: ReceiveChannel<MarkedResource>,
     candidateCounter: AtomicInteger,
-    markedResourceIds: MutableMap<String, List<Summary>>
+    markedResources: MutableList<MarkedResource>
   ): Job = async {
-    for (msg in channel) {
-      log.info("Deleted {}. Configuration: {}", msg, workConfiguration)
-      applicationEventPublisher.publishEvent(DeleteResourceEvent(msg, workConfiguration))
-      resourceRepository.remove(msg)
+    for (markedResource in channel) {
+      log.info("Deleted {}. Configuration: {}", markedResource, workConfiguration)
+      applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
+      resourceRepository.remove(markedResource)
       candidateCounter.incrementAndGet()
-      markedResourceIds[msg.resourceId] = msg.summaries
+      markedResources.add(markedResource)
     }
   }
 
@@ -443,7 +447,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         candidateCounter,
         AtomicInteger(markedResources.size),
         workConfiguration,
-        markedResourceIds,
+        markedResources,
         Action.NOTIFY
       )
     } finally {

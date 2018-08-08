@@ -380,6 +380,8 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
   private fun doNotify(workConfiguration: WorkConfiguration, postNotify: () -> Unit) {
     exclusionCounters[Action.NOTIFY] = AtomicInteger(0)
     val candidateCounter = AtomicInteger(0)
+    // used to print out result of resources for which notifications were sent
+    val notifiedMarkedResource: MutableList<MarkedResource> = mutableListOf()
     try {
       if (workConfiguration.dryRun || !workConfiguration.notificationConfiguration.enabled) {
         log.info("Notification not enabled for {}. Skipping...", workConfiguration)
@@ -401,7 +403,6 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         return
       }
 
-      val markedResourceIds = mutableMapOf<String, List<Summary>>()
       val maxItemsToProcess = Math.min(markedResources.size, workConfiguration.maxItemsProcessedPerCycle)
       markedResources.subList(0, maxItemsToProcess)
         .filter {
@@ -433,7 +434,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
                     candidateCounter.addAndGet(partition.size)
                   }
 
-                markedResourceIds[resource.resourceId] = resource.summaries
+                notifiedMarkedResource.add(resource)
               }
               log.debug("Notification sent to {} for {} resources", ownersAndResources.key, partition.size)
             } catch (e: Exception) {
@@ -446,7 +447,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
         candidateCounter,
         AtomicInteger(markedResources.size),
         workConfiguration,
-        markedResources,
+        notifiedMarkedResource,
         Action.NOTIFY
       )
     } finally {

@@ -31,6 +31,7 @@ object ResourceStateManagerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val resourceTagger = mock<ResourceTagger>()
   private val clock = Clock.systemDefaultZone()
+  private val registry = NoopRegistry()
 
   private var resource = TestResource("testResource")
   private var configuration = workConfiguration()
@@ -52,19 +53,22 @@ object ResourceStateManagerTest {
     val event = MarkResourceEvent(markedResource, configuration)
     val resourceStateManager = ResourceStateManager(
       resourceStateRepository = resourceStateRepository,
-      clock = Clock.systemDefaultZone(),
-      registry = NoopRegistry(),
+      clock = clock,
+      registry = registry,
       resourceTagger = resourceTagger
     )
 
     resourceStateManager.handleEvents(event)
 
-    verify(resourceTagger).tag(markedResource, configuration, "${event.markedResource.typeAndName()} scheduled to be cleaned up on ${event.markedResource.humanReadableDeletionTime(clock)}")
+    verify(resourceTagger).tag(
+      markedResource = markedResource,
+      workConfiguration = configuration,
+      description = "${event.markedResource.typeAndName()} scheduled to be cleaned up on " +
+        "${event.markedResource.humanReadableDeletionTime(clock)}")
+
     verify(resourceStateRepository).upsert(
       argWhere {
-        !it.deleted &&
-          it.markedResource == markedResource &&
-          it.statuses.size == 1 && it.statuses[0].name == "MARK"
+        it.markedResource == markedResource && it.currentStatus!!.name == Action.MARK.name
       }
     )
   }
@@ -81,15 +85,14 @@ object ResourceStateManagerTest {
     val event = UnMarkResourceEvent(markedResource, configuration)
     val resourceStateManager = ResourceStateManager(
       resourceStateRepository = resourceStateRepository,
-      clock = Clock.systemDefaultZone(),
-      registry = NoopRegistry(),
+      clock = clock,
+      registry = registry,
       resourceTagger = resourceTagger
     )
 
     // previously marked resource
     whenever(resourceStateRepository.get(markedResource.resourceId, configuration.namespace)) doReturn
       ResourceState(
-        deleted = false,
         markedResource = markedResource,
         statuses = mutableListOf(
           Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
@@ -98,16 +101,18 @@ object ResourceStateManagerTest {
 
     resourceStateManager.handleEvents(event)
 
-    verify(resourceTagger).unTag(markedResource, configuration, "${event.markedResource.typeAndName()}. No longer a cleanup candidate")
+    verify(resourceTagger)
+      .unTag(
+        markedResource = markedResource,
+        workConfiguration = configuration,
+        description = "${event.markedResource.typeAndName()}. No longer a cleanup candidate"
+      )
 
     // should have two statuses with UNMARK being the latest
     verify(resourceStateRepository).upsert(
       argWhere {
-        !it.deleted &&
-          it.markedResource == markedResource &&
-          it.statuses.size == 2 && it.statuses[0].name == "MARK" &&
-          it.statuses[1].name == "UNMARK" &&
-          it.statuses[0].timestamp < it.statuses[1].timestamp
+        it.markedResource == markedResource && it.statuses.size == 2 && it.statuses[0].name == Action.MARK.name &&
+          it.currentStatus!!.name == Action.UNMARK.name && it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
   }
@@ -124,8 +129,8 @@ object ResourceStateManagerTest {
     val event = DeleteResourceEvent(markedResource, configuration)
     val resourceStateManager = ResourceStateManager(
       resourceStateRepository = resourceStateRepository,
-      clock = Clock.systemDefaultZone(),
-      registry = NoopRegistry(),
+      clock = clock,
+      registry = registry,
       resourceTagger = resourceTagger
     )
 
@@ -141,16 +146,63 @@ object ResourceStateManagerTest {
 
     resourceStateManager.handleEvents(event)
 
-    verify(resourceTagger).unTag(markedResource, configuration, "Removing tag for now deleted ${event.markedResource.typeAndName()}")
+    verify(resourceTagger).unTag(
+      markedResource = markedResource,
+      workConfiguration = configuration,
+      description = "Removing tag for now deleted ${event.markedResource.typeAndName()}"
+    )
 
     // should have two statuses with DELETE being the latest
     verify(resourceStateRepository).upsert(
       argWhere {
-        it.deleted &&
-          it.markedResource == markedResource &&
-          it.statuses.size == 2 && it.statuses[0].name == "MARK" &&
-          it.statuses[1].name == "DELETE" &&
-          it.statuses[0].timestamp < it.statuses[1].timestamp
+        it.deleted && it.markedResource == markedResource && it.currentStatus!!.name == Action.DELETE.name &&
+          it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
+          it.currentStatus!!.timestamp > it.statuses.first().timestamp
+      }
+    )
+  }
+
+  @Test
+  fun `should update state and untag resource when it's opted out`() {
+    val markedResource = MarkedResource(
+      resource = resource,
+      summaries = listOf(Summary("violates rule 1", "ruleName")),
+      namespace = configuration.namespace,
+      projectedDeletionStamp = clock.millis()
+    )
+
+    val event = OptOutResourceEvent(markedResource, configuration)
+    val resourceStateManager = ResourceStateManager(
+      resourceStateRepository = resourceStateRepository,
+      clock = clock,
+      registry = registry,
+      resourceTagger = resourceTagger
+    )
+
+    // previously marked resource
+    whenever(resourceStateRepository.get(markedResource.resourceId, configuration.namespace)) doReturn
+      ResourceState(
+        optedOut = false,
+        markedResource = markedResource,
+        statuses = mutableListOf(
+          Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
+        )
+      )
+
+    resourceStateManager.handleEvents(event)
+
+    verify(resourceTagger).unTag(
+      markedResource = markedResource,
+      workConfiguration = configuration,
+      description = "${event.markedResource.typeAndName()}. Opted Out"
+    )
+
+    // should have two statuses with OPTOUT being the latest
+    verify(resourceStateRepository).upsert(
+      argWhere {
+        it.optedOut && it.markedResource == markedResource && it.currentStatus!!.name == Action.OPTOUT.name &&
+          it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
+          it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
   }

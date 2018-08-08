@@ -48,6 +48,7 @@ open class MetricsSupport(
   protected val unMarkCountId: Id = registry.createId("swabbie.resources.unMarkCount")
   protected val deleteCountId: Id = registry.createId("swabbie.resources.deleteCount")
   protected val notifyCountId: Id = registry.createId("swabbie.resources.notifyCount")
+  protected val optOutCountId: Id = registry.createId("swabbie.resources.optOutCount")
 
   protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
   protected val lastRunAgeId: Id = registry.createId("swabbie.agents.run.age")

@@ -25,8 +25,11 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.Job
+import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import kotlinx.coroutines.experimental.joinAll
+import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -146,83 +149,69 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
 
       log.info("fetched {} resources. Configuration: {}", candidates.size, workConfiguration)
       totalResourcesVisitedCounter.set(candidates.size)
-      candidates.let {
-        resolveOwners(workConfiguration, it)
-      }
 
-      candidates.filter {
-        !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
-      }.let { filteredCandidates ->
-        val maxItemsToProcess = Math.min(filteredCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
+      candidates
+        .withResolvedOwners(workConfiguration)
+        .filter {
+          !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
+        }.let { filteredCandidates ->
+          val maxItemsToProcess = Math.min(filteredCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
 
-        // list of currently marked & stored resources
-        val markedCandidates: List<MarkedResource> = resourceRepository.getMarkedResources()
-          .filter {
-            it.namespace == workConfiguration.namespace
-          }
+          // list of currently marked & stored resources
+          val markedCandidates: List<MarkedResource> = resourceRepository.getMarkedResources()
+            .filter {
+              it.namespace == workConfiguration.namespace
+            }
 
-        for (candidate in filteredCandidates) {
-          if (candidateCounter.get() > maxItemsToProcess) {
-            log.info("Max items to process reached {}...", maxItemsToProcess)
-            break
-          }
+          for (candidate in filteredCandidates) {
+            if (candidateCounter.get() > maxItemsToProcess) {
+              log.info("Max items to process reached {}...", maxItemsToProcess)
+              break
+            }
 
-          try {
-            val violations: List<Summary> = candidate.getViolations()
-            markedCandidates.find {
-              it.resourceId == candidate.resourceId
-            }.let { alreadyMarkedCandidate ->
-              when {
-                violations.isEmpty() -> ensureResourceUnmarked(alreadyMarkedCandidate, workConfiguration)
-                alreadyMarkedCandidate == null -> {
-                  val newMarkedResource = MarkedResource(
-                    resource = candidate,
-                    summaries = violations,
-                    namespace = workConfiguration.namespace,
-                    resourceOwner = candidate.details[resourceOwnerField] as String,
-                    projectedDeletionStamp = deletionTimestamp(workConfiguration)
-                  )
+            try {
+              val violations: List<Summary> = candidate.getViolations()
+              markedCandidates.find {
+                it.resourceId == candidate.resourceId
+              }.let { alreadyMarkedCandidate ->
+                when {
+                  violations.isEmpty() -> ensureResourceUnmarked(alreadyMarkedCandidate, workConfiguration)
+                  alreadyMarkedCandidate == null -> {
+                    val newMarkedResource = MarkedResource(
+                      resource = candidate,
+                      summaries = violations,
+                      namespace = workConfiguration.namespace,
+                      resourceOwner = candidate.details[resourceOwnerField] as String,
+                      projectedDeletionStamp = deletionTimestamp(workConfiguration)
+                    )
 
-                  if (!workConfiguration.dryRun) {
-                    resourceRepository.upsert(newMarkedResource)
-                    applicationEventPublisher.publishEvent(MarkResourceEvent(newMarkedResource, workConfiguration))
-                    log.info("Marked resource {} for deletion", newMarkedResource)
+                    if (!workConfiguration.dryRun) {
+                      resourceRepository.upsert(newMarkedResource)
+                      applicationEventPublisher.publishEvent(MarkResourceEvent(newMarkedResource, workConfiguration))
+                      log.info("Marked resource {} for deletion", newMarkedResource)
+                    }
+
+                    candidateCounter.incrementAndGet()
+                    violationCounter.addAndGet(violations.size)
+                    markedResources.add(newMarkedResource)
                   }
-
-                  candidateCounter.incrementAndGet()
-                  violationCounter.addAndGet(violations.size)
-                  markedResources.add(newMarkedResource)
-                }
-                else -> {
-                  // already marked, skipping.
-                  log.debug("Already marked resource " + alreadyMarkedCandidate.resource.resourceId + " ...skipping")
+                  else -> {
+                    // already marked, skipping.
+                    log.debug("Already marked resource " + alreadyMarkedCandidate.resource.resourceId + " ...skipping")
+                  }
                 }
               }
+            } catch (e: Exception) {
+              log.error("Failed while invoking ${javaClass.simpleName}", e)
+              recordFailureForAction(Action.MARK, workConfiguration, e)
             }
-          } catch (e: Exception) {
-            log.error("Failed while invoking ${javaClass.simpleName}", e)
-            recordFailureForAction(Action.MARK, workConfiguration, e)
           }
         }
-      }
+
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)
     } finally {
       recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
       postMark.invoke()
-    }
-  }
-
-  private fun resolveOwners(
-    workConfiguration: WorkConfiguration,
-    candidates: List<T>
-  ) = runBlocking<Unit> {
-    candidates.forEach { candidate ->
-      launch {
-        candidate.set(
-          resourceOwnerField,
-          ownerResolver.resolve(candidate) ?: workConfiguration.notificationConfiguration.defaultDestination
-        )
-      }
     }
   }
 
@@ -377,6 +366,16 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
       it.apply(this).summary
     }
   }
+
+  private fun List<T>.withResolvedOwners(workConfiguration: WorkConfiguration): List<T> =
+    this.map { candidate ->
+      candidate.apply {
+        set(
+          resourceOwnerField,
+          ownerResolver.resolve(candidate) ?: workConfiguration.notificationConfiguration.defaultDestination
+        )
+      }
+    }
 
   private fun doNotify(workConfiguration: WorkConfiguration, postNotify: () -> Unit) {
     exclusionCounters[Action.NOTIFY] = AtomicInteger(0)

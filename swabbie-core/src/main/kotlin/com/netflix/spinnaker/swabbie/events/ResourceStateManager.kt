@@ -57,7 +57,7 @@ class ResourceStateManager(
         msg = "${event.markedResource.typeAndName()}. No longer a cleanup candidate"
       }
       is OptOutResourceEvent -> {
-        id = unMarkCountId
+        id = optOutCountId
         removeTag = true
         msg = "${event.markedResource.typeAndName()}. Opted Out"
       }
@@ -133,7 +133,17 @@ class ResourceStateManager(
   }
 }
 
-internal fun MarkedResource.typeAndName(): String
-  = this.resourceType.split("(?=[A-Z])".toRegex()).joinToString(" ") + ": " + this.name
+internal fun MarkedResource.typeAndName(): String {
+  if (name == null || name == resourceId) {
+    resourceId
+  } else {
+    "($resourceId) $name"
+  }.let { suffix ->
+    return resourceType
+      .split("(?=[A-Z])".toRegex())
+      .joinToString(" ") + ": $suffix"
+  }
+}
+
 internal fun String.formatted(): String
   = this.split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()

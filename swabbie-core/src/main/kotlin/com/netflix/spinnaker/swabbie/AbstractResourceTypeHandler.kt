@@ -240,8 +240,10 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
     markedResources: List<MarkedResource>,
     action: Action
   ) {
-    log.info("** ${action.name} Summary: {} CANDIDATES OUT OF {} SCANNED. EXCLUDED {}. CONFIGURATION: {}**",
+    val totalProcessed = Math.min(workConfiguration.maxItemsProcessedPerCycle, totalResourcesVisitedCounter.get())
+    log.info("** ${action.name} Summary: {} CANDIDATES OUT OF {} PROCESSED. {} SCANNED. EXCLUDED {}. CONFIGURATION: {}**",
       candidateCounter.get(),
+      totalProcessed,
       totalResourcesVisitedCounter.get(),
       exclusionCounters[action],
       workConfiguration
@@ -269,7 +271,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
 
     optedOutResourceStates.find { it.markedResource.resourceId == resource.resourceId }?.let {
       // TODO: opting out should expire based on configured time
-      log.info("Skipping Opted out resource {}", resource)
+      log.debug("Skipping Opted out resource {}", resource)
       return true
     }
 

@@ -38,7 +38,6 @@ class CloudProviderConfiguration {
       "exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes, " +
       "maxItemsProcessedPerCycle=$maxItemsProcessedPerCycle, itemsProcessedBatchSize=$itemsProcessedBatchSize)"
   }
-
 }
 
 open class NotificationConfiguration(

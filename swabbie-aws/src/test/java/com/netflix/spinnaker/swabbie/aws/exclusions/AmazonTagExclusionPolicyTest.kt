@@ -44,12 +44,64 @@ object AmazonTagExclusionPolicyTest {
     )
 
     val resources = listOf(
-      AwsTestResource("1")
-        .withDetail(name = "tags", value = listOf(mapOf("expiration_time" to "never"))),
-      AwsTestResource("2")
-        .withDetail(name = "tags", value = listOf(mapOf("key" to "value")))
+      AwsTestResource(id = "1")
+        .withDetail(
+          name = "tags",
+          value = listOf(
+            mapOf("expiration_time" to "never")
+          )
+        ),
+      AwsTestResource(id = "2")
+        .withDetail(
+          name = "tags",
+          value = listOf(
+            mapOf("key" to "value")
+          )
+        ))
+
+    resources.filter {
+      AmazonTagExclusionPolicy().apply(it, exclusions) == null
+    }.let { filteredResources ->
+      filteredResources.size shouldMatch equalTo(1)
+      filteredResources.first().resourceId shouldMatch equalTo("2")
+    }
+  }
+
+  @Test
+  fun `should exclude a resource based on temporal tags`() {
+    val tenDays = 10L
+    val exclusions = listOf(
+      Exclusion()
+        .withType(ExclusionType.Tag.toString())
+        .withAttributes(
+          listOf(
+            Attribute()
+              .withKey("expiration_time")
+              .withValue(
+                listOf("pattern:^\\d+(d|m|y)\$")
+              )
+          )
+        )
     )
 
+    val resources = listOf(
+      AwsTestResource(
+        id = "1",
+        creationDate = LocalDateTime.now().minusDays(tenDays).toString()
+      ).withDetail(
+        name = "tags",
+        value = listOf(
+          mapOf("expiration_time" to "${tenDays}d")
+        )),
+      AwsTestResource(
+        id = "2",
+        creationDate = LocalDateTime.now().minusDays(tenDays).toString()
+      ).withDetail(
+        name = "tags",
+        value = listOf(
+          mapOf("expiration_time" to "${tenDays - 1}d")
+        )
+      ))
     resources.filter {
       AmazonTagExclusionPolicy().apply(it, exclusions) == null
     }.let { filteredResources ->
@@ -66,5 +118,5 @@ data class AwsTestResource(
   override val name: String = "name",
   override val resourceType: String = "type",
   override val cloudProvider: String = "provider",
-  private val creationTime: String = LocalDateTime.now().toString()
-) : AmazonResource(creationTime)
+  private val creationDate: String = LocalDateTime.now().toString()
+) : AmazonResource(creationDate)

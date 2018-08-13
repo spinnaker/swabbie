@@ -25,17 +25,42 @@ import org.springframework.stereotype.Component
 
 @Component
 class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
+  private val tagsField = "tags"
   override fun getType(): ExclusionType = ExclusionType.Tag
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     if (excludable is AmazonResource) {
       keysAndValues(exclusions, ExclusionType.Tag)
         .let { excludingTags ->
-          if ("tags" in excludable.details) {
-            (excludable.details["tags"] as? List<Map<*, *>>)?.map { tag ->
+          if (tagsField in excludable.details) {
+            (excludable.details[tagsField] as List<Map<*, *>>).map { tag ->
               tag.keys.find { key ->
-                excludingTags[key] != null && excludingTags[key]!!.contains(tag[key])
+                excludingTags[key] != null
               }?.let { key ->
-                return patternMatchMessage(tag[key] as String, excludingTags.flatMap { it.value }.toSet())
+                if (key in TemporalTagExclusionSupplier.temporalTags) {
+                  excludingTags[key]!!.map { target ->
+                    TemporalTagExclusionSupplier
+                      .computeAndCompareAge(
+                        excludable = excludable,
+                        tagValue = tag[key] as String,
+                        target = target
+                      ).let {
+                        when {
+                          it.age == Age.OLDER || it.age == Age.INFINITE ->
+                            return patternMatchMessage(tag[key] as String, excludingTags[key]!!.toSet())
+                          it.age == Age.YOUNGER ->
+                            return null
+                          else -> {
+                            // no need to check age here.
+                            log.debug("Resource age comparison with {}. Result: {}", excludable.createTs, it)
+                          }
+                        }
+                    }
+                  }
+                }
+
+                if (excludingTags[key]!!.contains(tag[key] as? String)) {
+                  return patternMatchMessage(tag[key] as String, excludingTags[key]!!.toSet())
+                }
               }
             }
           }

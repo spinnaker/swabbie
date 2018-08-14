@@ -33,7 +33,10 @@ class OrphanedImageRule : Rule<AmazonImage> {
     val hasSiblings = resource.details.containsKey(HAS_SIBLINGS_IN_OTHER_ACCOUNTS) &&
       resource.details[HAS_SIBLINGS_IN_OTHER_ACCOUNTS] as Boolean
 
-    if (isReferencedByInstances || isReferencedByLaunchConfigs || hasSiblings) {
+    val isBaseOrAncestorImage = resource.details.containsKey(IS_BASE_OR_ANCESTOR) &&
+      resource.details[IS_BASE_OR_ANCESTOR] as Boolean
+
+    if (isReferencedByInstances || isReferencedByLaunchConfigs || hasSiblings || isBaseOrAncestorImage) {
       return Result(null)
     }
 
@@ -50,3 +53,4 @@ class OrphanedImageRule : Rule<AmazonImage> {
 const val USED_BY_INSTANCES = "usedByInstances"
 const val USED_BY_LAUNCH_CONFIGURATIONS = "usedByLaunchConfigurations"
 const val HAS_SIBLINGS_IN_OTHER_ACCOUNTS = "hasSiblingsInOtherAccounts"
+const val IS_BASE_OR_ANCESTOR = "isBaseOrAncestor"

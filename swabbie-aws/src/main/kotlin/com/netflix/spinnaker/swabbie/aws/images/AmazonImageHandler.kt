@@ -29,12 +29,9 @@ import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.channels.produce
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.runBlocking
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -140,6 +137,12 @@ class AmazonImageHandler(
       return
     }
 
+    images.forEach {
+      if (it.name == null || it.description == null) {
+        it.set(NAIVE_EXCLUSION, true) // exclude these with exclusions
+      }
+    }
+
     val elapsedTimeMillis = measureTimeMillis {
       runBlocking {
         listOf(
@@ -219,10 +222,21 @@ class AmazonImageHandler(
     log.info("Checking for sibling images.")
     val imagesInOtherAccounts = getImagesFromOtherAccounts(params)
     images.filter {
-      HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details
+      HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details && NAIVE_EXCLUSION !in it.details && IS_BASE_OR_ANCESTOR !in it.details
     }.forEach { image ->
       async {
+        if (images.any { image.isAncestorOf(it) && image != it}) {
+          image.set(IS_BASE_OR_ANCESTOR, true)
+          image.set(NAIVE_EXCLUSION, true)
+        }
+
         for (pair in imagesInOtherAccounts) {
+          if (image.isAncestorOf(pair.first)) {
+            image.set(IS_BASE_OR_ANCESTOR, true)
+            image.set(NAIVE_EXCLUSION, true)
+            break
+          }
+
           if (pair.first.matches(image)) {
             image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
             break
@@ -274,6 +288,12 @@ class AmazonImageHandler(
       checkReferences(listOf(image), params)
     }
   }
+}
+
+// TODO: specific to netflix pattern. make generic
+private fun AmazonImage.isAncestorOf(image: AmazonImage): Boolean {
+  return image.description != null && (image.description.contains("ancestor_id=${this.imageId}")
+    || image.description.contains("ancestor_name=${this.name}"))
 }
 
 private fun AmazonImage.matches(image: AmazonImage): Boolean {

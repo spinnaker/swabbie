@@ -433,7 +433,7 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
                   }.also {
                     resourceRepository.upsert(it)
                     applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
-                    candidateCounter.addAndGet(partition.size)
+                    candidateCounter.incrementAndGet()
                   }
 
                 notifiedMarkedResource.add(resource)

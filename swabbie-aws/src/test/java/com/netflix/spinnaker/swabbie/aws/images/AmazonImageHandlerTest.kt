@@ -118,7 +118,7 @@ object AmazonImageHandlerTest {
       AmazonImage(
         imageId = "ami-123",
         resourceId = "ami-123",
-        description = "ancestor_id=ami-123",
+        description = "ancestor_id=ami-122",
         ownerId = null,
         state = "available",
         resourceType = IMAGE,
@@ -288,13 +288,60 @@ object AmazonImageHandlerTest {
   }
 
   @Test
+  fun `should not mark ancestor or base images`() {
+    val workConfiguration = getWorkConfiguration()
+    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
+    whenever(instanceProvider.getAll(any())) doReturn listOf<AmazonInstance>()
+    whenever(launchConfigurationProvider.getAll(any())) doReturn listOf<AmazonLaunchConfiguration>()
+    whenever(imageProvider.getAll(params)) doReturn listOf(
+      AmazonImage(
+        imageId = "ami-123",
+        resourceId = "ami-123",
+        description = "ancestor_id=ami-132",
+        ownerId = null,
+        state = "available",
+        resourceType = IMAGE,
+        cloudProvider = AWS,
+        name = "123-xenial-hvm-sriov-ebs",
+        creationDate = LocalDateTime.now().minusDays(3).toString()
+      ),
+      AmazonImage(
+        imageId = "ami-132",
+        resourceId = "ami-132",
+        description = "description 132",
+        ownerId = null,
+        state = "available",
+        resourceType = IMAGE,
+        cloudProvider = AWS,
+        name = "132-xenial-hvm-sriov-ebs",
+        creationDate = LocalDateTime.now().minusDays(3).toString()
+      )
+    )
+
+    subject.getCandidates(workConfiguration).let { images ->
+      images!!.size shouldMatch equalTo(2)
+      Assertions.assertTrue(images.any { it.imageId == "ami-123" })
+      Assertions.assertTrue(images.any { it.imageId == "ami-132" })
+    }
+
+    subject.mark(workConfiguration, { print {"postMark" } })
+
+    // ami-132 is an ancestor/base for ami-123 so skip that
+    verify(applicationEventPublisher, times(1)).publishEvent(
+      check<MarkResourceEvent> { event ->
+        Assertions.assertTrue(event.markedResource.resourceId == "ami-123")
+      }
+    )
+  }
+
+  @Test
   fun `should delete images`() {
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
     val image = AmazonImage(
       imageId = "ami-123",
       resourceId = "ami-123",
-      description = "ancestor_id=ami-123",
+      description = "ancestor_id=ami-122",
       ownerId = null,
       state = "available",
       resourceType = IMAGE,

@@ -39,7 +39,7 @@ import java.time.temporal.ChronoUnit.DAYS
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract class AbstractResourceTypeHandler<out T : Resource>(
+abstract class AbstractResourceTypeHandler<T : Resource>(
   registry: Registry,
   val clock: Clock,
   private val rules: List<Rule<T>>,
@@ -150,8 +150,10 @@ abstract class AbstractResourceTypeHandler<out T : Resource>(
       log.info("fetched {} resources. Configuration: {}", candidates.size, workConfiguration)
       totalResourcesVisitedCounter.set(candidates.size)
 
-      candidates
-        .withResolvedOwners(workConfiguration)
+      preProcessCandidates(
+        candidates,
+        workConfiguration
+      ).withResolvedOwners(workConfiguration)
         .filter {
           !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
         }.let { filteredCandidates ->

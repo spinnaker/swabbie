@@ -462,7 +462,7 @@ object ResourceTypeHandlerTest {
     override fun deleteResources(
       markedResources: List<MarkedResource>,
       workConfiguration: WorkConfiguration
-    ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+    ): ReceiveChannel<MarkedResource> = produce {
       markedResources.forEach { m ->
         simulatedCandidates
           ?.removeIf { r -> m.resourceId == r.resourceId }.also {
@@ -479,6 +479,14 @@ object ResourceTypeHandlerTest {
       workConfiguration: WorkConfiguration
     ): TestResource? {
       return simulatedCandidates?.find { markedResource.resourceId == it.resourceId }
+    }
+
+    override fun preProcessCandidates(
+      candidates: List<TestResource>,
+      workConfiguration: WorkConfiguration
+    ): List<TestResource> {
+      log.debug("pre-processing test resources {}", candidates)
+      return candidates
     }
 
     override fun handles(workConfiguration: WorkConfiguration): Boolean {

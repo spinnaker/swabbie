@@ -114,8 +114,21 @@ class AmazonAutoScalingGroupHandler(
 
     return serverGroupProvider.getAll(params).also { serverGroups ->
       log.info("Got {} Server Groups. Checking references", serverGroups?.size)
-      checkReferences(serverGroups, params)
     }
+  }
+
+  override fun preProcessCandidates(
+    candidates: List<AmazonAutoScalingGroup>,
+    workConfiguration: WorkConfiguration
+  ): List<AmazonAutoScalingGroup> {
+    checkReferences(
+      serverGroups = candidates,
+      params = Parameters(
+        mapOf("account" to workConfiguration.account.accountId!!, "region" to workConfiguration.location)
+      )
+    )
+
+    return candidates
   }
 
   private fun checkReferences(serverGroups: List<AmazonAutoScalingGroup>?, params: Parameters) {

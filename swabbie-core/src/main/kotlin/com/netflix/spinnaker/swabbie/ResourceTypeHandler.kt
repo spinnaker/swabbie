@@ -20,7 +20,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
-interface ResourceTypeHandler<out T : Resource> {
+interface ResourceTypeHandler<T : Resource> {
   /**
    * Determines if a handler can handle the [WorkConfiguration].
    */
@@ -49,7 +49,15 @@ interface ResourceTypeHandler<out T : Resource> {
    */
   fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit)
 
+  /**
+   * Notifies resource owners
+   */
   fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit)
-}
 
-class FailedDeleteException(message: String) : RuntimeException(message)
+  /**
+   * Used to check references and augment candidates for further processing
+   * Impl should prefer this interface and avoid I/O in [Rule]
+   * A rule should leverage metadata added by this function.
+   */
+  fun preProcessCandidates(candidates: List<T>, workConfiguration: WorkConfiguration): List<T>
+}

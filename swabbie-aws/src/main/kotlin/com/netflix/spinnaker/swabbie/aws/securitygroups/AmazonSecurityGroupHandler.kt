@@ -65,7 +65,7 @@ class AmazonSecurityGroupHandler(
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+  ): ReceiveChannel<MarkedResource> = produce {
     markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
@@ -107,6 +107,12 @@ class AmazonSecurityGroupHandler(
     )
   )
 
+  override fun preProcessCandidates(
+    candidates: List<AmazonSecurityGroup>,
+    workConfiguration: WorkConfiguration
+  ): List<AmazonSecurityGroup> {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean
     = workConfiguration.resourceType == SECURITY_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()

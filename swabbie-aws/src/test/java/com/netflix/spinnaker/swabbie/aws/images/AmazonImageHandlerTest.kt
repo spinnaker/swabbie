@@ -169,23 +169,25 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should fail to get candidates if checking launch configuration references fails`() {
+    val configuration = getWorkConfiguration()
     whenever(launchConfigurationProvider.getAll(
       Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
     )) doThrow IllegalStateException("launch configs")
 
     Assertions.assertThrows(IllegalStateException::class.java, {
-      subject.getCandidates(getWorkConfiguration())
+      subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
     })
   }
 
   @Test
   fun `should fail to get candidates if checking instance references fails`() {
+    val configuration = getWorkConfiguration()
     whenever(instanceProvider.getAll(
       Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
     )) doThrow IllegalStateException("failed to get instances")
 
     Assertions.assertThrows(IllegalStateException::class.java, {
-      subject.getCandidates(getWorkConfiguration())
+      subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
     })
   }
 
@@ -199,12 +201,13 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should fail to get candidates if checking for siblings in other accounts fails`() {
+    val configuration = getWorkConfiguration()
     whenever(imageProvider.getAll(
       Parameters(mapOf("account" to "4321", "region" to "us-east-1"))
     )) doThrow IllegalStateException("failed to get images in 4321/us-east-1")
 
     Assertions.assertThrows(IllegalStateException::class.java, {
-      subject.getCandidates(getWorkConfiguration())
+      subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
     })
   }
 

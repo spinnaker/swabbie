@@ -113,8 +113,12 @@ class AmazonLoadBalancerHandler(
     )
   )
 
-  override fun handles(workConfiguration: WorkConfiguration): Boolean
-    = workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration): Boolean {
+    //TODO: handler currently disabled.
+//    return workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+    return false
+  }
+
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =
     loadBalancerProvider.getAll(
@@ -124,13 +128,18 @@ class AmazonLoadBalancerHandler(
           "region" to workConfiguration.location
         )
       )
-    ).let { loadBalancers ->
-      if (loadBalancers != null && !loadBalancers.isEmpty()) {
-        referenceServerGroups(workConfiguration, loadBalancers)
-      } else {
-        emptyList()
-      }
-    }
+    ).orEmpty()
+
+  override fun preProcessCandidates(
+    candidates: List<AmazonElasticLoadBalancer>,
+    workConfiguration: WorkConfiguration
+  ): List<AmazonElasticLoadBalancer> {
+    //TODO: need to check other references.
+    return referenceServerGroups(
+      workConfiguration = workConfiguration,
+      loadBalancers = candidates
+    )
+  }
 
   private fun referenceServerGroups(workConfiguration: WorkConfiguration,
                                     loadBalancers: List<AmazonElasticLoadBalancer>

@@ -72,7 +72,7 @@ class AmazonImageHandler(
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+  ): ReceiveChannel<MarkedResource> = produce {
     // TODO: refactor to use stage taking a list of image ids
     markedResources.forEach { markedResource ->
       orcaService.orchestrate(
@@ -121,8 +121,20 @@ class AmazonImageHandler(
 
     return imageProvider.getAll(params).also { images ->
       log.info("Got {} images. Checking references", images?.size)
-      checkReferences(images, params)
     }
+  }
+
+  override fun preProcessCandidates(
+    candidates: List<AmazonImage>,
+    workConfiguration: WorkConfiguration
+  ): List<AmazonImage> {
+    checkReferences(
+      images = candidates,
+      params = Parameters(
+        mapOf("account" to workConfiguration.account.accountId!!, "region" to workConfiguration.location)
+      )
+    )
+    return candidates
   }
 
   /**

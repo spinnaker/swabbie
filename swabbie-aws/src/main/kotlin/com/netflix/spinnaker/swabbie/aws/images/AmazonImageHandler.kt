@@ -149,6 +149,8 @@ class AmazonImageHandler(
       return
     }
 
+    log.info("checking references for {} resources. Parameters: {}", images.size, params)
+
     images.forEach {
       if (it.name == null || it.description == null) {
         it.set(NAIVE_EXCLUSION, true) // exclude these with exclusions
@@ -183,7 +185,7 @@ class AmazonImageHandler(
       }
 
       images.filter {
-        USED_BY_INSTANCES !in it.details
+        NAIVE_EXCLUSION !in it.details && USED_BY_INSTANCES !in it.details
       }.forEach { image ->
         onMatchedImages(instances.map { it.imageId }, image) {
           image.set(USED_BY_INSTANCES, true)
@@ -208,7 +210,9 @@ class AmazonImageHandler(
       }
 
       images.filter {
-        USED_BY_LAUNCH_CONFIGURATIONS !in it.details
+        NAIVE_EXCLUSION !in it.details &&
+          USED_BY_INSTANCES !in it.details &&
+          USED_BY_LAUNCH_CONFIGURATIONS !in it.details
       }.forEach { image ->
         onMatchedImages(launchConfigurations.map { it.imageId }, image) {
           log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_CONFIGURATIONS", image.imageId, image.name, params["region"])
@@ -228,7 +232,11 @@ class AmazonImageHandler(
     log.info("Checking for sibling images.")
     val imagesInOtherAccounts = getImagesFromOtherAccounts(params)
     images.filter {
-      HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details && NAIVE_EXCLUSION !in it.details && IS_BASE_OR_ANCESTOR !in it.details
+      NAIVE_EXCLUSION !in it.details &&
+        USED_BY_INSTANCES !in it.details &&
+        USED_BY_LAUNCH_CONFIGURATIONS !in it.details &&
+        HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details &&
+        IS_BASE_OR_ANCESTOR !in it.details
     }.forEach { image ->
       if (images.any { image.isAncestorOf(it) && image != it }) {
         image.set(IS_BASE_OR_ANCESTOR, true)

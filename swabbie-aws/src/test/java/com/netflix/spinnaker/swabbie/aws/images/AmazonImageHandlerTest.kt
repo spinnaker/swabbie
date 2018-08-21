@@ -80,7 +80,8 @@ object AmazonImageHandlerTest {
     instanceProvider = instanceProvider,
     launchConfigurationProvider = launchConfigurationProvider,
     orcaService = orcaService,
-    accountProvider = accountProvider
+    accountProvider = accountProvider,
+    applicationsCache = mock()
   )
 
   @BeforeEach
@@ -369,11 +370,6 @@ object AmazonImageHandlerTest {
         )
       )
 
-    val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123")
-    )
-
-    whenever(imageProvider.getOne(params)) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
     whenever(orcaService.getTask("1234")) doReturn
       TaskDetailResponse(
@@ -388,7 +384,7 @@ object AmazonImageHandlerTest {
 
     subject.delete(workConfiguration, {})
 
-    verify(resourceRepository, times(1)).remove(any<MarkedResource>())
+    verify(resourceRepository, times(1)).remove(any())
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<DeleteResourceEvent> { event ->
         Assertions.assertTrue(event.markedResource.resourceId == "ami-123")

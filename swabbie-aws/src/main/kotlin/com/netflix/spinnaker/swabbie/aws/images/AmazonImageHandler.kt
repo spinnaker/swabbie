@@ -29,11 +29,16 @@ import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.Deferred
+import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.channels.produce
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.runBlocking
+import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
+import java.io.File
 import java.time.Clock
 import java.util.*
 import kotlin.system.measureTimeMillis
@@ -55,7 +60,8 @@ class AmazonImageHandler(
   private val instanceProvider: ResourceProvider<AmazonInstance>,
   private val launchConfigurationProvider: ResourceProvider<AmazonLaunchConfiguration>,
   private val accountProvider: AccountProvider,
-  private val orcaService: OrcaService
+  private val orcaService: OrcaService,
+  private val applicationsCache: InMemoryCache<Application>
 ) : AbstractResourceTypeHandler<AmazonImage>(
   registry,
   clock,
@@ -73,42 +79,94 @@ class AmazonImageHandler(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
   ): ReceiveChannel<MarkedResource> = produce {
-    // TODO: refactor to use stage taking a list of image ids
-    markedResources.forEach { markedResource ->
-      orcaService.orchestrate(
-        OrchestrationRequest(
-          application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
-          job = listOf(
-            OrcaJob(
-              type = "deleteImage",
-              context = mutableMapOf(
-                "credentials" to workConfiguration.account.name,
-                "imageId" to markedResource.resource.resourceId,
-                "cloudProvider" to markedResource.resource.cloudProvider,
-                "region" to listOf(workConfiguration.location)
-              )
+    orcaService.orchestrate(
+      OrchestrationRequest(
+        application = resolveApplicationOrNull(markedResources) ?: "swabbie",
+        job = listOf(
+          OrcaJob(
+            type = "deleteImage",
+            context = mutableMapOf(
+              "credentials" to workConfiguration.account.name,
+              "imageIds" to markedResources.map { it.resourceId }.toSet(),
+              "cloudProvider" to AWS,
+              "region" to workConfiguration.location
             )
-          ),
-          description = "Deleting Image Id:${markedResource.resourceId} Name: ${markedResource.name}"
-        )
-      ).let { taskResponse ->
-        // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
-        val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
-        var taskStatus = orcaService.getTask(taskId).status
-        runBlocking {
-          while (taskStatus.isIncomplete()) {
-            delay(checkStatusDelay)
-            taskStatus = orcaService.getTask(taskId).status
+          )
+        ),
+        description = "Deleting Images :${markedResources.map { it.resourceId }}"
+      )
+    ).let { taskResponse ->
+      // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
+      val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
+      var taskStatus = orcaService.getTask(taskId).status
+      when {
+        taskStatus.isSuccess() -> {
+          log.info("Orca Task: {} successfully deleted {} images: {}", taskId, markedResources.size, markedResources)
+          markedResources.forEach {
+            send(it)
           }
         }
 
-        if (!taskStatus.isSuccess()) {
-          log.error("Failed to delete Image ${markedResource.resourceId}")
-        } else {
-          send(markedResource)
+        taskStatus.isFailure() -> throw IncompleteOrFailedDeletionException("Failed to delete $markedResources")
+      }
+
+      val deleted = mutableListOf<MarkedResource>()
+      for (i in markedResources) {
+        try {
+          val image: AmazonImage? = getCandidate(i, workConfiguration)
+          if (image == null) {
+            send(i)
+            deleted.add(i)
+            continue
+          }
+
+          runBlocking {
+            val statusCheck = async {
+              var candidate: AmazonImage? = null
+              while (taskStatus.isIncomplete() && candidate != null) {
+                delay(checkStatusDelay)
+                taskStatus = orcaService.getTask(taskId).status
+                candidate = getCandidate(i, workConfiguration)
+                if (taskStatus.isFailure()) {
+                  throw IncompleteOrFailedDeletionException()
+                }
+              }
+
+              if (candidate == null || taskStatus.isSuccess()) {
+                send(i)
+                deleted.add(i)
+              }
+            }
+
+            statusCheck.invokeOnCompletion { failure ->
+              if (failure != null) {
+                throw failure
+              }
+            }
+          }
+        } catch (e: Exception) {
+          if (e is IncompleteOrFailedDeletionException) {
+            log.error("Failed to complete deletion. {} out of {}", deleted, markedResources)
+            break
+          }
+
+          log.error("failed to delete {}", i)
         }
       }
     }
+  }
+
+  class IncompleteOrFailedDeletionException(message: String? = null): RuntimeException(message)
+
+  private fun resolveApplicationOrNull(markedResources: List<MarkedResource>): String? {
+    markedResources.find {
+      FriggaReflectiveNamer().deriveMoniker(it).app != null &&
+        applicationsCache.contains(FriggaReflectiveNamer().deriveMoniker(it).app)
+    }?.also {
+      return FriggaReflectiveNamer().deriveMoniker(it).app
+    }
+
+    return null
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =
@@ -128,6 +186,7 @@ class AmazonImageHandler(
     candidates: List<AmazonImage>,
     workConfiguration: WorkConfiguration
   ): List<AmazonImage> {
+    log.info("Checking references for {}", candidates.size)
     checkReferences(
       images = candidates,
       params = Parameters(
@@ -151,6 +210,7 @@ class AmazonImageHandler(
 
     images.forEach {
       if (it.name == null || it.description == null) {
+        log.debug("NAIVE_EXCLUSION {}", it)
         it.set(NAIVE_EXCLUSION, true) // exclude these with exclusions
       }
     }
@@ -195,6 +255,7 @@ class AmazonImageHandler(
         USED_BY_INSTANCES !in it.details
       }.forEach { image ->
         onMatchedImages(instances.map { it.imageId }, image) {
+          log.debug("USED_BY_INSTANCES {}", image)
           image.set(USED_BY_INSTANCES, true)
         }
       }
@@ -218,6 +279,7 @@ class AmazonImageHandler(
         USED_BY_LAUNCH_CONFIGURATIONS !in it.details
       }.forEach { image ->
         onMatchedImages(launchConfigurations.map { it.imageId }, image) {
+          log.debug("USED_BY_LAUNCH_CONFIGURATIONS {}", image)
           image.set(USED_BY_LAUNCH_CONFIGURATIONS, true)
         }
       }
@@ -237,19 +299,22 @@ class AmazonImageHandler(
       HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details && NAIVE_EXCLUSION !in it.details && IS_BASE_OR_ANCESTOR !in it.details
     }.forEach { image ->
       async {
-        if (images.any { image.isAncestorOf(it) && image != it}) {
+        if (images.any { image.isAncestorOf(it) && image != it }) {
           image.set(IS_BASE_OR_ANCESTOR, true)
           image.set(NAIVE_EXCLUSION, true)
+          log.debug("IS_BASE_OR_ANCESTOR  NAIVE_EXCLUSION {}", image)
         }
 
         for (pair in imagesInOtherAccounts) {
           if (image.isAncestorOf(pair.first)) {
+            log.debug("IS_BASE_OR_ANCESTOR NAIVE_EXCLUSION {}", image)
             image.set(IS_BASE_OR_ANCESTOR, true)
             image.set(NAIVE_EXCLUSION, true)
             break
           }
 
           if (pair.first.matches(image)) {
+            log.debug("HAS_SIBLINGS_IN_OTHER_ACCOUNTS {}", image)
             image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
             break
           }
@@ -290,15 +355,13 @@ class AmazonImageHandler(
   }
 
   override fun getCandidate(markedResource: MarkedResource, workConfiguration: WorkConfiguration): AmazonImage? {
-    val params = Parameters(mapOf(
-      "imageId" to markedResource.resourceId,
-      "account" to workConfiguration.account.accountId!!,
-      "region" to workConfiguration.location)
+    return imageProvider.getOne(
+      Parameters(mapOf(
+        "imageId" to markedResource.resourceId,
+        "account" to workConfiguration.account.accountId!!,
+        "region" to workConfiguration.location)
+      )
     )
-
-    return imageProvider.getOne(params)?.also { image ->
-      checkReferences(listOf(image), params)
-    }
   }
 }
 

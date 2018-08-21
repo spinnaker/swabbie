@@ -156,22 +156,13 @@ class AmazonImageHandler(
     }
 
     val elapsedTimeMillis = measureTimeMillis {
-      runBlocking {
-        listOf(
-          setUsedByInstancesAsync(images, params),
-          setUsedByLaunchConfigurationsAsync(images, params),
-          setHasSiblingsAsync(images, params)
-        ).forEach { checkingReferencesTask ->
-          try {
-            checkingReferencesTask.await()
-          } finally {
-            if (checkingReferencesTask.isCompletedExceptionally) {
-              val throwable = checkingReferencesTask.getCompletionExceptionOrNull()
-              log.error("Failed to check images references. Params: {}", params, throwable)
-              throw IllegalStateException("Unable to process ${images.size} images. Params: $params", throwable)
-            }
-          }
-        }
+      try {
+        setUsedByInstances(images, params)
+        setUsedByLaunchConfigurations(images, params)
+        setHasSiblings(images, params)
+      } catch (e: Exception) {
+        log.error("Failed to check image references. Params: {}", params, e)
+        throw IllegalStateException("Unable to process ${images.size} images. Params: $params", e)
       }
     }
 
@@ -181,14 +172,14 @@ class AmazonImageHandler(
   /**
    * Checks if images are used by instances
    */
-  private fun setUsedByInstancesAsync(
+  private fun setUsedByInstances(
     images: List<AmazonImage>,
     params: Parameters
-  ): Deferred<Unit> = async {
+  ) {
     instanceProvider.getAll(params).let { instances ->
       log.info("Checking for references in {} instances", instances?.size)
       if (instances == null || instances.isEmpty()) {
-        return@async
+        return
       }
 
       images.filter {
@@ -196,6 +187,7 @@ class AmazonImageHandler(
       }.forEach { image ->
         onMatchedImages(instances.map { it.imageId }, image) {
           image.set(USED_BY_INSTANCES, true)
+          log.debug("Image {} ({}) in {} is USED_BY_INSTANCES", image.imageId, image.name, params["region"])
         }
       }
     }
@@ -204,20 +196,22 @@ class AmazonImageHandler(
   /**
    * Checks if images are used by launch configurations
    */
-  private fun setUsedByLaunchConfigurationsAsync(
+  private fun setUsedByLaunchConfigurations(
     images: List<AmazonImage>,
     params: Parameters
-  ): Deferred<Unit> = async {
+  ) {
     launchConfigurationProvider.getAll(params).let { launchConfigurations ->
       log.info("Checking for references in {} launch configurations", launchConfigurations?.size)
       if (launchConfigurations == null || launchConfigurations.isEmpty()) {
-        return@async
+        log.debug("No launch configs found for params: {}", params)
+        return
       }
 
       images.filter {
         USED_BY_LAUNCH_CONFIGURATIONS !in it.details
       }.forEach { image ->
         onMatchedImages(launchConfigurations.map { it.imageId }, image) {
+          log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_CONFIGURATIONS", image.imageId, image.name, params["region"])
           image.set(USED_BY_LAUNCH_CONFIGURATIONS, true)
         }
       }
@@ -227,32 +221,33 @@ class AmazonImageHandler(
   /**
    * Checks if images have siblings in other accounts
    */
-  private fun setHasSiblingsAsync(
+  private fun setHasSiblings(
     images: List<AmazonImage>,
     params: Parameters
-  ) = async {
+  ) {
     log.info("Checking for sibling images.")
     val imagesInOtherAccounts = getImagesFromOtherAccounts(params)
     images.filter {
       HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details && NAIVE_EXCLUSION !in it.details && IS_BASE_OR_ANCESTOR !in it.details
     }.forEach { image ->
-      async {
-        if (images.any { image.isAncestorOf(it) && image != it}) {
+      if (images.any { image.isAncestorOf(it) && image != it }) {
+        image.set(IS_BASE_OR_ANCESTOR, true)
+        image.set(NAIVE_EXCLUSION, true)
+        log.debug("Image {} ({}) in {} is IS_BASE_OR_ANCESTOR", image.imageId, image.name, params["region"])
+      }
+
+      for (pair in imagesInOtherAccounts) {
+        if (image.isAncestorOf(pair.first)) {
           image.set(IS_BASE_OR_ANCESTOR, true)
           image.set(NAIVE_EXCLUSION, true)
+          log.debug("Image {} ({}) in {} is IS_BASE_OR_ANCESTOR", image.imageId, image.name, params["region"])
+          break
         }
 
-        for (pair in imagesInOtherAccounts) {
-          if (image.isAncestorOf(pair.first)) {
-            image.set(IS_BASE_OR_ANCESTOR, true)
-            image.set(NAIVE_EXCLUSION, true)
-            break
-          }
-
-          if (pair.first.matches(image)) {
-            image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
-            break
-          }
+        if (pair.first.matches(image)) {
+          image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
+          log.debug("Image {} ({}) in {} is HAS_SIBLINGS_IN_OTHER_ACCOUNTS", image.imageId, image.name, params["region"])
+          break
         }
       }
     }

@@ -19,28 +19,57 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.*
+import com.netflix.spinnaker.config.Attribute
+import com.netflix.spinnaker.config.CloudProviderConfiguration
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.config.ResourceTypeConfiguration
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.InMemoryCache
+import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.WhiteListExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.Region
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
-import com.nhaarman.mockito_kotlin.*
+import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.check
+import com.nhaarman.mockito_kotlin.doReturn
+import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.reset
+import com.nhaarman.mockito_kotlin.times
+import com.nhaarman.mockito_kotlin.validateMockitoUsage
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
-import java.time.*
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
+import java.util.Optional
 
 object AmazonAutoScalingGroupHandlerTest {
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()
@@ -63,7 +92,7 @@ object AmazonAutoScalingGroupHandlerTest {
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
-      WhiteListExclusionPolicy(front50ApplicationCache, accountProvider)
+      AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
@@ -171,7 +200,7 @@ object AmazonAutoScalingGroupHandlerTest {
       maxAgeDays = 1,
       exclusionList = mutableListOf(
         Exclusion()
-          .withType(ExclusionType.Whitelist.toString())
+          .withType(ExclusionType.Allowlist.toString())
           .withAttributes(
             listOf(
               Attribute()
@@ -190,7 +219,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
     subject.mark(workConfiguration, postMark= { print("Done") })
 
-    // testapp-v001 is excluded by exclusion policies, specifically because testapp-v001 is not whitelisted
+    // testapp-v001 is excluded by exclusion policies, specifically because testapp-v001 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<MarkResourceEvent> { event ->
         Assertions.assertTrue(event.markedResource.resourceId == "app-v001")

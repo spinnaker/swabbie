@@ -66,7 +66,7 @@ swabbie:
             optOutBaseUrl: http://localhost:8088/
             resourceUrl: https://spinnaker/infrastructure?q=
           exclusions:
-            - type: Whitelist
+            - type: Allowlist
               attributes:
                 - key: swabbieResourceOwner
                   value:
@@ -149,6 +149,5 @@ Resources can be excluded/opted out from consideration using exclusion policies.
 - `ResourceExclusionPolicy`: Excludes resources at runtime
 
 
-#### Whitelisting
-Whitelisting is part of the exclusion mechanism. When defined, only resources whitelisted will be considered, 
-skipping everything else not whitelisted.
+#### Allowlisting
+Allowlisting is part of the exclusion mechanism. When defined, only resources allowlisted will be considered, skipping everything else not allowed.

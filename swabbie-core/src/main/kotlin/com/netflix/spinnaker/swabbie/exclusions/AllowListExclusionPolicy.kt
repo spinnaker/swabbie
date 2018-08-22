@@ -25,7 +25,7 @@ import com.netflix.spinnaker.swabbie.model.Application
 import org.springframework.stereotype.Component
 
 @Component
-class WhiteListExclusionPolicy(
+class AllowListExclusionPolicy(
   front50ApplicationCache: InMemoryCache<Application>,
   accountProvider: AccountProvider
 ) : ResourceExclusionPolicy {
@@ -34,11 +34,11 @@ class WhiteListExclusionPolicy(
     "application" to front50ApplicationCache.get()
   )
 
-  override fun getType(): ExclusionType = ExclusionType.Whitelist
+  override fun getType(): ExclusionType = ExclusionType.Allowlist
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
-    keysAndValues(exclusions, ExclusionType.Whitelist).let { kv ->
+    keysAndValues(exclusions, ExclusionType.Allowlist).let { kv ->
       if (kv.isEmpty()) {
-        return null // no whitelist defined
+        return null // no allowlist defined
       }
 
       kv.keys.forEach { key ->
@@ -59,7 +59,7 @@ class WhiteListExclusionPolicy(
         }
       }
 
-      return notWhitelistedMessage(getIdentifierForType(excludable), kv.values.flatten().toSet())
+      return notAllowlistedMessage(getIdentifierForType(excludable), kv.values.flatten().toSet())
     }
   }
 

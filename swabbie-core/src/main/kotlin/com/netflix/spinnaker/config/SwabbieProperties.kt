@@ -140,7 +140,7 @@ class Attribute {
 
 enum class ExclusionType {
   Tag,
-  Whitelist,
+  Allowlist,
   Application,
   Literal,
   Account,

@@ -44,7 +44,7 @@ class Front50ApplicationExclusionPolicy(
 
   override fun getType(): ExclusionType = ExclusionType.Application
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
-    keysAndValues(exclusions, ExclusionType.Whitelist).let { kv ->
+    keysAndValues(exclusions, ExclusionType.Allowlist).let { kv ->
       findApplication(excludable, kv.values.flatten().toSet())?.let {
         return byPropertyMatchingResult(exclusions, it)
       }

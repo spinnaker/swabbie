@@ -19,33 +19,62 @@ package com.netflix.spinnaker.swabbie.aws.images
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.*
+import com.netflix.spinnaker.config.Attribute
+import com.netflix.spinnaker.config.CloudProviderConfiguration
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.config.ResourceTypeConfiguration
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.InMemoryCache
+import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
+import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.WhiteListExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.IMAGE
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.Region
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
-import com.nhaarman.mockito_kotlin.*
+import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.check
+import com.nhaarman.mockito_kotlin.doReturn
+import com.nhaarman.mockito_kotlin.doThrow
+import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.reset
+import com.nhaarman.mockito_kotlin.times
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.validateMockitoUsage
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
-import java.util.*
-import org.mockito.Mockito.validateMockitoUsage
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
+import java.util.Optional
 
 object AmazonImageHandlerTest {
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()
@@ -69,7 +98,7 @@ object AmazonImageHandlerTest {
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
-      WhiteListExclusionPolicy(front50ApplicationCache, accountProvider)
+      AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
@@ -217,7 +246,7 @@ object AmazonImageHandlerTest {
       maxAgeDays = 1,
       exclusionList = mutableListOf(
         Exclusion()
-          .withType(ExclusionType.Whitelist.toString())
+          .withType(ExclusionType.Allowlist.toString())
           .withAttributes(
             listOf(
               Attribute()
@@ -237,7 +266,7 @@ object AmazonImageHandlerTest {
 
     subject.mark(workConfiguration, postMark= { print("Done") })
 
-    // ami-132 is excluded by exclusion policies, specifically because ami-123 is not whitelisted
+    // ami-132 is excluded by exclusion policies, specifically because ami-123 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<MarkResourceEvent> { event ->
         Assertions.assertTrue(event.markedResource.resourceId == "ami-123")
@@ -253,7 +282,7 @@ object AmazonImageHandlerTest {
     val workConfiguration = getWorkConfiguration(
       exclusionList = mutableListOf(
         Exclusion()
-          .withType(ExclusionType.Whitelist.toString())
+          .withType(ExclusionType.Allowlist.toString())
           .withAttributes(
             listOf(
               Attribute()
@@ -284,7 +313,7 @@ object AmazonImageHandlerTest {
 
     subject.mark(workConfiguration, { print {"postMark" } })
 
-    // ami-132 is excluded by exclusion policies, specifically because ami-132 is not whitelisted
+    // ami-132 is excluded by exclusion policies, specifically because ami-132 is not allowlisted
     // ami-123 is referenced by an instance, so therefore should not be marked for deletion
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
     verify(resourceRepository, times(0)).upsert(any<MarkedResource>(), any<Long>())

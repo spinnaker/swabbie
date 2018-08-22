@@ -36,8 +36,8 @@ interface ExclusionPolicy {
 
   fun getType(): ExclusionType
 
-  fun notWhitelistedMessage(value: String?, patterns: Set<Any> = emptySet()): String {
-    return "$value not whitelisted. Matched: ${patterns.joinToString(",")}"
+  fun notAllowlistedMessage(value: String?, patterns: Set<Any> = emptySet()): String {
+    return "$value not in allowlist. Matched: ${patterns.joinToString(",")}"
   }
 
   fun patternMatchMessage(value: String, patterns: Set<String> = emptySet()): String {

@@ -151,12 +151,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       totalResourcesVisitedCounter.set(candidates.size)
 
       preProcessCandidates(
-        candidates.filter {
-          !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
-        },
+        candidates
+          .withResolvedOwners(workConfiguration).filter {
+            !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
+          },
         workConfiguration
-      ).withResolvedOwners(workConfiguration)
-        .let { filteredCandidates ->
+      ).let { filteredCandidates ->
           val maxItemsToProcess = Math.min(filteredCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
 
           // list of currently marked & stored resources

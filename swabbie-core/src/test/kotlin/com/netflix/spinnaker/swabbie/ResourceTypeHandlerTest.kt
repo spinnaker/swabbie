@@ -27,6 +27,7 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
+import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
@@ -235,6 +236,54 @@ object ResourceTypeHandlerTest {
 
     verify(applicationEventPublisher, never()).publishEvent(any())
     verify(resourceRepository, never()).upsert(any(), any())
+  }
+
+  @Test
+  fun `should only process resources in allowList`() {
+    val resource1 = TestResource("1", name = "allowed resource")
+    val resource2 = TestResource("2", name = "not allowed resource")
+    // configuration with an allow list exclusion strategy
+    val configuration = workConfiguration(exclusions = listOf(
+      Exclusion()
+        .withType(ExclusionType.Allowlist.toString())
+        .withAttributes(
+          listOf(
+            Attribute()
+              .withKey("swabbieResourceOwner")
+              .withValue(listOf("lucious-mayweather@netflix.com"))
+          )
+        )
+    ))
+
+    val handler = TestResourceTypeHandler(
+      clock = clock,
+      rules = listOf(
+        TestRule({ true }, Summary("always invalid", "rule1"))
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(AllowListExclusionPolicy(mock(), mock())),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedCandidates = mutableListOf(resource1, resource2),
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = retrySupport
+    )
+
+    whenever(ownerResolver.resolve(resource1)) doReturn  "lucious-mayweather@netflix.com"
+    whenever(ownerResolver.resolve(resource2)) doReturn  "blah" // excluded because not in allowed list
+
+    handler.mark(workConfiguration = configuration, postMark = { postAction(listOf(resource1, resource2)) })
+
+    verify(applicationEventPublisher, times(1)).publishEvent(
+      check<MarkResourceEvent> { event ->
+        Assertions.assertTrue((event.markedResource.resourceId == resource1.resourceId))
+        Assertions.assertTrue((event.workConfiguration.namespace == configuration.namespace))
+      }
+    )
+
+    verify(resourceRepository, times(1)).upsert(any(), any())
   }
 
   @Test

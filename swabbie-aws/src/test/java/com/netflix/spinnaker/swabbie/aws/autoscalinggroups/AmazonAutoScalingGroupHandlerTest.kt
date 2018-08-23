@@ -262,7 +262,7 @@ object AmazonAutoScalingGroupHandlerTest {
         )
       )
 
-    whenever(serverGroupProvider.getOne(any())) doReturn listOf(serverGroup)
+    whenever(serverGroupProvider.getAll(any())) doReturn listOf(serverGroup)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
     whenever(orcaService.getTask("1234")) doReturn
       TaskDetailResponse(

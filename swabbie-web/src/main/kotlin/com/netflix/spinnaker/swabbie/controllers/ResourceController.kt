@@ -35,10 +35,10 @@ class ResourceController(
   private val workConfigurations: List<WorkConfiguration>
   ) {
   @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
-  fun markedResources(): List<MarkedResource>? = resourceTrackingRepository.getMarkedResources()
+  fun markedResources(): List<MarkedResource> = resourceTrackingRepository.getMarkedResources()
 
   @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])
-  fun markedResourcesReadyForDeletion(): List<MarkedResource>? = resourceTrackingRepository.getMarkedResourcesToDelete()
+  fun markedResourcesReadyForDeletion(): List<MarkedResource> = resourceTrackingRepository.getMarkedResourcesToDelete()
 
   @RequestMapping(value = ["/states"], method = [RequestMethod.GET])
   fun states(

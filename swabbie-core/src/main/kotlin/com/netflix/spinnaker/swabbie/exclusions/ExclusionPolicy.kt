@@ -77,7 +77,8 @@ interface ExclusionPolicy {
   fun findProperty(excludable: Excludable, key: String, values: List<String>): String? {
     try {
       val fieldValue = getProperty(excludable, key) as? String
-      if (values.contains(fieldValue) || values.any { fieldValue != null && fieldValue.matchPattern(it) }) {
+      if (values.contains(fieldValue) || values.any {
+          fieldValue != null && (fieldValue.matchPattern(it) || fieldValue.split(",").contains(it)) }) {
         return fieldValue
       }
     } catch (e: IllegalArgumentException) {

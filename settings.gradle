@@ -26,6 +26,7 @@ include 'swabbie-test',
   'swabbie-clouddriver',
   'swabbie-front50',
   'swabbie-edda',
+  'swabbie-krieger',
   'swabbie-web'
 
 def setBuildFile(project) {

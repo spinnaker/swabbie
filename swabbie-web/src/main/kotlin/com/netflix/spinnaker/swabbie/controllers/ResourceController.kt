@@ -32,15 +32,23 @@ class ResourceController(
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val workConfigurations: List<WorkConfiguration>
   ) {
+
   @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
   fun markedResources(
-    @RequestParam(required = false) expand: Boolean?
+    @RequestParam(required = false, defaultValue = "false") expand: Boolean
   ): List<MarkedResourceInterface> {
-    val markedResources = resourceTrackingRepository.getMarkedResources()
-    if (expand == null || expand == false) {
-      return markedResources.map { it.slim() }
+    return resourceTrackingRepository.getMarkedResources().let { markedResources ->
+      if (expand) markedResources else markedResources.map { it.slim() }
     }
-    return markedResources
+  }
+
+  @RequestMapping(value = ["/marked/{namespace}/{resourceId}"], method = [RequestMethod.GET])
+  fun markedResource(
+    @PathVariable namespace: String,
+    @PathVariable resourceId: String
+  ): MarkedResource {
+    return resourceTrackingRepository.find(resourceId, namespace)
+      ?: throw NotFoundException("Resource $namespace/$resourceId not found")
   }
 
   @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])

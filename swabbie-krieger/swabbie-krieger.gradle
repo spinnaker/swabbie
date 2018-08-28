@@ -14,19 +14,8 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.model
-
-import com.netflix.spinnaker.swabbie.Cacheable
-import com.netflix.spinnaker.swabbie.exclusions.Excludable
-
-data class Application(
-  val email: String?,
-  override val name: String
-) : HasDetails(), Cacheable, Excludable {
-  override val resourceId: String
-    get() = name
-  override val resourceType: String
-    get() = "application"
-  override val cloudProvider: String
-    get() = "*"
+dependencies {
+  compile project(":swabbie-core")
+  compile project(":swabbie-retrofit")
+  compile "com.netflix.spinnaker.moniker:moniker:+"
 }

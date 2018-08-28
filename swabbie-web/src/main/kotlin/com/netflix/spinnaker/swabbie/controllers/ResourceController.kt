@@ -20,9 +20,7 @@ import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.*
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.web.bind.annotation.*
 
@@ -35,7 +33,15 @@ class ResourceController(
   private val workConfigurations: List<WorkConfiguration>
   ) {
   @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
-  fun markedResources(): List<MarkedResource> = resourceTrackingRepository.getMarkedResources()
+  fun markedResources(
+    @RequestParam(required = false) expand: Boolean?
+  ): List<MarkedResourceInterface> {
+    val markedResources = resourceTrackingRepository.getMarkedResources()
+    if (expand == null || expand == false) {
+      return markedResources.map { it.slim() }
+    }
+    return markedResources
+  }
 
   @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])
   fun markedResourcesReadyForDeletion(): List<MarkedResource> = resourceTrackingRepository.getMarkedResourcesToDelete()

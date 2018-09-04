@@ -42,6 +42,18 @@ class ResourceController(
     }
   }
 
+  @RequestMapping(value = ["/marked/{namespace}"], method = [RequestMethod.GET])
+  fun markedResource(
+    @PathVariable namespace: String,
+    @RequestParam(required = false, defaultValue = "false") expand: Boolean
+  ): List<MarkedResourceInterface> {
+    return resourceTrackingRepository.getMarkedResources()
+      .filter { it.namespace == namespace }
+      .let { markedResources ->
+        if (expand) markedResources else markedResources.map { it.slim() }
+      }
+  }
+
   @RequestMapping(value = ["/marked/{namespace}/{resourceId}"], method = [RequestMethod.GET])
   fun markedResource(
     @PathVariable namespace: String,

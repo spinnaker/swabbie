@@ -21,14 +21,40 @@ import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolutionStrategy
 import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.Resource
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
 class ApplicationResourceOwnerResolutionStrategy(
   private val front50ApplicationCache: InMemoryCache<Application>
 ) : ResourceOwnerResolutionStrategy<Resource> {
-  override fun resolve(resource: Resource): String? =
+  private val log: Logger = LoggerFactory.getLogger(this.javaClass)
+
+  override fun resolve(resource: Resource): String? {
+    val applicationToOwnersPairs = mutableSetOf<Pair<String?, String?>>()
+
     FriggaReflectiveNamer().deriveMoniker(resource).app?.let { derivedApp ->
-      front50ApplicationCache.get().find { it.name.equals(derivedApp, ignoreCase = true) }?.email
+      applicationToOwnersPairs.addAll(getMatchingFront50Applications(derivedApp))
     }
+
+    applicationToOwnersPairs.removeIf { it.first == null || it.second == null }
+
+    if (applicationToOwnersPairs.isEmpty()) {
+      log.debug("No matched owners with strategy {} for resoure {}", javaClass.simpleName, resource)
+      return null
+    }
+
+    return applicationToOwnersPairs.map {
+      it.second
+    }.joinToString(",")
+  }
+
+  private fun getMatchingFront50Applications(derivedAppName: String): Set<Pair<String,String?>> {
+    return front50ApplicationCache.get().filter { application ->
+      application.name.equals(derivedAppName, ignoreCase = true)
+    }.map { application ->
+      Pair(application.name, application.email)
+    }.toSet()
+  }
 }

@@ -105,20 +105,60 @@ interface Timestamped {
   val createTs: Long
 }
 
+interface MarkedResourceInterface : Identifiable {
+  val summaries: List<Summary>
+  val namespace: String
+  var projectedDeletionStamp: Long
+  var notificationInfo: NotificationInfo?
+  var markTs: Long?
+  var updateTs: Long?
+  val resourceOwner: String
+}
+
 /**
  * Cleanup candidate decorated with additional metadata
  * 'projectedDeletionStamp' is the scheduled deletion time
  */
 data class MarkedResource(
   val resource: Resource,
-  val summaries: List<Summary>,
-  val namespace: String,
-  var projectedDeletionStamp: Long,
-  var notificationInfo: NotificationInfo? = null,
-  var markTs: Long? = null,
-  var updateTs: Long? = null,
-  val resourceOwner: String = ""
-) : Identifiable by resource
+  override val summaries: List<Summary>,
+  override val namespace: String,
+  override var projectedDeletionStamp: Long,
+  override var notificationInfo: NotificationInfo? = null,
+  override var markTs: Long? = null,
+  override var updateTs: Long? = null,
+  override val resourceOwner: String = ""
+) : MarkedResourceInterface, Identifiable by resource {
+  fun slim(): SlimMarkedResource {
+    return SlimMarkedResource(
+      summaries,
+      namespace,
+      projectedDeletionStamp,
+      notificationInfo,
+      markTs,
+      updateTs,
+      resourceOwner,
+      resource.resourceId,
+      resource.resourceType,
+      resource.cloudProvider,
+      resource.name
+    )
+  }
+}
+
+data class SlimMarkedResource (
+  override val summaries: List<Summary>,
+  override val namespace: String,
+  override var projectedDeletionStamp: Long,
+  override var notificationInfo: NotificationInfo? = null,
+  override var markTs: Long? = null,
+  override var updateTs: Long? = null,
+  override val resourceOwner: String = "",
+  override val resourceId: String,
+  override val resourceType: String,
+  override val cloudProvider: String,
+  override val name: String?
+) : MarkedResourceInterface
 
 data class NotificationInfo(
   val recipient: String? = null,

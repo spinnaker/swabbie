@@ -34,10 +34,10 @@ open class ResourceOwnerResolver<in T : Resource>(
       resourceOwnerResolutionStrategies.mapNotNull {
         it.resolve(resource)
       }.let { owners ->
-        val email = findValidEmail(owners)
-        return if (email != null) {
+        val emails = findValidEmails(owners)
+        return if (emails != null) {
           registry.counter(resourceOwnerId.withTags("result", "found")).increment()
-          email
+          emails.toSet().joinToString(",")
         } else {
           registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
           null
@@ -50,8 +50,8 @@ open class ResourceOwnerResolver<in T : Resource>(
     }
   }
 
-  private fun findValidEmail(emails: List<String>): String? {
-    return emails.find {
+  private fun findValidEmails(emails: List<String>): List<String> {
+    return emails.filter {
       Pattern.compile(
         "^(([\\w-]+\\.)+[\\w-]+|([a-zA-Z]|[\\w-]{2,}))@"
           + "((([0-1]?[0-9]{1,2}|25[0-5]|2[0-4][0-9])\\.([0-1]?"

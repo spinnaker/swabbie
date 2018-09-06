@@ -20,7 +20,7 @@ import com.netflix.spinnaker.swabbie.Cacheable
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 
 data class Application(
-  val email: String,
+  val email: String?,
   override val name: String
 ) : HasDetails(), Cacheable, Excludable {
   override val resourceId: String

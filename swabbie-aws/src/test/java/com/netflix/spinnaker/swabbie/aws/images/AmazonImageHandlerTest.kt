@@ -109,7 +109,8 @@ object AmazonImageHandlerTest {
     instanceProvider = instanceProvider,
     launchConfigurationProvider = launchConfigurationProvider,
     orcaService = orcaService,
-    accountProvider = accountProvider
+    accountProvider = accountProvider,
+    applicationsCache = mock()
   )
 
   @BeforeEach
@@ -402,7 +403,7 @@ object AmazonImageHandlerTest {
       mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123")
     )
 
-    whenever(imageProvider.getOne(params)) doReturn listOf(image)
+    whenever(imageProvider.getAll(params)) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
     whenever(orcaService.getTask("1234")) doReturn
       TaskDetailResponse(

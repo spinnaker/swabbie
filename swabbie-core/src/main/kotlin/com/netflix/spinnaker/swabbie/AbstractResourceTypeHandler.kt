@@ -25,10 +25,8 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import kotlinx.coroutines.experimental.Job
-import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
-import kotlinx.coroutines.experimental.joinAll
+import kotlinx.coroutines.experimental.channels.consumeEach
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -151,12 +149,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       totalResourcesVisitedCounter.set(candidates.size)
 
       preProcessCandidates(
-        candidates.filter {
-          !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
-        },
+        candidates
+          .withResolvedOwners(workConfiguration).filter {
+            !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
+          },
         workConfiguration
-      ).withResolvedOwners(workConfiguration)
-        .let { filteredCandidates ->
+      ).let { filteredCandidates ->
           val maxItemsToProcess = Math.min(filteredCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
 
           // list of currently marked & stored resources
@@ -304,64 +302,61 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
             it.markedResource.namespace == workConfiguration.namespace && it.optedOut
           }
 
-        val postDeleteProcessingJobs = mutableListOf<Job>()
-        toDelete.filter { r ->
-          val shouldSkip = try {
-            getCandidate(r, workConfiguration).let {
-              it == null || it.getViolations().isEmpty() ||
-                shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.DELETE)
-            }
-          } catch (e: Exception) {
-            log.error("Failed to inspect ${r.resourceId} for deletion. Configuration: {}", workConfiguration, e)
-            true
+        var candidates: List<T>? = getCandidates(workConfiguration)
+        if (candidates == null) {
+          toDelete.forEach {
+            ensureResourceUnmarked(it, workConfiguration)
           }
 
-          if (shouldSkip) {
+          log.info("Nothing to delete. No upstream resources, Configuration: {}", workConfiguration)
+          return
+        }
+
+        candidates = candidates
+          .filter { candidate ->
+            toDelete.any { candidate.resourceId == it.resourceId }
+          }.withResolvedOwners(workConfiguration).also {
+            preProcessCandidates(it, workConfiguration)
+          }
+
+        toDelete.filter { r ->
+          var shouldSkip = false
+          val candidate = candidates.find { it.resourceId == r.resourceId }
+          if ((candidate == null || candidate.getViolations().isEmpty()) ||
+            shouldExcludeResource(candidates.first(), workConfiguration, optedOutResourceStates, Action.DELETE)) {
+            shouldSkip = true
             ensureResourceUnmarked(r, workConfiguration)
           }
-
           !shouldSkip
         }.let { filteredCandidateList ->
           val maxItemsToProcess = Math.min(filteredCandidateList.size, workConfiguration.maxItemsProcessedPerCycle)
-
           filteredCandidateList.subList(0, maxItemsToProcess).let {
             Lists.partition(it, workConfiguration.itemsProcessedBatchSize).forEach { partition ->
-              try {
-                val deleteChannel: ReceiveChannel<MarkedResource> = deleteResources(partition, workConfiguration)
-                postDeleteProcessingJobs.add(
-                  postDeleteProcessor(workConfiguration, deleteChannel, candidateCounter, markedResources)
-                )
-              } catch (e: Exception) {
-                log.error("Failed to delete $it. Configuration: {}", workConfiguration, e)
-                recordFailureForAction(Action.DELETE, workConfiguration, e)
+              if (!partition.isEmpty()) {
+                try {
+                  val deleteChannel: ReceiveChannel<MarkedResource> = deleteResources(partition, workConfiguration)
+                  runBlocking {
+                    deleteChannel.consumeEach { successFullyDeletedResource ->
+                      log.info("Deleted {}. Configuration: {}", successFullyDeletedResource, workConfiguration)
+                      resourceRepository.remove(successFullyDeletedResource)
+                      candidateCounter.incrementAndGet()
+                      markedResources.add(successFullyDeletedResource)
+                      applicationEventPublisher.publishEvent(DeleteResourceEvent(successFullyDeletedResource, workConfiguration))
+                    }
+                  }
+                } catch (e: Exception) {
+                  log.error("Failed to delete $it. Configuration: {}", workConfiguration, e)
+                  recordFailureForAction(Action.DELETE, workConfiguration, e)
+                }
               }
             }
           }
-        }
-
-        runBlocking {
-          postDeleteProcessingJobs.joinAll()
         }
 
         printResult(candidateCounter, AtomicInteger(toDelete.size), workConfiguration, markedResources, Action.DELETE)
       }
     } finally {
       postClean.invoke()
-    }
-  }
-
-  private fun postDeleteProcessor(
-    workConfiguration: WorkConfiguration,
-    channel: ReceiveChannel<MarkedResource>,
-    candidateCounter: AtomicInteger,
-    markedResources: MutableList<MarkedResource>
-  ): Job = async {
-    for (markedResource in channel) {
-      log.info("Deleted {}. Configuration: {}", markedResource, workConfiguration)
-      applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
-      resourceRepository.remove(markedResource)
-      candidateCounter.incrementAndGet()
-      markedResources.add(markedResource)
     }
   }
 

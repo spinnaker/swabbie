@@ -20,9 +20,7 @@ import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.*
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.web.bind.annotation.*
 
@@ -34,11 +32,39 @@ class ResourceController(
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val workConfigurations: List<WorkConfiguration>
   ) {
+
   @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
-  fun markedResources(): List<MarkedResource>? = resourceTrackingRepository.getMarkedResources()
+  fun markedResources(
+    @RequestParam(required = false, defaultValue = "false") expand: Boolean
+  ): List<MarkedResourceInterface> {
+    return resourceTrackingRepository.getMarkedResources().let { markedResources ->
+      if (expand) markedResources else markedResources.map { it.slim() }
+    }
+  }
+
+  @RequestMapping(value = ["/marked/{namespace}"], method = [RequestMethod.GET])
+  fun markedResource(
+    @PathVariable namespace: String,
+    @RequestParam(required = false, defaultValue = "false") expand: Boolean
+  ): List<MarkedResourceInterface> {
+    return resourceTrackingRepository.getMarkedResources()
+      .filter { it.namespace == namespace }
+      .let { markedResources ->
+        if (expand) markedResources else markedResources.map { it.slim() }
+      }
+  }
+
+  @RequestMapping(value = ["/marked/{namespace}/{resourceId}"], method = [RequestMethod.GET])
+  fun markedResource(
+    @PathVariable namespace: String,
+    @PathVariable resourceId: String
+  ): MarkedResource {
+    return resourceTrackingRepository.find(resourceId, namespace)
+      ?: throw NotFoundException("Resource $namespace/$resourceId not found")
+  }
 
   @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])
-  fun markedResourcesReadyForDeletion(): List<MarkedResource>? = resourceTrackingRepository.getMarkedResourcesToDelete()
+  fun markedResourcesReadyForDeletion(): List<MarkedResource> = resourceTrackingRepository.getMarkedResourcesToDelete()
 
   @RequestMapping(value = ["/states"], method = [RequestMethod.GET])
   fun states(

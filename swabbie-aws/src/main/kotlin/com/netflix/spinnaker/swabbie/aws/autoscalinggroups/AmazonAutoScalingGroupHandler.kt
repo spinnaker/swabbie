@@ -66,7 +66,7 @@ class AmazonAutoScalingGroupHandler(
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+  ): ReceiveChannel<MarkedResource> = produce {
     markedResources.forEach { markedResource ->
       orcaService.orchestrate(
         OrchestrationRequest(
@@ -88,11 +88,9 @@ class AmazonAutoScalingGroupHandler(
         // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
         val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
         var taskStatus = orcaService.getTask(taskId).status
-        runBlocking {
-          while (taskStatus.isIncomplete()) {
-            delay(checkStatusDelay)
-            taskStatus = orcaService.getTask(taskId).status
-          }
+        while (taskStatus.isIncomplete()) {
+          delay(checkStatusDelay)
+          taskStatus = orcaService.getTask(taskId).status
         }
 
         if (!taskStatus.isSuccess()) {
@@ -163,9 +161,7 @@ class AmazonAutoScalingGroupHandler(
       "region" to workConfiguration.location)
     )
 
-    return serverGroupProvider.getOne(params)?.also { serverGroup ->
-      checkReferences(listOf(serverGroup), params)
-    }
+    return serverGroupProvider.getOne(params)
   }
 }
 

@@ -271,7 +271,7 @@ object ResourceTypeHandlerTest {
       retrySupport = retrySupport
     )
 
-    whenever(ownerResolver.resolve(resource1)) doReturn  "lucious-mayweather@netflix.com"
+    whenever(ownerResolver.resolve(resource1)) doReturn  "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
     whenever(ownerResolver.resolve(resource2)) doReturn  "blah" // excluded because not in allowed list
 
     handler.mark(workConfiguration = configuration, postMark = { postAction(listOf(resource1, resource2)) })

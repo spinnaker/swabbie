@@ -27,8 +27,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import rx.Scheduler
 import rx.schedulers.Schedulers
-import java.time.Clock
-import java.time.Duration
+import java.time.*
 import java.time.temporal.Temporal
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -44,22 +43,39 @@ abstract class ScheduledAgent(
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
+  private val swabbieStartTime = LocalTime.parse("09:00:00")
+  private val swabbieStopTime = LocalTime.parse("15:00:00")
 
   override fun onApplicationEvent(event: ApplicationReadyEvent?) {
     worker.schedulePeriodically({
       discoverySupport.ifUP {
-        initialize()
-        workConfigurations.forEach { workConfiguration ->
-          log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
-          process(
-            workConfiguration = workConfiguration,
-            onCompleteCallback = {
-              finalize(workConfiguration)
+        when {
+          LocalDateTime.now(clock).dayOfWeek !in listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) ->
+            when {
+              LocalTime.now(clock).isAfter(swabbieStartTime) && LocalTime.now(clock).isBefore(swabbieStopTime) -> {
+                log.debug("Swabbie time to work!")
+                runSwabbie()
+              }
+              else -> log.debug("Swabbie off hours!!")
+
             }
-          )
+          else -> log.debug("Swabbie takes a day off on {}.!", LocalDateTime.now(clock).dayOfWeek)
         }
       }
     }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
+  }
+
+  private fun runSwabbie() {
+    initialize()
+    workConfigurations.forEach { workConfiguration ->
+      log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
+      process(
+        workConfiguration = workConfiguration,
+        onCompleteCallback = {
+          finalize(workConfiguration)
+        }
+      )
+    }
   }
 
   override fun finalize(workConfiguration: WorkConfiguration) {
@@ -80,7 +96,7 @@ abstract class ScheduledAgent(
     val action = getAction()
     try {
       val handlerAction: (handler: ResourceTypeHandler<*>) -> Unit = {
-        when(action) {
+        when (action) {
           Action.MARK -> it.mark(workConfiguration, onCompleteCallback)
           Action.NOTIFY -> it.notify(workConfiguration, onCompleteCallback)
           Action.DELETE -> it.delete(workConfiguration, onCompleteCallback)

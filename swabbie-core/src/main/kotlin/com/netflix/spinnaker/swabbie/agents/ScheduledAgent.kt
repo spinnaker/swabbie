@@ -33,6 +33,7 @@ import java.time.temporal.Temporal
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
+import javax.annotation.PreDestroy
 
 abstract class ScheduledAgent(
   private val clock: Clock,
@@ -74,6 +75,14 @@ abstract class ScheduledAgent(
         .between(it.getLastAgentRun(), clock.instant())
         .toMillis().toDouble()
     })
+  }
+
+  @PreDestroy
+  private fun stop() {
+    log.info("Shutting swabbie down")
+    if (!worker.isUnsubscribed) {
+      worker.unsubscribe()
+    }
   }
 
   override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {

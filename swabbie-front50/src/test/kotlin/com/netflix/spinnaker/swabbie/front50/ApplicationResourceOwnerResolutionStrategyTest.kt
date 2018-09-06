@@ -22,6 +22,7 @@ import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
@@ -32,23 +33,33 @@ object ApplicationResourceOwnerResolutionStrategyTest {
   private val subject = ApplicationResourceOwnerResolutionStrategy(front50ApplicationCache)
 
   @Test
-  fun `should resolve resource owner from application config`() {
+  fun `should resolve resource owner from spinnaker application`() {
     whenever(front50ApplicationCache.get()) doReturn
       setOf(
         Application(name = "name", email = "name@netflix.com"),
         Application(name = "test", email = "test@netflix.com")
       )
 
-    subject.resolve(R()) shouldMatch equalTo("name@netflix.com")
+    subject.resolve(ResourceOne()) shouldMatch equalTo("name@netflix.com")
+  }
+
+  @Test
+  fun `should resolve multiple resource owner from spinnaker application`() {
+    whenever(front50ApplicationCache.get()) doReturn
+      setOf(
+        Application(name = "name", email = "name@netflix.com"),
+        Application(name = "test", email = "test@netflix.com")
+      )
+
+    subject.resolve(ResourceOne()) shouldMatch equalTo("name@netflix.com")
   }
 }
 
 @JsonTypeName("R")
-data class R(
+data class ResourceOne(
   override val resourceId: String = "id",
   override val name: String = "name",
   override val resourceType: String = "type",
   override val cloudProvider: String = "provider",
   override val createTs: Long = System.currentTimeMillis()
 ) : Resource()
-

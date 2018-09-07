@@ -16,11 +16,10 @@
 
 package com.netflix.spinnaker.swabbie.agents
 
+import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import org.springframework.boot.context.event.ApplicationReadyEvent
-import org.springframework.context.ApplicationListener
 
-interface SwabbieAgent : ApplicationListener<ApplicationReadyEvent> {
+interface SwabbieAgent : DiscoveryActivated {
   fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit)
   fun initialize()
   fun finalize(workConfiguration: WorkConfiguration)

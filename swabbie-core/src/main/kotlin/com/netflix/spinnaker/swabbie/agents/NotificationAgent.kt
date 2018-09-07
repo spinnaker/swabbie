@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference
 @ConditionalOnExpression("\${swabbie.agents.notify.enabled}")
 class NotificationAgent(
   registry: Registry,
-  discoverySupport: DiscoverySupport,
   resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   workConfigurations: List<WorkConfiguration>,
   agentExecutor: Executor,
@@ -45,7 +44,6 @@ class NotificationAgent(
 ) : ScheduledAgent(
   clock,
   registry,
-  discoverySupport,
   resourceTypeHandlers,
   workConfigurations,
   agentExecutor

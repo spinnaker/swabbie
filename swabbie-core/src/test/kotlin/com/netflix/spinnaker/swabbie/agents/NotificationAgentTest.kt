@@ -36,7 +36,6 @@ object NotificationAgentTest {
 
     NotificationAgent(
       registry = NoopRegistry(),
-      discoverySupport = mock(),
       clock = clock,
       resourceTypeHandlers = listOf(resourceTypeHandler),
       workConfigurations = listOf(configuration),
@@ -53,7 +52,6 @@ object NotificationAgentTest {
     whenever(resourceTypeHandler.handles(configuration)) doReturn true
     NotificationAgent(
       registry = NoopRegistry(),
-      discoverySupport = mock(),
       resourceTypeHandlers = listOf(resourceTypeHandler),
       clock = clock,
       workConfigurations = listOf(configuration),

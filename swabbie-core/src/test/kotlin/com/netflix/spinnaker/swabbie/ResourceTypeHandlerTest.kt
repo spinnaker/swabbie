@@ -406,6 +406,69 @@ object ResourceTypeHandlerTest {
   }
 
   @Test
+  fun `should partition the list of resources to delete`() {
+    // resources 1 & 2 would be grouped into a partition because their names match to the same app
+    // resource 3 would be in its own partition
+    val resource1 = TestResource("1", name = "testResource-v001")
+    val resource2 = TestResource("2", name = "testResource-v002")
+    val resource3 = TestResource("3", name = "random")
+
+    val configuration = workConfiguration(
+      itemsProcessedBatchSize = 2,
+      maxItemsProcessedPerCycle = 3
+    )
+
+    val markedResources = listOf(
+      MarkedResource(
+        resource = resource1,
+        summaries = listOf(Summary("invalid resource 1", "rule 1")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis()
+      ),
+      MarkedResource(
+        resource = resource2,
+        summaries = listOf(Summary("invalid resource 2", "rule 2")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis()
+      ),
+      MarkedResource(
+        resource = resource3,
+        summaries = listOf(Summary("invalid resource random", "rule 3")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis()
+      )
+    )
+
+    val handler = TestResourceTypeHandler(
+      clock = clock,
+      rules = listOf(
+        TestRule({ true }, Summary("always invalid", "rule1"))
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedCandidates = mutableListOf(resource1, resource2, resource3),
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = retrySupport
+    )
+
+    val result = handler.partitionList(markedResources, configuration)
+    Assertions.assertTrue(result.size == 2)
+    with (result) {
+      Assertions.assertTrue(result[0].size == 2, "resources 1 & 2 because their names match to the same app")
+      Assertions.assertTrue(result[1].size == 1)
+      Assertions.assertTrue(result[0].none { it.name == resource3.name })
+      Assertions.assertTrue(result[1].all { it.name == resource3.name })
+    }
+  }
+
+  @Test
   fun `should forget resource if no longer violate a rule`() {
     val resource = TestResource(resourceId = "testResource")
     val configuration = workConfiguration()
@@ -453,7 +516,9 @@ object ResourceTypeHandlerTest {
 
   internal fun workConfiguration(
     exclusions: List<Exclusion> = emptyList(),
-    dryRun: Boolean = false
+    dryRun: Boolean = false,
+    itemsProcessedBatchSize: Int = 1,
+    maxItemsProcessedPerCycle: Int = 10
   ): WorkConfiguration = WorkConfiguration(
     namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
     account = SpinnakerAccount(
@@ -470,7 +535,9 @@ object ResourceTypeHandlerTest {
     retention = 14,
     exclusions = exclusions,
     dryRun = dryRun,
-    maxAge = 1
+    maxAge = 1,
+    itemsProcessedBatchSize = itemsProcessedBatchSize,
+    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle
   )
 
   class TestRule(

@@ -20,6 +20,7 @@ import com.google.common.collect.Lists
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
@@ -331,7 +332,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         }.let { filteredCandidateList ->
           val maxItemsToProcess = Math.min(filteredCandidateList.size, workConfiguration.maxItemsProcessedPerCycle)
           filteredCandidateList.subList(0, maxItemsToProcess).let {
-            Lists.partition(it, workConfiguration.itemsProcessedBatchSize).forEach { partition ->
+            partitionList(it, workConfiguration).forEach { partition ->
               if (!partition.isEmpty()) {
                 try {
                   val deleteChannel: ReceiveChannel<MarkedResource> = deleteResources(partition, workConfiguration)
@@ -358,6 +359,26 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     } finally {
       postClean.invoke()
     }
+  }
+
+  /**
+   * Partitions the list of marked resources to process:
+   * For convenience, partitions are grouped by relevance (here the derived app they are associated with)
+   */
+  fun partitionList(
+    markedResources: List<MarkedResource>,
+    configuration: WorkConfiguration
+  ): List<List<MarkedResource>> {
+    val partitions = mutableListOf<List<MarkedResource>>()
+    markedResources.groupBy {
+      FriggaReflectiveNamer().deriveMoniker(it.resource).app
+    }.map {
+      Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach {
+        partitions.add(it)
+      }
+    }
+
+    return partitions.sortedByDescending { it.size }
   }
 
   private fun T.getViolations(): List<Summary> {

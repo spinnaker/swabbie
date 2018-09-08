@@ -323,7 +323,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           var shouldSkip = false
           val candidate = candidates.find { it.resourceId == r.resourceId }
           if ((candidate == null || candidate.getViolations().isEmpty()) ||
-            shouldExcludeResource(candidates.first(), workConfiguration, optedOutResourceStates, Action.DELETE)) {
+            shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.DELETE)) {
             shouldSkip = true
             ensureResourceUnmarked(r, workConfiguration)
           }

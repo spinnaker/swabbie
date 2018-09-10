@@ -48,7 +48,6 @@ object ResourceMarkerAgentTest {
     ResourceMarkerAgent(
       clock = clock,
       registry = NoopRegistry(),
-      discoverySupport = mock(),
       resourceTypeHandlers = listOf(resourceTypeHandler),
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor
@@ -65,7 +64,6 @@ object ResourceMarkerAgentTest {
     ResourceMarkerAgent(
       clock = clock,
       registry = NoopRegistry(),
-      discoverySupport = mock(),
       resourceTypeHandlers = listOf(resourceTypeHandler),
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor

@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.DiscoverySupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -37,7 +36,6 @@ import java.util.concurrent.atomic.AtomicReference
 @ConditionalOnExpression("\${swabbie.agents.clean.enabled}")
 class ResourceCleanerAgent(
   registry: Registry,
-  discoverySupport: DiscoverySupport,
   resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   workConfigurations: List<WorkConfiguration>,
   agentExecutor: Executor,
@@ -45,7 +43,6 @@ class ResourceCleanerAgent(
 ) : ScheduledAgent(
   clock,
   registry,
-  discoverySupport,
   resourceTypeHandlers,
   workConfigurations,
   agentExecutor

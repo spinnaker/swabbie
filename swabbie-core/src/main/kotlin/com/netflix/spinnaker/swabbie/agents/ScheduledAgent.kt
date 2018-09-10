@@ -17,14 +17,13 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.DiscoverySupport
+import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.boot.context.event.ApplicationReadyEvent
 import rx.Scheduler
 import rx.schedulers.Schedulers
 import java.time.Clock
@@ -33,11 +32,11 @@ import java.time.temporal.Temporal
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
+import javax.annotation.PreDestroy
 
 abstract class ScheduledAgent(
   private val clock: Clock,
   val registry: Registry,
-  private val discoverySupport: DiscoverySupport,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   private val workConfigurations: List<WorkConfiguration>,
   private val agentExecutor: Executor
@@ -45,9 +44,9 @@ abstract class ScheduledAgent(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
 
-  override fun onApplicationEvent(event: ApplicationReadyEvent?) {
-    worker.schedulePeriodically({
-      discoverySupport.ifUP {
+  override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
+    get() = {
+      worker.schedulePeriodically({
         initialize()
         workConfigurations.forEach { workConfiguration ->
           log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
@@ -58,9 +57,11 @@ abstract class ScheduledAgent(
             }
           )
         }
-      }
-    }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
-  }
+      }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
+    }
+
+  override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
+    get() = { stop() }
 
   override fun finalize(workConfiguration: WorkConfiguration) {
     log.info("Completed run for agent {} with configuration {}", javaClass.simpleName, workConfiguration)
@@ -69,11 +70,19 @@ abstract class ScheduledAgent(
   @PostConstruct
   private fun init() {
     log.info("Initializing agent ${javaClass.simpleName}")
-    registry.gauge(lastRunAgeId.withTag("agentName", javaClass.simpleName), this, {
+    registry.gauge(lastRunAgeId.withTag("agentName", javaClass.simpleName), this) {
       Duration
         .between(it.getLastAgentRun(), clock.instant())
         .toMillis().toDouble()
-    })
+    }
+  }
+
+  @PreDestroy
+  private fun stop() {
+    log.info("Stopping agent ${javaClass.simpleName}")
+    if (!worker.isUnsubscribed) {
+      worker.unsubscribe()
+    }
   }
 
   override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {

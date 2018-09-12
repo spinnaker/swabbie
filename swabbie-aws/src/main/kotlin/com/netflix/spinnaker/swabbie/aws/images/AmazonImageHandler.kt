@@ -26,12 +26,10 @@ import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfig
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.orca.OrcaJob
-import com.netflix.spinnaker.swabbie.orca.OrcaService
-import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
+import com.netflix.spinnaker.swabbie.orca.*
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import kotlinx.coroutines.experimental.channels.consumeEach
 import kotlinx.coroutines.experimental.channels.produce
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
@@ -57,7 +55,7 @@ class AmazonImageHandler(
   private val launchConfigurationProvider: ResourceProvider<AmazonLaunchConfiguration>,
   private val accountProvider: AccountProvider,
   private val orcaService: OrcaService,
-  private val applicationsCache: InMemoryCache<Application>
+  private val applicationsCaches: List<InMemoryCache<Application>>
 ) : AbstractResourceTypeHandler<AmazonImage>(
   registry,
   clock,
@@ -77,7 +75,8 @@ class AmazonImageHandler(
   ): ReceiveChannel<MarkedResource> = produce {
     orcaService.orchestrate(
       OrchestrationRequest(
-        application = resolveApplicationOrNull(markedResources) ?: "swabbie",
+        // resources are partitioned based on app name, so find app name from first resource
+        application = resolveApplicationOrNull(markedResources.first()) ?: "swabbie",
         job = listOf(
           OrcaJob(
             type = "deleteImage",
@@ -92,9 +91,8 @@ class AmazonImageHandler(
         description = "Deleting Images :${markedResources.map { it.resourceId }}"
       )
     ).let { taskResponse ->
-      // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
-      val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
-      var taskStatus = getTask(taskId).status
+      val taskId = parseTaskId(taskResponse)
+      val taskStatus = getTask(taskId).status
       when {
         taskStatus.isSuccess() -> {
           log.info("Orca Task: {} successfully deleted {} images: {}", taskId, markedResources.size, markedResources)
@@ -102,72 +100,20 @@ class AmazonImageHandler(
             send(it)
           }
         }
-
-        taskStatus.isFailure() -> throw IncompleteOrFailedDeletionException("Failed to delete $markedResources")
+        taskStatus.isFailure() -> throw IncompleteOrFailedDeletionException("Failed to delete $markedResources in orca task $taskId")
         taskStatus.isIncomplete() -> {
-          val deleted = mutableListOf<MarkedResource>()
-          for (markedResource in markedResources) {
-            try {
-              var candidate: AmazonImage? = getCandidate(markedResource, workConfiguration)
-              if (candidate == null) {
-                log.debug("Deletion in progress. Successfully deleted {}...", markedResource)
-                send(markedResource)
-                deleted.add(markedResource)
-                continue
-              }
-
-              while (taskStatus.isIncomplete() && candidate != null) {
-                delay(checkStatusDelay)
-                taskStatus = getTask(taskId).status
-                candidate = getCandidate(markedResource, workConfiguration)
-                if (taskStatus.isFailure()) {
-                  log.info("Successful partial deletions {} out of {}", deleted, markedResources)
-                  throw IncompleteOrFailedDeletionException(
-                    "Failed to complete deletions of images. ${deleted.size} out of ${markedResources.size}"
-                  )
-                }
-              }
-
-              if (candidate == null) {
-                send(markedResource)
-                deleted.add(markedResource)
-              }
-
-              if (taskStatus.isSuccess()) {
-                log.info("Orca Task: {} successfully deleted {} images: {}", taskId, markedResources.size, markedResources)
-                deleted.add(markedResource)
-                markedResources.minus(deleted).forEach {
-                  // we have sent deleted objects in progress, let's send the rest
-                  send(it)
-                }
-
-                break
-              }
-            } catch (e: Exception) {
-              if (e is IncompleteOrFailedDeletionException) {
-                log.error("Failed to complete deletion. {} out of {}", deleted, markedResources)
-                throw e
-              }
-
-              log.error("failed to delete {}", markedResource)
-            }
-          }
+          val deleteChannel = monitorDelete(taskId, markedResources, workConfiguration)
+          deleteChannel.consumeEach { send(it) }
         }
       }
     }
   }
 
-  class IncompleteOrFailedDeletionException(message: String? = null): RuntimeException(message)
+  class IncompleteOrFailedDeletionException(message: String? = null) : RuntimeException(message)
 
-  private fun resolveApplicationOrNull(markedResources: List<MarkedResource>): String? {
-    markedResources.find {
-      FriggaReflectiveNamer().deriveMoniker(it).app != null &&
-        applicationsCache.contains(FriggaReflectiveNamer().deriveMoniker(it).app)
-    }?.also {
-      return FriggaReflectiveNamer().deriveMoniker(it).app
-    }
-
-    return null
+  private fun resolveApplicationOrNull(markedResource: MarkedResource): String? {
+    val appName = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: return null
+    return if (applicationsCaches.any { it.contains(appName) }) appName else null
   }
 
   private fun getTask(taskId: String): TaskDetailResponse =
@@ -175,6 +121,65 @@ class AmazonImageHandler(
       orcaService.getTask(taskId)
     }, maxAttempts, timeoutMillis, true)
 
+  /**
+   * Parses taskId from orca response of format
+   * "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
+   */
+  private fun parseTaskId(orcaResponse: TaskResponse): String =
+    orcaResponse.ref.substring(orcaResponse.ref.lastIndexOf("/") + 1)
+
+  /**
+   * Monitor the delete task in Orca, and emit a MarkedResource when it is successfully deleted
+   */
+  private fun monitorDelete(
+    taskId: String,
+    markedResources: List<MarkedResource>,
+    workConfiguration: WorkConfiguration
+  ): ReceiveChannel<MarkedResource> = produce {
+    val deleted = mutableListOf<MarkedResource>()
+
+    while (getTask(taskId).status.isIncomplete()) {
+      for (markedResource in markedResources) {
+        try {
+          val candidate: AmazonImage? = getCandidate(markedResource, workConfiguration)
+          if (candidate == null) {
+            log.debug("Deletion in progress for orca task $taskId. Successfully deleted {}...", markedResource)
+            send(markedResource)
+            deleted.add(markedResource)
+            continue
+          }
+        } catch (e: Exception) {
+          if (e is IncompleteOrFailedDeletionException) {
+            log.error(
+              "Failed to complete deletion for orca task {}. {} out of {} deleted.",
+              taskId,
+              deleted,
+              markedResources
+            )
+            throw e
+          }
+          log.error("failed to delete {} for orca task {}", markedResource, taskId)
+        }
+      }
+
+      delay(checkStatusDelay)
+    }
+
+    if (getTask(taskId).status.isSuccess()) {
+      log.info("Successfully deleted {} images: {} for orca task {}", markedResources.size, markedResources, taskId)
+      markedResources.minus(deleted).forEach {
+        // we have sent deleted objects in progress, let's send the rest
+        send(it)
+      }
+      close()
+    } else {
+      log.info("Successful partial deletions {} out of {} for orca task {}", deleted, markedResources, taskId)
+      close()
+      throw IncompleteOrFailedDeletionException(
+        "Failed to complete deletions of images for orca task $taskId. ${deleted.size} out of ${markedResources.size} deleted"
+      )
+    }
+  }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =
     workConfiguration.resourceType == IMAGE && workConfiguration.cloudProvider == AWS && !rules.isEmpty()

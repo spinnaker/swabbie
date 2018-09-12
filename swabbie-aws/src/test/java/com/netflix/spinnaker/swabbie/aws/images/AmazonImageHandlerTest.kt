@@ -55,15 +55,7 @@ import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
-import com.nhaarman.mockito_kotlin.any
-import com.nhaarman.mockito_kotlin.check
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.doThrow
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.reset
-import com.nhaarman.mockito_kotlin.times
-import com.nhaarman.mockito_kotlin.verify
-import com.nhaarman.mockito_kotlin.whenever
+import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -89,6 +81,8 @@ object AmazonImageHandlerTest {
   private val imageProvider = mock<ResourceProvider<AmazonImage>>()
   private val instanceProvider = mock<ResourceProvider<AmazonInstance>>()
   private val launchConfigurationProvider = mock<ResourceProvider<AmazonLaunchConfiguration>>()
+  private val applicationsCache = mock<InMemoryCache<Application>>()
+
   private val subject = AmazonImageHandler(
     clock = clock,
     registry = NoopRegistry(),
@@ -110,7 +104,7 @@ object AmazonImageHandlerTest {
     launchConfigurationProvider = launchConfigurationProvider,
     orcaService = orcaService,
     accountProvider = accountProvider,
-    applicationsCache = mock()
+    applicationsCaches = listOf(applicationsCache)
   )
 
   @BeforeEach
@@ -418,7 +412,7 @@ object AmazonImageHandlerTest {
 
     subject.delete(workConfiguration, {})
 
-    verify(resourceRepository, times(1)).remove(any<MarkedResource>())
+    verify(resourceRepository, times(1)).remove(any())
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<DeleteResourceEvent> { event ->
         Assertions.assertTrue(event.markedResource.resourceId == "ami-123")

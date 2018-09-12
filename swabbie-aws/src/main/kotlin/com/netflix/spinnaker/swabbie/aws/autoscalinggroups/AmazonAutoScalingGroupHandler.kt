@@ -152,11 +152,12 @@ class AmazonAutoScalingGroupHandler(
   }
 
   override fun getCandidate(
-    markedResource: MarkedResource,
+    resourceId: String,
+    resourceName: String,
     workConfiguration: WorkConfiguration
   ): AmazonAutoScalingGroup? {
     val params = Parameters(mapOf(
-      "autoScalingGroupName" to markedResource.resourceId,
+      "autoScalingGroupName" to resourceId,
       "account" to workConfiguration.account.accountId!!,
       "region" to workConfiguration.location)
     )

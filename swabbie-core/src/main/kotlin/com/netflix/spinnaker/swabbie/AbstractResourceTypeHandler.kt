@@ -137,25 +137,21 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     try {
       log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration)
       val candidates: List<T>? = getCandidates(workConfiguration)
-      val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
-        .filter {
-          it.markedResource.namespace == workConfiguration.namespace && it.optedOut
-        }
-
       if (candidates == null || candidates.isEmpty()) {
         return
       }
-
       log.info("fetched {} resources. Configuration: {}", candidates.size, workConfiguration)
       totalResourcesVisitedCounter.set(candidates.size)
 
-      preProcessCandidates(
-        candidates
-          .withResolvedOwners(workConfiguration).filter {
-            !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK)
-          },
-        workConfiguration
-      ).let { filteredCandidates ->
+      val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
+        .filter { it.markedResource.namespace == workConfiguration.namespace && it.optedOut }
+
+      val filteredCandidatesWithOwners = candidates
+        .withResolvedOwners(workConfiguration)
+        .filter { !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK) }
+
+      preProcessCandidates(filteredCandidatesWithOwners, workConfiguration)
+        .let { filteredCandidates ->
           val maxItemsToProcess = Math.min(filteredCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
 
           // list of currently marked & stored resources
@@ -214,6 +210,51 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
       postMark.invoke()
     }
+  }
+
+  override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation {
+    val candidate = getCandidate(resourceId, resourceName, workConfiguration) ?: return ResourceEvauation(
+      workConfiguration.namespace,
+      resourceId,
+      false,
+      "Resource does not exist in the given namespace",
+      emptyList()
+    )
+
+    val resourceState = resourceStateRepository.get(resourceId, workConfiguration.namespace)
+    if (resourceState != null && resourceState.optedOut) {
+      return ResourceEvauation(
+        workConfiguration.namespace,
+        resourceId,
+        false,
+        "Resource has been opted out",
+        emptyList()
+      )
+    }
+
+    val candidates = listOf(candidate)
+      .withResolvedOwners(workConfiguration)
+      .filter { !shouldExcludeResource(it, workConfiguration, emptyList(), Action.MARK) }
+
+    if (candidates.isEmpty()) {
+      return ResourceEvauation(
+        workConfiguration.namespace,
+        resourceId,
+        false,
+        "Resource has been excluded from marking",
+        emptyList()
+      )
+    }
+
+    val preprocessedCandidate = preProcessCandidates(candidates, workConfiguration).first()
+    val wouldMark = preprocessedCandidate.getViolations().isNotEmpty()
+    return ResourceEvauation(
+      workConfiguration.namespace,
+      resourceId,
+      wouldMark,
+      if (wouldMark) "Resource has violations" else "Resource does not have violations",
+      preprocessedCandidate.getViolations()
+    )
   }
 
   private fun ensureResourceUnmarked(

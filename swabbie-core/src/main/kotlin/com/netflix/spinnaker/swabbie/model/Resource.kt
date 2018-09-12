@@ -180,6 +180,14 @@ data class Status(
   val timestamp: Long
 )
 
+data class ResourceEvauation(
+  val namespace: String,
+  val resourceId: String,
+  val wouldMark: Boolean,
+  val wouldMarkReason: String,
+  val summaries: List<Summary>
+)
+
 fun MarkedResource.humanReadableDeletionTime(clock: Clock): LocalDate {
   this.projectedDeletionStamp.let {
     return Instant.ofEpochMilli(it)

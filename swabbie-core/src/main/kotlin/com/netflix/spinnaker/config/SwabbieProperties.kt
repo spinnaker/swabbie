@@ -18,11 +18,15 @@ package com.netflix.spinnaker.config
 
 import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
 import org.springframework.boot.context.properties.ConfigurationProperties
+import java.time.DayOfWeek
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 @ConfigurationProperties("swabbie")
 open class SwabbieProperties {
   var dryRun: Boolean = true
   var providers: List<CloudProviderConfiguration> = mutableListOf()
+  var schedule: Schedule = Schedule()
 }
 
 class CloudProviderConfiguration {
@@ -135,6 +139,47 @@ class Attribute {
     var result = key.hashCode()
     result = 31 * result + value.hashCode()
     return result
+  }
+}
+
+/**
+ * Default operating hours schedule
+ */
+class Schedule {
+  var enabled: Boolean = true
+  var startTime: String = "09:00"
+  var endTime: String = "15:00"
+  val allowedDaysOfWeek: MutableList<DayOfWeek> = mutableListOf()
+
+  fun getResolvedDays(): List<DayOfWeek> {
+    return if (!enabled) {
+      mutableListOf(
+        DayOfWeek.MONDAY,
+        DayOfWeek.TUESDAY,
+        DayOfWeek.WEDNESDAY,
+        DayOfWeek.THURSDAY,
+        DayOfWeek.FRIDAY,
+        DayOfWeek.SATURDAY,
+        DayOfWeek.SUNDAY
+      )
+    } else if (allowedDaysOfWeek.isEmpty()) {
+      mutableListOf(
+        DayOfWeek.MONDAY,
+        DayOfWeek.TUESDAY,
+        DayOfWeek.WEDNESDAY,
+        DayOfWeek.THURSDAY
+      )
+    } else {
+      allowedDaysOfWeek
+    }
+  }
+
+  fun getResolvedStartTime(): LocalTime {
+    return LocalTime.parse(startTime)
+  }
+
+  fun getResolvedEndTime(): LocalTime {
+    return LocalTime.parse(endTime)
   }
 }
 

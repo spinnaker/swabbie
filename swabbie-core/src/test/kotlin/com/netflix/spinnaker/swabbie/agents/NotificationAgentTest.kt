@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.nhaarman.mockito_kotlin.*
@@ -28,6 +29,7 @@ object NotificationAgentTest {
   private val onCompleteCallback = {}
   private val configuration = workConfiguration()
   private val agentExecutor = BlockingThreadExecutor()
+  private val swabbieProperties = SwabbieProperties()
 
   @Test
   fun `should not notify if no handler found`() {
@@ -39,7 +41,8 @@ object NotificationAgentTest {
       clock = clock,
       resourceTypeHandlers = listOf(resourceTypeHandler),
       workConfigurations = listOf(configuration),
-      agentExecutor = agentExecutor
+      agentExecutor = agentExecutor,
+      swabbieProperties = swabbieProperties
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).notify(any(), any())
@@ -55,7 +58,8 @@ object NotificationAgentTest {
       resourceTypeHandlers = listOf(resourceTypeHandler),
       clock = clock,
       workConfigurations = listOf(configuration),
-      agentExecutor = agentExecutor
+      agentExecutor = agentExecutor,
+      swabbieProperties = swabbieProperties
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, times(1)).notify(

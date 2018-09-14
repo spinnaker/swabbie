@@ -17,6 +17,8 @@
 package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.Schedule
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
@@ -26,8 +28,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import rx.Scheduler
 import rx.schedulers.Schedulers
-import java.time.Clock
-import java.time.Duration
+import java.time.*
 import java.time.temporal.Temporal
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -39,7 +40,8 @@ abstract class ScheduledAgent(
   val registry: Registry,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   private val workConfigurations: List<WorkConfiguration>,
-  private val agentExecutor: Executor
+  private val agentExecutor: Executor,
+  private val swabbieProperties: SwabbieProperties
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
@@ -47,16 +49,18 @@ abstract class ScheduledAgent(
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
       worker.schedulePeriodically({
-        initialize()
-        workConfigurations.forEach { workConfiguration ->
-          log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
-          process(
-            workConfiguration = workConfiguration,
-            onCompleteCallback = {
-              finalize(workConfiguration)
+        when {
+          LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
+            when {
+              timeToWork(swabbieProperties.schedule) -> {
+                log.info("Swabbie time to work!")
+                runSwabbie()
+              }
+              else -> log.info("Swabbie off hours!")
             }
-          )
+          else -> log.info("Swabbie takes a day off on {}.!", LocalDateTime.now(clock).dayOfWeek)
         }
+
       }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
     }
 
@@ -67,6 +71,22 @@ abstract class ScheduledAgent(
     log.info("Completed run for agent {} with configuration {}", javaClass.simpleName, workConfiguration)
   }
 
+  private fun timeToWork(schedule: Schedule): Boolean {
+    if (!schedule.enabled) {
+      return true
+    }
+
+    val startTime = schedule.getResolvedStartTime()
+    val endTime = schedule.getResolvedEndTime()
+    return if (startTime <= endTime) {
+      // Work during the day
+      LocalTime.now(clock).isAfter(startTime) && LocalTime.now(clock).isBefore(endTime)
+    } else {
+      // Work during the night
+      LocalTime.now(clock).isAfter(startTime) || LocalTime.now(clock).isBefore(endTime)
+    }
+  }
+
   @PostConstruct
   private fun init() {
     log.info("Initializing agent ${javaClass.simpleName}")
@@ -74,6 +94,19 @@ abstract class ScheduledAgent(
       Duration
         .between(it.getLastAgentRun(), clock.instant())
         .toMillis().toDouble()
+    }
+  }
+
+  private fun runSwabbie() {
+    initialize()
+    workConfigurations.forEach { workConfiguration ->
+      log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
+      process(
+        workConfiguration = workConfiguration,
+        onCompleteCallback = {
+          finalize(workConfiguration)
+        }
+      )
     }
   }
 

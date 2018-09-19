@@ -24,6 +24,7 @@ import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
+import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -51,7 +52,7 @@ object RedisResourceTrackingRepositoryTest {
 
   private val clock = Clock.systemDefaultZone()
   private val resourceRepository = RedisResourceTrackingRepository(
-    JedisClientDelegate(jedisPool), null, objectMapper, clock
+    RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))), objectMapper, clock
   )
 
   @BeforeEach

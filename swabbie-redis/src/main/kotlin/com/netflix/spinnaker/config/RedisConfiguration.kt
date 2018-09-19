@@ -16,10 +16,14 @@
 
 package com.netflix.spinnaker.config
 
-import org.springframework.context.annotation.ComponentScan
+import com.netflix.spinnaker.kork.dynomite.DynomiteClientConfiguration
+import com.netflix.spinnaker.kork.jedis.JedisClientConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 
 @Configuration
-@ComponentScan("com.netflix.spinnaker.swabbie.redis")
+@ConditionalOnExpression("\${redis.enabled:false}")
+@Import(JedisClientConfiguration::class, DynomiteClientConfiguration::class)
 open class RedisConfiguration
 

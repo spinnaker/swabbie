@@ -95,12 +95,13 @@ class AmazonSecurityGroupHandler(
     }
   }
 
-  override fun getCandidate(markedResource: MarkedResource,
+  override fun getCandidate(resourceId: String,
+                            resourceName: String,
                             workConfiguration: WorkConfiguration
   ): AmazonSecurityGroup? = securityGroupProvider.getOne(
     Parameters(
       mapOf(
-        "groupId" to markedResource.resourceId,
+        "groupId" to resourceId,
         "account" to workConfiguration.account.accountId!!,
         "region" to workConfiguration.location
       )

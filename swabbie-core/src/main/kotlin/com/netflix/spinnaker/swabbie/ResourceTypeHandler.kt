@@ -16,8 +16,8 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.ResourceEvauation
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
 interface ResourceTypeHandler<T : Resource> {
@@ -37,7 +37,7 @@ interface ResourceTypeHandler<T : Resource> {
    * Fetches a single resource.
    * Decorate metadata that can be used in a [Rule]
    */
-  fun getCandidate(markedResource: MarkedResource, workConfiguration: WorkConfiguration): T?
+  fun getCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): T?
 
   /**
    * Marks a single marked resource matching the granularity of [WorkConfiguration].
@@ -60,4 +60,9 @@ interface ResourceTypeHandler<T : Resource> {
    * A rule should leverage metadata added by this function.
    */
   fun preProcessCandidates(candidates: List<T>, workConfiguration: WorkConfiguration): List<T>
+
+  /**
+   * Decides whether a single candidate will be marked, and returns information about that decision.
+   */
+  fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation
 }

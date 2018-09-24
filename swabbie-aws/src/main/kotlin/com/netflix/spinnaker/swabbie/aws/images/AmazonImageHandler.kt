@@ -141,7 +141,7 @@ class AmazonImageHandler(
     while (getTask(taskId).status.isIncomplete()) {
       for (markedResource in markedResources) {
         try {
-          val candidate: AmazonImage? = getCandidate(markedResource, workConfiguration)
+          val candidate: AmazonImage? = getCandidate(markedResource.resourceId, markedResource.name.orEmpty(), workConfiguration)
           if (candidate == null) {
             log.debug("Deletion in progress for orca task $taskId. Successfully deleted {}...", markedResource)
             send(markedResource)
@@ -190,7 +190,7 @@ class AmazonImageHandler(
     )
 
     return imageProvider.getAll(params).also { images ->
-      log.info("Got {} images. Checking references", images?.size)
+      log.info("Got {} images.", images?.size)
     }
   }
 
@@ -219,7 +219,7 @@ class AmazonImageHandler(
       return
     }
 
-    log.info("checking references for {} resources. Parameters: {}", images.size, params)
+    log.debug("checking references for {} resources. Parameters: {}", images.size, params)
 
     images.forEach {
       if (it.name == null || it.description == null) {
@@ -362,9 +362,9 @@ class AmazonImageHandler(
     }
   }
 
-  override fun getCandidate(markedResource: MarkedResource, workConfiguration: WorkConfiguration): AmazonImage? {
+  override fun getCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): AmazonImage? {
     val params = Parameters(mapOf(
-      "imageId" to markedResource.resourceId,
+      "imageId" to resourceId,
       "account" to workConfiguration.account.accountId!!,
       "region" to workConfiguration.location)
     )

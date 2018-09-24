@@ -16,13 +16,16 @@
 
 package com.netflix.spinnaker.swabbie.controllers
 
+import com.netflix.spinnaker.config.*
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
-import com.netflix.spinnaker.swabbie.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
+import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.web.bind.annotation.*
+import java.util.*
 
 @RestController
 @RequestMapping("/resources")
@@ -30,8 +33,12 @@ class ResourceController(
   private val resourceStateRepository: ResourceStateRepository,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val applicationEventPublisher: ApplicationEventPublisher,
-  private val workConfigurations: List<WorkConfiguration>
-  ) {
+  private val workConfigurations: List<WorkConfiguration>,
+  private val accountProvider: AccountProvider,
+  private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
+) {
+
+  private val log = LoggerFactory.getLogger(javaClass)
 
   @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
   fun markedResources(
@@ -112,8 +119,75 @@ class ResourceController(
 
     return resourceStateRepository.get(resourceId, namespace) ?: throw NotFoundException()
   }
+
+  /**
+   * Runs resource through marking logic, calculating if it is a candidate for deletion.
+   * Note: this api is quite slow, because does the actual recalculation for a resource.
+   */
+  @RequestMapping(value = ["/check/{namespace}/{resourceId}"], method = [RequestMethod.GET])
+  fun checkResource(
+    @PathVariable namespace: String,
+    @PathVariable resourceId: String
+  ): ResourceEvauation {
+    val workConfiguration = getWorkConfiguration(namespaceParser(namespace))
+
+    val handler = resourceTypeHandlers.find { handler ->
+      handler.handles(workConfiguration)
+    } ?: throw NotFoundException("No handlers for $namespace")
+
+    return handler.evaluateCandidate(resourceId, resourceId, workConfiguration)
+  }
+
+  internal fun getWorkConfiguration(
+    namespace: Namespace
+  ): WorkConfiguration {
+    return WorkConfigurator(
+      swabbieProperties = generateSwabbieProperties(namespace),
+      accountProvider = accountProvider,
+      exclusionPolicies = listOf(AccountExclusionPolicy()),
+      exclusionsSuppliers = Optional.empty()
+    ).generateWorkConfigurations()[0]
+  }
+
+  internal fun generateSwabbieProperties(
+    namespace: Namespace
+  ): SwabbieProperties {
+    val exclusionList = mutableListOf<Exclusion>()
+    return SwabbieProperties().apply {
+      dryRun = true
+      providers = listOf(
+        CloudProviderConfiguration().apply {
+          name = namespace.cloudProvider
+          exclusions = mutableListOf()
+          accounts = listOf(namespace.accountId)
+          locations = listOf(namespace.region)
+          resourceTypes = listOf(
+            ResourceTypeConfiguration().apply {
+              name = namespace.resourceType
+              enabled = true
+              dryRun = true
+              exclusions = exclusionList
+            }
+          )
+        }
+      )
+    }
+  }
+
+  private fun namespaceParser(namespace: String): Namespace {
+    namespace.split(":").let {
+      return Namespace(it[0], it[1], it[2], it[3])
+    }
+  }
 }
 
-
-
-
+data class Namespace(
+  val cloudProvider: String,
+  val accountId: String,
+  val region: String,
+  val resourceType: String
+) {
+  override fun toString(): String {
+    return "$cloudProvider:$accountId:$region:$resourceType"
+  }
+}

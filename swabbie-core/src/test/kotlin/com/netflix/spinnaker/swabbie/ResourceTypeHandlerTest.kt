@@ -591,10 +591,11 @@ object ResourceTypeHandlerTest {
 
     // simulates querying for a resource upstream
     override fun getCandidate(
-      markedResource: MarkedResource,
+      resourceId: String,
+      resourceName: String,
       workConfiguration: WorkConfiguration
     ): TestResource? {
-      return simulatedCandidates?.find { markedResource.resourceId == it.resourceId }
+      return simulatedCandidates?.find { resourceId == it.resourceId }
     }
 
     override fun preProcessCandidates(
@@ -611,6 +612,16 @@ object ResourceTypeHandlerTest {
 
     override fun getCandidates(workConfiguration: WorkConfiguration): List<TestResource>? {
       return simulatedCandidates
+    }
+
+    override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation {
+      return ResourceEvauation(
+        namespace = workConfiguration.namespace,
+        resourceId = resourceId,
+        wouldMark = false,
+        wouldMarkReason = "This is a test",
+        summaries = listOf()
+      )
     }
   }
 }

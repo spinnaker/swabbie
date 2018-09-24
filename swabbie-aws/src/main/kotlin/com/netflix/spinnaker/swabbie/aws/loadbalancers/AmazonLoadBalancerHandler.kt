@@ -22,8 +22,6 @@ import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -101,12 +99,13 @@ class AmazonLoadBalancerHandler(
     }
   }
 
-  override fun getCandidate(markedResource: MarkedResource,
+  override fun getCandidate(resourceId: String,
+                            resourceName: String,
                             workConfiguration: WorkConfiguration
   ): AmazonElasticLoadBalancer? = loadBalancerProvider.getOne(
     Parameters(
       mapOf(
-        "loadBalancerName" to markedResource.name!!,
+        "loadBalancerName" to resourceName!!,
         "account" to workConfiguration.account.accountId!!,
         "region" to workConfiguration.location
       )

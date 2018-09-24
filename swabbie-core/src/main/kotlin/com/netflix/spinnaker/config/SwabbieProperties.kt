@@ -19,8 +19,8 @@ package com.netflix.spinnaker.config
 import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.DayOfWeek
-import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 
 @ConfigurationProperties("swabbie")
 open class SwabbieProperties {
@@ -150,6 +150,7 @@ class Schedule {
   var startTime: String = "09:00"
   var endTime: String = "15:00"
   val allowedDaysOfWeek: MutableList<DayOfWeek> = mutableListOf()
+  var defaultTimeZone: String = "America/Los_Angeles"
 
   fun getResolvedDays(): List<DayOfWeek> {
     return if (!enabled) {
@@ -180,6 +181,10 @@ class Schedule {
 
   fun getResolvedEndTime(): LocalTime {
     return LocalTime.parse(endTime)
+  }
+
+  fun getZoneId(): ZoneId {
+    return ZoneId.of(defaultTimeZone)
   }
 }
 

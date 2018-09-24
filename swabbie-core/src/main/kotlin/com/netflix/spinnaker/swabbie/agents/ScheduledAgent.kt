@@ -52,7 +52,7 @@ abstract class ScheduledAgent(
         when {
           LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
             when {
-              timeToWork(swabbieProperties.schedule) -> {
+              timeToWork(swabbieProperties.schedule, clock) -> {
                 log.info("Swabbie time to work!")
                 runSwabbie()
               }
@@ -69,22 +69,6 @@ abstract class ScheduledAgent(
 
   override fun finalize(workConfiguration: WorkConfiguration) {
     log.info("Completed run for agent {} with configuration {}", javaClass.simpleName, workConfiguration)
-  }
-
-  private fun timeToWork(schedule: Schedule): Boolean {
-    if (!schedule.enabled) {
-      return true
-    }
-
-    val startTime = schedule.getResolvedStartTime()
-    val endTime = schedule.getResolvedEndTime()
-    return if (startTime <= endTime) {
-      // Work during the day
-      LocalTime.now(clock).isAfter(startTime) && LocalTime.now(clock).isBefore(endTime)
-    } else {
-      // Work during the night
-      LocalTime.now(clock).isAfter(startTime) || LocalTime.now(clock).isBefore(endTime)
-    }
   }
 
   @PostConstruct
@@ -145,6 +129,26 @@ abstract class ScheduledAgent(
           "action", action.name
         )).increment()
       log.error("Failed to run agent {}", javaClass.simpleName, e)
+    }
+  }
+
+  companion object {
+    fun timeToWork(schedule: Schedule, clock: Clock): Boolean {
+      if (!schedule.enabled) {
+        return true
+      }
+
+      val startTime: LocalTime = schedule.getResolvedStartTime()
+      val endTime: LocalTime = schedule.getResolvedEndTime()
+      val now = LocalTime.from(clock.instant().atZone(schedule.getZoneId()))
+
+      return if (startTime <= endTime) {
+        // Work during the day
+        now.isAfter(startTime) && now.isBefore(endTime)
+      } else {
+        // Work during the night
+        now.isAfter(startTime) || now.isBefore(endTime)
+      }
     }
   }
 

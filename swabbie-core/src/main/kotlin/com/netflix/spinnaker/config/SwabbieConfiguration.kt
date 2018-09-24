@@ -71,7 +71,7 @@ open class SwabbieConfiguration {
       .disable(READ_DATE_TIMESTAMPS_AS_NANOSECONDS)!!
 
   @Bean
-  open fun clock(): Clock = Clock.systemDefaultZone()
+  open fun clock(): Clock = Clock.systemUTC()
 
   @Bean
   open fun workConfigurator(swabbieProperties: SwabbieProperties,

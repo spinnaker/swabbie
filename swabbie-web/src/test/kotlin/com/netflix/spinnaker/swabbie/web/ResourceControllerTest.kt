@@ -105,14 +105,11 @@ object ResourceControllerTest {
   @Test
   fun `generates correct work configuration`() {
     val namespace = Namespace("aws", "test", "us-east-1", "image")
-    val resourceId = "ami-123"
 
     val workConfiguration = subject.getWorkConfiguration(namespace)
 
     workConfiguration.account.accountId shouldMatch equalTo("1234")
     workConfiguration.namespace shouldMatch equalTo(namespace.toString())
-    workConfiguration.exclusions[0].type shouldMatch equalTo(ExclusionType.Allowlist.toString())
-    workConfiguration.exclusions[0].attributes.first().key shouldMatch equalTo("name")
-    workConfiguration.exclusions[0].attributes.first().value shouldMatch equalTo(listOf(resourceId))
+    workConfiguration.exclusions shouldMatch equalTo(listOf())
   }
 }

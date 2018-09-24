@@ -141,7 +141,7 @@ class AmazonImageHandler(
     while (getTask(taskId).status.isIncomplete()) {
       for (markedResource in markedResources) {
         try {
-          val candidate: AmazonImage? = getCandidate(markedResource, workConfiguration)
+          val candidate: AmazonImage? = getCandidate(markedResource.resourceId, markedResource.name.orEmpty(), workConfiguration)
           if (candidate == null) {
             log.debug("Deletion in progress for orca task $taskId. Successfully deleted {}...", markedResource)
             send(markedResource)

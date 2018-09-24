@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.LockingConfigurationProperties
-import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
+import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.kork.jedis.lock.RedisLockManager
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
@@ -47,14 +47,14 @@ open class LockingConfiguration(
     clock: Clock,
     registry: Registry,
     objectMapper: ObjectMapper,
-    mainRedisClient: RedisClientDelegate
+    redisClientSelector: RedisClientSelector
   ): RedisLockManager {
     return RedisLockManager(
       null, //Will default to node name
       clock,
       registry,
       objectMapper,
-      mainRedisClient,
+      redisClientSelector.primary("default"),
       Optional.of(lockingConfigurationProperties.heartbeatRateMillis),
       Optional.of(lockingConfigurationProperties.leaseDurationMillis)
     )

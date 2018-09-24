@@ -19,21 +19,23 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
+import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.model.ResourceState
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
 @Component
 class RedisResourceStateRepository(
-  @Qualifier("mainRedisClient") private val mainRedisClientDelegate: RedisClientDelegate,
-  @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?,
+  redisClientSelector: RedisClientSelector,
   private val objectMapper: ObjectMapper
-) : ResourceStateRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
+) : ResourceStateRepository {
+
+  private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+
   override fun upsert(resourceState: ResourceState) {
     "${resourceState.markedResource.namespace}:${resourceState.markedResource.resourceId}".let { id ->
       statesKey(id).let { key ->
-        getClientForId(key).withCommandsClient { client ->
+        redisClientDelegate.withCommandsClient { client ->
           client.hset(SINGLE_STATE_KEY, id, objectMapper.writeValueAsString(resourceState))
           client.sadd(ALL_STATES_KEY, id)
         }
@@ -43,7 +45,7 @@ class RedisResourceStateRepository(
 
   override fun getAll(): List<ResourceState> {
     ALL_STATES_KEY.let { key ->
-      return getClientForId(key).run {
+      return redisClientDelegate.run {
         this.withCommandsClient<Set<String>> { client ->
           client.smembers(key)
         }.let { set ->
@@ -60,7 +62,7 @@ class RedisResourceStateRepository(
 
   override fun get(resourceId: String, namespace: String): ResourceState? {
     "$namespace:$resourceId".let { key ->
-      return getClientForId(key).run {
+      return redisClientDelegate.run {
         this.withCommandsClient<String> { client ->
           client.hget(SINGLE_STATE_KEY, key)
         }?.let { json ->

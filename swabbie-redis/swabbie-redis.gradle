@@ -16,9 +16,11 @@
 
 dependencies {
   compile project(":swabbie-core")
-  compile "com.netflix.spinnaker.kork:kork-jedis:+"
-  compile "com.netflix.spinnaker.kork:kork-dynomite:+"
 
-  testCompile "com.netflix.spinnaker.kork:kork-jedis-test:+"
+  compile spinnaker.dependency('jedis')
+  compile spinnaker.dependency('korkJedis')
+  compile spinnaker.dependency('korkDynomite')
+
+  testCompile spinnaker.dependency('korkJedisTest')
   testCompile project(":swabbie-test")
 }

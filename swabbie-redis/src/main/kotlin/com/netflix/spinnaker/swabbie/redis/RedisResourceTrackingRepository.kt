@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
+import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.springframework.beans.factory.annotation.Qualifier
@@ -28,16 +29,18 @@ import java.time.Instant
 
 @Component
 class RedisResourceTrackingRepository(
-  @Qualifier("mainRedisClient") private val mainRedisClientDelegate: RedisClientDelegate,
-  @Qualifier("previousRedisClient") private val previousRedisClientDelegate: RedisClientDelegate?,
+  @Qualifier("redisClientSelector") redisClientSelector: RedisClientSelector,
   private val objectMapper: ObjectMapper,
   private val clock: Clock
-) : ResourceTrackingRepository, RedisClientDelegateSupport(mainRedisClientDelegate, previousRedisClientDelegate) {
+) : ResourceTrackingRepository {
+
+  private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+
   override fun find(resourceId: String, namespace: String): MarkedResource? {
     "$namespace:$resourceId".let { key ->
-      return getClientForId(key).withCommandsClient<String> { client ->
+      return redisClientDelegate.withCommandsClient<String> { client ->
         client.hget(SINGLE_RESOURCES_KEY, key)
-      }?.let { json ->
+      }.let { json ->
           objectMapper.readValue(json)
         }
     }
@@ -53,7 +56,7 @@ class RedisResourceTrackingRepository(
 
   private fun doGetAll(includeAll: Boolean): List<MarkedResource> =
     ALL_RESOURCES_KEY.let { key ->
-      return getClientForId(key).run {
+      return redisClientDelegate.run {
         this.withCommandsClient<Set<String>> { client ->
           if (includeAll) {
             client.zrangeByScore(key, "-inf", "+inf")
@@ -79,7 +82,7 @@ class RedisResourceTrackingRepository(
       }
 
       resourceKey(id).let { key ->
-        getClientForId(key).withCommandsClient { client ->
+        redisClientDelegate.withCommandsClient { client ->
           client.hset(SINGLE_RESOURCES_KEY, id, objectMapper.writeValueAsString(markedResource))
           client.zadd(ALL_RESOURCES_KEY, score.toDouble(), id)
         }
@@ -90,7 +93,7 @@ class RedisResourceTrackingRepository(
   override fun remove(markedResource: MarkedResource) {
     "${markedResource.namespace}:${markedResource.resourceId}".let { id ->
       resourceKey(id).let { key ->
-        getClientForId(key).withCommandsClient { client ->
+        redisClientDelegate.withCommandsClient { client ->
           client.zrem(ALL_RESOURCES_KEY, id)
           client.hdel(SINGLE_RESOURCES_KEY, id)
         }

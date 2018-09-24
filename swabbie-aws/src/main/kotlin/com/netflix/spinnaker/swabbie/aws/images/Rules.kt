@@ -44,7 +44,7 @@ class OrphanedImageRule : Rule<AmazonImage> {
       Summary(
         description = "Image is not referenced by an Instance, Launch Configuration, " +
           "and has no siblings in other accounts",
-        ruleName = javaClass.simpleName
+        ruleName = name()
       )
     )
   }

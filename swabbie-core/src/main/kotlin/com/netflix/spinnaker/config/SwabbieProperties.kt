@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.config
 
 import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
+import com.netflix.spinnaker.swabbie.model.SoftDelete
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.DayOfWeek
 import java.time.LocalTime
@@ -27,6 +28,16 @@ open class SwabbieProperties {
   var dryRun: Boolean = true
   var providers: List<CloudProviderConfiguration> = mutableListOf()
   var schedule: Schedule = Schedule()
+  var testing: Testing = Testing()
+}
+
+class Testing {
+  var alwaysCleanRuleConfig: AlwaysCleanRuleConfig = AlwaysCleanRuleConfig()
+}
+
+class AlwaysCleanRuleConfig {
+  var enabled: Boolean = false
+  var resourceIds: MutableList<String> = mutableListOf()
 }
 
 class CloudProviderConfiguration {
@@ -104,6 +115,7 @@ class ResourceTypeConfiguration {
   var entityTaggingEnabled: Boolean = false
   var maxAge: Int = 14
   var notification: NotificationConfiguration = EmptyNotificationConfiguration()
+  var softDelete: SoftDelete = SoftDelete()
 }
 
 class Attribute {

@@ -20,15 +20,17 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import kotlinx.coroutines.experimental.*
-import kotlinx.coroutines.experimental.channels.ReceiveChannel
-import kotlinx.coroutines.experimental.channels.produce
+import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repositories.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -49,7 +51,8 @@ class AmazonAutoScalingGroupHandler(
   retrySupport: RetrySupport,
   private val rules: List<Rule<AmazonAutoScalingGroup>>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
-  private val orcaService: OrcaService
+  private val orcaService: OrcaService,
+  private val taskTrackingRepository: TaskTrackingRepository
 ) : AbstractResourceTypeHandler<AmazonAutoScalingGroup>(
   registry,
   clock,
@@ -63,10 +66,21 @@ class AmazonAutoScalingGroupHandler(
   lockingService,
   retrySupport
 ) {
+
+  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+    TODO("not implemented")
+  }
+
+  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+    TODO("not implemented")
+  }
+
+
+
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ): ReceiveChannel<MarkedResource> = produce {
+  ) {
     markedResources.forEach { markedResource ->
       orcaService.orchestrate(
         OrchestrationRequest(
@@ -85,19 +99,15 @@ class AmazonAutoScalingGroupHandler(
           description = "Deleting Server Group :${markedResource.resourceId}"
         )
       ).let { taskResponse ->
-        // "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
-        val taskId = taskResponse.ref.substring(taskResponse.ref.lastIndexOf("/") + 1)
-        var taskStatus = orcaService.getTask(taskId).status
-        while (taskStatus.isIncomplete()) {
-          delay(checkStatusDelay)
-          taskStatus = orcaService.getTask(taskId).status
-        }
-
-        if (!taskStatus.isSuccess()) {
-          log.error("Failed to delete server group ${markedResource.resourceId}")
-        } else {
-          send(markedResource)
-        }
+        taskTrackingRepository.add(
+          taskResponse.taskId(),
+          TaskCompleteEventInfo(
+            action = Action.DELETE,
+            markedResources = markedResources,
+            workConfiguration = workConfiguration,
+            submittedTimeMillis = clock.instant().toEpochMilli()
+          )
+        )
       }
     }
   }
@@ -165,5 +175,3 @@ class AmazonAutoScalingGroupHandler(
     return serverGroupProvider.getOne(params)
   }
 }
-
-const val checkStatusDelay = 6000

@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.ResourceEvauation
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -45,14 +46,19 @@ interface ResourceTypeHandler<T : Resource> {
   fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit)
 
   /**
-   * Deletes marked resources matching the granularity of [WorkConfiguration].
-   */
-  fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit)
-
-  /**
    * Notifies resource owners
    */
   fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit)
+
+  /**
+   * Soft deletes marked resources matching the granularity of [WorkConfiguration].
+   */
+  fun softDelete(workConfiguration: WorkConfiguration, postSoftDelete: () -> Unit)
+
+  /**
+   * Deletes marked resources matching the granularity of [WorkConfiguration].
+   */
+  fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit)
 
   /**
    * Used to check references and augment candidates for further processing
@@ -65,4 +71,27 @@ interface ResourceTypeHandler<T : Resource> {
    * Decides whether a single candidate will be marked, and returns information about that decision.
    */
   fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation
+
+  /**
+   * FOR TESTING
+   * Marks a single resource w/o checking if it should be marked.
+   */
+  fun markResource(resourceId: String, onDemandMarkData: OnDemandMarkData, workConfiguration: WorkConfiguration)
+
+  /**
+   * FOR TESTING
+   * Soft delete a single resource w/o checking if it's still a candidate for soft deletion
+   */
+  fun softDeleteResource(resourceId: String, workConfiguration: WorkConfiguration)
+
+  /**
+   * FOR TESTING
+   * Delete a single resource w/o checking if it's still a candidate for deletion
+   */
+  fun deleteResource(resourceId: String, workConfiguration: WorkConfiguration)
+
+  /**
+   * Restores a single resource
+   */
+  fun restoreResource(resourceId: String, workConfiguration: WorkConfiguration)
 }

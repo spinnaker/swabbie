@@ -22,7 +22,7 @@ import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.*
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.*
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImageHandlerTest
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
@@ -32,6 +32,9 @@ import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
+import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
@@ -48,8 +51,9 @@ object AmazonAutoScalingGroupHandlerTest {
   private val serverGroupProvider = mock<ResourceProvider<AmazonAutoScalingGroup>>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
+  private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
-  private val clock = Clock.systemDefaultZone()
+  private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
   private val orcaService = mock<OrcaService>()
@@ -61,6 +65,7 @@ object AmazonAutoScalingGroupHandlerTest {
     rules = listOf(ZeroInstanceDisabledServerGroupRule()),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
+    taskTrackingRepository = taskTrackingRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
       AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
@@ -198,13 +203,14 @@ object AmazonAutoScalingGroupHandlerTest {
       }
     )
 
-    verify(resourceRepository, times(1)).upsert(any<MarkedResource>(), any<Long>())
+    verify(resourceRepository, times(1)).upsert(any<MarkedResource>(), any<Long>(), any())
 
   }
 
   @Test
   fun `should delete server groups`() {
-    val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
+    val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
+    val thirteenDaysAgo = clock.instant().minusSeconds(13 * 24 * 60 * 60).toEpochMilli()
     val workConfiguration = getWorkConfiguration(maxAgeDays = 1)
     val serverGroup = AmazonAutoScalingGroup(
       autoScalingGroupName = "app-v001",
@@ -225,6 +231,7 @@ object AmazonAutoScalingGroupHandlerTest {
           namespace = workConfiguration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
+          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "test@netflix.com",
             notificationType = "Email",
@@ -250,12 +257,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
     verify(orcaService, times(1)).orchestrate(any())
 
-    verify(resourceRepository, times(1)).remove(any<MarkedResource>())
-    verify(applicationEventPublisher, times(1)).publishEvent(
-      check<DeleteResourceEvent> { event ->
-        Assertions.assertTrue(event.markedResource.resourceId == "app-v001")
-      }
-    )
+    verify(taskTrackingRepository, times(1)).add(any(), any())
   }
 
   private fun Long.inDays(): Int

@@ -19,15 +19,17 @@ package com.netflix.spinnaker.swabbie.orca.tagging
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.tagging.DeleteEntityTagsRequest
-import com.netflix.spinnaker.swabbie.tagging.TagRequest
+import com.netflix.spinnaker.swabbie.tagging.*
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
-import com.netflix.spinnaker.swabbie.tagging.UpsertEntityTagsRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
-class EntityTaggingService(
+class OrcaTaggingService(
   private val orcaService: OrcaService
 ) : TaggingService {
-  override fun removeTag(tagRequest: TagRequest) {
+  val log: Logger = LoggerFactory.getLogger(javaClass)
+
+  override fun removeEntityTag(tagRequest: TagRequest) {
     if (tagRequest is DeleteEntityTagsRequest) {
       orcaService.orchestrate(
         OrchestrationRequest(
@@ -46,7 +48,7 @@ class EntityTaggingService(
     }
   }
 
-  override fun tag(tagRequest: TagRequest) {
+  override fun entityTag(tagRequest: TagRequest) {
     if (tagRequest is UpsertEntityTagsRequest) {
       orcaService.orchestrate(
         OrchestrationRequest(
@@ -64,5 +66,26 @@ class EntityTaggingService(
         )
       )
     }
+  }
+
+  override fun upsertImageTag(tagRequest: UpsertImageTagsRequest): String {
+    return orcaService.orchestrate(
+      OrchestrationRequest(
+        application = tagRequest.application,
+        description = tagRequest.description,
+        job = listOf(
+          OrcaJob(
+            type = tagRequest.type,
+            context = mutableMapOf(
+              "imageNames" to tagRequest.imageNames,
+              "regions" to tagRequest.regions,
+              "tags" to tagRequest.tags,
+              "cloudProvider" to tagRequest.cloudProvider,
+              "cloudProviderType" to tagRequest.cloudProviderType
+            )
+          )
+        )
+      )
+    ).taskId()
   }
 }

@@ -29,7 +29,15 @@ interface OrcaService {
 
 data class TaskResponse(
   val ref: String
-)
+) {
+  /**
+   * Parses taskId from orca response of format
+   * "ref": "/tasks/01CK1Y63QFEP4ETC6P5DARECV6"
+   */
+  fun taskId(): String =
+    ref.substring(ref.lastIndexOf("/") + 1)
+
+}
 
 data class TaskDetailResponse(
   val id: String,
@@ -53,6 +61,7 @@ enum class OrcaExecutionStatus {
   fun isFailure() = listOf(TERMINAL, FAILED_CONTINUE, STOPPED, CANCELED).contains(this)
   fun isSuccess() = listOf(SUCCEEDED).contains(this)
   fun isIncomplete() = listOf(NOT_STARTED, RUNNING).contains(this)
+  fun isComplete() = isFailure() || isSuccess()
 }
 
 class OrchestrationRequest(

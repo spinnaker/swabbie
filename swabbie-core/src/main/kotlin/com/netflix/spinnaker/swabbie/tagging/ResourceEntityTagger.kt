@@ -36,7 +36,7 @@ class ResourceEntityTagger(
     }
 
     log.info("tagging resource {}", markedResource)
-    taggingService.tag(
+    taggingService.entityTag(
       UpsertEntityTagsRequest(
       entityRef = EntityRef(
         entityType = markedResource.resourceType.toLowerCase(),
@@ -77,7 +77,7 @@ class ResourceEntityTagger(
     }
 
     log.info("removing tagging resource {}", markedResource)
-    taggingService.removeTag(
+    taggingService.removeEntityTag(
       DeleteEntityTagsRequest(
         id = tagId(workConfiguration, markedResource),
         application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",

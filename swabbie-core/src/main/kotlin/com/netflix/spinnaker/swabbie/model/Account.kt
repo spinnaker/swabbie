@@ -16,9 +16,11 @@
 
 package com.netflix.spinnaker.swabbie.model
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.netflix.spinnaker.swabbie.Cacheable
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 
+@JsonDeserialize(`as` = SpinnakerAccount::class)
 interface Account : Excludable {
   val accountId: String?
   val eddaEnabled: Boolean

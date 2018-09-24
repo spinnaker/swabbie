@@ -19,10 +19,10 @@ package com.netflix.spinnaker.swabbie.front50
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
+import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test
 
 object ApplicationResourceOwnerResolutionStrategyTest {
   private val front50ApplicationCache: InMemoryCache<Application> = mock()
-  private val subject = ApplicationResourceOwnerResolutionStrategy(front50ApplicationCache)
+  private val subject = ApplicationResourceOwnerResolutionStrategy(front50ApplicationCache, NoopRegistry())
 
   @Test
   fun `should resolve resource owner from spinnaker application`() {

@@ -16,16 +16,16 @@
 
 package com.netflix.spinnaker.swabbie.controllers
 
-import com.netflix.spinnaker.config.*
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
-import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.web.bind.annotation.*
-import java.util.*
 
 @RestController
 @RequestMapping("/resources")
@@ -34,7 +34,6 @@ class ResourceController(
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val workConfigurations: List<WorkConfiguration>,
-  private val accountProvider: AccountProvider,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
 ) {
 
@@ -71,13 +70,33 @@ class ResourceController(
   }
 
   @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])
-  fun markedResourcesReadyForDeletion(): List<MarkedResource> = resourceTrackingRepository.getMarkedResourcesToDelete()
+  fun markedResourcesReadyForDeletion(): List<MarkedResource> =
+    resourceTrackingRepository.getMarkedResourcesToDelete()
+
+  @RequestMapping(value = ["/states/{status}"], method = [RequestMethod.GET])
+  fun getResourcesByState(
+    @PathVariable status: String
+  ): List<ResourceState> {
+    val parsedStatus = status.toUpperCase()
+    if (!Action.values().map { it.toString() }.contains(parsedStatus) && parsedStatus != "FAILED"){
+      throw IllegalArgumentException(
+        "Status $status is not a valid status. Options are: ${Action.values().map { it.toString() }} or FAILED"
+      )
+    }
+    return resourceStateRepository.getByStatus(status)
+  }
+
+
+  @RequestMapping(value = ["/canSoftDelete"], method = [RequestMethod.GET])
+  fun markedResourcesReadyForSoftDeletion(): List<MarkedResource> =
+    resourceTrackingRepository.getMarkedResourcesToSoftDelete()
 
   @RequestMapping(value = ["/states"], method = [RequestMethod.GET])
   fun states(
     @RequestParam(required = false) start: Int?,
     @RequestParam(required = false) limit: Int?
   ): List<ResourceState> {
+    //todo eb: sort status entries by time for all resources
     return resourceStateRepository.getAll().apply {
       this.subList(start ?: 0, Math.min(this.size, limit ?: Int.MAX_VALUE ))
     }
@@ -121,6 +140,75 @@ class ResourceController(
   }
 
   /**
+   * FOR TESTING
+   * Marks an image for deletion with the given soft delete and deletion times.
+   * Body contains information needed for marking
+   */
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}/mark"], method = [RequestMethod.PUT])
+  fun onDemandMark(
+    @PathVariable resourceId: String,
+    @PathVariable namespace: String,
+    @RequestBody markInformation: OnDemandMarkData
+  ) {
+    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+    val handler = resourceTypeHandlers.find { handler ->
+      handler.handles(workConfiguration)
+    } ?: throw NotFoundException("No handlers for $namespace")
+
+    handler.markResource(resourceId, markInformation, workConfiguration)
+  }
+
+  /**
+   * FOR TESTING
+   * Soft deletes a resource
+   */
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}/softDelete"], method = [RequestMethod.PUT])
+  fun softDelete(
+    @PathVariable resourceId: String,
+    @PathVariable namespace: String
+  ) {
+    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+    val handler = resourceTypeHandlers.find { handler ->
+      handler.handles(workConfiguration)
+    } ?: throw NotFoundException("No handlers for $namespace")
+
+    handler.softDeleteResource(resourceId, workConfiguration)
+  }
+
+  /**
+   * FOR TESTING
+   * Deletes a resource
+   */
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}/delete"], method = [RequestMethod.PUT])
+  fun delete(
+    @PathVariable resourceId: String,
+    @PathVariable namespace: String
+  ) {
+    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+    val handler = resourceTypeHandlers.find { handler ->
+      handler.handles(workConfiguration)
+    } ?: throw NotFoundException("No handlers for $namespace")
+
+    handler.deleteResource(resourceId, workConfiguration)
+  }
+
+  /**
+   * Restores a resource that has been soft-deleted
+   */
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}/restore"], method = [RequestMethod.PUT])
+  fun restore(
+    @PathVariable resourceId: String,
+    @PathVariable namespace: String
+  ) {
+    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+    val handler = resourceTypeHandlers.find { handler ->
+      handler.handles(workConfiguration)
+    } ?: throw NotFoundException("No handlers for $namespace")
+
+    handler.restoreResource(resourceId, workConfiguration)
+  }
+
+  /**
    * Runs resource through marking logic, calculating if it is a candidate for deletion.
    * Note: this api is quite slow, because does the actual recalculation for a resource.
    */
@@ -129,65 +217,22 @@ class ResourceController(
     @PathVariable namespace: String,
     @PathVariable resourceId: String
   ): ResourceEvauation {
-    val workConfiguration = getWorkConfiguration(namespaceParser(namespace))
+    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+    val newWorkConfiguration = workConfiguration.copy(dryRun = true)
 
     val handler = resourceTypeHandlers.find { handler ->
-      handler.handles(workConfiguration)
+      handler.handles(newWorkConfiguration)
     } ?: throw NotFoundException("No handlers for $namespace")
 
-    return handler.evaluateCandidate(resourceId, resourceId, workConfiguration)
+    return handler.evaluateCandidate(resourceId, resourceId, newWorkConfiguration)
   }
 
-  internal fun getWorkConfiguration(
-    namespace: Namespace
-  ): WorkConfiguration {
-    return WorkConfigurator(
-      swabbieProperties = generateSwabbieProperties(namespace),
-      accountProvider = accountProvider,
-      exclusionPolicies = listOf(AccountExclusionPolicy()),
-      exclusionsSuppliers = Optional.empty()
-    ).generateWorkConfigurations()[0]
-  }
-
-  internal fun generateSwabbieProperties(
-    namespace: Namespace
-  ): SwabbieProperties {
-    val exclusionList = mutableListOf<Exclusion>()
-    return SwabbieProperties().apply {
-      dryRun = true
-      providers = listOf(
-        CloudProviderConfiguration().apply {
-          name = namespace.cloudProvider
-          exclusions = mutableListOf()
-          accounts = listOf(namespace.accountId)
-          locations = listOf(namespace.region)
-          resourceTypes = listOf(
-            ResourceTypeConfiguration().apply {
-              name = namespace.resourceType
-              enabled = true
-              dryRun = true
-              exclusions = exclusionList
-            }
-          )
-        }
-      )
-    }
-  }
-
-  private fun namespaceParser(namespace: String): Namespace {
-    namespace.split(":").let {
-      return Namespace(it[0], it[1], it[2], it[3])
-    }
-  }
-}
-
-data class Namespace(
-  val cloudProvider: String,
-  val accountId: String,
-  val region: String,
-  val resourceType: String
-) {
-  override fun toString(): String {
-    return "$cloudProvider:$accountId:$region:$resourceType"
+  private fun findWorkConfiguration(namespace: SwabbieNamespace): WorkConfiguration {
+    return workConfigurations.find { workConfiguration ->
+      workConfiguration.account.name == namespace.accountName
+        && workConfiguration.cloudProvider == namespace.cloudProvider
+        && workConfiguration.resourceType == namespace.resourceType
+        && workConfiguration.location == namespace.region
+    } ?: throw NotFoundException("No configuration found for $namespace")
   }
 }

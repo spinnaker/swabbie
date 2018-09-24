@@ -135,7 +135,7 @@ internal fun shouldExclude(excludable: Excludable,
                            log: Logger): Boolean {
   return excludable.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions).also {
     if (it.excluded) {
-      log.info("Excluding {}, reasons: {}", excludable, it.reasons)
+      log.info("Excluding resource because reasons: {}, resource: {}", it.reasons, excludable)
     }
   }.excluded
 }

@@ -22,6 +22,8 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
+import com.netflix.spinnaker.kork.lock.LockManager
+import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.repositories.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
@@ -38,6 +40,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.Temporal
+import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import javax.annotation.PostConstruct
@@ -51,8 +54,9 @@ class OrcaTaskMonitoringAgent (
   private val taskTrackingRepository: TaskTrackingRepository,
   private val orcaService: OrcaService,
   private val applicationEventPublisher: ApplicationEventPublisher,
-  private val retrySupport: RetrySupport
-  ) : DiscoveryActivated, MetricsSupport(registry) {
+  private val retrySupport: RetrySupport,
+  private val lockingService: Optional<LockingService>
+) : DiscoveryActivated, MetricsSupport(registry) {
 
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
@@ -63,7 +67,7 @@ class OrcaTaskMonitoringAgent (
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
       worker.schedulePeriodically({
-       monitorOrcaTasks()
+       withLocking(javaClass.simpleName) { monitorOrcaTasks() }
       }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
     }
 
@@ -85,6 +89,26 @@ class OrcaTaskMonitoringAgent (
     log.info("Stopping agent ${javaClass.simpleName}")
     if (!worker.isUnsubscribed) {
       worker.unsubscribe()
+    }
+  }
+
+  private fun withLocking(
+    agentName: String,
+    callback: () -> Unit
+  ) {
+    if (lockingService.isPresent) {
+      val normalizedLockName = (agentName)
+        .replace(":", ".")
+        .toLowerCase()
+      val lockOptions = LockManager.LockOptions()
+        .withLockName(normalizedLockName)
+        .withMaximumLockDuration(lockingService.get().swabbieMaxLockDuration)
+      lockingService.get().acquireLock(lockOptions) {
+        callback.invoke()
+      }
+    } else {
+      log.warn("***Locking not ENABLED***")
+      callback.invoke()
     }
   }
 

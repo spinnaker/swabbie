@@ -18,7 +18,7 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
-import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
@@ -26,15 +26,40 @@ import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 object ResourceStateManagerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val resourceTagger = mock<ResourceTagger>()
-  private val clock = Clock.systemDefaultZone()
+  private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val registry = NoopRegistry()
 
   private var resource = TestResource("testResource")
   private var configuration = workConfiguration()
+
+  private val markedResourceWithViolations =  MarkedResource(
+    resource = resource,
+    summaries = listOf(Summary("violates rule 1", "ruleName")),
+    namespace = configuration.namespace,
+    projectedDeletionStamp = clock.millis(),
+    projectedSoftDeletionStamp = clock.millis()
+  )
+
+  private val markedResourceNoViolations =  MarkedResource(
+    resource = resource,
+    summaries = emptyList(),
+    namespace = configuration.namespace,
+    projectedDeletionStamp = clock.millis(),
+    projectedSoftDeletionStamp = clock.millis()
+  )
+
+  private val subject = ResourceStateManager(
+    resourceStateRepository = resourceStateRepository,
+    clock = clock,
+    registry = registry,
+    resourceTagger = resourceTagger
+  )
 
   @AfterEach
   fun cleanup() {
@@ -43,67 +68,41 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and tag resource when it's marked`() {
-    val markedResource = MarkedResource(
-      resource = resource,
-      summaries = listOf(Summary("violates rule 1", "ruleName")),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis()
-    )
+    val event = MarkResourceEvent(markedResourceWithViolations, configuration)
 
-    val event = MarkResourceEvent(markedResource, configuration)
-    val resourceStateManager = ResourceStateManager(
-      resourceStateRepository = resourceStateRepository,
-      clock = clock,
-      registry = registry,
-      resourceTagger = resourceTagger
-    )
-
-    resourceStateManager.handleEvents(event)
+    subject.handleEvents(event)
 
     verify(resourceTagger).tag(
-      markedResource = markedResource,
+      markedResource = markedResourceWithViolations,
       workConfiguration = configuration,
       description = "${event.markedResource.typeAndName()} scheduled to be cleaned up on " +
         "${event.markedResource.humanReadableDeletionTime(clock)}")
 
     verify(resourceStateRepository).upsert(
       argWhere {
-        it.markedResource == markedResource && it.currentStatus!!.name == Action.MARK.name
+        it.markedResource == markedResourceWithViolations && it.currentStatus!!.name == Action.MARK.name
       }
     )
   }
 
   @Test
   fun `should update state and untag resource when it's unmarked`() {
-    val markedResource = MarkedResource(
-      resource = resource,
-      summaries = emptyList(),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis()
-    )
-
-    val event = UnMarkResourceEvent(markedResource, configuration)
-    val resourceStateManager = ResourceStateManager(
-      resourceStateRepository = resourceStateRepository,
-      clock = clock,
-      registry = registry,
-      resourceTagger = resourceTagger
-    )
+    val event = UnMarkResourceEvent(markedResourceNoViolations, configuration)
 
     // previously marked resource
-    whenever(resourceStateRepository.get(markedResource.resourceId, configuration.namespace)) doReturn
+    whenever(resourceStateRepository.get(markedResourceNoViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
-        markedResource = markedResource,
+        markedResource = markedResourceNoViolations,
         statuses = mutableListOf(
           Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
         )
       )
 
-    resourceStateManager.handleEvents(event)
+    subject.handleEvents(event)
 
     verify(resourceTagger)
       .unTag(
-        markedResource = markedResource,
+        markedResource = markedResourceNoViolations,
         workConfiguration = configuration,
         description = "${event.markedResource.typeAndName()}. No longer a cleanup candidate"
       )
@@ -111,7 +110,7 @@ object ResourceStateManagerTest {
     // should have two statuses with UNMARK being the latest
     verify(resourceStateRepository).upsert(
       argWhere {
-        it.markedResource == markedResource && it.statuses.size == 2 && it.statuses[0].name == Action.MARK.name &&
+        it.markedResource == markedResourceNoViolations && it.statuses.size == 2 && it.statuses[0].name == Action.MARK.name &&
           it.currentStatus!!.name == Action.UNMARK.name && it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
@@ -119,35 +118,22 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and untag resource when it's deleted`() {
-    val markedResource = MarkedResource(
-      resource = resource,
-      summaries = listOf(Summary("violates rule 1", "ruleName")),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis()
-    )
-
-    val event = DeleteResourceEvent(markedResource, configuration)
-    val resourceStateManager = ResourceStateManager(
-      resourceStateRepository = resourceStateRepository,
-      clock = clock,
-      registry = registry,
-      resourceTagger = resourceTagger
-    )
+    val event = DeleteResourceEvent(markedResourceWithViolations, configuration)
 
     // previously marked resource
-    whenever(resourceStateRepository.get(markedResource.resourceId, configuration.namespace)) doReturn
+    whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
         deleted = false,
-        markedResource = markedResource,
+        markedResource = markedResourceWithViolations,
         statuses = mutableListOf(
           Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
         )
       )
 
-    resourceStateManager.handleEvents(event)
+    subject.handleEvents(event)
 
     verify(resourceTagger).unTag(
-      markedResource = markedResource,
+      markedResource = markedResourceWithViolations,
       workConfiguration = configuration,
       description = "Removing tag for now deleted ${event.markedResource.typeAndName()}"
     )
@@ -155,7 +141,7 @@ object ResourceStateManagerTest {
     // should have two statuses with DELETE being the latest
     verify(resourceStateRepository).upsert(
       argWhere {
-        it.deleted && it.markedResource == markedResource && it.currentStatus!!.name == Action.DELETE.name &&
+        it.deleted && it.markedResource == markedResourceWithViolations && it.currentStatus!!.name == Action.DELETE.name &&
           it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
           it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
@@ -164,35 +150,22 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and untag resource when it's opted out`() {
-    val markedResource = MarkedResource(
-      resource = resource,
-      summaries = listOf(Summary("violates rule 1", "ruleName")),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis()
-    )
-
-    val event = OptOutResourceEvent(markedResource, configuration)
-    val resourceStateManager = ResourceStateManager(
-      resourceStateRepository = resourceStateRepository,
-      clock = clock,
-      registry = registry,
-      resourceTagger = resourceTagger
-    )
+    val event = OptOutResourceEvent(markedResourceWithViolations, configuration)
 
     // previously marked resource
-    whenever(resourceStateRepository.get(markedResource.resourceId, configuration.namespace)) doReturn
+    whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
         optedOut = false,
-        markedResource = markedResource,
+        markedResource = markedResourceWithViolations,
         statuses = mutableListOf(
           Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
         )
       )
 
-    resourceStateManager.handleEvents(event)
+    subject.handleEvents(event)
 
     verify(resourceTagger).unTag(
-      markedResource = markedResource,
+      markedResource = markedResourceWithViolations,
       workConfiguration = configuration,
       description = "${event.markedResource.typeAndName()}. Opted Out"
     )
@@ -200,9 +173,75 @@ object ResourceStateManagerTest {
     // should have two statuses with OPTOUT being the latest
     verify(resourceStateRepository).upsert(
       argWhere {
-        it.optedOut && it.markedResource == markedResource && it.currentStatus!!.name == Action.OPTOUT.name &&
-          it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
-          it.currentStatus!!.timestamp > it.statuses.first().timestamp
+        it.optedOut
+        && it.markedResource == markedResourceWithViolations
+        && it.currentStatus!!.name == Action.OPTOUT.name
+        && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
+        && it.currentStatus!!.timestamp > it.statuses.first().timestamp
+      }
+    )
+  }
+
+  @Test
+  fun `should update state and tag when resource is soft deleted`() {
+    val event = SoftDeleteResourceEvent(markedResourceWithViolations, configuration)
+
+    // previously marked resource
+    whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
+      ResourceState(
+        optedOut = false,
+        markedResource = markedResourceWithViolations,
+        statuses = mutableListOf(
+          Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
+        )
+      )
+
+    subject.handleEvents(event)
+
+    verify(resourceTagger).tag(
+      markedResource = markedResourceWithViolations,
+      workConfiguration = configuration,
+      description = "Soft deleted resource ${event.markedResource.typeAndName()}"
+    )
+    verify(resourceStateRepository).upsert(
+      argWhere {
+        it.softDeleted
+          && it.markedResource == markedResourceWithViolations
+          && it.currentStatus!!.name == Action.SOFTDELETE.name
+          && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
+          && it.currentStatus!!.timestamp > it.statuses.first().timestamp
+      }
+    )
+  }
+
+  @Test
+  fun `should update state when there was a task failure`() {
+    val event = OrcaTaskFailureEvent(Action.DELETE, markedResourceWithViolations, configuration)
+
+    // previously marked resource
+    whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
+      ResourceState(
+        optedOut = false,
+        markedResource = markedResourceWithViolations,
+        statuses = mutableListOf(
+          Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
+        )
+      )
+
+    subject.handleEvents(event)
+
+    verify(resourceTagger).tag(
+      markedResource = markedResourceWithViolations,
+      workConfiguration = configuration,
+      description = subject.generateFailureMessage(event)
+    )
+    verify(resourceStateRepository).upsert(
+      argWhere {
+        !it.deleted
+        && it.markedResource == markedResourceWithViolations
+        && it.currentStatus!!.name.contains("FAILED", ignoreCase = true)
+        && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
+        && it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
   }

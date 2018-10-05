@@ -17,8 +17,10 @@
 package com.netflix.spinnaker.swabbie.tagging
 
 interface TaggingService {
-  fun tag(tagRequest: TagRequest)
-  fun removeTag(tagRequest: TagRequest)
+  fun entityTag(tagRequest: TagRequest)
+  fun removeEntityTag(tagRequest: TagRequest)
+
+  fun upsertImageTag(tagRequest: UpsertImageTagsRequest): String
 }
 
 interface TagRequest

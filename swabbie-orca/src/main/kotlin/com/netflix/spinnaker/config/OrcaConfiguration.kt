@@ -18,7 +18,7 @@ package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.swabbie.orca.OrcaService
-import com.netflix.spinnaker.swabbie.orca.tagging.EntityTaggingService
+import com.netflix.spinnaker.swabbie.orca.tagging.OrcaTaggingService
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -57,6 +57,6 @@ open class OrcaConfiguration {
 
   @Bean
   open fun entityTaggingService(orcaService: OrcaService): TaggingService {
-    return EntityTaggingService(orcaService)
+    return OrcaTaggingService(orcaService)
   }
 }

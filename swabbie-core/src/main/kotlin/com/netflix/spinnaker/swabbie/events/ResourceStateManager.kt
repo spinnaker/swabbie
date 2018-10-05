@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.events
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.MetricsSupport
-import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
@@ -56,21 +56,41 @@ class ResourceStateManager(
         removeTag = true
         msg = "${event.markedResource.typeAndName()}. No longer a cleanup candidate"
       }
-      is OptOutResourceEvent -> {
-        id = optOutCountId
-        removeTag = true
-        msg = "${event.markedResource.typeAndName()}. Opted Out"
-      }
-      is DeleteResourceEvent -> {
-        id = deleteCountId
-        removeTag = true
-        msg = "Removing tag for now deleted ${event.markedResource.typeAndName()}"
-      }
+
       is OwnerNotifiedEvent -> {
         id = notifyCountId
         removeTag = false
         msg = "Notified ${event.markedResource.notificationInfo?.recipient} about soon to be cleaned up " +
           event.markedResource.typeAndName()
+      }
+
+      is OptOutResourceEvent -> {
+        id = optOutCountId
+        removeTag = true
+        msg = "${event.markedResource.typeAndName()}. Opted Out"
+      }
+
+      is SoftDeleteResourceEvent -> {
+        id = softDeleteCountId
+        msg = "Soft deleted resource ${event.markedResource.typeAndName()}"
+      }
+
+      is RestoreResourceEvent -> {
+        id = restoreCountId
+        msg = "Restored resource ${event.markedResource.typeAndName()}"
+      }
+
+      is DeleteResourceEvent -> {
+        id = deleteCountId
+        removeTag = true
+        msg = "Removing tag for now deleted ${event.markedResource.typeAndName()}"
+      }
+
+      is OrcaTaskFailureEvent -> {
+        id = orcaTAskFailureId
+        removeTag = false
+        msg = generateFailureMessage(event)
+        //todo eb: do we want this tagged here?
       }
     }
 
@@ -89,6 +109,9 @@ class ResourceStateManager(
     }
   }
 
+  fun generateFailureMessage(event: Event) =
+    "Task failure for action ${event.action} on resource ${event.markedResource.typeAndName()}"
+
   private fun tag(tagger: ResourceTagger, event: Event, msg: String, remove: Boolean = false) {
     if (!remove) {
       tagger.tag(
@@ -106,21 +129,24 @@ class ResourceStateManager(
   }
 
   private fun updateState(event: Event) {
-    event.markedResource.let {
+    event.markedResource.let { markedResource ->
       resourceStateRepository.get(
-        resourceId = it.resourceId,
-        namespace = it.namespace
+        resourceId = markedResource.resourceId,
+        namespace = markedResource.namespace
       ).let { currentState ->
-        val status = Status(event.action.name, clock.instant().toEpochMilli())
+        val statusName = if (event is OrcaTaskFailureEvent) "${event.action.name} FAILED" else event.action.name
+        val status = Status(statusName, clock.instant().toEpochMilli())
         currentState?.statuses?.add(status)
         (currentState?.copy(
           statuses = currentState.statuses,
-          markedResource = it,
+          markedResource = markedResource,
+          softDeleted = event is SoftDeleteResourceEvent,
           deleted = event is DeleteResourceEvent,
           optedOut = event is OptOutResourceEvent,
           currentStatus = status
         ) ?: ResourceState(
-          markedResource = it,
+          markedResource = markedResource,
+          softDeleted = event is SoftDeleteResourceEvent,
           deleted = event is DeleteResourceEvent,
           optedOut = event is OptOutResourceEvent,
           statuses = mutableListOf(status),

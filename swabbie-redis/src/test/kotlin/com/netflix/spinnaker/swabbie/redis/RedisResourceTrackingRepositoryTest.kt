@@ -37,6 +37,7 @@ import org.springframework.util.Assert
 import redis.clients.jedis.JedisPool
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
 @TestInstance(Lifecycle.PER_CLASS)
@@ -50,7 +51,7 @@ object RedisResourceTrackingRepositoryTest {
     disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
   }
 
-  private val clock = Clock.systemDefaultZone()
+  private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val resourceRepository = RedisResourceTrackingRepository(
     RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))), objectMapper, clock
   )
@@ -83,6 +84,7 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
+      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -92,6 +94,7 @@ object RedisResourceTrackingRepositoryTest {
       summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
       namespace = configuration.namespace,
       projectedDeletionStamp = 0,
+      projectedSoftDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
         notificationType = "Email",
@@ -127,6 +130,7 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
+      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -137,6 +141,7 @@ object RedisResourceTrackingRepositoryTest {
         summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
         namespace = configuration.namespace,
         projectedDeletionStamp = 0,
+        projectedSoftDeletionStamp = 0,
         notificationInfo = NotificationInfo(
           recipient = "yolo@netflixcom",
           notificationType = "Email",
@@ -147,13 +152,15 @@ object RedisResourceTrackingRepositoryTest {
         resource = TestResource("marked resourceHash not due for deletion 2 seconds later"),
         summaries = listOf(Summary("invalid resourceHash 2", "rule 2")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
+        projectedSoftDeletionStamp = 0
       ),
       MarkedResource(
         resource = TestResource("random"),
         summaries = listOf(Summary("invalid resourceHash 3", "rule 3")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
+        projectedSoftDeletionStamp = 0
       )
     ).forEach { resource ->
       resourceRepository.upsert(resource)

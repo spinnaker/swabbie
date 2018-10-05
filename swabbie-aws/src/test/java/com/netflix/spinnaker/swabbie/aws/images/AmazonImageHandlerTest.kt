@@ -26,35 +26,20 @@ import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.LockingService
-import com.netflix.spinnaker.swabbie.Parameters
-import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.WorkConfigurator
+import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.Application
-import com.netflix.spinnaker.swabbie.model.IMAGE
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.NotificationInfo
-import com.netflix.spinnaker.swabbie.model.Region
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
+import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaService
-import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
@@ -62,10 +47,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.validateMockitoUsage
 import org.springframework.context.ApplicationEventPublisher
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDateTime
+import java.time.*
 import java.util.Optional
 
 object AmazonImageHandlerTest {
@@ -74,7 +56,7 @@ object AmazonImageHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonImage>>()
-  private val clock = Clock.systemDefaultZone()
+  private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
   private val orcaService = mock<OrcaService>()
@@ -82,6 +64,8 @@ object AmazonImageHandlerTest {
   private val instanceProvider = mock<ResourceProvider<AmazonInstance>>()
   private val launchConfigurationProvider = mock<ResourceProvider<AmazonLaunchConfiguration>>()
   private val applicationsCache = mock<InMemoryCache<Application>>()
+  private val taggingService = mock<TaggingService>()
+  private val taskTrackingRepository = mock<TaskTrackingRepository>()
 
   private val subject = AmazonImageHandler(
     clock = clock,
@@ -104,7 +88,9 @@ object AmazonImageHandlerTest {
     launchConfigurationProvider = launchConfigurationProvider,
     orcaService = orcaService,
     accountProvider = accountProvider,
-    applicationsCaches = listOf(applicationsCache)
+    applicationsCaches = listOf(applicationsCache),
+    taggingService = taggingService,
+    taskTrackingRepository = taskTrackingRepository
   )
 
   @BeforeEach
@@ -174,7 +160,8 @@ object AmazonImageHandlerTest {
       instanceProvider,
       launchConfigurationProvider,
       applicationEventPublisher,
-      resourceOwnerResolver
+      resourceOwnerResolver,
+      taskTrackingRepository
     )
   }
 
@@ -198,9 +185,9 @@ object AmazonImageHandlerTest {
       Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
     )) doThrow IllegalStateException("launch configs")
 
-    Assertions.assertThrows(IllegalStateException::class.java, {
+    Assertions.assertThrows(IllegalStateException::class.java) {
       subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
-    })
+    }
   }
 
   @Test
@@ -210,17 +197,17 @@ object AmazonImageHandlerTest {
       Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
     )) doThrow IllegalStateException("failed to get instances")
 
-    Assertions.assertThrows(IllegalStateException::class.java, {
+    Assertions.assertThrows(IllegalStateException::class.java) {
       subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
-    })
+    }
   }
 
   @Test
   fun `should fail to get candidates if checking for siblings fails because of accounts`() {
     whenever(accountProvider.getAccounts()) doThrow IllegalStateException("failed to get accounts")
-    Assertions.assertThrows(IllegalStateException::class.java, {
+    Assertions.assertThrows(IllegalStateException::class.java) {
       subject.getCandidates(getWorkConfiguration())
-    })
+    }
   }
 
   @Test
@@ -230,9 +217,9 @@ object AmazonImageHandlerTest {
       Parameters(mapOf("account" to "4321", "region" to "us-east-1"))
     )) doThrow IllegalStateException("failed to get images in 4321/us-east-1")
 
-    Assertions.assertThrows(IllegalStateException::class.java, {
+    Assertions.assertThrows(IllegalStateException::class.java) {
       subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
-    })
+    }
   }
 
   @Test
@@ -265,11 +252,11 @@ object AmazonImageHandlerTest {
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<MarkResourceEvent> { event ->
         Assertions.assertTrue(event.markedResource.resourceId == "ami-123")
-        Assertions.assertEquals(event.markedResource.projectedDeletionStamp.inDays(), 2)
+        Assertions.assertEquals(event.markedResource.projectedDeletionStamp.inDays(), 4)
       }
     )
 
-    verify(resourceRepository, times(1)).upsert(any<MarkedResource>(), any<Long>())
+    verify(resourceRepository, times(1)).upsert(any(), any(), any())
   }
 
   @Test
@@ -296,7 +283,7 @@ object AmazonImageHandlerTest {
           instanceId = "i-123",
           cloudProvider = AWS,
           imageId = "ami-123", // reference to ami-123
-          launchTime = System.currentTimeMillis()
+          launchTime = clock.instant().toEpochMilli()
         )
       )
 
@@ -311,7 +298,7 @@ object AmazonImageHandlerTest {
     // ami-132 is excluded by exclusion policies, specifically because ami-132 is not allowlisted
     // ami-123 is referenced by an instance, so therefore should not be marked for deletion
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
-    verify(resourceRepository, times(0)).upsert(any<MarkedResource>(), any<Long>())
+    verify(resourceRepository, times(0)).upsert(any(), any(), any())
   }
 
   @Test
@@ -363,7 +350,8 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should delete images`() {
-    val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
+    val fifteenDaysAgo = clock.instant().toEpochMilli() - 15 * 24 * 60 * 60 * 1000L
+    val thirteenDaysAgo = clock.instant().toEpochMilli() - 13 * 24 * 60 * 60 * 1000L
     val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
     val image = AmazonImage(
       imageId = "ami-123",
@@ -385,10 +373,11 @@ object AmazonImageHandlerTest {
           namespace = workConfiguration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
+          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "test@netflix.com",
             notificationType = "Email",
-            notificationStamp = clock.millis()
+            notificationStamp = fifteenDaysAgo
           )
         )
       )
@@ -399,27 +388,56 @@ object AmazonImageHandlerTest {
 
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
-    whenever(orcaService.getTask("1234")) doReturn
-      TaskDetailResponse(
-        id = "id",
-        application = "app",
-        buildTime = "1",
-        startTime = "1",
-        endTime = "2",
-        status = OrcaExecutionStatus.SUCCEEDED,
-        name = "delete blah"
-      )
 
     subject.delete(workConfiguration, {})
 
-    verify(resourceRepository, times(1)).remove(any())
-    verify(applicationEventPublisher, times(1)).publishEvent(
-      check<DeleteResourceEvent> { event ->
-        Assertions.assertTrue(event.markedResource.resourceId == "ami-123")
-      }
+    verify(taskTrackingRepository, times(1)).add(any(), any())
+    verify(orcaService, times(1)).orchestrate(any())
+  }
+
+  @Test
+  fun `should soft delete images`() {
+    val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
+    val thirteenDaysAgo = clock.instant().minusSeconds(13 * 24 * 60 * 60).toEpochMilli()
+    val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
+    val image = AmazonImage(
+      imageId = "ami-123",
+      resourceId = "ami-123",
+      description = "ancestor_id=ami-122",
+      ownerId = null,
+      state = "available",
+      resourceType = IMAGE,
+      cloudProvider = AWS,
+      name = "123-xenial-hvm-sriov-ebs",
+      creationDate = LocalDateTime.now().minusDays(3).toString()
     )
 
-    verify(orcaService, times(1)).orchestrate(any())
+    whenever(resourceRepository.getMarkedResourcesToSoftDelete()) doReturn
+      listOf(
+        MarkedResource(
+          resource = image,
+          summaries = listOf(Summary("Image is unused", "testRule 1")),
+          namespace = workConfiguration.namespace,
+          resourceOwner = "test@netflix.com",
+          projectedDeletionStamp = fifteenDaysAgo,
+          projectedSoftDeletionStamp = thirteenDaysAgo,
+          notificationInfo = NotificationInfo(
+            recipient = "test@netflix.com",
+            notificationType = "Email",
+            notificationStamp = clock.instant().toEpochMilli()
+          )
+        )
+      )
+    val params = Parameters(
+      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123")
+    )
+    whenever(taggingService.upsertImageTag(any())) doReturn "1234"
+    whenever(imageProvider.getAll(params)) doReturn listOf(image)
+
+    subject.softDelete(workConfiguration) {}
+
+    verify(taggingService, times(1)).upsertImageTag(any())
+    verify(taskTrackingRepository, times(1)).add(any(), any())
   }
 
   private fun Long.inDays(): Int
@@ -448,6 +466,7 @@ object AmazonImageHandlerTest {
               dryRun = dryRunMode
               exclusions = exclusionList
               retention = 2
+              softDelete = SoftDelete(true, 2)
               maxAge = maxAgeDays
             }
           )

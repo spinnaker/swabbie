@@ -16,6 +16,8 @@
 
 package com.netflix.spinnaker.swabbie.front50
 
+import com.netflix.spectator.api.Id
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolutionStrategy
@@ -27,9 +29,11 @@ import org.springframework.stereotype.Component
 
 @Component
 class ApplicationResourceOwnerResolutionStrategy(
-  private val front50ApplicationCache: InMemoryCache<Application>
+  private val front50ApplicationCache: InMemoryCache<Application>,
+  private val registry: Registry
 ) : ResourceOwnerResolutionStrategy<Resource> {
   private val log: Logger = LoggerFactory.getLogger(this.javaClass)
+  private val resourceOwnerId = registry.createId("swabbie.resources.owner")
 
   override fun resolve(resource: Resource): String? {
     val applicationToOwnersPairs = mutableSetOf<Pair<String?, String?>>()
@@ -41,9 +45,24 @@ class ApplicationResourceOwnerResolutionStrategy(
     applicationToOwnersPairs.removeIf { it.first == null || it.second == null }
 
     if (applicationToOwnersPairs.isEmpty()) {
-      log.debug("No matched owners with strategy {} for resoure {}", javaClass.simpleName, resource)
+      registry.counter(
+        resourceOwnerId.withTags(
+          "strategy", javaClass.simpleName,
+          "resourceType", resource.resourceType,
+          "result", "notFound"
+        )
+      ).increment()
+
       return null
     }
+
+    registry.counter(
+      resourceOwnerId.withTags(
+        "strategy", javaClass.simpleName,
+        "resourceType", resource.resourceType,
+        "result", "found"
+      )
+    ).increment()
 
     return applicationToOwnersPairs.map {
       it.second

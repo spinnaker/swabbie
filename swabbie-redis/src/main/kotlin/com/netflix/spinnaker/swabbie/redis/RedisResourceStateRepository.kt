@@ -20,8 +20,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.model.ResourceState
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
@@ -31,6 +32,11 @@ class RedisResourceStateRepository(
 ) : ResourceStateRepository {
 
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+  private val log = LoggerFactory.getLogger(javaClass)
+
+  init {
+    log.info("Using ${javaClass.simpleName}")
+  }
 
   override fun upsert(resourceState: ResourceState) {
     "${resourceState.markedResource.namespace}:${resourceState.markedResource.resourceId}".let { id ->
@@ -70,6 +76,20 @@ class RedisResourceStateRepository(
           }
       }
     }
+  }
+
+  override fun getByStatus(status: String): List<ResourceState> {
+    val all = getAll()
+    return if (status.equals("FAILED", ignoreCase = true)) {
+      all.filter { resourceState ->
+        resourceState.currentStatus?.name?.contains("FAILED", ignoreCase = true) ?: false
+      }
+    } else {
+      all.filter { resourceState ->
+        resourceState.currentStatus?.name.equals(status, ignoreCase = true)
+      }
+    }
+
   }
 }
 

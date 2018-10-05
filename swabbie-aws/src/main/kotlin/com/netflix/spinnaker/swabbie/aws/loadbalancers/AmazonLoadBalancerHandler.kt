@@ -21,6 +21,7 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
@@ -29,8 +30,10 @@ import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import kotlinx.coroutines.experimental.channels.ReceiveChannel
-import kotlinx.coroutines.experimental.channels.produce
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -51,7 +54,8 @@ class AmazonLoadBalancerHandler(
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
-  private val orcaService: OrcaService
+  private val orcaService: OrcaService,
+  private val taskTrackingRepository: TaskTrackingRepository
 ) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(
   registry,
   clock,
@@ -68,7 +72,7 @@ class AmazonLoadBalancerHandler(
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ): ReceiveChannel<MarkedResource> = produce<MarkedResource> {
+  ) {
     markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
@@ -90,13 +94,28 @@ class AmazonLoadBalancerHandler(
               ),
               description = "Cleaning up Load Balancer for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
             )
-          )
+          ).let { taskResponse ->
+            taskTrackingRepository.add(
+              taskResponse.taskId(),
+              TaskCompleteEventInfo(
+                action = Action.DELETE,
+                markedResources = markedResources,
+                workConfiguration = workConfiguration,
+                submittedTimeMillis = clock.instant().toEpochMilli()
+              )
+            )
+          }
         }
       }
-
-      //TODO: check to see if the task was successful
-      send(markedResource)
     }
+  }
+
+  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+    TODO("not implemented")
+  }
+
+  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+    TODO("not implemented")
   }
 
   override fun getCandidate(resourceId: String,

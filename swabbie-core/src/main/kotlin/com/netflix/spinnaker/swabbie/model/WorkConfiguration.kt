@@ -19,18 +19,23 @@ package com.netflix.spinnaker.swabbie.model
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.NotificationConfiguration
 
+/**
+ * @param retention How many days swabbie will wait until starting the deletion process (soft delete, then delete)
+ * @param maxAge resources newer than the maxAge in days will be excluded
+ */
 data class WorkConfiguration(
   val namespace: String,
   val account: Account,
   val location: String,
   val cloudProvider: String,
   val resourceType: String,
-  val retention: Int, // How many days swabbie will wait until deletion
+  val retention: Int,
+  val softDelete: SoftDelete,
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true,
   val entityTaggingEnabled: Boolean = false,
   val notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration(),
-  val maxAge: Int = 14, // resources newer than the maxAge in days will be excluded
+  val maxAge: Int = 14,
   val maxItemsProcessedPerCycle: Int = 10,
   val itemsProcessedBatchSize: Int = 5
 )
@@ -39,4 +44,13 @@ class EmptyNotificationConfiguration : NotificationConfiguration(
   enabled = false,
   types = mutableListOf(),
   optOutBaseUrl = ""
+)
+
+/**
+ * @param enabled controls if soft deleting is enabled for this work configuration
+ * @param waitingPeriodDays how many days swabbie will wait after soft deleting a resource before deleting it
+ */
+data class SoftDelete(
+  var enabled: Boolean = false,
+  var waitingPeriodDays: Int = 2
 )

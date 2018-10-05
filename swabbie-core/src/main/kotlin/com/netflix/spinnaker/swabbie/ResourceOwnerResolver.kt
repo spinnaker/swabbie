@@ -36,10 +36,22 @@ open class ResourceOwnerResolver<in T : Resource>(
       }.let { owners ->
         val emails = findValidEmails(owners)
         return if (emails != null) {
-          registry.counter(resourceOwnerId.withTags("result", "found")).increment()
+          registry.counter(
+            resourceOwnerId.withTags(
+              "result", "found",
+              "strategy", javaClass.simpleName,
+              "resourceType", resource.resourceType
+            )
+          ).increment()
           emails.toSet().joinToString(",")
         } else {
-          registry.counter(resourceOwnerId.withTags("result", "notFound")).increment()
+          registry.counter(
+            resourceOwnerId.withTags(
+              "result", "notFound",
+              "strategy", javaClass.simpleName,
+              "resourceType", resource.resourceType
+            )
+          ).increment()
           null
         }
       }

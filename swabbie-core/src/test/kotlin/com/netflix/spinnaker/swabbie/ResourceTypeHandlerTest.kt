@@ -32,12 +32,11 @@ import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.*
-import kotlinx.coroutines.experimental.channels.ReceiveChannel
-import kotlinx.coroutines.experimental.channels.produce
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -46,6 +45,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
@@ -55,6 +55,7 @@ object ResourceTypeHandlerTest {
   private val lockingService = Optional.empty<LockingService>()
   private val retrySupport = RetrySupport()
   private val ownerResolver = mock<ResourceOwnerResolver<TestResource>>()
+  private val taskTrackingRepository = mock<TaskTrackingRepository>()
 
   private val postAction: (resource: List<Resource>) -> Unit = {
     println("swabbie post action on $it")
@@ -87,7 +88,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = mutableListOf(resource),
       notifiers = listOf(mock()),
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = taskTrackingRepository
     )
 
     whenever(ownerResolver.resolve(resource)) doReturn "lucious-mayweather@netflix.com"
@@ -95,7 +97,7 @@ object ResourceTypeHandlerTest {
     handler.mark(workConfiguration = workConfiguration(), postMark = { postAction(listOf(resource)) })
 
     inOrder(resourceRepository, applicationEventPublisher) {
-      verify(resourceRepository).upsert(any(), any())
+      verify(resourceRepository).upsert(any(), any(), any())
       verify(applicationEventPublisher).publishEvent(any<MarkResourceEvent>())
     }
   }
@@ -124,7 +126,8 @@ object ResourceTypeHandlerTest {
       applicationEventPublisher = applicationEventPublisher,
       simulatedCandidates = resources.toMutableList(),
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -133,7 +136,7 @@ object ResourceTypeHandlerTest {
       postMark = { postAction(resources) }
     )
 
-    verify(resourceRepository, times(2)).upsert(any(), any())
+    verify(resourceRepository, times(2)).upsert(any(), any(), any())
     verify(applicationEventPublisher, times(2)).publishEvent(any<MarkResourceEvent>())
   }
 
@@ -145,6 +148,7 @@ object ResourceTypeHandlerTest {
       TestResource("2")
     )
 
+    val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
       listOf(
@@ -154,6 +158,7 @@ object ResourceTypeHandlerTest {
           namespace = configuration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
+          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
             notificationType = "Email",
@@ -166,6 +171,7 @@ object ResourceTypeHandlerTest {
           namespace = configuration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
+          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
             notificationType = "Email",
@@ -187,14 +193,15 @@ object ResourceTypeHandlerTest {
       applicationEventPublisher = applicationEventPublisher,
       simulatedCandidates = candidates,
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
     handler.delete(workConfiguration = configuration, postDelete = { postAction(candidates) })
 
-    verify(resourceRepository, times(2)).remove(any())
+    verify(taskTrackingRepository, times(2)).add(any(), any())
     candidates.size shouldMatch equalTo(0)
   }
 
@@ -227,7 +234,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = mutableListOf(resource),
       notifiers = listOf(mock()),
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -235,7 +243,7 @@ object ResourceTypeHandlerTest {
     handler.mark(workConfiguration = configuration, postMark = { postAction(listOf(resource)) })
 
     verify(applicationEventPublisher, never()).publishEvent(any())
-    verify(resourceRepository, never()).upsert(any(), any())
+    verify(resourceRepository, never()).upsert(any(), any(), any())
   }
 
   @Test
@@ -268,7 +276,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = mutableListOf(resource1, resource2),
       notifiers = listOf(mock()),
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     whenever(ownerResolver.resolve(resource1)) doReturn  "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
@@ -283,12 +292,13 @@ object ResourceTypeHandlerTest {
       }
     )
 
-    verify(resourceRepository, times(1)).upsert(any(), any())
+    verify(resourceRepository, times(1)).upsert(any(), any(), any())
   }
 
   @Test
   fun `should ignore opted out resources during delete`() {
     val resource = TestResource(resourceId = "testResource", name = "testResourceName")
+    val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     val configuration = workConfiguration()
     val markedResource = MarkedResource(
@@ -297,6 +307,7 @@ object ResourceTypeHandlerTest {
       namespace = configuration.namespace,
       resourceOwner = "test@netflix.com",
       projectedDeletionStamp = fifteenDaysAgo,
+      projectedSoftDeletionStamp = thirteenDaysAgo,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
         notificationType = "Email",
@@ -333,7 +344,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = mutableListOf(resource),
       notifiers = listOf(mock()),
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -344,13 +356,14 @@ object ResourceTypeHandlerTest {
     )
 
     verify(applicationEventPublisher, never()).publishEvent(any())
-    verify(resourceRepository, never()).upsert(any(), any())
+    verify(resourceRepository, never()).upsert(any(), any(), any())
   }
 
   @Test
   fun `should ignore opted out resources during mark`() {
     val resource = TestResource(resourceId = "testResource", name = "testResourceName")
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
+    val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
     val configuration = workConfiguration()
     val markedResource = MarkedResource(
       resource = resource,
@@ -358,6 +371,7 @@ object ResourceTypeHandlerTest {
       namespace = configuration.namespace,
       resourceOwner = "test@netflix.com",
       projectedDeletionStamp = fifteenDaysAgo,
+      projectedSoftDeletionStamp = thirteenDaysAgo,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
         notificationType = "Email",
@@ -391,7 +405,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = mutableListOf(resource),
       notifiers = listOf(mock()),
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -402,7 +417,7 @@ object ResourceTypeHandlerTest {
     )
 
     verify(applicationEventPublisher, never()).publishEvent(any())
-    verify(resourceRepository, never()).upsert(any(), any())
+    verify(resourceRepository, never()).upsert(any(), any(), any())
   }
 
   @Test
@@ -424,21 +439,24 @@ object ResourceTypeHandlerTest {
         summaries = listOf(Summary("invalid resource 1", "rule 1")),
         namespace = configuration.namespace,
         resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis()
+        projectedDeletionStamp = clock.millis(),
+        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
       ),
       MarkedResource(
         resource = resource2,
         summaries = listOf(Summary("invalid resource 2", "rule 2")),
         namespace = configuration.namespace,
         resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis()
+        projectedDeletionStamp = clock.millis(),
+        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
       ),
       MarkedResource(
         resource = resource3,
         summaries = listOf(Summary("invalid resource random", "rule 3")),
         namespace = configuration.namespace,
         resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis()
+        projectedDeletionStamp = clock.millis(),
+        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
       )
     )
 
@@ -455,7 +473,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = mutableListOf(resource1, resource2, resource3),
       notifiers = listOf(mock()),
       lockingService = lockingService,
-      retrySupport = retrySupport
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     val result = handler.partitionList(markedResources, configuration)
@@ -475,8 +494,9 @@ object ResourceTypeHandlerTest {
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis()
+      namespace = configuration.namespace, //todod eb: fix tests for new marked resource
+      projectedDeletionStamp = clock.millis(),
+      projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
     )
 
     whenever(resourceRepository.getMarkedResources()) doReturn
@@ -495,7 +515,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = mutableListOf(resource),
       notifiers = listOf(mock()),
       lockingService = lockingService,
-      retrySupport = mock()
+      retrySupport = mock(),
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -511,7 +532,7 @@ object ResourceTypeHandlerTest {
       }
     )
     verify(resourceRepository, times(1)).remove(any())
-    verify(resourceRepository, never()).upsert(any(), any())
+    verify(resourceRepository, never()).upsert(any(), any(), any())
   }
 
   internal fun workConfiguration(
@@ -537,7 +558,8 @@ object ResourceTypeHandlerTest {
     dryRun = dryRun,
     maxAge = 1,
     itemsProcessedBatchSize = itemsProcessedBatchSize,
-    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle
+    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle,
+    softDelete = SoftDelete(false)
   )
 
   class TestRule(
@@ -561,7 +583,8 @@ object ResourceTypeHandlerTest {
     private val simulatedCandidates: MutableList<TestResource>?,
     registry: Registry = NoopRegistry(),
     lockingService: Optional<LockingService>,
-    retrySupport: RetrySupport
+    retrySupport: RetrySupport,
+    taskTrackingRepository: TaskTrackingRepository
   ) : AbstractResourceTypeHandler<TestResource>(
     registry,
     clock,
@@ -578,15 +601,48 @@ object ResourceTypeHandlerTest {
     override fun deleteResources(
       markedResources: List<MarkedResource>,
       workConfiguration: WorkConfiguration
-    ): ReceiveChannel<MarkedResource> = produce {
+    ) {
       markedResources.forEach { m ->
         simulatedCandidates
-          ?.removeIf { r -> m.resourceId == r.resourceId }.also {
-            if (it != null && it) {
-              send(m)
+          ?.removeIf { r -> m.resourceId == r.resourceId }
+          .also { shouldRemove ->
+            if (shouldRemove != null && shouldRemove) {
+              taskTrackingRepository.add(
+                "deleteTaskId",
+                TaskCompleteEventInfo(
+                  Action.DELETE,
+                  listOf(m),
+                  workConfiguration,
+                  null
+                )
+              )
             }
           }
       }
+    }
+
+    override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+      markedResources.forEach { m ->
+        simulatedCandidates
+          ?.removeIf { r -> m.resourceId == r.resourceId }
+          .also { shouldRemove ->
+            if (shouldRemove != null && shouldRemove) {
+              taskTrackingRepository.add(
+                "softDeleteTaskId",
+                TaskCompleteEventInfo(
+                  Action.SOFTDELETE,
+                  listOf(m),
+                  workConfiguration,
+                  null
+                )
+              )
+            }
+          }
+      }
+    }
+
+    override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+      TODO("not implemented")
     }
 
     // simulates querying for a resource upstream
@@ -614,8 +670,8 @@ object ResourceTypeHandlerTest {
       return simulatedCandidates
     }
 
-    override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation {
-      return ResourceEvauation(
+    override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation {
+      return ResourceEvaluation(
         namespace = workConfiguration.namespace,
         resourceId = resourceId,
         wouldMark = false,

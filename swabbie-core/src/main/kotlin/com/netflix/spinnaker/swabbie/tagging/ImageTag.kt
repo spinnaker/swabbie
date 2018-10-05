@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.tagging
 
-import com.netflix.spinnaker.swabbie.model.MarkedResource
+open class ImageTagsRequest(
+  open val type: String,
+  open val application: String,
+  open val description: String
+) : TagRequest
 
-interface ResourceTrackingRepository {
-  fun upsert(markedResource: MarkedResource, score: Long = markedResource.projectedDeletionStamp)
-  fun remove(markedResource: MarkedResource)
-
-  fun getMarkedResourcesToDelete(): List<MarkedResource>
-  fun getMarkedResources(): List<MarkedResource>
-  fun find(resourceId: String, namespace: String): MarkedResource?
-}
+data class UpsertImageTagsRequest(
+  val imageNames: Set<String>,
+  val regions: Set<String>,
+  val tags: Map<String, String>,
+  val cloudProvider: String,
+  val cloudProviderType: String,
+  override val application: String,
+  override val description: String
+) : ImageTagsRequest("upsertImageTags", application, description)

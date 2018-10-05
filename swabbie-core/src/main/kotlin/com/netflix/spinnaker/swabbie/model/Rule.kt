@@ -23,6 +23,7 @@ package com.netflix.spinnaker.swabbie.model
  */
 interface Rule<in T : Resource> {
   fun apply(resource: T): Result
+  fun name(): String = this.javaClass.simpleName
 }
 
 data class Result(

@@ -20,14 +20,17 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import kotlinx.coroutines.experimental.channels.ReceiveChannel
-import kotlinx.coroutines.experimental.channels.produce
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -48,7 +51,8 @@ class AmazonSecurityGroupHandler(
   retrySupport: RetrySupport,
   private val rules: List<Rule<AmazonSecurityGroup>>,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
-  private val orcaService: OrcaService
+  private val orcaService: OrcaService,
+  private val taskTrackingRepository: TaskTrackingRepository
 ) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
   registry,
   clock,
@@ -65,7 +69,7 @@ class AmazonSecurityGroupHandler(
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ): ReceiveChannel<MarkedResource> = produce {
+  ) {
     markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
@@ -87,12 +91,28 @@ class AmazonSecurityGroupHandler(
               ),
               description = "Cleaning up Security Group for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
             )
-          )
-          // TODO: check to see if task was successful
-          send(markedResource)
+          ).let { taskResponse ->
+            taskTrackingRepository.add(
+              taskResponse.taskId(),
+              TaskCompleteEventInfo(
+                action = Action.DELETE,
+                markedResources = markedResources,
+                workConfiguration = workConfiguration,
+                submittedTimeMillis = clock.instant().toEpochMilli()
+              )
+            )
+          }
         }
       }
     }
+  }
+
+  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+    TODO("not implemented")
+  }
+
+  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+    TODO("not implemented")
   }
 
   override fun getCandidate(resourceId: String,

@@ -19,18 +19,20 @@
 package com.netflix.spinnaker.swabbie.model
 
 import com.netflix.spinnaker.config.SwabbieProperties
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
-import org.springframework.stereotype.Component
+import org.slf4j.LoggerFactory
 
 /**
  * Testing rule that is invalid on everything.
  */
-@ConditionalOnExpression("\${swabbie.testing.alwaysCleanRuleConfig.enabled:false}")
-@Component
 class AlwaysCleanRule(
   swabbieProperties: SwabbieProperties
 ) : Rule<Resource> {
   private val config = swabbieProperties.testing.alwaysCleanRuleConfig
+  private val log = LoggerFactory.getLogger(javaClass)
+
+  init {
+    log.info("Using ${javaClass.simpleName} for resources ${config.resourceIds}")
+  }
 
   override fun apply(resource: Resource): Result {
     return if (config.resourceIds.contains(resource.resourceId)) {
@@ -43,6 +45,5 @@ class AlwaysCleanRule(
     } else {
       Result(null)
     }
-
   }
 }

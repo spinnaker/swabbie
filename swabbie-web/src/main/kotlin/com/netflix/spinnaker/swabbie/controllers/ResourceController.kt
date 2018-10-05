@@ -140,47 +140,6 @@ class ResourceController(
   }
 
   /**
-   * FOR TESTING
-   * Marks an image for deletion with the given soft delete and deletion times.
-   * Body contains information needed for marking
-   */
-  @RequestMapping(value = ["/state/{namespace}/{resourceId}/mark"], method = [RequestMethod.PUT])
-  fun onDemandMark(
-    @PathVariable resourceId: String,
-    @PathVariable namespace: String,
-    @RequestBody markInformation: OnDemandMarkData
-  ) {
-    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
-    val handler = resourceTypeHandlers.find { handler ->
-      handler.handles(workConfiguration)
-    } ?: throw NotFoundException("No handlers for $namespace")
-
-    handler.markResource(resourceId, markInformation, workConfiguration)
-  }
-
-  /**
-   * FOR TESTING
-   * Soft deletes or deletes a resource
-   */
-  @RequestMapping(value = ["/state/{namespace}/{resourceId}"], method = [RequestMethod.DELETE])
-  fun softDelete(
-    @PathVariable resourceId: String,
-    @PathVariable namespace: String,
-    @RequestParam(required = true) soft: Boolean
-  ) {
-    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
-    val handler = resourceTypeHandlers.find { handler ->
-      handler.handles(workConfiguration)
-    } ?: throw NotFoundException("No handlers for $namespace")
-
-    if (soft) {
-      handler.softDeleteResource(resourceId, workConfiguration)
-    } else {
-      handler.deleteResource(resourceId, workConfiguration)
-    }
-  }
-
-  /**
    * Restores a resource that has been soft-deleted
    */
   @RequestMapping(value = ["/state/{namespace}/{resourceId}/restore"], method = [RequestMethod.PUT])

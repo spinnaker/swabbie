@@ -16,7 +16,7 @@
  *
  */
 
-package com.netflix.spinnaker.swabbie.repositories
+package com.netflix.spinnaker.swabbie.repository
 
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.MarkedResource

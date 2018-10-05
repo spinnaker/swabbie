@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -42,16 +42,15 @@ class RedisResourceTrackingRepository(
   private val log = LoggerFactory.getLogger(javaClass)
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
 
+  init {
+    log.info("Using ${javaClass.simpleName}")
+  }
+
   override fun find(resourceId: String, namespace: String): MarkedResource? {
     val key = "$namespace:$resourceId"
-    return try {
-      redisClientDelegate.withCommandsClient<String> { client ->
+    return redisClientDelegate.withCommandsClient<String> { client ->
         client.hget(SINGLE_RESOURCES_KEY, key)
-      }.let { objectMapper.readValue(it) }
-    } catch (e: IllegalStateException) {
-      // resource does not exist
-      null
-    }
+      }?.let { objectMapper.readValue(it) }
   }
 
   override fun getMarkedResources(): List<MarkedResource> {
@@ -83,10 +82,14 @@ class RedisResourceTrackingRepository(
     return getAllIds(DELETE_KEY, false)
   }
 
-  private fun getAllIds(key: String, includeAll: Boolean): Set<String> {
+  /**
+   * @param includeFutureIds if false, includes only ids that are ready for action.
+   *  If true, includes all ids in the sorted set.
+   */
+  private fun getAllIds(key: String, includeFutureIds: Boolean): Set<String> {
     return redisClientDelegate.run {
       this.withCommandsClient<Set<String>> { client ->
-        if (includeAll) {
+        if (includeFutureIds) {
           client.zrangeByScore(key, "-inf", "+inf")
         } else {
           client.zrangeByScore(key, 0.0, clock.instant().toEpochMilli().toDouble())
@@ -99,7 +102,7 @@ class RedisResourceTrackingRepository(
     if (resourseIds.isEmpty()) return emptyList()
     return redisClientDelegate.run {
       this.withCommandsClient<Set<String>> { client ->
-        client.hmget(SINGLE_RESOURCES_KEY, *resourseIds.map { it }.toTypedArray()).toSet()
+        client.hmget(SINGLE_RESOURCES_KEY, *resourseIds.toTypedArray()).toSet()
       }.map { json ->
         objectMapper.readValue<MarkedResource>(json)
       }

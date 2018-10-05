@@ -21,8 +21,8 @@ import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
 import com.netflix.spinnaker.swabbie.model.*
-import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.web.bind.annotation.*
@@ -160,36 +160,24 @@ class ResourceController(
 
   /**
    * FOR TESTING
-   * Soft deletes a resource
+   * Soft deletes or deletes a resource
    */
-  @RequestMapping(value = ["/state/{namespace}/{resourceId}/softDelete"], method = [RequestMethod.PUT])
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}"], method = [RequestMethod.DELETE])
   fun softDelete(
     @PathVariable resourceId: String,
-    @PathVariable namespace: String
+    @PathVariable namespace: String,
+    @RequestParam(required = true) soft: Boolean
   ) {
     val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
     val handler = resourceTypeHandlers.find { handler ->
       handler.handles(workConfiguration)
     } ?: throw NotFoundException("No handlers for $namespace")
 
-    handler.softDeleteResource(resourceId, workConfiguration)
-  }
-
-  /**
-   * FOR TESTING
-   * Deletes a resource
-   */
-  @RequestMapping(value = ["/state/{namespace}/{resourceId}/delete"], method = [RequestMethod.PUT])
-  fun delete(
-    @PathVariable resourceId: String,
-    @PathVariable namespace: String
-  ) {
-    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
-    val handler = resourceTypeHandlers.find { handler ->
-      handler.handles(workConfiguration)
-    } ?: throw NotFoundException("No handlers for $namespace")
-
-    handler.deleteResource(resourceId, workConfiguration)
+    if (soft) {
+      handler.softDeleteResource(resourceId, workConfiguration)
+    } else {
+      handler.deleteResource(resourceId, workConfiguration)
+    }
   }
 
   /**
@@ -216,7 +204,7 @@ class ResourceController(
   fun checkResource(
     @PathVariable namespace: String,
     @PathVariable resourceId: String
-  ): ResourceEvauation {
+  ): ResourceEvaluation {
     val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
     val newWorkConfiguration = workConfiguration.copy(dryRun = true)
 

@@ -18,7 +18,7 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.ResourceEvauation
+import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
 interface ResourceTypeHandler<T : Resource> {
@@ -70,7 +70,7 @@ interface ResourceTypeHandler<T : Resource> {
   /**
    * Decides whether a single candidate will be marked, and returns information about that decision.
    */
-  fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation
+  fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation
 
   /**
    * FOR TESTING

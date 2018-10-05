@@ -22,7 +22,6 @@ import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.*
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.*
-import com.netflix.spinnaker.swabbie.aws.images.AmazonImageHandlerTest
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
@@ -32,9 +31,9 @@ import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
-import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions

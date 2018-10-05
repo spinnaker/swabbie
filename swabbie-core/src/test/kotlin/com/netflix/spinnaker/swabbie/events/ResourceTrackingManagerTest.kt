@@ -19,7 +19,7 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.mock
 import java.time.Clock
@@ -29,7 +29,6 @@ import com.netflix.spinnaker.swabbie.model.Summary
 import com.nhaarman.mockito_kotlin.argWhere
 import com.nhaarman.mockito_kotlin.reset
 import com.nhaarman.mockito_kotlin.verify
-import org.junit.Before
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
@@ -52,7 +51,6 @@ object ResourceTrackingManagerTest {
   fun cleanup() {
     reset(resourceTrackingRepository)
   }
-
 
   @Test
   fun `should update state on delete event`() {

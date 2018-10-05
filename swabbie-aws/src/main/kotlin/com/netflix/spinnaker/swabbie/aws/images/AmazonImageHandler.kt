@@ -27,15 +27,16 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.*
-import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.repositories.TaskCompleteEventInfo
-import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
+import java.time.Duration
 import java.util.*
 import kotlin.system.measureTimeMillis
 
@@ -87,7 +88,7 @@ class AmazonImageHandler(
               "imageIds" to markedResources.map { it.resourceId }.toSet(),
               "cloudProvider" to AWS,
               "region" to workConfiguration.location,
-              "stageTimeoutMs" to "900000" // fifteen minutes
+              "stageTimeoutMs" to Duration.ofMinutes(15).toMillis().toString()
             )
           )
         ),

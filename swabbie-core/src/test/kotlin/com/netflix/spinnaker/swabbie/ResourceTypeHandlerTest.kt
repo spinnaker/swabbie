@@ -32,7 +32,7 @@ import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.repositories.*
+import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
@@ -604,9 +604,9 @@ object ResourceTypeHandlerTest {
     ) {
       markedResources.forEach { m ->
         simulatedCandidates
-          ?.removeIf { r -> m.resourceId == r.resourceId }.also {
-            //todo eb: add to task tracking repo?
-            if (it != null && it) {
+          ?.removeIf { r -> m.resourceId == r.resourceId }
+          .also { shouldRemove ->
+            if (shouldRemove != null && shouldRemove) {
               taskTrackingRepository.add(
                 "deleteTaskId",
                 TaskCompleteEventInfo(
@@ -624,9 +624,9 @@ object ResourceTypeHandlerTest {
     override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
       markedResources.forEach { m ->
         simulatedCandidates
-          ?.removeIf { r -> m.resourceId == r.resourceId }.also {
-            //todo eb: add to task tracking repo?
-            if (it != null && it) {
+          ?.removeIf { r -> m.resourceId == r.resourceId }
+          .also { shouldRemove ->
+            if (shouldRemove != null && shouldRemove) {
               taskTrackingRepository.add(
                 "softDeleteTaskId",
                 TaskCompleteEventInfo(
@@ -670,8 +670,8 @@ object ResourceTypeHandlerTest {
       return simulatedCandidates
     }
 
-    override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation {
-      return ResourceEvauation(
+    override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation {
+      return ResourceEvaluation(
         namespace = workConfiguration.namespace,
         resourceId = resourceId,
         wouldMark = false,

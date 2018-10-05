@@ -18,7 +18,7 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
-import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource

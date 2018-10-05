@@ -189,7 +189,7 @@ data class Status(
   val timestamp: Long
 )
 
-data class ResourceEvauation(
+data class ResourceEvaluation(
   val namespace: String,
   val resourceId: String,
   val wouldMark: Boolean,

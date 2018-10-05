@@ -21,9 +21,10 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.repositories.TaskCompleteEventInfo
-import com.netflix.spinnaker.swabbie.repositories.TaskState
-import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskState
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import net.logstash.logback.argument.StructuredArguments.kv
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -44,6 +45,10 @@ class RedisTaskTrackingRepository(
   private val SUBMITTED_TASKS_KEY = "{swabbie:submitted}"
   private val TASK_STATUS_KEY = "{swabbie:taskstatus}"
 
+  init {
+    log.info("Using ${javaClass.simpleName}")
+  }
+
   override fun add(taskId: String, taskCompleteEventInfo: TaskCompleteEventInfo) {
     if (taskCompleteEventInfo.submittedTimeMillis == null) {
       taskCompleteEventInfo.submittedTimeMillis = clock.instant().toEpochMilli()
@@ -56,10 +61,8 @@ class RedisTaskTrackingRepository(
   }
 
   override fun isInProgress(taskId: String): Boolean {
-    redisClientDelegate.run {
-      return this.withCommandsClient<Boolean> { client ->
-        client.hget(TASK_STATUS_KEY, taskId) == TaskState.IN_PROGRESS.toString()
-      }
+    return redisClientDelegate.withCommandsClient<Boolean> { client ->
+      client.hget(TASK_STATUS_KEY, taskId) == TaskState.IN_PROGRESS.toString()
     }
   }
 
@@ -119,7 +122,17 @@ class RedisTaskTrackingRepository(
       .filterValues { value ->
         objectMapper.readValue(value, TaskCompleteEventInfo::class.java).let { taskInfo ->
           val xDaysAgo = clock.instant().minusMillis(TimeUnit.DAYS.toMillis(daysToGoBack.toLong())).toEpochMilli()
-          taskInfo.submittedTimeMillis!! < xDaysAgo
+          val submittedTimeMillis = taskInfo.submittedTimeMillis
+          if (submittedTimeMillis == null ) {
+            log.error(
+              "Task for resources {} submitted without a submitted time. " +
+                "Not counting task as older than $daysToGoBack days.",
+              taskInfo.markedResources.map { it.uniqueId() }.toString()
+            )
+            false
+          } else {
+            submittedTimeMillis < xDaysAgo
+          }
         }
       }
       .keys
@@ -129,11 +142,9 @@ class RedisTaskTrackingRepository(
   override fun cleanUpFinishedTasks(daysToLeave: Int) {
     val allBefore: Set<String> = getAllBefore(daysToLeave)
     log.debug("Cleaning ${allBefore.size} tasks")
-    allBefore.forEach { taskId ->
-      redisClientDelegate.withCommandsClient { client ->
-        client.hdel(TASK_STATUS_KEY, taskId)
-        client.hdel(SUBMITTED_TASKS_KEY, taskId)
-      }
+    redisClientDelegate.withCommandsClient { client ->
+      client.hdel(TASK_STATUS_KEY, *allBefore.toTypedArray())
+      client.hdel(SUBMITTED_TASKS_KEY, *allBefore.toTypedArray())
     }
   }
 }

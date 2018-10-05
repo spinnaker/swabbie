@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.repositories
+package com.netflix.spinnaker.swabbie.repository
 
 import com.netflix.spinnaker.swabbie.model.ResourceState
 
@@ -23,5 +23,4 @@ interface ResourceStateRepository {
   fun upsert(resourceState: ResourceState)
   fun getAll(): List<ResourceState>
   fun getByStatus(status: String): List<ResourceState>
-  //todo eb: need to get things that failed which have a message instead of name. maybe rethink that?
 }

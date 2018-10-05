@@ -16,8 +16,9 @@
  *
  */
 
-package com.netflix.spinnaker.swabbie.repositories
+package com.netflix.spinnaker.swabbie.repository
 
+import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.util.concurrent.TimeUnit
 
@@ -27,6 +28,12 @@ class InMemoryTaskTrackingRepository(
 
   private val submittedTasks = HashMap<String, TaskCompleteEventInfo>()
   private val taskStatus = HashMap<String, TaskState>()
+
+  private val log = LoggerFactory.getLogger(javaClass)
+
+  init {
+    log.info("Using ${javaClass.simpleName}")
+  }
 
   override fun add(taskId: String, taskCompleteEventInfo: TaskCompleteEventInfo) {
     if (taskCompleteEventInfo.submittedTimeMillis == null) {

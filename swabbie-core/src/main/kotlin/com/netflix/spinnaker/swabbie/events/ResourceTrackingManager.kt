@@ -20,7 +20,7 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.MetricsSupport
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
@@ -40,11 +40,10 @@ class ResourceTrackingManager(
 
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-
   /**
-   * Other event types are handled in {@link AbstractResourceTypeHandler}.
+   * Other event types are handled in [AbstractResourceTypeHandler].
    * These events are emitted after an orca task is completed in
-   * {@link OrcaTaskMonitoringAgent}
+   * [OrcaTaskMonitoringAgent]
    */
   @EventListener
   fun handleEvents(event: Event) {

@@ -36,9 +36,9 @@ import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
-import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
@@ -283,7 +283,7 @@ object AmazonImageHandlerTest {
           instanceId = "i-123",
           cloudProvider = AWS,
           imageId = "ami-123", // reference to ami-123
-          launchTime = System.currentTimeMillis()
+          launchTime = clock.instant().toEpochMilli()
         )
       )
 
@@ -350,8 +350,8 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should delete images`() {
-    val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
+    val fifteenDaysAgo = clock.instant().toEpochMilli() - 15 * 24 * 60 * 60 * 1000L
+    val thirteenDaysAgo = clock.instant().toEpochMilli() - 13 * 24 * 60 * 60 * 1000L
     val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
     val image = AmazonImage(
       imageId = "ami-123",

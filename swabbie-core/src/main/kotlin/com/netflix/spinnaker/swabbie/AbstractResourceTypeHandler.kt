@@ -27,8 +27,8 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.repositories.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repositories.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -59,14 +59,14 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   /**
    * deletes a marked resource. Each handler must implement this function.
-   * Deleted resources are produced via {@link DeleteResourceEvent}
+   * Deleted resources are produced via [DeleteResourceEvent]
    * for additional processing
    */
   abstract fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration)
 
   /**
    * deletes a resource in a reversible way.
-   * Soft deleted resources are produced via {@link SoftDeleteResourceEvent}
+   * Soft deleted resources are produced via [SoftDeleteResourceEvent]
    * for additional processing
    */
   abstract fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration)
@@ -145,7 +145,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         callback.invoke()
       }
     } else {
-      log.warn("***Locking not ENABLED***")
+      log.warn("***Locking not ENABLED, continuing without locking for ${javaClass.simpleName}***")
       callback.invoke()
     }
   }
@@ -159,7 +159,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     if (markedResource != null) {
       markedResource = markedResource.copy(
         resource = resource,
-        summaries = listOf(Summary("Resource marked via the api", "AlwaysCleanUpRule")),
+        summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
         namespace = workConfiguration.namespace,
         resourceOwner = onDemandMarkData.resourceOwner,
         projectedSoftDeletionStamp = onDemandMarkData.projectedSoftDeletionStamp,
@@ -169,7 +169,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     } else {
       markedResource = MarkedResource(
         resource = resource,
-        summaries = listOf(Summary("Resource marked via the api", "AlwaysCleanUpRule")),
+        summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
         namespace = workConfiguration.namespace,
         resourceOwner = onDemandMarkData.resourceOwner,
         projectedSoftDeletionStamp = onDemandMarkData.projectedSoftDeletionStamp,
@@ -295,8 +295,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvauation {
-    val candidate = getCandidate(resourceId, resourceName, workConfiguration) ?: return ResourceEvauation(
+  override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation {
+    val candidate = getCandidate(resourceId, resourceName, workConfiguration) ?: return ResourceEvaluation(
       workConfiguration.namespace,
       resourceId,
       false,
@@ -306,7 +306,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
     val resourceState = resourceStateRepository.get(resourceId, workConfiguration.namespace)
     if (resourceState != null && resourceState.optedOut) {
-      return ResourceEvauation(
+      return ResourceEvaluation(
         workConfiguration.namespace,
         resourceId,
         false,
@@ -320,7 +320,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       .filter { !shouldExcludeResource(it, workConfiguration, emptyList(), Action.MARK) }
 
     if (candidates.isEmpty()) {
-      return ResourceEvauation(
+      return ResourceEvaluation(
         workConfiguration.namespace,
         resourceId,
         false,
@@ -331,7 +331,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
     val preprocessedCandidate = preProcessCandidates(candidates, workConfiguration).first()
     val wouldMark = preprocessedCandidate.getViolations().isNotEmpty()
-    return ResourceEvauation(
+    return ResourceEvaluation(
       workConfiguration.namespace,
       resourceId,
       wouldMark,
@@ -355,13 +355,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  // todo eb clean up name
-  // now + retention period
   private fun softDeletionTimestamp(workConfiguration: WorkConfiguration): Long =
     (workConfiguration.retention + 1).days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
 
-  // todo eb clean up name
-  // now + retention period + soft delete waiting period
   private fun deletionTimestamp(workConfiguration: WorkConfiguration): Long {
     if (!workConfiguration.softDelete.enabled) {
       // soft deleting is not enabled, so our deletion time is the same as what our soft deletion time would be
@@ -402,7 +398,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     optedOutResourceStates: List<ResourceState>,
     action: Action
   ): Boolean {
-    if (resource.getViolations().any { summary -> summary.ruleName == "AlwaysCleanUpRule" }) return false
+    if (resource.getViolations().any { summary -> summary.ruleName == AlwaysCleanRule::class.java.simpleName }) {
+      return false
+    }
 
     val creationDate = Instant.ofEpochMilli(resource.createTs).atZone(ZoneId.systemDefault()).toLocalDate()
     if (action != Action.NOTIFY && DAYS.between(creationDate, LocalDate.now()) < workConfiguration.maxAge) {

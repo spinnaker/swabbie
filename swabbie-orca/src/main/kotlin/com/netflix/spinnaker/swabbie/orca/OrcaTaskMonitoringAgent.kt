@@ -25,10 +25,11 @@ import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.MetricsSupport
-import com.netflix.spinnaker.swabbie.repositories.TaskCompleteEventInfo
-import com.netflix.spinnaker.swabbie.repositories.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.*
+import net.logstash.logback.argument.StructuredArguments.kv
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -41,6 +42,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.Temporal
 import java.util.*
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import javax.annotation.PostConstruct
@@ -60,14 +62,15 @@ class OrcaTaskMonitoringAgent (
 
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val worker: Scheduler.Worker = Schedulers.io().createWorker()
+  private val executorService = Executors.newSingleThreadScheduledExecutor()
 
   private val timeoutMillis: Long = 5000
   private val maxAttempts: Int = 3
 
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
-      worker.schedulePeriodically({
-       withLocking(javaClass.simpleName) { monitorOrcaTasks() }
+      executorService.scheduleWithFixedDelay({
+        withLocking(javaClass.simpleName) { monitorOrcaTasks() }
       }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
     }
 
@@ -87,9 +90,7 @@ class OrcaTaskMonitoringAgent (
   @PreDestroy
   private fun stop() {
     log.info("Stopping agent ${javaClass.simpleName}")
-    if (!worker.isUnsubscribed) {
-      worker.unsubscribe()
-    }
+    executorService.shutdown()
   }
 
   private fun withLocking(
@@ -107,7 +108,7 @@ class OrcaTaskMonitoringAgent (
         callback.invoke()
       }
     } else {
-      log.warn("***Locking not ENABLED***")
+      log.warn("***Locking not ENABLED, continuing without locking for ${javaClass.simpleName}***")
       callback.invoke()
     }
   }
@@ -126,26 +127,40 @@ class OrcaTaskMonitoringAgent (
         if (response.status.isComplete()) {
           val taskInfo = taskTrackingRepository.getTaskDetail(taskId)
           if (taskInfo == null) {
-            log.error("Detail for task $taskId was not found in repository. Something went wrong!")
+            log.error(
+              "TaskDetail not found in tracking repository for {}. Unable to fire completion event for task.",
+              kv("taskId", taskId)
+            )
             return
           }
 
           when {
             response.status.isSuccess() -> {
-              log.debug("Orca task $taskId succeeded. Task complete info: $taskInfo")
+              log.debug(
+                "Orca task {} succeeded. Task complete info: {}",
+                kv("taskId", taskId),
+                taskInfo
+              )
               publishEvent(taskInfo)
               taskTrackingRepository.setSucceeded(taskId)
             }
             response.status.isFailure() -> {
-              log.error("Orca task $taskId did not complete. Status: ${response.status}. Task complete info: $taskInfo")
+              log.error(
+                "Orca task {} did not complete. Status: {}. Task complete info: {}",
+                kv("taskId", taskId),
+                kv("responseStatus", response.status),
+                taskInfo
+              )
               taskTrackingRepository.setFailed(taskId)
               taskInfo.markedResources
                 .forEach { markedResource ->
-                  applicationEventPublisher.publishEvent(OrcaTaskFailureEvent(taskInfo.action, markedResource, taskInfo.workConfiguration))
+                  applicationEventPublisher.publishEvent(
+                    OrcaTaskFailureEvent(taskInfo.action, markedResource, taskInfo.workConfiguration)
+                  )
                 }
             }
             response.status.isIncomplete() -> {
-              log.debug("Still monitoring orca task $taskId.")
+              log.debug("Still monitoring orca task {}", kv("taskId", taskId))
             }
           }
         }

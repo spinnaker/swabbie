@@ -25,9 +25,9 @@ import org.springframework.stereotype.Component
 /**
  * Testing rule that is invalid on everything.
  */
-@ConditionalOnExpression("\${swabbie.testing.alwaysCleanRuleConfigConfig.enabled:false}")
+@ConditionalOnExpression("\${swabbie.testing.alwaysCleanRuleConfig.enabled:false}")
 @Component
-class AlwaysCleanUpRule(
+class AlwaysCleanRule(
   swabbieProperties: SwabbieProperties
 ) : Rule<Resource> {
   private val config = swabbieProperties.testing.alwaysCleanRuleConfig

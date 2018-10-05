@@ -10,7 +10,6 @@ data class OnDemandMarkData(
   var notificationInfo: NotificationInfo? = NotificationInfo(
     recipient = resourceOwner,
     notificationType = Notifier.NotificationType.EMAIL.name,
-    notificationStamp = 1538589958608,
     notificationCount = 1
   )
 )

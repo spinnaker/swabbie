@@ -35,4 +35,7 @@ data class AmazonLaunchConfiguration(
   override val name: String = launchConfigurationName,
   private val creationDate: String? =
     LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
-) : AmazonResource(creationDate)
+) : AmazonResource(creationDate) {
+  fun getAutoscalingGroupName() =
+    launchConfigurationName.substringBeforeLast("-")
+}

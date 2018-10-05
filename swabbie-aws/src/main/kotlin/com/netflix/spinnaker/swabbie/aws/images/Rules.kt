@@ -21,32 +21,39 @@ import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
 import org.springframework.stereotype.Component
 
+/**
+ * Images are marked when they are orphaned.
+ *
+ * The `outOfUseThresholdDays` property controls the amount of time
+ *  we let a resource be unseen (out of use) before it is marked and deleted.
+ * For example, if `outOfUseThresholdDays = 10`, then an image is allowed to sit in
+ *  orphaned state (defined by the rules below) for 10 days before it will be marked.
+ */
 @Component
 class OrphanedImageRule : Rule<AmazonImage> {
   override fun apply(resource: AmazonImage): Result {
-    val isReferencedByInstances = resource.details.containsKey(USED_BY_INSTANCES) &&
-      resource.details[USED_BY_INSTANCES] as Boolean
-
-    val isReferencedByLaunchConfigs = resource.details.containsKey(USED_BY_LAUNCH_CONFIGURATIONS) &&
-      resource.details[USED_BY_LAUNCH_CONFIGURATIONS] as Boolean
-
-    val hasSiblings = resource.details.containsKey(HAS_SIBLINGS_IN_OTHER_ACCOUNTS) &&
-      resource.details[HAS_SIBLINGS_IN_OTHER_ACCOUNTS] as Boolean
-
-    val isBaseOrAncestorImage = resource.details.containsKey(IS_BASE_OR_ANCESTOR) &&
-      resource.details[IS_BASE_OR_ANCESTOR] as Boolean
-
-    if (isReferencedByInstances || isReferencedByLaunchConfigs || hasSiblings || isBaseOrAncestorImage) {
+    if (resource.matchesAnyRule(
+        USED_BY_INSTANCES,
+        USED_BY_LAUNCH_CONFIGURATIONS,
+        HAS_SIBLINGS_IN_OTHER_ACCOUNTS,
+        IS_BASE_OR_ANCESTOR,
+        SEEN_IN_USE_RECENTLY
+      )){
       return Result(null)
     }
 
     return Result(
       Summary(
         description = "Image is not referenced by an Instance, Launch Configuration, " +
-          "and has no siblings in other accounts",
+          "and has no siblings in other accounts, " +
+          "and has been that way for over the outOfUseThreshold days",
         ruleName = name()
       )
     )
+  }
+
+  private fun AmazonImage.matchesAnyRule(vararg ruleName: String): Boolean {
+    return ruleName.any { details.containsKey(it) && details[it] as Boolean }
   }
 }
 
@@ -54,3 +61,4 @@ const val USED_BY_INSTANCES = "usedByInstances"
 const val USED_BY_LAUNCH_CONFIGURATIONS = "usedByLaunchConfigurations"
 const val HAS_SIBLINGS_IN_OTHER_ACCOUNTS = "hasSiblingsInOtherAccounts"
 const val IS_BASE_OR_ANCESTOR = "isBaseOrAncestor"
+const val SEEN_IN_USE_RECENTLY = "seenInUseRecently"

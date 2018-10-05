@@ -26,6 +26,7 @@ import java.time.ZoneId
 @ConfigurationProperties("swabbie")
 open class SwabbieProperties {
   var dryRun: Boolean = true
+  var outOfUseThresholdDays: Int = 30
   var providers: List<CloudProviderConfiguration> = mutableListOf()
   var schedule: Schedule = Schedule()
   var testing: Testing = Testing()

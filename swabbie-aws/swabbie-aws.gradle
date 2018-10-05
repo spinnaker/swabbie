@@ -18,6 +18,8 @@ dependencies {
   compile project(":swabbie-core")
   compile project(":swabbie-orca")
   compile project(":swabbie-retrofit")
+  compile spinnaker.dependency("aws")
+
 
   testCompile project(":swabbie-test")
 }

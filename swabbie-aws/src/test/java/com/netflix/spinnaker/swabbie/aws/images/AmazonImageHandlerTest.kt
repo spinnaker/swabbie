@@ -36,9 +36,7 @@ import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
-import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
@@ -66,6 +64,8 @@ object AmazonImageHandlerTest {
   private val applicationsCache = mock<InMemoryCache<Application>>()
   private val taggingService = mock<TaggingService>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
+  private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
+  private val swabbieProperties = mock<SwabbieProperties>()
 
   private val subject = AmazonImageHandler(
     clock = clock,
@@ -90,7 +90,9 @@ object AmazonImageHandlerTest {
     accountProvider = accountProvider,
     applicationsCaches = listOf(applicationsCache),
     taggingService = taggingService,
-    taskTrackingRepository = taskTrackingRepository
+    taskTrackingRepository = taskTrackingRepository,
+    resourceUseTrackingRepository = resourceUseTrackingRepository,
+    swabbieProperties = swabbieProperties
   )
 
   @BeforeEach
@@ -148,6 +150,20 @@ object AmazonImageHandlerTest {
         creationDate = LocalDateTime.now().minusDays(3).toString()
       )
     )
+
+    whenever(resourceUseTrackingRepository.getUnused()) doReturn
+      listOf(
+        LastSeenInfo(
+          "ami-123",
+          "sg-123-v001",
+          clock.instant().minus(Duration.ofDays(32)).toEpochMilli()
+        ),
+        LastSeenInfo(
+          "ami-132",
+          "sg-132-v001",
+          clock.instant().minus(Duration.ofDays(32)).toEpochMilli()
+        )
+      )
   }
 
   @AfterEach
@@ -283,7 +299,13 @@ object AmazonImageHandlerTest {
           instanceId = "i-123",
           cloudProvider = AWS,
           imageId = "ami-123", // reference to ami-123
-          launchTime = clock.instant().toEpochMilli()
+          launchTime = clock.instant().toEpochMilli(),
+          tags = listOf(mapOf(
+            "class" to "com.amazonaws.services.ec2.model.Tag",
+            "value" to "test-servergroup-v111",
+            "key" to "aws:autoscaling:groupName",
+            "aws:autoscaling:groupName" to "test-servergroup-v111"
+          ))
         )
       )
 
@@ -438,6 +460,55 @@ object AmazonImageHandlerTest {
 
     verify(taggingService, times(1)).upsertImageTag(any())
     verify(taskTrackingRepository, times(1)).add(any(), any())
+  }
+
+
+  @Test
+  fun `should not soft delete if the images have been seen recently`() {
+    whenever(resourceUseTrackingRepository.getUnused()) doReturn
+      emptyList<LastSeenInfo>()
+
+    val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
+    val thirteenDaysAgo = clock.instant().minusSeconds(13 * 24 * 60 * 60).toEpochMilli()
+    val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
+    val image = AmazonImage(
+      imageId = "ami-123",
+      resourceId = "ami-123",
+      description = "ancestor_id=ami-122",
+      ownerId = null,
+      state = "available",
+      resourceType = IMAGE,
+      cloudProvider = AWS,
+      name = "123-xenial-hvm-sriov-ebs",
+      creationDate = LocalDateTime.now().minusDays(3).toString()
+    )
+
+    whenever(resourceRepository.getMarkedResourcesToSoftDelete()) doReturn
+      listOf(
+        MarkedResource(
+          resource = image,
+          summaries = listOf(Summary("Image is unused", "testRule 1")),
+          namespace = workConfiguration.namespace,
+          resourceOwner = "test@netflix.com",
+          projectedDeletionStamp = fifteenDaysAgo,
+          projectedSoftDeletionStamp = thirteenDaysAgo,
+          notificationInfo = NotificationInfo(
+            recipient = "test@netflix.com",
+            notificationType = "Email",
+            notificationStamp = clock.instant().toEpochMilli()
+          )
+        )
+      )
+    val params = Parameters(
+      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123")
+    )
+    whenever(taggingService.upsertImageTag(any())) doReturn "1234"
+    whenever(imageProvider.getAll(params)) doReturn listOf(image)
+
+    subject.softDelete(workConfiguration) {}
+
+    verify(taggingService, times(0)).upsertImageTag(any())
+    verify(taskTrackingRepository, times(0)).add(any(), any())
   }
 
   private fun Long.inDays(): Int

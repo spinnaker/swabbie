@@ -26,11 +26,10 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import rx.Scheduler
-import rx.schedulers.Schedulers
 import java.time.*
 import java.time.temporal.Temporal
 import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
@@ -44,11 +43,11 @@ abstract class ScheduledAgent(
   private val swabbieProperties: SwabbieProperties
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private val worker: Scheduler.Worker = Schedulers.io().createWorker()
+  private val executorService = Executors.newSingleThreadScheduledExecutor()
 
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
-      worker.schedulePeriodically({
+      executorService.scheduleWithFixedDelay({
         when {
           LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
             when {
@@ -97,9 +96,7 @@ abstract class ScheduledAgent(
   @PreDestroy
   private fun stop() {
     log.info("Stopping agent ${javaClass.simpleName}")
-    if (!worker.isUnsubscribed) {
-      worker.unsubscribe()
-    }
+    executorService.shutdown()
   }
 
   override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {

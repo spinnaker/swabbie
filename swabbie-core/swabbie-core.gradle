@@ -28,7 +28,6 @@ dependencies {
   compile "com.netflix.spinnaker.moniker:moniker:+"
   compile "com.netflix.spinnaker.kork:kork-web:+"
   compile "com.squareup.retrofit:converter-jackson:1.+"
-  compile spinnaker.dependency("rxJava")
 
   testCompile "com.squareup.retrofit:retrofit-mock:1.9.+"
   testCompile project(":swabbie-test")

@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.launchconfigurations
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
+import com.netflix.spinnaker.swabbie.model.ResourceType
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -30,7 +30,7 @@ data class AmazonLaunchConfiguration(
   private val launchConfigurationName: String,
   private val createdTime: Long,
   override val resourceId: String = launchConfigurationName,
-  override val resourceType: String = LAUNCH_CONFIGURATION,
+  override val resourceType: String = ResourceType.LAUNCH_CONFIGURATION.toString(),
   override val cloudProvider: String = AWS,
   override val name: String = launchConfigurationName,
   private val creationDate: String? =

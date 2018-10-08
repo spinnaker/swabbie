@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.model.ResourceType
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -31,7 +31,7 @@ data class AmazonAutoScalingGroup(
   val loadBalancerNames: List<String>?,
   private val createdTime: Long,
   override val resourceId: String = autoScalingGroupName,
-  override val resourceType: String = SERVER_GROUP,
+  override val resourceType: String = ResourceType.SERVER_GROUP.toString(),
   override val cloudProvider: String = AWS,
   override val name: String = autoScalingGroupName,
   private val creationDate: String? =

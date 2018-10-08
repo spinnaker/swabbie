@@ -23,7 +23,7 @@ import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.edda.EddaService
-import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
+import com.netflix.spinnaker.swabbie.model.ResourceType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -59,7 +59,7 @@ open class EddaAmazonElasticLoadBalancerProvider(
         this.getLoadBalancers()
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", LOAD_BALANCER)).increment()
+      registry.counter(eddaFailureCountId.withTags("resourceType", ResourceType.LOAD_BALANCER.toString())).increment()
       log.error("failed to get load balancers", e)
       throw e
     }
@@ -79,7 +79,7 @@ open class EddaAmazonElasticLoadBalancerProvider(
         }
       }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", LOAD_BALANCER)).increment()
+      registry.counter(eddaFailureCountId.withTags("resourceType", ResourceType.LOAD_BALANCER.toString())).increment()
       log.error("failed to get load balancer {}", loadBalancerName, e)
       throw e
     }

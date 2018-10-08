@@ -113,7 +113,8 @@ class AmazonAutoScalingGroupHandler(
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean
-    = workConfiguration.resourceType == SERVER_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+    = workConfiguration.resourceType == ResourceType.SERVER_GROUP.toString()
+    && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonAutoScalingGroup>? {
     val params = Parameters(

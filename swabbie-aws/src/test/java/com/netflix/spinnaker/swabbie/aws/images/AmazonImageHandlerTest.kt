@@ -131,7 +131,7 @@ object AmazonImageHandlerTest {
         description = "ancestor_id=ami-122",
         ownerId = null,
         state = "available",
-        resourceType = IMAGE,
+        resourceType = ResourceType.IMAGE.toString(),
         cloudProvider = AWS,
         name = "123-xenial-hvm-sriov-ebs",
         creationDate = LocalDateTime.now().minusDays(3).toString()
@@ -142,7 +142,7 @@ object AmazonImageHandlerTest {
         description = "description 132",
         ownerId = null,
         state = "available",
-        resourceType = IMAGE,
+        resourceType = ResourceType.IMAGE.toString(),
         cloudProvider = AWS,
         name = "132-xenial-hvm-sriov-ebs",
         creationDate = LocalDateTime.now().minusDays(3).toString()
@@ -314,7 +314,7 @@ object AmazonImageHandlerTest {
         description = "ancestor_id=ami-132",
         ownerId = null,
         state = "available",
-        resourceType = IMAGE,
+        resourceType = ResourceType.IMAGE.toString(),
         cloudProvider = AWS,
         name = "123-xenial-hvm-sriov-ebs",
         creationDate = LocalDateTime.now().minusDays(3).toString()
@@ -325,7 +325,7 @@ object AmazonImageHandlerTest {
         description = "description 132",
         ownerId = null,
         state = "available",
-        resourceType = IMAGE,
+        resourceType = ResourceType.IMAGE.toString(),
         cloudProvider = AWS,
         name = "132-xenial-hvm-sriov-ebs",
         creationDate = LocalDateTime.now().minusDays(3).toString()
@@ -359,7 +359,7 @@ object AmazonImageHandlerTest {
       description = "ancestor_id=ami-122",
       ownerId = null,
       state = "available",
-      resourceType = IMAGE,
+      resourceType = ResourceType.IMAGE.toString(),
       cloudProvider = AWS,
       name = "123-xenial-hvm-sriov-ebs",
       creationDate = LocalDateTime.now().minusDays(3).toString()
@@ -406,7 +406,7 @@ object AmazonImageHandlerTest {
       description = "ancestor_id=ami-122",
       ownerId = null,
       state = "available",
-      resourceType = IMAGE,
+      resourceType = ResourceType.IMAGE.toString(),
       cloudProvider = AWS,
       name = "123-xenial-hvm-sriov-ebs",
       creationDate = LocalDateTime.now().minusDays(3).toString()

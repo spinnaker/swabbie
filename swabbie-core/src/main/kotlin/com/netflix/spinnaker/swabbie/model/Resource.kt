@@ -25,13 +25,38 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 
-/** Resource Types **/
-const val SECURITY_GROUP = "securityGroup"
-const val IMAGE = "image"
-const val INSTANCE = "instance"
-const val LOAD_BALANCER = "loadBalancer"
-const val SERVER_GROUP = "serverGroup"
-const val LAUNCH_CONFIGURATION = "launchConfiguration"
+enum class ResourceType {
+  SECURITY_GROUP {
+    override fun toString(): String {
+      return "securityGroup"
+    }
+  },
+  IMAGE {
+    override fun toString(): String {
+      return "image"
+    }
+  },
+  INSTANCE {
+    override fun toString(): String {
+      return "instance"
+    }
+  },
+  LOAD_BALANCER {
+    override fun toString(): String {
+      return "loadBalancer"
+    }
+  },
+  SERVER_GROUP {
+    override fun toString(): String {
+      return "serverGroup"
+    }
+  },
+  LAUNCH_CONFIGURATION {
+    override fun toString(): String {
+      return "launchConfiguration"
+    }
+  }
+}
 
 /** Provider Types **/
 const val AWS = "aws"

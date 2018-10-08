@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.images
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.IMAGE
+import com.netflix.spinnaker.swabbie.model.ResourceType
 
 @JsonTypeName("amazonImage")
 data class AmazonImage(
@@ -28,7 +28,7 @@ data class AmazonImage(
   val description: String?,
   val state: String,
   override val resourceId: String = imageId,
-  override val resourceType: String = IMAGE,
+  override val resourceType: String = ResourceType.IMAGE.toString(),
   override val cloudProvider: String = AWS,
   override val name: String?,
   private val creationDate: String?

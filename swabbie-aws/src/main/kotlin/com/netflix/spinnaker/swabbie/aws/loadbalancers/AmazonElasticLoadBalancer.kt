@@ -19,12 +19,12 @@ package com.netflix.spinnaker.swabbie.aws.loadbalancers
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
+import com.netflix.spinnaker.swabbie.model.ResourceType
 
 @JsonTypeName("amazonElasticLoadBalancer")
 data class AmazonElasticLoadBalancer(
   private val loadBalancerName: String?, //TODO: stupid hack, fix this
-  override val resourceType: String = LOAD_BALANCER,
+  override val resourceType: String = ResourceType.LOAD_BALANCER.toString(),
   override val name: String = loadBalancerName!!,
   override val resourceId: String = loadBalancerName!!,
   override val cloudProvider: String = AWS,

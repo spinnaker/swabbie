@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.securitygroups
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import com.netflix.spinnaker.swabbie.model.ResourceType
 
 @JsonTypeName("amazonSecurityGroup")
 data class AmazonSecurityGroup(
@@ -30,7 +30,7 @@ data class AmazonSecurityGroup(
   val ownerId: String,
   override val resourceId: String = groupId,
   override val name: String = groupName,
-  override val resourceType: String = SECURITY_GROUP,
+  override val resourceType: String = ResourceType.SECURITY_GROUP.toString(),
   override val cloudProvider: String = AWS,
   private val creationDate: String?
 ) : AmazonResource(creationDate)

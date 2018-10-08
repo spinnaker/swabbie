@@ -136,7 +136,8 @@ class AmazonSecurityGroupHandler(
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean
-    = workConfiguration.resourceType == SECURITY_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+    = workConfiguration.resourceType == ResourceType.SECURITY_GROUP.toString()
+    && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
     securityGroupProvider.getAll(

@@ -23,7 +23,7 @@ import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.edda.EddaService
-import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.model.ResourceType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -58,7 +58,7 @@ open class EddaAutoScalingGroupProvider(
         this.getAutoScalingGroups()
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      registry.counter(eddaFailureCountId.withTags("resourceType", ResourceType.SERVER_GROUP.toString())).increment()
       log.error("failed to get server groups", e)
       throw e
     }
@@ -78,7 +78,7 @@ open class EddaAutoScalingGroupProvider(
         }
       }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      registry.counter(eddaFailureCountId.withTags("resourceType", ResourceType.SERVER_GROUP.toString())).increment()
       log.error("failed to get server group {}", autoScalingGroupName, e)
       throw e
     }

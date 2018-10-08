@@ -174,7 +174,8 @@ class AmazonImageHandler(
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =
-    workConfiguration.resourceType == IMAGE && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+    workConfiguration.resourceType == ResourceType.IMAGE.toString()
+      && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonImage>? {
     val params = Parameters(

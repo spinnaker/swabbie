@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.instances
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.INSTANCE
+import com.netflix.spinnaker.swabbie.model.ResourceType
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -30,7 +30,7 @@ data class AmazonInstance(
   val imageId: String,
   private val launchTime: Long,
   override val resourceId: String = instanceId,
-  override val resourceType: String = INSTANCE,
+  override val resourceType: String = ResourceType.INSTANCE.toString(),
   override val cloudProvider: String = AWS,
   override val name: String = instanceId,
   private val creationDate: String? =

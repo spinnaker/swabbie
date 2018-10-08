@@ -35,8 +35,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
-import rx.Scheduler
-import rx.schedulers.Schedulers
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -61,7 +59,6 @@ class OrcaTaskMonitoringAgent (
 ) : DiscoveryActivated, MetricsSupport(registry) {
 
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private val worker: Scheduler.Worker = Schedulers.io().createWorker()
   private val executorService = Executors.newSingleThreadScheduledExecutor()
 
   private val timeoutMillis: Long = 5000

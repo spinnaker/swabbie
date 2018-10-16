@@ -110,7 +110,7 @@ class AmazonImageHandler(
   }
 
   override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    val tags = mapOf("swabbie" to "about_to_be_deleted")
+    val tags = mapOf("spinnaker:swabbie" to "about_to_be_deleted")
     val taskIds = tagResources(
       "Adding tag to indicate soft deletion",
       Action.SOFTDELETE,

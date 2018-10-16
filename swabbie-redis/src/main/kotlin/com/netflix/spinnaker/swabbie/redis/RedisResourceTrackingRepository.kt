@@ -30,7 +30,7 @@ import java.time.Instant
 
 @Component
 class RedisResourceTrackingRepository(
-  @Qualifier("redisClientSelector") redisClientSelector: RedisClientSelector,
+  redisClientSelector: RedisClientSelector,
   private val objectMapper: ObjectMapper,
   private val clock: Clock
 ) : ResourceTrackingRepository {

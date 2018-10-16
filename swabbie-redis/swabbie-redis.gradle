@@ -20,6 +20,7 @@ dependencies {
   compile spinnaker.dependency('jedis')
   compile spinnaker.dependency('korkJedis')
   compile spinnaker.dependency('korkDynomite')
+  compile spinnaker.dependency('korkTest')
 
   testCompile spinnaker.dependency('korkJedisTest')
   testCompile project(":swabbie-test")

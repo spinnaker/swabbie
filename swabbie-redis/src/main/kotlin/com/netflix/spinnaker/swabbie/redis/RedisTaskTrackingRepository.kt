@@ -24,7 +24,6 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskState
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
-import net.logstash.logback.argument.StructuredArguments.kv
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -34,7 +33,7 @@ import java.util.concurrent.TimeUnit
 
 @Component
 class RedisTaskTrackingRepository(
-  @Qualifier("redisClientSelector") redisClientSelector: RedisClientSelector,
+  redisClientSelector: RedisClientSelector,
   private val objectMapper: ObjectMapper,
   private val clock: Clock
 ) : TaskTrackingRepository {
@@ -141,6 +140,8 @@ class RedisTaskTrackingRepository(
   //todo eb: this actually cleans up running tasks as well
   override fun cleanUpFinishedTasks(daysToLeave: Int) {
     val allBefore: Set<String> = getAllBefore(daysToLeave)
+    if (allBefore.isEmpty()) return
+
     log.debug("Cleaning ${allBefore.size} tasks")
     redisClientDelegate.withCommandsClient { client ->
       client.hdel(TASK_STATUS_KEY, *allBefore.toTypedArray())

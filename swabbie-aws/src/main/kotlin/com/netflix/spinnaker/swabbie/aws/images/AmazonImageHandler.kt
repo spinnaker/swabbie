@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.images
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
@@ -27,12 +28,10 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.*
-import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
-import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -60,7 +59,9 @@ class AmazonImageHandler(
   private val orcaService: OrcaService,
   private val applicationsCaches: List<InMemoryCache<Application>>,
   private val taggingService: TaggingService,
-  private val taskTrackingRepository: TaskTrackingRepository
+  private val taskTrackingRepository: TaskTrackingRepository,
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
+  private val swabbieProperties: SwabbieProperties
 ) : AbstractResourceTypeHandler<AmazonImage>(
   registry,
   clock,
@@ -224,6 +225,7 @@ class AmazonImageHandler(
         setUsedByInstances(images, params)
         setUsedByLaunchConfigurations(images, params)
         setHasSiblings(images, params)
+        setSeenWithinUnusedThreshold(images)
       } catch (e: Exception) {
         log.error("Failed to check image references. Params: {}", params, e)
         throw IllegalStateException("Unable to process ${images.size} images. Params: $params", e)
@@ -249,8 +251,13 @@ class AmazonImageHandler(
       images.filter {
         NAIVE_EXCLUSION !in it.details && USED_BY_INSTANCES !in it.details
       }.forEach { image ->
-        onMatchedImages(instances.map { it.imageId }, image) {
+        onMatchedImages(
+          instances.map { amazonInstance ->
+            SlimAwsResource(amazonInstance.name, amazonInstance.imageId, amazonInstance.getAutoscalingGroup().orEmpty())},
+            image
+        ) { usedByResource ->
           image.set(USED_BY_INSTANCES, true)
+          resourceUseTrackingRepository.recordUse(image.resourceId, usedByResource)
           log.debug("Image {} ({}) in {} is USED_BY_INSTANCES", image.imageId, image.name, params["region"])
         }
       }
@@ -276,8 +283,18 @@ class AmazonImageHandler(
           USED_BY_INSTANCES !in it.details &&
           USED_BY_LAUNCH_CONFIGURATIONS !in it.details
       }.forEach { image ->
-        onMatchedImages(launchConfigurations.map { it.imageId }, image) {
+        onMatchedImages(
+          launchConfigurations.map { launchConfiguration ->
+            SlimAwsResource(
+              launchConfiguration.resourceId,
+              launchConfiguration.imageId,
+              launchConfiguration.getAutoscalingGroupName()
+            )
+          },
+          image
+        ) { usedByResource ->
           log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_CONFIGURATIONS", image.imageId, image.name, params["region"])
+          resourceUseTrackingRepository.recordUse(image.resourceId, usedByResource)
           image.set(USED_BY_LAUNCH_CONFIGURATIONS, true)
         }
       }
@@ -324,6 +341,34 @@ class AmazonImageHandler(
   }
 
   /**
+   * Checks if an image has been seen in use recently.
+   */
+  private fun setSeenWithinUnusedThreshold(images: List<AmazonImage>) {
+    log.info("Checking for images that haven't been seen in more than ${swabbieProperties.outOfUseThresholdDays} days")
+    val unseenImages: Map<String, String> = resourceUseTrackingRepository
+      .getUnused()
+      .map {
+        it.resourceIdentifier to it.usedByResourceIdentifier
+     }.toMap()
+
+    images.filter {
+      NAIVE_EXCLUSION !in it.details &&
+        USED_BY_INSTANCES !in it.details &&
+        USED_BY_LAUNCH_CONFIGURATIONS !in it.details &&
+        HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details &&
+        IS_BASE_OR_ANCESTOR !in it.details
+    }.forEach { image ->
+      if (!unseenImages.containsKey(image.imageId)) {
+        // Image is not in list of unseen, so we've seen it recently
+        //  set that on image
+        // If there are no unseen images, this will set the key on every image.
+        image.set(SEEN_IN_USE_RECENTLY, true)
+        log.debug("Image {} ({}) has been SEEN_IN_USE_RECENTLY", kv("imageId", image.imageId), image.name)
+      }
+    }
+  }
+
+  /**
    * Get images in accounts. Used to check for siblings in those accounts.
    */
   private fun getImagesFromOtherAccounts(
@@ -346,10 +391,10 @@ class AmazonImageHandler(
     return result
   }
 
-  private fun onMatchedImages(ids: List<String>, image: AmazonImage, onFound: () -> Unit) {
+  private fun onMatchedImages(ids: List<SlimAwsResource>, image: AmazonImage, onFound: (String) -> Unit) {
     ids.forEach {
-      if (image.imageId == it) {
-        onFound.invoke()
+      if (image.imageId == it.imageId) {
+        onFound.invoke(it.usedByResourceName)
       }
     }
   }
@@ -374,3 +419,9 @@ private fun AmazonImage.isAncestorOf(image: AmazonImage): Boolean {
 private fun AmazonImage.matches(image: AmazonImage): Boolean {
   return name == image.name || imageId == image.imageId
 }
+
+private data class SlimAwsResource(
+  val id: String,
+  val imageId: String,
+  val usedByResourceName: String
+)

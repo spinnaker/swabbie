@@ -35,7 +35,7 @@ import java.time.Clock
 class ResourceTrackingManager(
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val clock: Clock,
-  private val registry: Registry
+  registry: Registry
 ) : MetricsSupport(registry) {
 
   private val log: Logger = LoggerFactory.getLogger(javaClass)

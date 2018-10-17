@@ -19,10 +19,18 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
+import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -34,7 +42,7 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.util.*
+import java.util.Optional
 import kotlin.system.measureTimeMillis
 
 @Component
@@ -157,7 +165,7 @@ class AmazonAutoScalingGroupHandler(
       }
     }
 
-    log.info("Completed checking references for {} server groups in $elapsedTimeMillis ms. Params: {}",
+    log.info("Completed checking references for {} server groups in ${elapsedTimeMillis}ms. Params: {}",
       serverGroups.size, params)
   }
 

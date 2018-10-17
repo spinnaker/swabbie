@@ -38,7 +38,10 @@ data class WorkConfiguration(
   val maxAge: Int = 14,
   val maxItemsProcessedPerCycle: Int = 10,
   val itemsProcessedBatchSize: Int = 5
-)
+) {
+
+  fun toLog(): String = "$namespace/$account/$location/$cloudProvider/$resourceType"
+}
 
 class EmptyNotificationConfiguration : NotificationConfiguration(
   enabled = false,

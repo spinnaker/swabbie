@@ -19,12 +19,13 @@ package com.netflix.spinnaker.swabbie.events
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.MetricsSupport
-import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
@@ -37,6 +38,8 @@ class ResourceStateManager(
   private val registry: Registry,
   @Autowired(required = false) private val resourceTagger: ResourceTagger?
 ) : MetricsSupport(registry) {
+
+  private val log = LoggerFactory.getLogger(javaClass)
 
   @EventListener
   fun handleEvents(event: Event) {
@@ -92,6 +95,8 @@ class ResourceStateManager(
         msg = generateFailureMessage(event)
         //todo eb: do we want this tagged here?
       }
+
+      else -> log.warn("Unknown event type: ${event.javaClass.simpleName}")
     }
 
     updateState(event)

@@ -22,20 +22,39 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.events.*
+import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
+import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
+import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
+import com.netflix.spinnaker.swabbie.events.SoftDeleteResourceEvent
+import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
+import com.netflix.spinnaker.swabbie.events.formatted
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AlwaysCleanRule
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import java.time.*
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.Period
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.time.temporal.ChronoUnit.DAYS
-import java.util.*
+import java.util.Optional
 import java.util.concurrent.atomic.AtomicInteger
 
 abstract class AbstractResourceTypeHandler<T : Resource>(
@@ -145,7 +164,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         callback.invoke()
       }
     } else {
-      log.warn("***Locking not ENABLED, continuing without locking for ${javaClass.simpleName}***")
+      log.warn("Locking not ENABLED, continuing without locking for ${javaClass.simpleName}")
       callback.invoke()
     }
   }
@@ -216,12 +235,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val totalResourcesVisitedCounter = AtomicInteger(0)
     val markedResources = mutableListOf<MarkedResource>()
     try {
-      log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration)
+      log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration.toLog())
       val candidates: List<T>? = getCandidates(workConfiguration)
       if (candidates == null || candidates.isEmpty()) {
         return
       }
-      log.info("fetched {} resources. Configuration: {}", candidates.size, workConfiguration)
+      log.info("Fetched {} resources. Configuration: {}", candidates.size, workConfiguration.toLog())
       totalResourcesVisitedCounter.set(candidates.size)
 
       val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
@@ -243,7 +262,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
           for (candidate in filteredCandidates) {
             if (candidateCounter.get() > maxItemsToProcess) {
-              log.info("Max items to process reached {}...", maxItemsToProcess)
+              log.info("Max items ({}) to process reached, short-circuiting", maxItemsToProcess)
               break
             }
 
@@ -346,6 +365,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ) {
     if (markedResource != null && !workConfiguration.dryRun) {
       try {
+        // TODO(rz): Log reason
         log.info("{} is no longer a candidate.", markedResource)
         resourceRepository.remove(markedResource)
         applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
@@ -367,7 +387,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       .days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
   }
 
-
   private fun printResult(
     candidateCounter: AtomicInteger,
     totalResourcesVisitedCounter: AtomicInteger,
@@ -376,16 +395,16 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     action: Action
   ) {
     val totalProcessed = Math.min(workConfiguration.maxItemsProcessedPerCycle, totalResourcesVisitedCounter.get())
-    log.info("** ${action.name} Summary: {} CANDIDATES OUT OF {} PROCESSED. {} SCANNED. EXCLUDED {}. CONFIGURATION: {}**",
+    log.info("${action.name} Summary: {} candidates out of {} processed. {} scanned. {} excluded. Configuration: {}",
       candidateCounter.get(),
       totalProcessed,
       totalResourcesVisitedCounter.get(),
       exclusionCounters[action],
-      workConfiguration
+      workConfiguration.toLog()
     )
 
     if (candidateCounter.get() > 0) {
-      log.debug("** ${action.name} Result. Configuration: {} **", workConfiguration)
+      log.debug("${action.name} Result. Configuration: {}", workConfiguration.toLog())
       markedResources.forEach {
         log.debug(it.toString())
       }
@@ -423,20 +442,20 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   private fun doSoftDelete(workConfiguration: WorkConfiguration, postSoftDelete: () -> Unit) {
     if (!workConfiguration.softDelete.enabled) {
-      log.debug("Soft delete not enabled for $workConfiguration")
+      log.debug("Soft delete not enabled for ${workConfiguration.toLog()}")
       return
     }
     exclusionCounters[Action.SOFTDELETE] = AtomicInteger(0)
     val candidateCounter = AtomicInteger(0)
     val softDeletedResources = mutableListOf<MarkedResource>()
     try {
-      log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration)
+      log.info("${javaClass.simpleName} running. Configuration: {}", workConfiguration.toLog())
       val resourcesToSoftDelete: List<MarkedResource> = resourceRepository.getMarkedResourcesToSoftDelete()
         .filter { it.notificationInfo != null && !workConfiguration.dryRun }
         .sortedBy { it.resource.createTs }
 
       if (resourcesToSoftDelete.isEmpty()) {
-        log.debug("Nothing to soft delete. Configuration: {}", workConfiguration)
+        log.debug("Nothing to soft delete. Configuration: {}", workConfiguration.toLog())
         return
       }
       log.debug("Found ${resourcesToSoftDelete.size} resource(s) to soft delete")
@@ -451,7 +470,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       if (candidates == null || candidates.isEmpty()) {
         resourcesToSoftDelete
           .forEach { ensureResourceUnmarked(it, workConfiguration) }
-        log.info("Nothing to delete. No upstream resources, Configuration: {}", workConfiguration)
+        log.info("Nothing to delete. No upstream resources, Configuration: {}", workConfiguration.toLog())
         return
       }
 
@@ -480,7 +499,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               softDeleteResources(partition, workConfiguration)
               candidateCounter.addAndGet(partition.size)
             } catch (e: Exception) {
-              log.error("Failed to soft delete $it. Configuration: {}", workConfiguration, e)
+              log.error("Failed to soft delete $it. Configuration: {}", workConfiguration.toLog(), e)
               recordFailureForAction(Action.SOFTDELETE, workConfiguration, e)
             }
           }
@@ -509,7 +528,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         .sortedBy { it.resource.createTs }
         .let { toDelete ->
           if (toDelete.isEmpty()) {
-            log.info("Nothing to delete. Configuration: {}", workConfiguration)
+            log.info("Nothing to delete. Configuration: {}", workConfiguration.toLog())
             return
           }
 
@@ -520,7 +539,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           if (candidates == null) {
             toDelete
               .forEach { ensureResourceUnmarked(it, workConfiguration) }
-            log.info("Nothing to delete. No upstream resources, Configuration: {}", workConfiguration)
+            log.info("Nothing to delete. No upstream resources. Configuration: {}", workConfiguration.toLog())
             return
           }
 
@@ -549,7 +568,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
                     deleteResources(partition, workConfiguration)
                     candidateCounter.addAndGet(partition.size)
                   } catch (e: Exception) {
-                    log.error("Failed to delete $it. Configuration: {}", workConfiguration, e)
+                    log.error("Failed to delete $it. Configuration: {}", workConfiguration.toLog(), e)
                     recordFailureForAction(Action.DELETE, workConfiguration, e)
                   }
                 }
@@ -607,7 +626,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val notifiedMarkedResource: MutableList<MarkedResource> = mutableListOf()
     try {
       if (workConfiguration.dryRun || !workConfiguration.notificationConfiguration.enabled) {
-        log.info("Notification not enabled for {}. Skipping...", workConfiguration)
+        log.info("Notification not enabled for {}. Skipping...", workConfiguration.toLog())
         return
       }
 
@@ -622,13 +641,14 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         }
 
       if (markedResources.isEmpty()) {
-        log.info("Nothing to notify. Skipping...", workConfiguration)
+        log.info("Nothing to notify for {}. Skipping...", workConfiguration.toLog())
         return
       }
 
       val maxItemsToProcess = Math.min(markedResources.size, workConfiguration.maxItemsProcessedPerCycle)
       markedResources.subList(0, maxItemsToProcess)
         .filter {
+          @Suppress("UNCHECKED_CAST")
           !shouldExcludeResource(it.resource as T, workConfiguration, optedOutResourceStates, Action.NOTIFY)
         }.groupBy {
           it.resourceOwner

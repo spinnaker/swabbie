@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.okhttp.SpinnakerRequestInterceptor
 import com.netflix.spinnaker.swabbie.clouddriver.CloudDriverService
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -29,6 +30,7 @@ import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
+@ConditionalOnExpression("!\${eddaEndpoints.enabled:false}")
 @Configuration
 @Import(RetrofitConfiguration::class)
 open class ClouddriverConfiguration {

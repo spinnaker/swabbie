@@ -18,13 +18,17 @@ package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.edda.EddaEndpointsService
 import com.netflix.spinnaker.swabbie.edda.EddaService
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RequestInterceptor
 import retrofit.RestAdapter
@@ -59,6 +63,27 @@ open class EddaConfiguration {
       }
     }.flatten()
   }
+
+  @ConditionalOnExpression("\${eddaEndpoints.enabled:false}")
+  @Bean
+  open fun eddaEndpointsEndpoint(@Value("\${eddaEndpoints.baseUrl}") eddaEndpointsBaseUrl: String) : Endpoint {
+    return Endpoints.newFixedEndpoint(eddaEndpointsBaseUrl)!!
+  }
+
+  @ConditionalOnExpression("\${eddaEndpoints.enabled:false}")
+  @Bean
+  open fun eddaEndpointsService(eddaEndpointsEndpoint: Endpoint,
+                                objectMapper: ObjectMapper,
+                                retrofitClient: Client,
+                                spinnakerRequestInterceptor: RequestInterceptor,
+                                retrofitLogLevel: RestAdapter.LogLevel) = RestAdapter.Builder()
+    .setRequestInterceptor(spinnakerRequestInterceptor)
+    .setEndpoint(eddaEndpointsEndpoint)
+    .setClient(retrofitClient)
+    .setLogLevel(retrofitLogLevel)
+    .setConverter(JacksonConverter(objectMapper))
+    .build()
+    .create(EddaEndpointsService::class.java)
 }
 
 data class EddaApiClient(

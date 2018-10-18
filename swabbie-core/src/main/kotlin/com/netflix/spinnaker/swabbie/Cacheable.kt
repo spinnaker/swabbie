@@ -39,7 +39,7 @@ open class InMemoryCache<out T : Cacheable>(
 
   private val cache = AtomicReference<Set<T>>()
 
-  @Scheduled(fixedDelay = 60 * 60 * 1000L) //TODO: make configurable
+  @Scheduled(fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
   private fun refresh() {
     try {
       cache.set(source)

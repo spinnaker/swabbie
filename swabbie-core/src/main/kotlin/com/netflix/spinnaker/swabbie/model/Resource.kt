@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
+import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -114,6 +115,7 @@ interface MarkedResourceInterface : Identifiable {
   var markTs: Long?
   var updateTs: Long?
   val resourceOwner: String
+  var lastSeenInfo: LastSeenInfo?
 }
 
 /**
@@ -129,22 +131,24 @@ data class MarkedResource(
   override var notificationInfo: NotificationInfo? = null,
   override var markTs: Long? = null,
   override var updateTs: Long? = null,
-  override var resourceOwner: String = ""
+  override var resourceOwner: String = "",
+  override var lastSeenInfo: LastSeenInfo? = null
 ) : MarkedResourceInterface, Identifiable by resource {
   fun slim(): SlimMarkedResource {
     return SlimMarkedResource(
-      summaries,
-      namespace,
-      projectedSoftDeletionStamp,
-      projectedDeletionStamp,
-      notificationInfo,
-      markTs,
-      updateTs,
-      resourceOwner,
-      resource.resourceId,
-      resource.resourceType,
-      resource.cloudProvider,
-      resource.name
+      summaries = summaries,
+      namespace = namespace,
+      projectedSoftDeletionStamp = projectedSoftDeletionStamp,
+      projectedDeletionStamp = projectedDeletionStamp,
+      notificationInfo = notificationInfo,
+      markTs = markTs,
+      updateTs = updateTs,
+      resourceOwner = resourceOwner,
+      resourceId = resource.resourceId,
+      resourceType = resource.resourceType,
+      cloudProvider = resource.cloudProvider,
+      name = resource.name,
+      lastSeenInfo = lastSeenInfo
     )
   }
 
@@ -165,7 +169,8 @@ data class SlimMarkedResource (
   override val resourceId: String,
   override val resourceType: String,
   override val cloudProvider: String,
-  override val name: String?
+  override val name: String?,
+  override var lastSeenInfo: LastSeenInfo? = null
 ) : MarkedResourceInterface
 
 data class NotificationInfo(

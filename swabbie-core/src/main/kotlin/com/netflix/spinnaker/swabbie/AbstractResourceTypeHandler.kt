@@ -31,19 +31,11 @@ import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.formatted
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
-import com.netflix.spinnaker.swabbie.model.AlwaysCleanRule
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.NotificationInfo
-import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
-import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
-import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.model.Rule
-import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -68,7 +60,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private val notifiers: List<Notifier>,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val lockingService: Optional<LockingService>,
-  private val retrySupport: RetrySupport
+  private val retrySupport: RetrySupport,
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository
 ) : ResourceTypeHandler<T>, MetricsSupport(registry) {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   private val resourceOwnerField: String = "swabbieResourceOwner"
@@ -173,29 +166,16 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val resource = getCandidate(resourceId, "", workConfiguration)
       ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
 
-    var markedResource = resourceRepository.find(resourceId, workConfiguration.namespace)
-
-    if (markedResource != null) {
-      markedResource = markedResource.copy(
+    var markedResource = MarkedResource(
         resource = resource,
         summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
         namespace = workConfiguration.namespace,
         resourceOwner = onDemandMarkData.resourceOwner,
         projectedSoftDeletionStamp = onDemandMarkData.projectedSoftDeletionStamp,
         projectedDeletionStamp = onDemandMarkData.projectedDeletionStamp,
-        notificationInfo = onDemandMarkData.notificationInfo
+        notificationInfo = onDemandMarkData.notificationInfo,
+        lastSeenInfo = onDemandMarkData.lastSeenInfo
       )
-    } else {
-      markedResource = MarkedResource(
-        resource = resource,
-        summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
-        namespace = workConfiguration.namespace,
-        resourceOwner = onDemandMarkData.resourceOwner,
-        projectedSoftDeletionStamp = onDemandMarkData.projectedSoftDeletionStamp,
-        projectedDeletionStamp = onDemandMarkData.projectedDeletionStamp,
-        notificationInfo = onDemandMarkData.notificationInfo
-      )
-    }
 
     log.debug("Marking resource $resourceId in namespace ${workConfiguration.namespace} without checking rules.")
     resourceRepository.upsert(markedResource)
@@ -308,7 +288,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
                       namespace = workConfiguration.namespace,
                       resourceOwner = candidate.details[resourceOwnerField] as String,
                       projectedSoftDeletionStamp = softDeletionTimestamp(workConfiguration),
-                      projectedDeletionStamp = deletionTimestamp(workConfiguration)
+                      projectedDeletionStamp = deletionTimestamp(workConfiguration),
+                      lastSeenInfo = resourceUseTrackingRepository.getLastSeenInfo(candidate.resourceId)
                     )
 
                     if (!workConfiguration.dryRun) {
@@ -734,7 +715,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         if (notificationType.equals(Notifier.NotificationType.EMAIL.name, true)) {
           val notificationContext = mapOf(
             "resourceOwner" to owner,
-            "resources" to resources,
+            "resources" to resources.map { it.slim() },
             "configuration" to workConfiguration,
             "resourceType" to workConfiguration.resourceType.formatted(),
             "spinnakerLink" to workConfiguration.notificationConfiguration.resourceUrl,

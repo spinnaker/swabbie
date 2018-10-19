@@ -83,6 +83,20 @@ class RedisResourceUseTrackingRepository(
     return hydrateLastSeen(keys)
   }
 
+  override fun getUsed(): Set<String> {
+    return redisClientDelegate.withCommandsClient<Set<String>> { client ->
+      client.zrangeByScore(READY_FOR_CLEANING, clock.instant().toEpochMilli().toDouble(), Double.MAX_VALUE)
+    }
+  }
+
+  override fun getLastSeenInfo(resourceIdentifier: String): LastSeenInfo? {
+    return redisClientDelegate.withCommandsClient<String> { client ->
+      client.hget(LAST_SEEN, resourceIdentifier)
+    }?.let {
+      objectMapper.readValue(it, LastSeenInfo::class.java)
+    }
+  }
+
   private fun hydrateLastSeen(keys: Set<String>): List<LastSeenInfo> {
     if (keys.isEmpty()) return emptyList()
     return redisClientDelegate.withCommandsClient<Set<String>> { client ->

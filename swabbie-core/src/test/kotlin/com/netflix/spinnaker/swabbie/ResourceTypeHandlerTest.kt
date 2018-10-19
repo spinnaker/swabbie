@@ -56,10 +56,48 @@ object ResourceTypeHandlerTest {
   private val retrySupport = RetrySupport()
   private val ownerResolver = mock<ResourceOwnerResolver<TestResource>>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
+  private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
 
   private val postAction: (resource: List<Resource>) -> Unit = {
     println("swabbie post action on $it")
   }
+
+  private val defaultResource = TestResource(resourceId = "testResource", name = "testResourceName")
+  private val defaultHandler = TestResourceTypeHandler(
+    clock = clock,
+    rules = listOf(TestRule(
+      invalidOn = { defaultResource.resourceId == "testResource" },
+      summary = Summary("violates rule 1", "ruleName"))
+    ),
+    resourceTrackingRepository = resourceRepository,
+    resourceStateRepository = resourceStateRepository,
+    exclusionPolicies = listOf(mock()),
+    ownerResolver = ownerResolver,
+    applicationEventPublisher = applicationEventPublisher,
+    simulatedCandidates = mutableListOf(defaultResource),
+    notifiers = listOf(mock()),
+    lockingService = lockingService,
+    retrySupport = retrySupport,
+    taskTrackingRepository = taskTrackingRepository,
+    resourceUseTrackingRepository = resourceUseTrackingRepository
+  )
+  private val alwaysInvalidHandler = TestResourceTypeHandler(
+    clock = clock,
+    rules = listOf(
+      TestRule({ true }, Summary("always invalid", "rule1"))
+    ),
+    resourceTrackingRepository = resourceRepository,
+    resourceStateRepository = resourceStateRepository,
+    ownerResolver = ownerResolver,
+    exclusionPolicies = listOf(LiteralExclusionPolicy()),
+    applicationEventPublisher = applicationEventPublisher,
+    simulatedCandidates = mutableListOf(defaultResource),
+    notifiers = listOf(mock()),
+    lockingService = lockingService,
+    retrySupport = retrySupport,
+    taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+    resourceUseTrackingRepository = resourceUseTrackingRepository
+  )
 
   @BeforeEach
   fun setup() {
@@ -73,28 +111,9 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should track a violating resource`() {
-    val resource = TestResource("testResource")
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(TestRule(
-        invalidOn = { resource.resourceId == "testResource" },
-        summary = Summary("violates rule 1", "ruleName"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      exclusionPolicies = listOf(mock()),
-      ownerResolver = ownerResolver,
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = taskTrackingRepository
-    )
+    whenever(ownerResolver.resolve(defaultResource)) doReturn "lucious-mayweather@netflix.com"
 
-    whenever(ownerResolver.resolve(resource)) doReturn "lucious-mayweather@netflix.com"
-
-    handler.mark(workConfiguration = workConfiguration(), postMark = { postAction(listOf(resource)) })
+    defaultHandler.mark(workConfiguration = workConfiguration(), postMark = { postAction(listOf(defaultResource)) })
 
     inOrder(resourceRepository, applicationEventPublisher) {
       verify(resourceRepository).upsert(any(), any(), any())
@@ -127,7 +146,8 @@ object ResourceTypeHandlerTest {
       simulatedCandidates = resources.toMutableList(),
       lockingService = lockingService,
       retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -146,6 +166,24 @@ object ResourceTypeHandlerTest {
     val candidates = mutableListOf(
       TestResource("1"),
       TestResource("2")
+    )
+
+    val handler = TestResourceTypeHandler(
+      clock = clock,
+      rules = listOf(
+        TestRule({ true }, Summary("always invalid", "rule1"))
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(LiteralExclusionPolicy()),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedCandidates = candidates,
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository
     )
 
     val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
@@ -180,23 +218,6 @@ object ResourceTypeHandlerTest {
         )
       )
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule({ true }, Summary("always invalid", "rule1"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(mock()),
-      notifiers = listOf(mock()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = candidates,
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
-    )
-
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
     handler.delete(workConfiguration = configuration, postDelete = { postAction(candidates) })
@@ -207,7 +228,6 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should ignore resource using exclusion strategies`() {
-    val resource = TestResource(resourceId = "testResource", name = "testResourceName")
     // configuration with a name exclusion strategy
     val configuration = workConfiguration(exclusions = listOf(
       Exclusion()
@@ -216,31 +236,14 @@ object ResourceTypeHandlerTest {
           listOf(
             Attribute()
               .withKey("name")
-              .withValue(listOf(resource.name))
+              .withValue(listOf(defaultResource.name))
           )
         )
     ))
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule({ true }, Summary("always invalid", "rule1"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(LiteralExclusionPolicy()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
-    )
-
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
-    handler.mark(workConfiguration = configuration, postMark = { postAction(listOf(resource)) })
+    alwaysInvalidHandler.mark(workConfiguration = configuration, postMark = { postAction(listOf(defaultResource)) })
 
     verify(applicationEventPublisher, never()).publishEvent(any())
     verify(resourceRepository, never()).upsert(any(), any(), any())
@@ -277,7 +280,8 @@ object ResourceTypeHandlerTest {
       notifiers = listOf(mock()),
       lockingService = lockingService,
       retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository
     )
 
     whenever(ownerResolver.resolve(resource1)) doReturn  "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
@@ -331,26 +335,7 @@ object ResourceTypeHandlerTest {
         )
       )
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule({ true }, Summary("always invalid", "rule1"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(LiteralExclusionPolicy()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
-    )
-
-    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
-
-    handler.delete(
+    alwaysInvalidHandler.delete(
       workConfiguration = configuration,
       postDelete = { postAction(listOf(resource)) }
     )
@@ -392,26 +377,10 @@ object ResourceTypeHandlerTest {
         )
       )
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule({ true }, Summary("always invalid", "rule1"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(LiteralExclusionPolicy()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
-    )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
-    handler.mark(
+    alwaysInvalidHandler.mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(resource)) }
     )
@@ -474,7 +443,8 @@ object ResourceTypeHandlerTest {
       notifiers = listOf(mock()),
       lockingService = lockingService,
       retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository
     )
 
     val result = handler.partitionList(markedResources, configuration)
@@ -489,10 +459,9 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should forget resource if no longer violate a rule`() {
-    val resource = TestResource(resourceId = "testResource")
     val configuration = workConfiguration()
     val markedResource = MarkedResource(
-      resource = resource,
+      resource = defaultResource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
       namespace = configuration.namespace, //todod eb: fix tests for new marked resource
       projectedDeletionStamp = clock.millis(),
@@ -512,17 +481,18 @@ object ResourceTypeHandlerTest {
       ownerResolver = ownerResolver,
       exclusionPolicies = listOf(mock()),
       applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource),
+      simulatedCandidates = mutableListOf(defaultResource),
       notifiers = listOf(mock()),
       lockingService = lockingService,
       retrySupport = mock(),
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock)
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     handler.mark(
       workConfiguration = configuration,
-      postMark = { postAction(listOf(resource)) }
+      postMark = { postAction(listOf(defaultResource)) }
     )
 
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -585,7 +555,8 @@ object ResourceTypeHandlerTest {
     registry: Registry = NoopRegistry(),
     lockingService: Optional<LockingService>,
     retrySupport: RetrySupport,
-    taskTrackingRepository: TaskTrackingRepository
+    taskTrackingRepository: TaskTrackingRepository,
+    resourceUseTrackingRepository: ResourceUseTrackingRepository
   ) : AbstractResourceTypeHandler<TestResource>(
     registry,
     clock,
@@ -597,7 +568,8 @@ object ResourceTypeHandlerTest {
     notifiers,
     applicationEventPublisher,
     lockingService,
-    retrySupport
+    retrySupport,
+    resourceUseTrackingRepository
   ) {
     override fun deleteResources(
       markedResources: List<MarkedResource>,

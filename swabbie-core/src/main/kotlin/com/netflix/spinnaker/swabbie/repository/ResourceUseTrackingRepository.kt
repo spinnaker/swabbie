@@ -29,7 +29,14 @@ interface ResourceUseTrackingRepository {
    */
   fun getUnused(): List<LastSeenInfo>
 
+  /**
+   * gets all resources that we have seen in use within the threshold
+   */
+  fun getUsed(): Set<String>
+
   fun isUnused(resourceIdentifier: String): Boolean
+
+  fun getLastSeenInfo(resourceIdentifier: String): LastSeenInfo?
 
   /**
    * Returns true if data is present for the whole outOfUseThreshold period.
@@ -40,7 +47,7 @@ interface ResourceUseTrackingRepository {
 }
 
 data class LastSeenInfo(
-  val resourceIdentifier: String,
-  val usedByResourceIdentifier: String,
+  val resourceId: String,
+  val usedByResourceId: String,
   val timeSeen: Long
 )

@@ -30,10 +30,7 @@ import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
-import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.*
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -55,7 +52,8 @@ class AmazonLoadBalancerHandler(
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService,
-  private val taskTrackingRepository: TaskTrackingRepository
+  private val taskTrackingRepository: TaskTrackingRepository,
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository
 ) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(
   registry,
   clock,
@@ -67,7 +65,8 @@ class AmazonLoadBalancerHandler(
   notifiers,
   applicationEventPublisher,
   lockingService,
-  retrySupport
+  retrySupport,
+  resourceUseTrackingRepository
 ) {
   override fun deleteResources(
     markedResources: List<MarkedResource>,

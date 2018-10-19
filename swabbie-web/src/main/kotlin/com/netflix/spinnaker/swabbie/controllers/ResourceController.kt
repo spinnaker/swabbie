@@ -48,6 +48,11 @@ class ResourceController(
     }
   }
 
+  @RequestMapping(value = ["/numMarked"], method = [RequestMethod.GET])
+  fun numberMarkedResources(): Int {
+    return resourceTrackingRepository.getMarkedResources().count()
+  }
+
   @RequestMapping(value = ["/marked/{namespace}"], method = [RequestMethod.GET])
   fun markedResource(
     @PathVariable namespace: String,

@@ -310,32 +310,42 @@ class AmazonImageHandler(
   ) {
     log.info("Checking for sibling images.")
     val imagesInOtherAccounts = getImagesFromOtherAccounts(params)
-    images.filter {
+
+    val otherImagesIdToAccount = imagesInOtherAccounts
+      .map { (image, account) ->
+        image.imageId to account.accountId
+      }.toMap()
+
+    val otherImageDescrToImageId = imagesInOtherAccounts
+      .filter { (image, account) ->
+        image.description != null
+      }.map { (image, account) ->
+        image.description!! to image.imageId
+      }.toMap()
+
+    val filteredImages = images.filter {
       NAIVE_EXCLUSION !in it.details &&
         USED_BY_INSTANCES !in it.details &&
         USED_BY_LAUNCH_CONFIGURATIONS !in it.details &&
         HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details &&
         IS_BASE_OR_ANCESTOR !in it.details
-    }.forEach { image ->
-      if (images.any { image.isAncestorOf(it) && image != it }) {
+    }
+
+    val imageDescrToImageId = filteredImages
+      .filter { it.description != null }
+      .map { it.description!! to it.imageId }
+      .toMap()
+
+    filteredImages.forEach { image ->
+      if (isAncestor(imageDescrToImageId, image) || isAncestor(otherImageDescrToImageId, image)) {
         image.set(IS_BASE_OR_ANCESTOR, true)
         image.set(NAIVE_EXCLUSION, true)
         log.debug("Image {} ({}) in {} is IS_BASE_OR_ANCESTOR", image.imageId, image.name, params["region"])
       }
 
-      for (pair in imagesInOtherAccounts) {
-        if (image.isAncestorOf(pair.first)) {
-          image.set(IS_BASE_OR_ANCESTOR, true)
-          image.set(NAIVE_EXCLUSION, true)
-          log.debug("Image {} ({}) in {} is IS_BASE_OR_ANCESTOR", image.imageId, image.name, params["region"])
-          break
-        }
-
-        if (pair.first.matches(image)) {
-          image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
-          log.debug("Image {} ({}) in {} is HAS_SIBLINGS_IN_OTHER_ACCOUNTS", image.imageId, image.name, params["region"])
-          break
-        }
+      if (otherImagesIdToAccount.containsKey(image.imageId)) {
+        image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
+        log.debug("Image {} ({}) in {} is HAS_SIBLINGS_IN_OTHER_ACCOUNTS", image.imageId, image.name, params["region"])
       }
     }
   }
@@ -345,6 +355,10 @@ class AmazonImageHandler(
    */
   private fun setSeenWithinUnusedThreshold(images: List<AmazonImage>) {
     log.info("Checking for images that haven't been seen in more than ${swabbieProperties.outOfUseThresholdDays} days")
+    if (swabbieProperties.outOfUseThresholdDays == 0) {
+      log.info("Bypassing seen in use check, since `swabbieProperties.outOfUseThresholdDays` is 0")
+      return
+    }
     val unseenImages: Map<String, String> = resourceUseTrackingRepository
       .getUnused()
       .map {
@@ -411,9 +425,8 @@ class AmazonImageHandler(
 }
 
 // TODO: specific to netflix pattern. make generic
-private fun AmazonImage.isAncestorOf(image: AmazonImage): Boolean {
-  return image.description != null && (image.description.contains("ancestor_id=${this.imageId}")
-    || image.description.contains("ancestor_name=${this.name}"))
+private fun isAncestor( images: Map<String, String>, image: AmazonImage): Boolean {
+  return images.containsKey("ancestor_id=${image.imageId}") || images.containsKey("ancestor_name=${image.name}")
 }
 
 private fun AmazonImage.matches(image: AmazonImage): Boolean {

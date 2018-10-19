@@ -65,7 +65,7 @@ object AmazonImageHandlerTest {
   private val taggingService = mock<TaggingService>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
-  private val swabbieProperties = mock<SwabbieProperties>()
+  private val swabbieProperties = SwabbieProperties()
 
   private val subject = AmazonImageHandler(
     clock = clock,

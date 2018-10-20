@@ -20,10 +20,10 @@ import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
 
-@ConditionalOnBean(CloudDriverService::class)
+@ConditionalOnExpression("!\${eddaEndpoints.enabled:false}")
 @Component
 class ClouddriverAccountProvider(
   private val accountCache: InMemoryCache<SpinnakerAccount>
@@ -31,7 +31,7 @@ class ClouddriverAccountProvider(
   override fun getAccounts(): Set<Account> = accountCache.get()
 }
 
-@ConditionalOnBean(CloudDriverService::class)
+@ConditionalOnExpression("!\${eddaEndpoints.enabled:false}")
 @Component
 class ClouddriverAccountCache(
   cloudDriverService: CloudDriverService

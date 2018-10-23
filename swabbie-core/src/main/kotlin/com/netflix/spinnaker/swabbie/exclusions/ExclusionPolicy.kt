@@ -105,6 +105,11 @@ interface ExclusionPolicy {
     return instance.javaClass.kotlin.memberProperties.first { it.name == propertyName }.get(instance) as R
   }
 
+  /**
+   * Takes a list of config-defined exlusions.
+   * For each exclusion that matches the type we're considering,
+   * transform all information into a key,values that make up this policy
+   */
   fun keysAndValues(exclusions: List<Exclusion>, type: ExclusionType): Map<String, List<String>> {
     val map = mutableMapOf<String, List<String>>()
     exclusions.filter {
@@ -146,6 +151,10 @@ data class ExclusionResult(
 )
 
 interface Excludable : Identifiable {
+  /**
+   * @param exclusionPolicies: all possible policies defined in code
+   * @param exclusions: actual configured policies based on swabbie.yml
+   */
   fun shouldBeExcluded(exclusionPolicies: List<ExclusionPolicy>, exclusions: List<Exclusion>): ExclusionResult {
     exclusionPolicies.mapNotNull { it.apply(this, exclusions) }.let { reasons ->
       return ExclusionResult(!reasons.isEmpty(), reasons.toSet())

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 object AllowListExclusionPolicyTest {
   private val front50ApplicationCache: InMemoryCache<Application> = mock()
+
   @Test
   fun `should exclude based on composite key if not in Allow List`() {
     val exclusions = listOf(
@@ -67,6 +68,7 @@ object AllowListExclusionPolicyTest {
       filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
     }
   }
+
   @Test
   fun `should exclude if not Allow List`() {
     val exclusions = listOf(
@@ -100,6 +102,52 @@ object AllowListExclusionPolicyTest {
       filteredResources.map { it.resourceId }.let {
         Assertions.assertTrue(it.contains("important-v001"), "Allow List by pattern")
         Assertions.assertTrue(it.contains("testapp-v001"), "Allow List by name")
+      }
+      filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
+    }
+  }
+
+  @Test
+  fun `should include if in one of the allow lists`() {
+    val exclusions = listOf(
+      Exclusion()
+        .withType(ExclusionType.Allowlist.toString())
+        .withAttributes(
+          listOf(
+            Attribute()
+              .withKey("swabbieResourceOwner")
+              .withValue(
+                listOf("bla@netflix.com", "bla2@netflix.com")
+              ),
+            Attribute()
+              .withKey("name")
+              .withValue(
+                listOf("pattern:^grpc.*\$")
+              )
+          )
+        )
+    )
+    whenever(front50ApplicationCache.get()) doReturn
+      setOf(
+        Application(name = "testapp", email = "bla@netflix.com"),
+        Application(name = "important", email = "test@netflix.com"),
+        Application(name = "random", email = "random@netflix.com")
+      )
+    val resources = listOf(
+      TestResource("testapp-v001")
+        .withDetail("swabbieResourceOwner", "bla@netflix.com"),
+      TestResource("grpclab-v001")
+        .withDetail("swabbieResourceOwner", "notbla@netflix.com"),
+      TestResource("test-v001")
+        .withDetail("swabbieResourceOwner", "sobla@netflix.com")
+    )
+    resources.filter {
+      AllowListExclusionPolicy(front50ApplicationCache, mock()).apply(it, exclusions) == null
+    }.let { filteredResources ->
+      filteredResources.size shouldMatch equalTo(2)
+      filteredResources.map { it.resourceId }.let {
+        assertTrue( it.contains("grpclab-v001"), "Allow List by pattern")
+        assertTrue( it.contains("testapp-v001"), "Allow List by owner")
       }
       filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
     }

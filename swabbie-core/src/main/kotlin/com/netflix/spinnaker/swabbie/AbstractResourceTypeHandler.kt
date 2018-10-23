@@ -226,6 +226,30 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     restoreResources(listOf(markedResource), workConfiguration)
   }
 
+  /**
+   * @param candidates: a list of resources that exist in the account/location defined in the work configuration
+   * @param workConfiguration: defines the account/location to work with
+   *
+   * Fetches already marked resources, filters by work configuration namespace, and un-marks any resource whos id
+   * is not present in candidates.
+   */
+  private fun removeDeletedResourcesFromMarkedResources(
+    candidates: List<T>?,
+    workConfiguration: WorkConfiguration
+  ) {
+    resourceRepository
+      .getMarkedResources()
+      .filter { it.namespace == workConfiguration.namespace }
+      .let { markedResourcesToCheck ->
+        val existingResources = candidates?.map { it.resourceId }?.toHashSet() ?: emptySet<String>()
+        for (mr in markedResourcesToCheck) {
+          if (!existingResources.contains(mr.resourceId)) {
+            ensureResourceUnmarked(mr, workConfiguration, "Resource no longer exists")
+          }
+        }
+      }
+  }
+
   private fun doMark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
     // initialize counters
     exclusionCounters[Action.MARK] = AtomicInteger(0)
@@ -234,6 +258,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val violationCounter = AtomicInteger(0)
     val totalResourcesVisitedCounter = AtomicInteger(0)
     val markedResources = mutableListOf<MarkedResource>()
+
     try {
       log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration.toLog())
       val candidates: List<T>? = getCandidates(workConfiguration)
@@ -242,6 +267,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       }
       log.info("Fetched {} resources. Configuration: {}", candidates.size, workConfiguration.toLog())
       totalResourcesVisitedCounter.set(candidates.size)
+
+      removeDeletedResourcesFromMarkedResources(candidates, workConfiguration)
+
+      val markedCandidates: List<MarkedResource> = resourceRepository.getMarkedResources()
+        .filter { it.namespace == workConfiguration.namespace }
 
       val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
         .filter { it.markedResource.namespace == workConfiguration.namespace && it.optedOut }
@@ -253,12 +283,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       preProcessCandidates(filteredCandidatesWithOwners, workConfiguration)
         .let { filteredCandidates ->
           val maxItemsToProcess = Math.min(filteredCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
-
-          // list of currently marked & stored resources
-          val markedCandidates: List<MarkedResource> = resourceRepository.getMarkedResources()
-            .filter {
-              it.namespace == workConfiguration.namespace
-            }
 
           for (candidate in filteredCandidates) {
             if (candidateCounter.get() > maxItemsToProcess) {
@@ -272,7 +296,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
                 it.resourceId == candidate.resourceId
               }.let { alreadyMarkedCandidate ->
                 when {
-                  violations.isEmpty() -> ensureResourceUnmarked(alreadyMarkedCandidate, workConfiguration)
+                  violations.isEmpty() -> {
+                    ensureResourceUnmarked(alreadyMarkedCandidate,
+                                           workConfiguration,
+                                           "Resource no longer qualifies for deletion")
+                  }
                   alreadyMarkedCandidate == null -> {
                     val newMarkedResource = MarkedResource(
                       resource = candidate,
@@ -361,12 +389,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   private fun ensureResourceUnmarked(
     markedResource: MarkedResource?,
-    workConfiguration: WorkConfiguration
+    workConfiguration: WorkConfiguration,
+    reason: String
   ) {
     if (markedResource != null && !workConfiguration.dryRun) {
       try {
-        // TODO(rz): Log reason
-        log.info("{} is no longer a candidate.", markedResource)
+        log.info("{} is no longer a candidate because: $reason.", markedResource)
         resourceRepository.remove(markedResource)
         applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
       } catch (e: Exception) {
@@ -428,7 +456,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
 
     optedOutResourceStates.find { it.markedResource.resourceId == resource.resourceId }?.let {
-      // TODO: opting out should expire based on configured time
       log.debug("Skipping Opted out resource {}", resource)
       return true
     }
@@ -460,8 +487,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       }
       log.debug("Found ${resourcesToSoftDelete.size} resource(s) to soft delete")
 
-      //todo eb: seems when someone opts out we should remove them from the list of deletable,
-      // instead of filtering them out every time every where.
       val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
         .filter { it.markedResource.namespace == workConfiguration.namespace && it.optedOut }
 
@@ -469,7 +494,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       val candidates: List<T>? = getCandidates(workConfiguration)
       if (candidates == null || candidates.isEmpty()) {
         resourcesToSoftDelete
-          .forEach { ensureResourceUnmarked(it, workConfiguration) }
+          .forEach { ensureResourceUnmarked(it, workConfiguration, "No current candidates for deletion") }
         log.info("Nothing to delete. No upstream resources, Configuration: {}", workConfiguration.toLog())
         return
       }
@@ -485,7 +510,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           if ((candidate == null || candidate.getViolations().isEmpty()) ||
             shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.SOFTDELETE)) {
             shouldSkip = true
-            ensureResourceUnmarked(resource, workConfiguration)
+            ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies for deletion")
           }
           !shouldSkip
         }
@@ -538,7 +563,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           var candidates: List<T>? = getCandidates(workConfiguration)
           if (candidates == null) {
             toDelete
-              .forEach { ensureResourceUnmarked(it, workConfiguration) }
+              .forEach { ensureResourceUnmarked(it, workConfiguration, "No current candidates for deletion") }
             log.info("Nothing to delete. No upstream resources. Configuration: {}", workConfiguration.toLog())
             return
           }
@@ -556,7 +581,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
             if ((candidate == null || candidate.getViolations().isEmpty()) ||
               shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.DELETE)) {
               shouldSkip = true
-              ensureResourceUnmarked(r, workConfiguration)
+              ensureResourceUnmarked(r, workConfiguration, "Resource no longer qualifies for deletion")
             }
             !shouldSkip
           }.let { filteredCandidateList ->

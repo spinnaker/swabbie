@@ -35,6 +35,11 @@ class AllowListExclusionPolicy(
   )
 
   override fun getType(): ExclusionType = ExclusionType.Allowlist
+
+  /**
+   * Takes a resource that can be excluded (an excludable), and a list of the configured exclusions, and
+   * determines if the resource can be excluded based on those rules.
+   */
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     keysAndValues(exclusions, ExclusionType.Allowlist).let { kv ->
       if (kv.isEmpty()) {
@@ -54,11 +59,13 @@ class AllowListExclusionPolicy(
           }
         } else {
           findProperty(excludable, key, kv[key]!!)?.let {
+            // since a matching value is returned for the key, we know it is in the allowlist
             return null
           }
         }
       }
 
+      // if none of the keys have a qualifying value, the resource is not in the allowlist
       return notAllowlistedMessage(getIdentifierForType(excludable), kv.values.flatten().toSet())
     }
   }

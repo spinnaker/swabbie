@@ -14,6 +14,6 @@ interface EddaEndpointsService {
       val by_cluster: List<String>?
     )
 
-    fun get(): List<String> = edda_endpoints.by_cluster ?: emptyList()
+    fun get(): List<String> = edda_endpoints.by_account ?: emptyList()
   }
 }

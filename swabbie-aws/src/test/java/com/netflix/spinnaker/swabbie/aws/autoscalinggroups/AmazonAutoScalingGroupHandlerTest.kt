@@ -96,7 +96,8 @@ object AmazonAutoScalingGroupHandlerTest {
           type = "aws",
           edda = "http://edda",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "test"
         ),
         SpinnakerAccount(
           name = "prod",
@@ -104,7 +105,8 @@ object AmazonAutoScalingGroupHandlerTest {
           type = "aws",
           edda = "http://edda",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "test"
         )
       )
   }
@@ -122,7 +124,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @Test
   fun `should find server groups cleanup candidates`() {
-    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
+    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
     whenever(serverGroupProvider.getAll(params)) doReturn listOf(
       AmazonAutoScalingGroup(
         autoScalingGroupName = "testapp-v001",
@@ -149,7 +151,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
+    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
     whenever(serverGroupProvider.getAll(params)) doReturn listOf(
       AmazonAutoScalingGroup(
         autoScalingGroupName = "testapp-v001",

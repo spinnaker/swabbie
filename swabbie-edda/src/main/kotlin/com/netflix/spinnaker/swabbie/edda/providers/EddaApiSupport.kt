@@ -29,9 +29,9 @@ open class EddaApiSupport(
 ) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   val eddaFailureCountId: Id = registry.createId("swabbie.edda.failures")
-  fun withEddaClient(region: String, accountId: String): EddaService? {
+  fun withEddaClient(region: String, accountId: String, environment: String): EddaService? {
     eddaApiClients.find {
-      it.region == region && it.account.accountId == accountId
+      it.region == region && it.account.accountId == accountId && it.account.environment == environment
     }.let { eddaClient ->
       if (eddaClient == null) {
         log.warn("No edda available for $accountId/$region")

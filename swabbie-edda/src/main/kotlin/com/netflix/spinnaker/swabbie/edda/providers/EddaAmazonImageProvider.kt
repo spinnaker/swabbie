@@ -38,7 +38,11 @@ open class EddaAmazonImageProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
   override fun getAll(params: Parameters): List<AmazonImage>? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
+    withEddaClient(
+      region = params["region"] as String,
+      accountId = params["account"] as String,
+      environment = params["environment"] as String
+    )?.run {
       return getAmis()
     }
 
@@ -46,7 +50,11 @@ open class EddaAmazonImageProvider(
   }
 
   override fun getOne(params: Parameters): AmazonImage? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
+    withEddaClient(
+      region = params["region"] as String,
+      accountId = params["account"] as String,
+      environment = params["environment"] as String
+    )?.run {
       return getAmi(params["imageId"] as String)
     }
 

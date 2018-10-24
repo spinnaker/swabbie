@@ -24,6 +24,7 @@ import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.edda.EddaService
 import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -37,7 +38,11 @@ open class EddaLaunchConfigurationProvider(
 ) : ResourceProvider<AmazonLaunchConfiguration>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonLaunchConfiguration>? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
+    withEddaClient(
+      region = params["region"] as String,
+      accountId = params["account"] as String,
+      environment = params["environment"] as String
+    )?.run {
       return getLaunchConfigurations()
     }
 
@@ -45,7 +50,11 @@ open class EddaLaunchConfigurationProvider(
   }
 
   override fun getOne(params: Parameters): AmazonLaunchConfiguration? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
+    withEddaClient(
+      region = params["region"] as String,
+      accountId = params["account"] as String,
+      environment = params["environment"] as String
+    )?.run {
       return getLaunchConfiguration(params["launchConfigurationName"] as String)
     }
 

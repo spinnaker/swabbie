@@ -84,7 +84,6 @@ class AmazonAutoScalingGroupHandler(
   }
 
 
-
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
@@ -120,12 +119,18 @@ class AmazonAutoScalingGroupHandler(
     }
   }
 
-  override fun handles(workConfiguration: WorkConfiguration): Boolean
-    = workConfiguration.resourceType == SERVER_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration):
+    Boolean = workConfiguration.resourceType == SERVER_GROUP &&
+    workConfiguration.cloudProvider == AWS &&
+    !rules.isEmpty()
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonAutoScalingGroup>? {
     val params = Parameters(
-      mapOf("account" to workConfiguration.account.accountId!!, "region" to workConfiguration.location)
+      mapOf(
+        "account" to workConfiguration.account.accountId!!,
+        "region" to workConfiguration.location,
+        "environment" to workConfiguration.account.environment
+      )
     )
 
     return serverGroupProvider.getAll(params).also { serverGroups ->
@@ -140,7 +145,11 @@ class AmazonAutoScalingGroupHandler(
     checkReferences(
       serverGroups = candidates,
       params = Parameters(
-        mapOf("account" to workConfiguration.account.accountId!!, "region" to workConfiguration.location)
+        mapOf(
+          "account" to workConfiguration.account.accountId!!,
+          "region" to workConfiguration.location,
+          "environment" to workConfiguration.account.environment
+        )
       )
     )
 
@@ -174,10 +183,13 @@ class AmazonAutoScalingGroupHandler(
     resourceName: String,
     workConfiguration: WorkConfiguration
   ): AmazonAutoScalingGroup? {
-    val params = Parameters(mapOf(
-      "autoScalingGroupName" to resourceId,
-      "account" to workConfiguration.account.accountId!!,
-      "region" to workConfiguration.location)
+    val params = Parameters(
+      mapOf(
+        "autoScalingGroupName" to resourceId,
+        "account" to workConfiguration.account.accountId!!,
+        "region" to workConfiguration.location,
+        "environment" to workConfiguration.account.environment
+      )
     )
 
     return serverGroupProvider.getOne(params)

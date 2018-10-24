@@ -27,6 +27,7 @@ interface Account : Excludable {
   val edda: String?
   val type: String
   val regions: List<Region>?
+  val environment: String
 }
 
 data class Region(
@@ -43,7 +44,8 @@ data class SpinnakerAccount(
   override val type: String,
   override val name: String,
   override val edda: String?,
-  override val regions: List<Region>?
+  override val regions: List<Region>?,
+  override val environment: String
 ) : Account, Cacheable, HasDetails() {
   override val resourceId: String
     get() = accountId!!
@@ -59,7 +61,8 @@ data class EmptyAccount(
   override val name: String = "",
   override val eddaEnabled: Boolean = false,
   override val edda: String? = "",
-  override val regions: List<Region> = emptyList()
+  override val regions: List<Region> = emptyList(),
+  override val environment: String = ""
 ) : Account, HasDetails() {
   override val resourceId: String
     get() = accountId!!

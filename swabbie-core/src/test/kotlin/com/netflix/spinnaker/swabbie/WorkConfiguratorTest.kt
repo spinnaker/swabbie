@@ -49,7 +49,8 @@ object WorkConfiguratorTest {
           type = "aws",
           edda = "",
           regions = emptyList(),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "test"
         ),
         SpinnakerAccount(
           name = "testTitus",
@@ -57,7 +58,8 @@ object WorkConfiguratorTest {
           type = "titus",
           edda = "",
           regions = emptyList(),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "test"
         )
       )
 
@@ -100,7 +102,8 @@ object WorkConfiguratorTest {
           type = "aws",
           edda = "",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = true
+          eddaEnabled = true,
+          environment = "test"
         ),
         SpinnakerAccount(
           name = "testTitus",
@@ -108,7 +111,8 @@ object WorkConfiguratorTest {
           type = "titus",
           edda = "",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = true
+          eddaEnabled = true,
+          environment = "test"
         )
       )
 
@@ -191,7 +195,8 @@ object WorkConfiguratorTest {
           type = "aws",
           edda = "",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "test"
         ),
         SpinnakerAccount(
           name = "testTitus",
@@ -199,7 +204,8 @@ object WorkConfiguratorTest {
           type = "titus",
           edda = "",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "test"
         )
       )
 

@@ -126,7 +126,8 @@ class AmazonLoadBalancerHandler(
       mapOf(
         "loadBalancerName" to resourceName!!,
         "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location
+        "region" to workConfiguration.location,
+        "environment" to workConfiguration.account.environment
       )
     )
   )
@@ -143,7 +144,8 @@ class AmazonLoadBalancerHandler(
       Parameters(
         mapOf(
           "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location
+          "region" to workConfiguration.location,
+          "environment" to workConfiguration.account.environment
         )
       )
     ).orEmpty()
@@ -166,7 +168,8 @@ class AmazonLoadBalancerHandler(
       Parameters(
         mapOf(
           "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location
+          "region" to workConfiguration.location,
+          "environment" to workConfiguration.account.environment
         )
       )
     ).let { serverGroups ->
@@ -182,8 +185,7 @@ class AmazonLoadBalancerHandler(
     return loadBalancers
   }
 
-  private fun List<AmazonElasticLoadBalancer>.addServerGroupReferences(serverGroup: AmazonAutoScalingGroup)
-    = filter {
+  private fun List<AmazonElasticLoadBalancer>.addServerGroupReferences(serverGroup: AmazonAutoScalingGroup) = filter {
     (serverGroup.details["loadBalancerNames"] as List<*>).contains(it.name)
   }.map { elb ->
     elb.details["serverGroups"] = elb.details["serverGroups"] ?: mutableListOf<String>()

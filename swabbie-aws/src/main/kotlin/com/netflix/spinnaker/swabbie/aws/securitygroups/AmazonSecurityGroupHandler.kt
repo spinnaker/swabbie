@@ -123,7 +123,8 @@ class AmazonSecurityGroupHandler(
       mapOf(
         "groupId" to resourceId,
         "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location
+        "region" to workConfiguration.location,
+        "environment" to workConfiguration.account.environment
       )
     )
   )
@@ -135,15 +136,18 @@ class AmazonSecurityGroupHandler(
     TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
   }
 
-  override fun handles(workConfiguration: WorkConfiguration): Boolean
-    = workConfiguration.resourceType == SECURITY_GROUP && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration):
+    Boolean = workConfiguration.resourceType == SECURITY_GROUP &&
+    workConfiguration.cloudProvider == AWS &&
+    !rules.isEmpty()
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
     securityGroupProvider.getAll(
       Parameters(
         mapOf(
           "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location
+          "region" to workConfiguration.location,
+          "environment" to workConfiguration.account.environment
         )
       )
     )

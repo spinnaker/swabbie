@@ -113,7 +113,8 @@ object AmazonImageHandlerTest {
           type = "aws",
           edda = "http://edda",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "test"
         ),
         SpinnakerAccount(
           name = "prod",
@@ -121,11 +122,14 @@ object AmazonImageHandlerTest {
           type = "aws",
           edda = "http://edda",
           regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false
+          eddaEnabled = false,
+          environment = "prod"
         )
       )
 
-    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
+    val params = Parameters(
+      mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test", "environment" to "test")
+    )
     whenever(imageProvider.getAll(params)) doReturn listOf(
       AmazonImage(
         imageId = "ami-123",
@@ -198,7 +202,7 @@ object AmazonImageHandlerTest {
   fun `should fail to get candidates if checking launch configuration references fails`() {
     val configuration = getWorkConfiguration()
     whenever(launchConfigurationProvider.getAll(
-      Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
+      Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
     )) doThrow IllegalStateException("launch configs")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
@@ -210,7 +214,7 @@ object AmazonImageHandlerTest {
   fun `should fail to get candidates if checking instance references fails`() {
     val configuration = getWorkConfiguration()
     whenever(instanceProvider.getAll(
-      Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
+      Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
     )) doThrow IllegalStateException("failed to get instances")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
@@ -230,7 +234,7 @@ object AmazonImageHandlerTest {
   fun `should fail to get candidates if checking for siblings in other accounts fails`() {
     val configuration = getWorkConfiguration()
     whenever(imageProvider.getAll(
-      Parameters(mapOf("account" to "4321", "region" to "us-east-1"))
+      Parameters(mapOf("account" to "4321", "region" to "us-east-1", "environment" to "prod"))
     )) doThrow IllegalStateException("failed to get images in 4321/us-east-1")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
@@ -262,7 +266,7 @@ object AmazonImageHandlerTest {
       images!!.size shouldMatch equalTo(2)
     }
 
-    subject.mark(workConfiguration, postMark= { print("Done") })
+    subject.mark(workConfiguration, postMark = { print("Done") })
 
     // ami-132 is excluded by exclusion policies, specifically because ami-123 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -315,7 +319,7 @@ object AmazonImageHandlerTest {
       Assertions.assertTrue(images.any { it.imageId == "ami-132" })
     }
 
-    subject.mark(workConfiguration, { print {"postMark" } })
+    subject.mark(workConfiguration, { print { "postMark" } })
 
     // ami-132 is excluded by exclusion policies, specifically because ami-132 is not allowlisted
     // ami-123 is referenced by an instance, so therefore should not be marked for deletion
@@ -326,7 +330,7 @@ object AmazonImageHandlerTest {
   @Test
   fun `should not mark ancestor or base images`() {
     val workConfiguration = getWorkConfiguration()
-    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1"))
+    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
     whenever(instanceProvider.getAll(any())) doReturn listOf<AmazonInstance>()
     whenever(launchConfigurationProvider.getAll(any())) doReturn listOf<AmazonLaunchConfiguration>()
     whenever(imageProvider.getAll(params)) doReturn listOf(
@@ -360,7 +364,7 @@ object AmazonImageHandlerTest {
       Assertions.assertTrue(images.any { it.imageId == "ami-132" })
     }
 
-    subject.mark(workConfiguration, { print {"postMark" } })
+    subject.mark(workConfiguration, { print { "postMark" } })
 
     // ami-132 is an ancestor/base for ami-123 so skip that
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -405,7 +409,7 @@ object AmazonImageHandlerTest {
       )
 
     val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123")
+      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123", "environment" to "test")
     )
 
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
@@ -451,7 +455,7 @@ object AmazonImageHandlerTest {
         )
       )
     val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123")
+      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123", "environment" to "test")
     )
     whenever(taggingService.upsertImageTag(any())) doReturn "1234"
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
@@ -500,7 +504,7 @@ object AmazonImageHandlerTest {
         )
       )
     val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123")
+      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123", "environment" to "test")
     )
     whenever(taggingService.upsertImageTag(any())) doReturn "1234"
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
@@ -511,8 +515,7 @@ object AmazonImageHandlerTest {
     verify(taskTrackingRepository, times(0)).add(any(), any())
   }
 
-  private fun Long.inDays(): Int
-    = Duration.between(Instant.ofEpochMilli(clock.millis()), Instant.ofEpochMilli(this)).toDays().toInt()
+  private fun Long.inDays(): Int = Duration.between(Instant.ofEpochMilli(clock.millis()), Instant.ofEpochMilli(this)).toDays().toInt()
 
   private fun getWorkConfiguration(
     isEnabled: Boolean = true,

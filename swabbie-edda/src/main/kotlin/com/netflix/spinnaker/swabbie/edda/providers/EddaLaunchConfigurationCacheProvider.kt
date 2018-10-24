@@ -15,7 +15,7 @@ open class EddaLaunchConfigurationCacheProvider(
   private val workConfigurations: List<WorkConfiguration>,
   private val launchConfigurationProvider: ResourceProvider<AmazonLaunchConfiguration>,
   private val eddaApiClients: List<EddaApiClient>,
-  @Lazy private val configCache: InMemoryCache<AmazonLaunchConfigurationCache>
+  @Lazy private val launchConfigCache: InMemoryCache<AmazonLaunchConfigurationCache>
 ) : CachedViewProvider<AmazonLaunchConfigurationCache> {
 
   /**
@@ -23,7 +23,7 @@ open class EddaLaunchConfigurationCacheProvider(
    */
   override fun getAll(params: Parameters): Set<AmazonLaunchConfiguration> {
     if (params.containsKey("region")) {
-      return configCache.get().elementAt(0).configsByRegion[params["region"]] ?: emptySet()
+      return launchConfigCache.get().elementAt(0).configsByRegion[params["region"]] ?: emptySet()
     } else {
       throw IllegalArgumentException("Missing required region parameter")
     }
@@ -33,7 +33,7 @@ open class EddaLaunchConfigurationCacheProvider(
    * Returns an epochMs timestamp of the last cache update
    */
   override fun getLastUpdated(): Long {
-    return configCache.get().elementAt(0).lastUpdated
+    return launchConfigCache.get().elementAt(0).lastUpdated
   }
 
   /**
@@ -42,14 +42,14 @@ open class EddaLaunchConfigurationCacheProvider(
    * Returns a map of <K: all ami's referenced by a launch config in region, V: set of launch configs referencing K>
    */
   fun getRefdAmisForRegion(region: String): Map<String, Set<AmazonLaunchConfiguration>> {
-    val cache = configCache.get()
+    val cache = launchConfigCache.get()
     return cache.elementAt(0).refdAmisByRegion[region].orEmpty()
   }
 
   // TODO("Refactor Cacheable to support singletons instead of just sets")
   fun load(): Set<AmazonLaunchConfigurationCache> {
-    val configsByRegion: MutableMap<String, Set<AmazonLaunchConfiguration>> = mutableMapOf()
-    val refdAmisByRegion: MutableMap<String, MutableMap<String, MutableSet<AmazonLaunchConfiguration>>> = mutableMapOf()
+    val configsByRegion = mutableMapOf<String, Set<AmazonLaunchConfiguration>>()
+    val refdAmisByRegion = mutableMapOf<String, MutableMap<String, MutableSet<AmazonLaunchConfiguration>>>()
 
     val regions = workConfigurations.asSequence()
       .map { it.location }
@@ -58,19 +58,20 @@ open class EddaLaunchConfigurationCacheProvider(
     regions.forEach { region: String ->
       val launchConfigs: Set<AmazonLaunchConfiguration> = eddaApiClients
         .filter { region == it.region }
-        .flatMap {
+        .flatMap { edda ->
           launchConfigurationProvider.getAll(
             Parameters(
               mapOf(
                 "region" to region,
-                "account" to it.account.accountId!!,
-                "environment" to it.account.environment)
+                "account" to edda.account.accountId!!,
+                "environment" to edda.account.environment
+              )
             )
           ) ?: emptyList()
         }
         .toSet()
 
-      val refdAmis: MutableMap<String, MutableSet<AmazonLaunchConfiguration>> = mutableMapOf()
+      val refdAmis = mutableMapOf<String, MutableSet<AmazonLaunchConfiguration>>()
 
       launchConfigs.forEach {
         refdAmis.getOrPut(it.imageId) { mutableSetOf() }.add(it)
@@ -102,4 +103,3 @@ data class AmazonLaunchConfigurationCache(
   val lastUpdated: Long,
   override val name: String?
 ) : Cacheable
-

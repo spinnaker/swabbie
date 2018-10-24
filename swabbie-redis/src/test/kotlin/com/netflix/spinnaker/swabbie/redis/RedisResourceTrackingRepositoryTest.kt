@@ -78,7 +78,8 @@ object RedisResourceTrackingRepositoryTest {
         type = "type",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       ),
       location = "us-east-1",
       cloudProvider = AWS,
@@ -124,7 +125,8 @@ object RedisResourceTrackingRepositoryTest {
         type = "type",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       ),
       location = "us-east-1",
       cloudProvider = AWS,

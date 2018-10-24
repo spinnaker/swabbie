@@ -118,7 +118,7 @@ class AmazonImageHandler(
       markedResources,
       workConfiguration
     )
-    log.debug("Soft deleting resources ${markedResources.map{ it.uniqueId() }} in orca tasks $taskIds.")
+    log.debug("Soft deleting resources ${markedResources.map { it.uniqueId() }} in orca tasks $taskIds.")
   }
 
   override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
@@ -130,7 +130,7 @@ class AmazonImageHandler(
       markedResources,
       workConfiguration
     )
-    log.debug("Restoring resources ${markedResources.map{ it.uniqueId() }} in orca tasks $taskIds.")
+    log.debug("Restoring resources ${markedResources.map { it.uniqueId() }} in orca tasks $taskIds.")
   }
 
   private fun tagResources(
@@ -179,7 +179,11 @@ class AmazonImageHandler(
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonImage>? {
     val params = Parameters(
-      mapOf("account" to workConfiguration.account.accountId!!, "region" to workConfiguration.location)
+      mapOf(
+        "account" to workConfiguration.account.accountId!!,
+        "region" to workConfiguration.location,
+        "environment" to workConfiguration.account.environment
+      )
     )
 
     return imageProvider.getAll(params).also { images ->
@@ -194,7 +198,11 @@ class AmazonImageHandler(
     checkReferences(
       images = candidates,
       params = Parameters(
-        mapOf("account" to workConfiguration.account.accountId!!, "region" to workConfiguration.location)
+        mapOf(
+          "account" to workConfiguration.account.accountId!!,
+          "region" to workConfiguration.location,
+          "environment" to workConfiguration.account.environment
+        )
       )
     )
     return candidates
@@ -253,8 +261,9 @@ class AmazonImageHandler(
       }.forEach { image ->
         onMatchedImages(
           instances.map { amazonInstance ->
-            SlimAwsResource(amazonInstance.name, amazonInstance.imageId, amazonInstance.getAutoscalingGroup().orEmpty())},
-            image
+            SlimAwsResource(amazonInstance.name, amazonInstance.imageId, amazonInstance.getAutoscalingGroup().orEmpty())
+          },
+          image
         ) { usedByResource ->
           image.set(USED_BY_INSTANCES, true)
           resourceUseTrackingRepository.recordUse(image.resourceId, usedByResource)
@@ -363,7 +372,7 @@ class AmazonImageHandler(
       .getUnused()
       .map {
         it.resourceIdentifier to it.usedByResourceIdentifier
-     }.toMap()
+      }.toMap()
 
     images.filter {
       NAIVE_EXCLUSION !in it.details &&
@@ -395,7 +404,9 @@ class AmazonImageHandler(
       account.regions?.forEach { region ->
         log.info("Looking for other images in {}/{}", account.accountId, region)
         imageProvider.getAll(
-          Parameters(mapOf("account" to account.accountId!!, "region" to region.name))
+          Parameters(
+            mapOf("account" to account.accountId!!, "region" to region.name, "environment" to account.environment)
+          )
         )?.forEach { image ->
           result.add(Pair(image, account))
         }
@@ -414,10 +425,13 @@ class AmazonImageHandler(
   }
 
   override fun getCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): AmazonImage? {
-    val params = Parameters(mapOf(
-      "imageId" to resourceId,
-      "account" to workConfiguration.account.accountId!!,
-      "region" to workConfiguration.location)
+    val params = Parameters(
+      mapOf(
+        "imageId" to resourceId,
+        "account" to workConfiguration.account.accountId!!,
+        "region" to workConfiguration.location,
+        "environment" to workConfiguration.account.environment
+      )
     )
 
     return imageProvider.getOne(params)
@@ -425,7 +439,7 @@ class AmazonImageHandler(
 }
 
 // TODO: specific to netflix pattern. make generic
-private fun isAncestor( images: Map<String, String>, image: AmazonImage): Boolean {
+private fun isAncestor(images: Map<String, String>, image: AmazonImage): Boolean {
   return images.containsKey("ancestor_id=${image.imageId}") || images.containsKey("ancestor_name=${image.name}")
 }
 

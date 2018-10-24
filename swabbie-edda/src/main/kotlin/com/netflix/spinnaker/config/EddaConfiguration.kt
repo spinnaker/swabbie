@@ -18,9 +18,12 @@ package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.EndpointProvider
 import com.netflix.spinnaker.swabbie.edda.EddaEndpointsService
 import com.netflix.spinnaker.swabbie.edda.EddaService
 import com.netflix.spinnaker.swabbie.model.Account
+import com.netflix.spinnaker.swabbie.model.Region
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
@@ -44,33 +47,64 @@ import retrofit.converter.JacksonConverter
 open class EddaConfiguration {
   @Bean
   open fun eddaApiClients(accountProvider: AccountProvider,
+                          endpointProvider: EndpointProvider,
                           objectMapper: ObjectMapper,
                           retrofitClient: Client,
                           spinnakerRequestInterceptor: RequestInterceptor,
                           retrofitLogLevel: RestAdapter.LogLevel): List<EddaApiClient> {
-    return accountProvider.getAccounts().filter {
-      it.eddaEnabled
-    }.map { account ->
-      account.regions!!.map { region ->
+    val accountEddas: List<EddaApiClient> = accountProvider.getAccounts()
+      .asSequence()
+      .filter {
+        it.eddaEnabled
+      }.map { account ->
+        account.regions!!.map { region ->
+          EddaApiClient(
+            region.name,
+            account,
+            objectMapper,
+            retrofitClient,
+            spinnakerRequestInterceptor,
+            retrofitLogLevel
+          )
+        }
+      }.toList()
+      .flatten()
+
+    val endpointEddas: List<EddaApiClient> = endpointProvider.getEndpoints()
+      .asSequence()
+      .filter { endpoint ->
+        accountEddas.none {
+          endpoint.region == it.region &&
+            endpoint.accountId == it.account.accountId &&
+            endpoint.environment == it.account.environment
+        }
+      }.map {
         EddaApiClient(
-          region.name,
-          account,
+          it.region,
+          SpinnakerAccount(
+            true,
+            it.accountId,
+            "aws",
+            it.name,
+            it.endpoint,
+            listOf(Region(false, it.region)),
+            it.environment
+          ),
           objectMapper,
           retrofitClient,
           spinnakerRequestInterceptor,
           retrofitLogLevel
         )
-      }
-    }.flatten()
+      }.toList()
+
+    return listOf(accountEddas, endpointEddas).flatten()
   }
 
-  @ConditionalOnExpression("\${eddaEndpoints.enabled:false}")
   @Bean
-  open fun eddaEndpointsEndpoint(@Value("\${eddaEndpoints.baseUrl}") eddaEndpointsBaseUrl: String) : Endpoint {
+  open fun eddaEndpointsEndpoint(@Value("\${eddaEndpoints.baseUrl}") eddaEndpointsBaseUrl: String): Endpoint {
     return Endpoints.newFixedEndpoint(eddaEndpointsBaseUrl)!!
   }
 
-  @ConditionalOnExpression("\${eddaEndpoints.enabled:false}")
   @Bean
   open fun eddaEndpointsService(eddaEndpointsEndpoint: Endpoint,
                                 objectMapper: ObjectMapper,

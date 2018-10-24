@@ -38,7 +38,11 @@ open class EddaAmazonElasticLoadBalancerProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
   override fun getAll(params: Parameters): List<AmazonElasticLoadBalancer>? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
+    withEddaClient(
+      region = params["region"] as String,
+      accountId = params["account"] as String,
+      environment = params["environment"] as String
+    )?.run {
       return getELBs()
     }
 
@@ -46,7 +50,11 @@ open class EddaAmazonElasticLoadBalancerProvider(
   }
 
   override fun getOne(params: Parameters): AmazonElasticLoadBalancer? {
-    withEddaClient(region = params["region"] as String, accountId = params["account"] as String)?.run {
+    withEddaClient(
+      region = params["region"] as String,
+      accountId = params["account"] as String,
+      environment = params["environment"] as String
+    )?.run {
       return getELB(params["loadBalancerName"] as String)
     }
 

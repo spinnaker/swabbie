@@ -48,7 +48,8 @@ object AccountExclusionPolicyTest {
         type = "aws",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       ),
       SpinnakerAccount(
         name = "testing",
@@ -56,7 +57,8 @@ object AccountExclusionPolicyTest {
         type = "aws",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       ),
       SpinnakerAccount(
         name = "titustest",
@@ -64,7 +66,8 @@ object AccountExclusionPolicyTest {
         type = "titus",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       )
     )
 
@@ -99,7 +102,8 @@ object AccountExclusionPolicyTest {
         type = "aws",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       ),
       SpinnakerAccount(
         name = "testing",
@@ -107,7 +111,8 @@ object AccountExclusionPolicyTest {
         type = "aws",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       ),
       SpinnakerAccount(
         name = "titustest",
@@ -115,7 +120,8 @@ object AccountExclusionPolicyTest {
         type = "titus",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       ),
       SpinnakerAccount(
         name = "other",
@@ -123,7 +129,8 @@ object AccountExclusionPolicyTest {
         type = "other",
         edda = "",
         regions = emptyList(),
-        eddaEnabled = false
+        eddaEnabled = false,
+        environment = "test"
       )
     )
 

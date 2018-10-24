@@ -30,7 +30,6 @@ import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
-@ConditionalOnExpression("!\${eddaEndpoints.enabled:false}")
 @Configuration
 @Import(RetrofitConfiguration::class)
 open class ClouddriverConfiguration {

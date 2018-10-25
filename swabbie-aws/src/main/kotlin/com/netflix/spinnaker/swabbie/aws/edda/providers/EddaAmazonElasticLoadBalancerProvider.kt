@@ -14,69 +14,70 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.edda.providers
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
-import com.netflix.spinnaker.swabbie.edda.EddaService
-import com.netflix.spinnaker.swabbie.model.INSTANCE
+import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
+import com.netflix.spinnaker.swabbie.aws.edda.EddaService
+import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
 @Component
-open class EddaInstanceProvider(
-  eddaApiClients: List<EddaApiClient>,
+open class EddaAmazonElasticLoadBalancerProvider(
+  private val eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry
-) : ResourceProvider<AmazonInstance>, EddaApiSupport(eddaApiClients, registry) {
+) : ResourceProvider<AmazonElasticLoadBalancer>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  override fun getAll(params: Parameters): List<AmazonInstance>? {
+
+  override fun getAll(params: Parameters): List<AmazonElasticLoadBalancer>? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getNonTerminatedInstances()
+      return getELBs()
     }
 
     return emptyList()
   }
 
-  override fun getOne(params: Parameters): AmazonInstance? {
+  override fun getOne(params: Parameters): AmazonElasticLoadBalancer? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getSingleInstance(params["instanceId"] as String)
+      return getELB(params["loadBalancerName"] as String)
     }
 
     return null
   }
 
-  private fun EddaService.getNonTerminatedInstances(): List<AmazonInstance> {
+  private fun EddaService.getELBs(): List<AmazonElasticLoadBalancer> {
     return try {
       retrySupport.retry({
-        this.getInstances()
+        this.getLoadBalancers()
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", INSTANCE)).increment()
-      log.error("failed to get instances", e)
+      registry.counter(eddaFailureCountId.withTags("resourceType", LOAD_BALANCER)).increment()
+      log.error("failed to get load balancers", e)
       throw e
     }
   }
 
-  private fun EddaService.getSingleInstance(instanceId: String): AmazonInstance? {
+  private fun EddaService.getELB(loadBalancerName: String): AmazonElasticLoadBalancer? {
     return try {
       retrySupport.retry({
         try {
-          this.getInstance(instanceId)
+          this.getLoadBalancer(loadBalancerName)
         } catch (e: Exception) {
           if (e is RetrofitError && e.response.status == 404) {
             null
@@ -86,9 +87,8 @@ open class EddaInstanceProvider(
         }
       }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      registry.counter(
-        eddaFailureCountId.withTags("resourceType", INSTANCE)).increment()
-      log.error("failed to get instance {}", instanceId, e)
+      registry.counter(eddaFailureCountId.withTags("resourceType", LOAD_BALANCER)).increment()
+      log.error("failed to get load balancer {}", loadBalancerName, e)
       throw e
     }
   }

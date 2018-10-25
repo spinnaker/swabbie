@@ -19,14 +19,13 @@ package com.netflix.spinnaker.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.EndpointProvider
-import com.netflix.spinnaker.swabbie.edda.EddaEndpointsService
-import com.netflix.spinnaker.swabbie.edda.EddaService
+import com.netflix.spinnaker.swabbie.aws.edda.EddaEndpointsService
+import com.netflix.spinnaker.swabbie.aws.edda.EddaService
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
@@ -40,7 +39,6 @@ import retrofit.converter.JacksonConverter
 
 @Configuration
 @ComponentScan(basePackages = arrayOf(
-  "com.netflix.spinnaker.swabbie.edda",
   "com.netflix.spinnaker.swabbie.aws"
 ))
 @Import(SwabbieRetrofitConfiguration::class)

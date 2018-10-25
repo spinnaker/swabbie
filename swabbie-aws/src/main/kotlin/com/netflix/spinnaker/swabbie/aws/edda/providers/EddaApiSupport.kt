@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.edda.providers
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
-import com.netflix.spinnaker.swabbie.edda.EddaService
+import com.netflix.spinnaker.swabbie.aws.edda.EddaService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 

@@ -73,7 +73,8 @@ class AmazonImageHandler(
   notifiers,
   applicationEventPublisher,
   lockingService,
-  retrySupport
+  retrySupport,
+  resourceUseTrackingRepository
 ) {
 
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
@@ -368,11 +369,12 @@ class AmazonImageHandler(
       log.info("Bypassing seen in use check, since `swabbieProperties.outOfUseThresholdDays` is 0")
       return
     }
-    val unseenImages: Map<String, String> = resourceUseTrackingRepository
+    val usedImages = resourceUseTrackingRepository.getUsed()
+    val unusedAndTracked: Map<String, String> = resourceUseTrackingRepository
       .getUnused()
       .map {
-        it.resourceIdentifier to it.usedByResourceIdentifier
-      }.toMap()
+        it.resourceId to it.usedByResourceId
+     }.toMap()
 
     images.filter {
       NAIVE_EXCLUSION !in it.details &&
@@ -381,10 +383,8 @@ class AmazonImageHandler(
         HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details &&
         IS_BASE_OR_ANCESTOR !in it.details
     }.forEach { image ->
-      if (!unseenImages.containsKey(image.imageId)) {
-        // Image is not in list of unseen, so we've seen it recently
-        //  set that on image
-        // If there are no unseen images, this will set the key on every image.
+      if (!unusedAndTracked.containsKey(image.imageId) && usedImages.contains(image.imageId)) {
+        // Image has not been unused for the outOfUseThreshold, and has been seen before
         image.set(SEEN_IN_USE_RECENTLY, true)
         log.debug("Image {} ({}) has been SEEN_IN_USE_RECENTLY", kv("imageId", image.imageId), image.name)
       }

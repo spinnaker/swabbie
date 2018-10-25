@@ -471,6 +471,7 @@ object AmazonImageHandlerTest {
   fun `should not soft delete if the images have been seen recently`() {
     whenever(resourceUseTrackingRepository.getUnused()) doReturn
       emptyList<LastSeenInfo>()
+    whenever(resourceUseTrackingRepository.getUsed()) doReturn setOf("ami-123")
 
     val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
     val thirteenDaysAgo = clock.instant().minusSeconds(13 * 24 * 60 * 60).toEpochMilli()

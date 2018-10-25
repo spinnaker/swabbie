@@ -33,6 +33,7 @@ import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
@@ -56,6 +57,7 @@ object AmazonAutoScalingGroupHandlerTest {
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
   private val orcaService = mock<OrcaService>()
+  private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
 
   private val subject = AmazonAutoScalingGroupHandler(
     clock = clock,
@@ -75,7 +77,8 @@ object AmazonAutoScalingGroupHandlerTest {
     lockingService = lockingService,
     retrySupport = RetrySupport(),
     serverGroupProvider = serverGroupProvider,
-    orcaService = orcaService
+    orcaService = orcaService,
+    resourceUseTrackingRepository = resourceUseTrackingRepository
   )
 
   @BeforeEach

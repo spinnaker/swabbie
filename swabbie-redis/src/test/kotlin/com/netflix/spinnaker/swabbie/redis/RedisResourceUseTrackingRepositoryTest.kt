@@ -85,8 +85,29 @@ object RedisResourceUseTrackingRepositoryTest {
     val unused = resourceUseTrackingRepository.getUnused()
     Assert.notEmpty(unused, "ami should be unused after 5 days")
     Assert.isTrue(
-      unused.first().usedByResourceIdentifier == "servergroup-v001",
+      unused.first().usedByResourceId == "servergroup-v001",
       "should be the correct server group"
+    )
+  }
+
+  @Test
+  fun `returns null when no last seen info`() {
+    val info = resourceUseTrackingRepository.getLastSeenInfo("bla")
+    Assert.isNull(info, "resource is not tracked and shouldn't return info")
+  }
+
+  @Test
+  fun `returns list of in use resources`() {
+    resourceUseTrackingRepository.recordUse("ami-111", "servergroup-v001")
+    clock.incrementBy(Duration.ofDays(2))
+    resourceUseTrackingRepository.recordUse("ami-222", "anothersg-v004")
+    clock.incrementBy(Duration.ofDays(2))
+
+    val used = resourceUseTrackingRepository.getUsed()
+    Assert.notEmpty(used, "one resource should be in use")
+    Assert.isTrue(
+      used.first().equals("ami-222"),
+      "Resource has not yet met the out of use threshold number of days not seen"
     )
   }
 }

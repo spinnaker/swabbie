@@ -38,9 +38,9 @@ open class EddaInstanceProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonInstance>? {
     withEddaClient(
-      region = params["region"] as String,
-      accountId = params["account"] as String,
-      environment = params["environment"] as String
+      region = params.region,
+      accountId = params.account,
+      environment = params.environment
     )?.run {
       return getNonTerminatedInstances()
     }
@@ -50,11 +50,11 @@ open class EddaInstanceProvider(
 
   override fun getOne(params: Parameters): AmazonInstance? {
     withEddaClient(
-      region = params["region"] as String,
-      accountId = params["account"] as String,
-      environment = params["environment"] as String
+      region = params.region,
+      accountId = params.account,
+      environment = params.environment
     )?.run {
-      return getSingleInstance(params["instanceId"] as String)
+      return getSingleInstance(params.id)
     }
 
     return null

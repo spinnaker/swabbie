@@ -122,12 +122,10 @@ class AmazonLoadBalancerHandler(
                             workConfiguration: WorkConfiguration
   ): AmazonElasticLoadBalancer? = loadBalancerProvider.getOne(
     Parameters(
-      mapOf(
-        "loadBalancerName" to resourceName!!,
-        "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location,
-        "environment" to workConfiguration.account.environment
-      )
+      id = resourceName!!,
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
     )
   )
 
@@ -141,11 +139,9 @@ class AmazonLoadBalancerHandler(
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =
     loadBalancerProvider.getAll(
       Parameters(
-        mapOf(
-          "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location,
-          "environment" to workConfiguration.account.environment
-        )
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
       )
     ).orEmpty()
 
@@ -165,11 +161,9 @@ class AmazonLoadBalancerHandler(
   ): List<AmazonElasticLoadBalancer> {
     serverGroupProvider.getAll(
       Parameters(
-        mapOf(
-          "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location,
-          "environment" to workConfiguration.account.environment
-        )
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
       )
     ).let { serverGroups ->
       if (serverGroups == null || serverGroups.isEmpty()) {

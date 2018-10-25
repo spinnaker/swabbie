@@ -32,4 +32,9 @@ interface ResourceProvider<out T : Resource> {
   fun getOne(params: Parameters): T?
 }
 
-class Parameters(val map: Map<String, Any>) : HashMap<String, Any>(map)
+data class Parameters(
+  val region: String,
+  val account: String,
+  val environment: String,
+  val id: String = ""
+)

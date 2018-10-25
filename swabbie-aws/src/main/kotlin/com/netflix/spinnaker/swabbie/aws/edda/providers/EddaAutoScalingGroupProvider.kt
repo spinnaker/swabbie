@@ -38,9 +38,9 @@ open class EddaAutoScalingGroupProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonAutoScalingGroup>? {
     withEddaClient(
-      region = params["region"] as String,
-      accountId = params["account"] as String,
-      environment = params["environment"] as String
+      region = params.region,
+      accountId = params.account,
+      environment = params.environment
     )?.run {
       return getServerGroups()
     }
@@ -50,11 +50,11 @@ open class EddaAutoScalingGroupProvider(
 
   override fun getOne(params: Parameters): AmazonAutoScalingGroup? {
     withEddaClient(
-      region = params["region"] as String,
-      accountId = params["account"] as String,
-      environment = params["environment"] as String
+      region = params.region,
+      accountId = params.account,
+      environment = params.environment
     )?.run {
-      return getServerGroup(params["autoScalingGroupName"] as String)
+      return getServerGroup(params.id)
     }
 
     return null

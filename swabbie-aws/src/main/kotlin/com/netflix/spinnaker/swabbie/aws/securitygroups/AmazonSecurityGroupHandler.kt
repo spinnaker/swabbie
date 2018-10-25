@@ -119,12 +119,10 @@ class AmazonSecurityGroupHandler(
                             workConfiguration: WorkConfiguration
   ): AmazonSecurityGroup? = securityGroupProvider.getOne(
     Parameters(
-      mapOf(
-        "groupId" to resourceId,
-        "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location,
-        "environment" to workConfiguration.account.environment
-      )
+        id = resourceId,
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
     )
   )
 
@@ -143,11 +141,9 @@ class AmazonSecurityGroupHandler(
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
     securityGroupProvider.getAll(
       Parameters(
-        mapOf(
-          "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location,
-          "environment" to workConfiguration.account.environment
-        )
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
       )
     )
 }

@@ -125,11 +125,9 @@ class AmazonAutoScalingGroupHandler(
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonAutoScalingGroup>? {
     val params = Parameters(
-      mapOf(
-        "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location,
-        "environment" to workConfiguration.account.environment
-      )
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
     )
 
     return serverGroupProvider.getAll(params).also { serverGroups ->
@@ -144,11 +142,9 @@ class AmazonAutoScalingGroupHandler(
     checkReferences(
       serverGroups = candidates,
       params = Parameters(
-        mapOf(
-          "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location,
-          "environment" to workConfiguration.account.environment
-        )
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
       )
     )
 
@@ -183,12 +179,10 @@ class AmazonAutoScalingGroupHandler(
     workConfiguration: WorkConfiguration
   ): AmazonAutoScalingGroup? {
     val params = Parameters(
-      mapOf(
-        "autoScalingGroupName" to resourceId,
-        "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location,
-        "environment" to workConfiguration.account.environment
-      )
+      id = resourceId,
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
     )
 
     return serverGroupProvider.getOne(params)

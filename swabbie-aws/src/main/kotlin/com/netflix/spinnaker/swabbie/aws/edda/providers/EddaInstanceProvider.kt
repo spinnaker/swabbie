@@ -14,70 +14,69 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.edda.providers
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
-import com.netflix.spinnaker.swabbie.edda.EddaService
-import com.netflix.spinnaker.swabbie.model.IMAGE
+import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
+import com.netflix.spinnaker.swabbie.aws.edda.EddaService
+import com.netflix.spinnaker.swabbie.model.INSTANCE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
 @Component
-open class EddaAmazonImageProvider(
-  private val eddaApiClients: List<EddaApiClient>,
+open class EddaInstanceProvider(
+  eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry
-) : ResourceProvider<AmazonImage>, EddaApiSupport(eddaApiClients, registry) {
+) : ResourceProvider<AmazonInstance>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-
-  override fun getAll(params: Parameters): List<AmazonImage>? {
+  override fun getAll(params: Parameters): List<AmazonInstance>? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getAmis()
+      return getNonTerminatedInstances()
     }
 
     return emptyList()
   }
 
-  override fun getOne(params: Parameters): AmazonImage? {
+  override fun getOne(params: Parameters): AmazonInstance? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getAmi(params["imageId"] as String)
+      return getSingleInstance(params["instanceId"] as String)
     }
 
     return null
   }
 
-  private fun EddaService.getAmis(): List<AmazonImage> {
+  private fun EddaService.getNonTerminatedInstances(): List<AmazonInstance> {
     return try {
       retrySupport.retry({
-        this.getImages()
+        this.getInstances()
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", IMAGE)).increment()
-      log.error("failed to get images", e)
+      registry.counter(eddaFailureCountId.withTags("resourceType", INSTANCE)).increment()
+      log.error("failed to get instances", e)
       throw e
     }
   }
 
-  private fun EddaService.getAmi(imageId: String): AmazonImage? {
+  private fun EddaService.getSingleInstance(instanceId: String): AmazonInstance? {
     return try {
       retrySupport.retry({
         try {
-          this.getImage(imageId)
+          this.getInstance(instanceId)
         } catch (e: Exception) {
           if (e is RetrofitError && e.response.status == 404) {
             null
@@ -87,8 +86,9 @@ open class EddaAmazonImageProvider(
         }
       }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", IMAGE)).increment()
-      log.error("failed to get image {}", imageId, e)
+      registry.counter(
+        eddaFailureCountId.withTags("resourceType", INSTANCE)).increment()
+      log.error("failed to get instance {}", instanceId, e)
       throw e
     }
   }

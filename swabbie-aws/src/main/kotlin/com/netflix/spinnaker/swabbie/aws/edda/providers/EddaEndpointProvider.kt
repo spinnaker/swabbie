@@ -1,12 +1,9 @@
-package com.netflix.spinnaker.swabbie.edda.providers
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spinnaker.swabbie.EndpointProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.edda.EddaEndpointsService
-import com.netflix.spinnaker.swabbie.model.Account
+import com.netflix.spinnaker.swabbie.aws.edda.EddaEndpointsService
 import com.netflix.spinnaker.swabbie.model.EddaEndpoint
-import com.netflix.spinnaker.swabbie.model.Region
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.edda.providers
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient

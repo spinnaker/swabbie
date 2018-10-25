@@ -39,7 +39,6 @@ dependencies {
   compile project(":swabbie-clouddriver")
   compile project(":swabbie-core")
   compile project(":swabbie-echo")
-  compile project(":swabbie-edda")
   compile project(":swabbie-front50")
   compile project(":swabbie-redis")
 }

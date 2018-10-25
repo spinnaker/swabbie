@@ -14,69 +14,70 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.edda.providers
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
-import com.netflix.spinnaker.swabbie.edda.EddaService
-import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
+import com.netflix.spinnaker.swabbie.aws.edda.EddaService
+import com.netflix.spinnaker.swabbie.model.IMAGE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
 @Component
-open class EddaAutoScalingGroupProvider(
-  eddaApiClients: List<EddaApiClient>,
+open class EddaAmazonImageProvider(
+  private val eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry
-) : ResourceProvider<AmazonAutoScalingGroup>, EddaApiSupport(eddaApiClients, registry) {
+) : ResourceProvider<AmazonImage>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  override fun getAll(params: Parameters): List<AmazonAutoScalingGroup>? {
+
+  override fun getAll(params: Parameters): List<AmazonImage>? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getServerGroups()
+      return getAmis()
     }
 
     return emptyList()
   }
 
-  override fun getOne(params: Parameters): AmazonAutoScalingGroup? {
+  override fun getOne(params: Parameters): AmazonImage? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getServerGroup(params["autoScalingGroupName"] as String)
+      return getAmi(params["imageId"] as String)
     }
 
     return null
   }
 
-  private fun EddaService.getServerGroups(): List<AmazonAutoScalingGroup> {
+  private fun EddaService.getAmis(): List<AmazonImage> {
     return try {
       retrySupport.retry({
-        this.getAutoScalingGroups()
+        this.getImages()
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
-      log.error("failed to get server groups", e)
+      registry.counter(eddaFailureCountId.withTags("resourceType", IMAGE)).increment()
+      log.error("failed to get images", e)
       throw e
     }
   }
 
-  private fun EddaService.getServerGroup(autoScalingGroupName: String): AmazonAutoScalingGroup? {
-    try {
-      return retrySupport.retry({
+  private fun EddaService.getAmi(imageId: String): AmazonImage? {
+    return try {
+      retrySupport.retry({
         try {
-          this.getAutoScalingGroup(autoScalingGroupName)
+          this.getImage(imageId)
         } catch (e: Exception) {
           if (e is RetrofitError && e.response.status == 404) {
             null
@@ -86,8 +87,8 @@ open class EddaAutoScalingGroupProvider(
         }
       }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
-      log.error("failed to get server group {}", autoScalingGroupName, e)
+      registry.counter(eddaFailureCountId.withTags("resourceType", IMAGE)).increment()
+      log.error("failed to get image {}", imageId, e)
       throw e
     }
   }

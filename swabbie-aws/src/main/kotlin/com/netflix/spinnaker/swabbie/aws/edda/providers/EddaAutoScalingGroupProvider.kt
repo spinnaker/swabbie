@@ -14,70 +14,69 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.edda.providers
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
-import com.netflix.spinnaker.swabbie.edda.EddaService
-import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import com.netflix.spinnaker.swabbie.aws.edda.EddaService
+import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
 @Component
-open class EddaLaunchConfigurationProvider(
+open class EddaAutoScalingGroupProvider(
   eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry
-) : ResourceProvider<AmazonLaunchConfiguration>, EddaApiSupport(eddaApiClients, registry) {
+) : ResourceProvider<AmazonAutoScalingGroup>, EddaApiSupport(eddaApiClients, registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  override fun getAll(params: Parameters): List<AmazonLaunchConfiguration>? {
+  override fun getAll(params: Parameters): List<AmazonAutoScalingGroup>? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getLaunchConfigurations()
+      return getServerGroups()
     }
 
     return emptyList()
   }
 
-  override fun getOne(params: Parameters): AmazonLaunchConfiguration? {
+  override fun getOne(params: Parameters): AmazonAutoScalingGroup? {
     withEddaClient(
       region = params["region"] as String,
       accountId = params["account"] as String,
       environment = params["environment"] as String
     )?.run {
-      return getLaunchConfiguration(params["launchConfigurationName"] as String)
+      return getServerGroup(params["autoScalingGroupName"] as String)
     }
 
     return null
   }
 
-  private fun EddaService.getLaunchConfigurations(): List<AmazonLaunchConfiguration> {
+  private fun EddaService.getServerGroups(): List<AmazonAutoScalingGroup> {
     return try {
       retrySupport.retry({
-        this.getLaunchConfigs()
+        this.getAutoScalingGroups()
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", LAUNCH_CONFIGURATION)).increment()
-      log.error("failed to get instances", e)
+      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      log.error("failed to get server groups", e)
       throw e
     }
   }
 
-  private fun EddaService.getLaunchConfiguration(launchConfigurationName: String): AmazonLaunchConfiguration? {
-    return try {
-      retrySupport.retry({
+  private fun EddaService.getServerGroup(autoScalingGroupName: String): AmazonAutoScalingGroup? {
+    try {
+      return retrySupport.retry({
         try {
-          this.getLaunchConfig(launchConfigurationName)
+          this.getAutoScalingGroup(autoScalingGroupName)
         } catch (e: Exception) {
           if (e is RetrofitError && e.response.status == 404) {
             null
@@ -87,8 +86,8 @@ open class EddaLaunchConfigurationProvider(
         }
       }, maxRetries, retryBackOffMillis, false)
     } catch (e: Exception) {
-      registry.counter(eddaFailureCountId.withTags("resourceType", LAUNCH_CONFIGURATION)).increment()
-      log.error("failed to get launch config {}", launchConfigurationName, e)
+      registry.counter(eddaFailureCountId.withTags("resourceType", SERVER_GROUP)).increment()
+      log.error("failed to get server group {}", autoScalingGroupName, e)
       throw e
     }
   }

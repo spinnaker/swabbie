@@ -38,9 +38,9 @@ open class EddaLaunchConfigurationProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun getAll(params: Parameters): List<AmazonLaunchConfiguration>? {
     withEddaClient(
-      region = params["region"] as String,
-      accountId = params["account"] as String,
-      environment = params["environment"] as String
+      region = params.region,
+      accountId = params.account,
+      environment = params.environment
     )?.run {
       return getLaunchConfigurations()
     }
@@ -50,11 +50,11 @@ open class EddaLaunchConfigurationProvider(
 
   override fun getOne(params: Parameters): AmazonLaunchConfiguration? {
     withEddaClient(
-      region = params["region"] as String,
-      accountId = params["account"] as String,
-      environment = params["environment"] as String
+      region = params.region,
+      accountId = params.account,
+      environment = params.environment
     )?.run {
-      return getLaunchConfiguration(params["launchConfigurationName"] as String)
+      return getLaunchConfiguration(params.id)
     }
 
     return null

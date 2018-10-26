@@ -180,11 +180,9 @@ class AmazonImageHandler(
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonImage>? {
     val params = Parameters(
-      mapOf(
-        "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location,
-        "environment" to workConfiguration.account.environment
-      )
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
     )
 
     return imageProvider.getAll(params).also { images ->
@@ -199,11 +197,9 @@ class AmazonImageHandler(
     checkReferences(
       images = candidates,
       params = Parameters(
-        mapOf(
-          "account" to workConfiguration.account.accountId!!,
-          "region" to workConfiguration.location,
-          "environment" to workConfiguration.account.environment
-        )
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
       )
     )
     return candidates
@@ -268,7 +264,7 @@ class AmazonImageHandler(
         ) { usedByResource ->
           image.set(USED_BY_INSTANCES, true)
           resourceUseTrackingRepository.recordUse(image.resourceId, usedByResource)
-          log.debug("Image {} ({}) in {} is USED_BY_INSTANCES", image.imageId, image.name, params["region"])
+          log.debug("Image {} ({}) in {} is USED_BY_INSTANCES", image.imageId, image.name, params.region)
         }
       }
     }
@@ -303,7 +299,7 @@ class AmazonImageHandler(
           },
           image
         ) { usedByResource ->
-          log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_CONFIGURATIONS", image.imageId, image.name, params["region"])
+          log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_CONFIGURATIONS", image.imageId, image.name, params.region)
           resourceUseTrackingRepository.recordUse(image.resourceId, usedByResource)
           image.set(USED_BY_LAUNCH_CONFIGURATIONS, true)
         }
@@ -350,12 +346,12 @@ class AmazonImageHandler(
       if (isAncestor(imageDescrToImageId, image) || isAncestor(otherImageDescrToImageId, image)) {
         image.set(IS_BASE_OR_ANCESTOR, true)
         image.set(NAIVE_EXCLUSION, true)
-        log.debug("Image {} ({}) in {} is IS_BASE_OR_ANCESTOR", image.imageId, image.name, params["region"])
+        log.debug("Image {} ({}) in {} is IS_BASE_OR_ANCESTOR", image.imageId, image.name, params.region)
       }
 
       if (otherImagesIdToAccount.containsKey(image.imageId)) {
         image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
-        log.debug("Image {} ({}) in {} is HAS_SIBLINGS_IN_OTHER_ACCOUNTS", image.imageId, image.name, params["region"])
+        log.debug("Image {} ({}) in {} is HAS_SIBLINGS_IN_OTHER_ACCOUNTS", image.imageId, image.name, params.region)
       }
     }
   }
@@ -399,14 +395,12 @@ class AmazonImageHandler(
   ): List<Pair<AmazonImage, Account>> {
     val result: MutableList<Pair<AmazonImage, Account>> = mutableListOf()
     accountProvider.getAccounts().filter {
-      it.type == AWS && it.accountId != params["account"]
+      it.type == AWS && it.accountId != params.account
     }.forEach { account ->
       account.regions?.forEach { region ->
         log.info("Looking for other images in {}/{}", account.accountId, region)
         imageProvider.getAll(
-          Parameters(
-            mapOf("account" to account.accountId!!, "region" to region.name, "environment" to account.environment)
-          )
+          Parameters(account = account.accountId!!, region = region.name, environment = account.environment)
         )?.forEach { image ->
           result.add(Pair(image, account))
         }
@@ -426,12 +420,10 @@ class AmazonImageHandler(
 
   override fun getCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): AmazonImage? {
     val params = Parameters(
-      mapOf(
-        "imageId" to resourceId,
-        "account" to workConfiguration.account.accountId!!,
-        "region" to workConfiguration.location,
-        "environment" to workConfiguration.account.environment
-      )
+        id = resourceId,
+        account = workConfiguration.account.accountId!!,
+        region = workConfiguration.location,
+        environment = workConfiguration.account.environment
     )
 
     return imageProvider.getOne(params)

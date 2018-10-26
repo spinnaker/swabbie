@@ -127,7 +127,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @Test
   fun `should find server groups cleanup candidates`() {
-    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(serverGroupProvider.getAll(params)) doReturn listOf(
       AmazonAutoScalingGroup(
         autoScalingGroupName = "testapp-v001",
@@ -154,7 +154,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(serverGroupProvider.getAll(params)) doReturn listOf(
       AmazonAutoScalingGroup(
         autoScalingGroupName = "testapp-v001",

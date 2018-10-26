@@ -127,9 +127,7 @@ object AmazonImageHandlerTest {
         )
       )
 
-    val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test", "environment" to "test")
-    )
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(imageProvider.getAll(params)) doReturn listOf(
       AmazonImage(
         imageId = "ami-123",
@@ -202,7 +200,7 @@ object AmazonImageHandlerTest {
   fun `should fail to get candidates if checking launch configuration references fails`() {
     val configuration = getWorkConfiguration()
     whenever(launchConfigurationProvider.getAll(
-      Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
+      Parameters(account = "1234", region = "us-east-1", environment = "test")
     )) doThrow IllegalStateException("launch configs")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
@@ -214,7 +212,7 @@ object AmazonImageHandlerTest {
   fun `should fail to get candidates if checking instance references fails`() {
     val configuration = getWorkConfiguration()
     whenever(instanceProvider.getAll(
-      Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
+      Parameters(account = "1234", region = "us-east-1", environment = "test")
     )) doThrow IllegalStateException("failed to get instances")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
@@ -234,7 +232,7 @@ object AmazonImageHandlerTest {
   fun `should fail to get candidates if checking for siblings in other accounts fails`() {
     val configuration = getWorkConfiguration()
     whenever(imageProvider.getAll(
-      Parameters(mapOf("account" to "4321", "region" to "us-east-1", "environment" to "prod"))
+      Parameters(account = "1234", region = "us-east-1", environment = "test")
     )) doThrow IllegalStateException("failed to get images in 4321/us-east-1")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
@@ -330,7 +328,7 @@ object AmazonImageHandlerTest {
   @Test
   fun `should not mark ancestor or base images`() {
     val workConfiguration = getWorkConfiguration()
-    val params = Parameters(mapOf("account" to "1234", "region" to "us-east-1", "environment" to "test"))
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(instanceProvider.getAll(any())) doReturn listOf<AmazonInstance>()
     whenever(launchConfigurationProvider.getAll(any())) doReturn listOf<AmazonLaunchConfiguration>()
     whenever(imageProvider.getAll(params)) doReturn listOf(
@@ -408,9 +406,7 @@ object AmazonImageHandlerTest {
         )
       )
 
-    val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123", "environment" to "test")
-    )
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
 
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
@@ -454,9 +450,7 @@ object AmazonImageHandlerTest {
           )
         )
       )
-    val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123", "environment" to "test")
-    )
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
     whenever(taggingService.upsertImageTag(any())) doReturn "1234"
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
 
@@ -504,9 +498,7 @@ object AmazonImageHandlerTest {
           )
         )
       )
-    val params = Parameters(
-      mapOf("account" to "1234", "region" to "us-east-1", "imageId" to "ami-123", "environment" to "test")
-    )
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
     whenever(taggingService.upsertImageTag(any())) doReturn "1234"
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
 

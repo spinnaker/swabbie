@@ -39,8 +39,8 @@ open class EddaImagesUsedByInstancesProvider(
    * currently referenced by running EC2 instances in the region
    */
   override fun getAll(params: Parameters): Set<String> {
-    if (params.containsKey("region")) {
-      return imagesUsedByInstancesCache.get().elementAt(0).refdAmisByRegion[params["region"]] ?: emptySet()
+    if (params.region != "") {
+      return imagesUsedByInstancesCache.get().elementAt(0).refdAmisByRegion[params.region] ?: emptySet()
     } else {
       throw IllegalArgumentException("Missing required region parameter")
     }
@@ -66,11 +66,9 @@ open class EddaImagesUsedByInstancesProvider(
         .flatMap { edda ->
           instanceProvider.getAll(
             Parameters(
-              mapOf(
-                "region" to region,
-                "account" to edda.account.accountId!!,
-                "environment" to edda.account.environment
-              )
+              region = region,
+              account = edda.account.accountId!!,
+              environment = edda.account.environment
             )
           ) ?: emptyList()
         }

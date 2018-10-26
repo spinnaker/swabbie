@@ -21,9 +21,10 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
-import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
-import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
+import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
+import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.exception.StaleCacheException
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -51,11 +52,10 @@ class AmazonImageHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
+  private val launchConfigurationCache: InMemorySingletonCache<AmazonLaunchConfigurationCache>,
+  private val imagesUsedByinstancesCache: InMemorySingletonCache<AmazonImagesUsedByInstancesCache>,
   private val rules: List<Rule<AmazonImage>>,
   private val imageProvider: ResourceProvider<AmazonImage>,
-  private val instanceProvider: ResourceProvider<AmazonInstance>,
-  private val launchConfigurationProvider: ResourceProvider<AmazonLaunchConfiguration>,
-  private val accountProvider: AccountProvider,
   private val orcaService: OrcaService,
   private val applicationsCaches: List<InMemoryCache<Application>>,
   private val taggingService: TaggingService,
@@ -209,7 +209,7 @@ class AmazonImageHandler(
    * Checks references for:
    * 1. Instances.
    * 2. Launch Configurations.
-   * 3. Image siblings (Image sharing the same name) in other accounts/regions.
+   * 3. Seen in use recently.
    * Bubbles up any raised exception.
    */
   private fun checkReferences(images: List<AmazonImage>?, params: Parameters) {
@@ -227,9 +227,8 @@ class AmazonImageHandler(
 
     val elapsedTimeMillis = measureTimeMillis {
       try {
-        setUsedByInstances(images, params)
         setUsedByLaunchConfigurations(images, params)
-        setHasSiblings(images, params)
+        setUsedByInstances(images, params)
         setSeenWithinUnusedThreshold(images)
       } catch (e: Exception) {
         log.error("Failed to check image references. Params: {}", params, e)
@@ -241,119 +240,66 @@ class AmazonImageHandler(
   }
 
   /**
+   * Checks if images are used by launch configurations in all accounts
+   */
+  private fun setUsedByLaunchConfigurations(
+    images: List<AmazonImage>,
+    params: Parameters
+  ) {
+    if (launchConfigurationCache.get().getLastUpdated()
+        < clock.instant().toEpochMilli().minus(Duration.ofHours(1).toMillis())) {
+      throw StaleCacheException("Amazon launch configuration cache over 1 hour old, aborting.")
+    }
+    val imagesUsedByLaunchConfigsForRegion = launchConfigurationCache.get().getRefdAmisForRegion(params.region).keys
+    log.info("Checking the {} images used by launch configurations.", imagesUsedByLaunchConfigsForRegion.size)
+
+    images
+      .filter { NAIVE_EXCLUSION !in it.details }
+      .forEach { image ->
+        if (imagesUsedByLaunchConfigsForRegion.contains(image.imageId)) {
+          log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_CONFIGS", image.imageId, image.name, params.region)
+          image.set(USED_BY_LAUNCH_CONFIGURATIONS, true)
+
+          val usedByLaunchConfigs = launchConfigurationCache
+            .get().getLaunchConfigsByRegionForImage(params.copy(id = image.imageId))
+            .joinToString(",") { it.getAutoscalingGroupName() }
+
+          resourceUseTrackingRepository.recordUse(
+            image.resourceId,
+            usedByLaunchConfigs
+          )
+        }
+      }
+
+  }
+
+  /**
    * Checks if images are used by instances
    */
   private fun setUsedByInstances(
     images: List<AmazonImage>,
     params: Parameters
   ) {
-    instanceProvider.getAll(params).let { instances ->
-      log.info("Checking for references in {} instances", instances?.size)
-      if (instances == null || instances.isEmpty()) {
-        return
-      }
+    if (imagesUsedByinstancesCache.get().getLastUpdated()
+        < clock.instant().toEpochMilli().minus(Duration.ofHours(1).toMillis())) {
+      throw StaleCacheException("Amazon images used by instances cache over 1 hour old, aborting.")
+    }
+    val imagesUsedByInstancesInRegion = imagesUsedByinstancesCache.get().getAll(params)
+    log.info("Checking {} images used by instances", imagesUsedByInstancesInRegion .size)
 
-      images.filter {
-        NAIVE_EXCLUSION !in it.details && USED_BY_INSTANCES !in it.details
-      }.forEach { image ->
-        onMatchedImages(
-          instances.map { amazonInstance ->
-            SlimAwsResource(amazonInstance.name, amazonInstance.imageId, amazonInstance.getAutoscalingGroup().orEmpty())
-          },
-          image
-        ) { usedByResource ->
-          image.set(USED_BY_INSTANCES, true)
-          resourceUseTrackingRepository.recordUse(image.resourceId, usedByResource)
+    images
+      .filter { NAIVE_EXCLUSION !in it.details && USED_BY_LAUNCH_CONFIGURATIONS !in it.details }
+      .forEach { image ->
+        if (imagesUsedByInstancesInRegion.contains(image.imageId)) {
           log.debug("Image {} ({}) in {} is USED_BY_INSTANCES", image.imageId, image.name, params.region)
+          image.set(USED_BY_INSTANCES, true)
+
+          resourceUseTrackingRepository.recordUse(
+            image.resourceId,
+            "Used by an instance."
+          )
         }
       }
-    }
-  }
-
-  /**
-   * Checks if images are used by launch configurations
-   */
-  private fun setUsedByLaunchConfigurations(
-    images: List<AmazonImage>,
-    params: Parameters
-  ) {
-    launchConfigurationProvider.getAll(params).let { launchConfigurations ->
-      log.info("Checking for references in {} launch configurations", launchConfigurations?.size)
-      if (launchConfigurations == null || launchConfigurations.isEmpty()) {
-        log.debug("No launch configs found for params: {}", params)
-        return
-      }
-
-      images.filter {
-        NAIVE_EXCLUSION !in it.details &&
-          USED_BY_INSTANCES !in it.details &&
-          USED_BY_LAUNCH_CONFIGURATIONS !in it.details
-      }.forEach { image ->
-        onMatchedImages(
-          launchConfigurations.map { launchConfiguration ->
-            SlimAwsResource(
-              launchConfiguration.resourceId,
-              launchConfiguration.imageId,
-              launchConfiguration.getAutoscalingGroupName()
-            )
-          },
-          image
-        ) { usedByResource ->
-          log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_CONFIGURATIONS", image.imageId, image.name, params.region)
-          resourceUseTrackingRepository.recordUse(image.resourceId, usedByResource)
-          image.set(USED_BY_LAUNCH_CONFIGURATIONS, true)
-        }
-      }
-    }
-  }
-
-  /**
-   * Checks if images have siblings in other accounts
-   */
-  private fun setHasSiblings(
-    images: List<AmazonImage>,
-    params: Parameters
-  ) {
-    log.info("Checking for sibling images.")
-    val imagesInOtherAccounts = getImagesFromOtherAccounts(params)
-
-    val otherImagesIdToAccount = imagesInOtherAccounts
-      .map { (image, account) ->
-        image.imageId to account.accountId
-      }.toMap()
-
-    val otherImageDescrToImageId = imagesInOtherAccounts
-      .filter { (image, account) ->
-        image.description != null
-      }.map { (image, account) ->
-        image.description!! to image.imageId
-      }.toMap()
-
-    val filteredImages = images.filter {
-      NAIVE_EXCLUSION !in it.details &&
-        USED_BY_INSTANCES !in it.details &&
-        USED_BY_LAUNCH_CONFIGURATIONS !in it.details &&
-        HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details &&
-        IS_BASE_OR_ANCESTOR !in it.details
-    }
-
-    val imageDescrToImageId = filteredImages
-      .filter { it.description != null }
-      .map { it.description!! to it.imageId }
-      .toMap()
-
-    filteredImages.forEach { image ->
-      if (isAncestor(imageDescrToImageId, image) || isAncestor(otherImageDescrToImageId, image)) {
-        image.set(IS_BASE_OR_ANCESTOR, true)
-        image.set(NAIVE_EXCLUSION, true)
-        log.debug("Image {} ({}) in {} is IS_BASE_OR_ANCESTOR", image.imageId, image.name, params.region)
-      }
-
-      if (otherImagesIdToAccount.containsKey(image.imageId)) {
-        image.set(HAS_SIBLINGS_IN_OTHER_ACCOUNTS, true)
-        log.debug("Image {} ({}) in {} is HAS_SIBLINGS_IN_OTHER_ACCOUNTS", image.imageId, image.name, params.region)
-      }
-    }
   }
 
   /**
@@ -376,44 +322,12 @@ class AmazonImageHandler(
       NAIVE_EXCLUSION !in it.details &&
         USED_BY_INSTANCES !in it.details &&
         USED_BY_LAUNCH_CONFIGURATIONS !in it.details &&
-        HAS_SIBLINGS_IN_OTHER_ACCOUNTS !in it.details &&
         IS_BASE_OR_ANCESTOR !in it.details
     }.forEach { image ->
       if (!unusedAndTracked.containsKey(image.imageId) && usedImages.contains(image.imageId)) {
         // Image has not been unused for the outOfUseThreshold, and has been seen before
         image.set(SEEN_IN_USE_RECENTLY, true)
         log.debug("Image {} ({}) has been SEEN_IN_USE_RECENTLY", kv("imageId", image.imageId), image.name)
-      }
-    }
-  }
-
-  /**
-   * Get images in accounts. Used to check for siblings in those accounts.
-   */
-  private fun getImagesFromOtherAccounts(
-    params: Parameters
-  ): List<Pair<AmazonImage, Account>> {
-    val result: MutableList<Pair<AmazonImage, Account>> = mutableListOf()
-    accountProvider.getAccounts().filter {
-      it.type == AWS && it.accountId != params.account
-    }.forEach { account ->
-      account.regions?.forEach { region ->
-        log.info("Looking for other images in {}/{}", account.accountId, region)
-        imageProvider.getAll(
-          Parameters(account = account.accountId!!, region = region.name, environment = account.environment)
-        )?.forEach { image ->
-          result.add(Pair(image, account))
-        }
-      }
-    }
-
-    return result
-  }
-
-  private fun onMatchedImages(ids: List<SlimAwsResource>, image: AmazonImage, onFound: (String) -> Unit) {
-    ids.forEach {
-      if (image.imageId == it.imageId) {
-        onFound.invoke(it.usedByResourceName)
       }
     }
   }
@@ -438,9 +352,3 @@ private fun isAncestor(images: Map<String, String>, image: AmazonImage): Boolean
 private fun AmazonImage.matches(image: AmazonImage): Boolean {
   return name == image.name || imageId == image.imageId
 }
-
-private data class SlimAwsResource(
-  val id: String,
-  val imageId: String,
-  val usedByResourceName: String
-)

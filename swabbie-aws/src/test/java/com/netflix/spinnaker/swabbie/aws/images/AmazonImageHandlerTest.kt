@@ -27,6 +27,8 @@ import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
+import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
@@ -66,6 +68,8 @@ object AmazonImageHandlerTest {
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val swabbieProperties = SwabbieProperties()
+  private val launchConfigurationCache = mock<InMemorySingletonCache<AmazonLaunchConfigurationCache>>()
+  private val imagesUsedByinstancesCache = mock<InMemorySingletonCache<AmazonImagesUsedByInstancesCache>>()
 
   private val subject = AmazonImageHandler(
     clock = clock,
@@ -84,15 +88,14 @@ object AmazonImageHandlerTest {
     lockingService = lockingService,
     retrySupport = RetrySupport(),
     imageProvider = imageProvider,
-    instanceProvider = instanceProvider,
-    launchConfigurationProvider = launchConfigurationProvider,
     orcaService = orcaService,
-    accountProvider = accountProvider,
     applicationsCaches = listOf(applicationsCache),
     taggingService = taggingService,
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
-    swabbieProperties = swabbieProperties
+    swabbieProperties = swabbieProperties,
+    launchConfigurationCache = launchConfigurationCache,
+    imagesUsedByinstancesCache = imagesUsedByinstancesCache
   )
 
   @BeforeEach
@@ -166,6 +169,32 @@ object AmazonImageHandlerTest {
           clock.instant().minus(Duration.ofDays(32)).toEpochMilli()
         )
       )
+
+    val defaultLaunchConfig = AmazonLaunchConfiguration(
+      name = "test-app-v001-111920",
+      launchConfigurationName = "test-app-v001-111920",
+      imageId = "ami-132",
+      createdTime = clock.instant().toEpochMilli().minus(Duration.ofDays(3).toMillis())
+    )
+
+    whenever(imagesUsedByinstancesCache.get()) doReturn
+      AmazonImagesUsedByInstancesCache(
+        mapOf(
+          "us-east-1" to setOf("ami-132","ami-444")
+        ),
+        clock.instant().toEpochMilli(),
+        "default"
+      )
+    whenever(launchConfigurationCache.get()) doReturn
+      AmazonLaunchConfigurationCache(
+        mapOf(
+          "us-east-1" to setOf(defaultLaunchConfig)
+        ),
+        mapOf(
+          "us-east-1" to mapOf("ami-132" to setOf(defaultLaunchConfig))
+        ),
+        clock.instant().toEpochMilli(), "default"
+      )
   }
 
   @AfterEach
@@ -179,7 +208,9 @@ object AmazonImageHandlerTest {
       launchConfigurationProvider,
       applicationEventPublisher,
       resourceOwnerResolver,
-      taskTrackingRepository
+      taskTrackingRepository,
+      imagesUsedByinstancesCache,
+      launchConfigurationCache
     )
   }
 
@@ -199,9 +230,8 @@ object AmazonImageHandlerTest {
   @Test
   fun `should fail to get candidates if checking launch configuration references fails`() {
     val configuration = getWorkConfiguration()
-    whenever(launchConfigurationProvider.getAll(
-      Parameters(account = "1234", region = "us-east-1", environment = "test")
-    )) doThrow IllegalStateException("launch configs")
+    whenever(launchConfigurationCache.get()) doThrow
+      IllegalStateException("launch configs")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
       subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
@@ -211,29 +241,8 @@ object AmazonImageHandlerTest {
   @Test
   fun `should fail to get candidates if checking instance references fails`() {
     val configuration = getWorkConfiguration()
-    whenever(instanceProvider.getAll(
-      Parameters(account = "1234", region = "us-east-1", environment = "test")
-    )) doThrow IllegalStateException("failed to get instances")
-
-    Assertions.assertThrows(IllegalStateException::class.java) {
-      subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
-    }
-  }
-
-  @Test
-  fun `should fail to get candidates if checking for siblings fails because of accounts`() {
-    whenever(accountProvider.getAccounts()) doThrow IllegalStateException("failed to get accounts")
-    Assertions.assertThrows(IllegalStateException::class.java) {
-      subject.getCandidates(getWorkConfiguration())
-    }
-  }
-
-  @Test
-  fun `should fail to get candidates if checking for siblings in other accounts fails`() {
-    val configuration = getWorkConfiguration()
-    whenever(imageProvider.getAll(
-      Parameters(account = "1234", region = "us-east-1", environment = "test")
-    )) doThrow IllegalStateException("failed to get images in 4321/us-east-1")
+    whenever(imagesUsedByinstancesCache.get()) doThrow
+      IllegalStateException("failed to get instances")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
       subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
@@ -279,6 +288,15 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should not mark images referenced by other resources`() {
+    whenever(imagesUsedByinstancesCache.get()) doReturn
+      AmazonImagesUsedByInstancesCache(
+        mapOf(
+          "us-east-1" to setOf("ami-123","ami-444")
+        ),
+        clock.instant().toEpochMilli(),
+        "default"
+      )
+
     val workConfiguration = getWorkConfiguration(
       exclusionList = mutableListOf(
         Exclusion()
@@ -295,29 +313,13 @@ object AmazonImageHandlerTest {
       )
     )
 
-    whenever(instanceProvider.getAll(any())) doReturn
-      listOf(
-        AmazonInstance(
-          instanceId = "i-123",
-          cloudProvider = AWS,
-          imageId = "ami-123", // reference to ami-123
-          launchTime = clock.instant().toEpochMilli(),
-          tags = listOf(mapOf(
-            "class" to "com.amazonaws.services.ec2.model.Tag",
-            "value" to "test-servergroup-v111",
-            "key" to "aws:autoscaling:groupName",
-            "aws:autoscaling:groupName" to "test-servergroup-v111"
-          ))
-        )
-      )
-
     subject.getCandidates(workConfiguration).let { images ->
       images!!.size shouldMatch equalTo(2)
       Assertions.assertTrue(images.any { it.imageId == "ami-123" })
       Assertions.assertTrue(images.any { it.imageId == "ami-132" })
     }
 
-    subject.mark(workConfiguration, { print { "postMark" } })
+    subject.mark(workConfiguration) { print { "postMark" } }
 
     // ami-132 is excluded by exclusion policies, specifically because ami-132 is not allowlisted
     // ami-123 is referenced by an instance, so therefore should not be marked for deletion
@@ -329,8 +331,6 @@ object AmazonImageHandlerTest {
   fun `should not mark ancestor or base images`() {
     val workConfiguration = getWorkConfiguration()
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(instanceProvider.getAll(any())) doReturn listOf<AmazonInstance>()
-    whenever(launchConfigurationProvider.getAll(any())) doReturn listOf<AmazonLaunchConfiguration>()
     whenever(imageProvider.getAll(params)) doReturn listOf(
       AmazonImage(
         imageId = "ami-123",
@@ -411,7 +411,7 @@ object AmazonImageHandlerTest {
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
 
-    subject.delete(workConfiguration, {})
+    subject.delete(workConfiguration) {}
 
     verify(taskTrackingRepository, times(1)).add(any(), any())
     verify(orcaService, times(1)).orchestrate(any())

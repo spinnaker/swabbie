@@ -20,40 +20,22 @@ import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Lazy
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
 import java.lang.IllegalArgumentException
 import java.time.Clock
 
-@Configuration
+@Component
 open class EddaImagesUsedByInstancesProvider(
   private val clock: Clock,
   private val workConfigurations: List<WorkConfiguration>,
   private val instanceProvider: ResourceProvider<AmazonInstance>,
-  private val eddaApiClients: List<EddaApiClient>,
-  @Lazy private val imagesUsedByInstancesCache: InMemoryCache<AmazonImagesUsedByInstancesCache>
+  private val eddaApiClients: List<EddaApiClient>
 ) : CachedViewProvider<AmazonImagesUsedByInstancesCache> {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  /**
-   * @param params["region"]: return a Set<String> of Amazon imageIds (i.e. "ami-abc123")
-   * currently referenced by running EC2 instances in the region
-   */
-  override fun getAll(params: Parameters): Set<String> {
-    if (params.region != "") {
-      return imagesUsedByInstancesCache.get().elementAt(0).refdAmisByRegion[params.region] ?: emptySet()
-    } else {
-      throw IllegalArgumentException("Missing required region parameter")
-    }
-  }
-
-  /**
-   * Returns an epochMs timestamp of the last cache update
-   */
-  override fun getLastUpdated(): Long {
-    return imagesUsedByInstancesCache.get().elementAt(0).lastUpdated
-  }
-
-  fun load(): Set<AmazonImagesUsedByInstancesCache> {
+  override fun load(): AmazonImagesUsedByInstancesCache {
     val refdAmisByRegion = mutableMapOf<String, Set<String>>()
 
     val regions = workConfigurations.asSequence()
@@ -81,24 +63,37 @@ open class EddaImagesUsedByInstancesProvider(
       refdAmisByRegion[region] = refdAmis
     }
 
-    return setOf(
-      AmazonImagesUsedByInstancesCache(
-        refdAmisByRegion,
-        clock.millis(),
-        "default"
-      )
-    )
+    return AmazonImagesUsedByInstancesCache(refdAmisByRegion, clock.millis(), "default")
   }
 }
 
 
-@Configuration
+@Component
 open class EddaImagesUsedByInstancesCache(
   eddaImagesUsedByInstancesProvider: EddaImagesUsedByInstancesProvider
-) : InMemoryCache<AmazonImagesUsedByInstancesCache>(eddaImagesUsedByInstancesProvider.load())
+) : InMemorySingletonCache<AmazonImagesUsedByInstancesCache>(eddaImagesUsedByInstancesProvider.load())
 
 data class AmazonImagesUsedByInstancesCache(
-  val refdAmisByRegion: Map<String, Set<String>>,
-  val lastUpdated: Long,
+  private val refdAmisByRegion: Map<String, Set<String>>,
+  private val lastUpdated: Long,
   override val name: String?
-) : Cacheable
+) : Cacheable {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+
+  /**
+   * @param params.region: return a Set<String> of Amazon imageIds (i.e. "ami-abc123")
+   * currently referenced by running EC2 instances in the region
+   */
+  fun getAll(params: Parameters): Set<String> {
+    log.debug("getting all for ${javaClass.simpleName}")
+    if (params.region != "") {
+      return refdAmisByRegion[params.region] ?: emptySet()
+    } else {
+      throw IllegalArgumentException("Missing required region parameter")
+    }
+  }
+
+  fun getLastUpdated(): Long {
+    return lastUpdated
+  }
+}

@@ -26,7 +26,7 @@ import java.time.ZoneId
 
 @JsonTypeName("amazonInstance")
 data class AmazonInstance(
-  private val instanceId: String,
+  val instanceId: String,
   val imageId: String,
   val tags: List<Map<String, String>>,
   private val launchTime: Long,

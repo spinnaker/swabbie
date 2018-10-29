@@ -20,50 +20,23 @@ import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Lazy
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
 import java.lang.IllegalArgumentException
 import java.time.Clock
 
-@Configuration
+@Component
 open class EddaLaunchConfigurationCacheProvider(
   private val clock: Clock,
   private val workConfigurations: List<WorkConfiguration>,
   private val launchConfigurationProvider: ResourceProvider<AmazonLaunchConfiguration>,
-  private val eddaApiClients: List<EddaApiClient>,
-  @Lazy private val launchConfigCache: InMemoryCache<AmazonLaunchConfigurationCache>
+  private val eddaApiClients: List<EddaApiClient>
 ) : CachedViewProvider<AmazonLaunchConfigurationCache> {
 
-  /**
-   * @param params["region"]: return a Set<AmazonLaunchConfiguration> across all known accounts in region
-   */
-  override fun getAll(params: Parameters): Set<AmazonLaunchConfiguration> {
-    if (params.region != "") {
-      return launchConfigCache.get().elementAt(0).configsByRegion[params.region] ?: emptySet()
-    } else {
-      throw IllegalArgumentException("Missing required region parameter")
-    }
-  }
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  /**
-   * Returns an epochMs timestamp of the last cache update
-   */
-  override fun getLastUpdated(): Long {
-    return launchConfigCache.get().elementAt(0).lastUpdated
-  }
-
-  /**
-   * @param region: AWS region
-   *
-   * Returns a map of <K: all ami's referenced by a launch config in region, V: set of launch configs referencing K>
-   */
-  fun getRefdAmisForRegion(region: String): Map<String, Set<AmazonLaunchConfiguration>> {
-    val cache = launchConfigCache.get()
-    return cache.elementAt(0).refdAmisByRegion[region].orEmpty()
-  }
-
-  // TODO("Refactor Cacheable to support singletons instead of just sets")
-  fun load(): Set<AmazonLaunchConfigurationCache> {
+  override fun load(): AmazonLaunchConfigurationCache {
     val configsByRegion = mutableMapOf<String, Set<AmazonLaunchConfiguration>>()
     val refdAmisByRegion = mutableMapOf<String, MutableMap<String, MutableSet<AmazonLaunchConfiguration>>>()
 
@@ -94,26 +67,55 @@ open class EddaLaunchConfigurationCacheProvider(
       configsByRegion[region] = launchConfigs
       refdAmisByRegion[region] = refdAmis
     }
+    return AmazonLaunchConfigurationCache(configsByRegion, refdAmisByRegion, clock.millis(), "default")
 
-    return setOf(
-      AmazonLaunchConfigurationCache(
-        configsByRegion,
-        refdAmisByRegion,
-        clock.millis(),
-        "default"
-      )
-    )
   }
 }
 
-@Configuration
+@Component
 open class EddaLaunchConfigurationCache(
   eddaLaunchConfigurationCacheProvider: EddaLaunchConfigurationCacheProvider
-) : InMemoryCache<AmazonLaunchConfigurationCache>(eddaLaunchConfigurationCacheProvider.load())
+) : InMemorySingletonCache<AmazonLaunchConfigurationCache>(eddaLaunchConfigurationCacheProvider.load())
 
 data class AmazonLaunchConfigurationCache(
-  val configsByRegion: Map<String, Set<AmazonLaunchConfiguration>>,
-  val refdAmisByRegion: Map<String, Map<String, Set<AmazonLaunchConfiguration>>>,
-  val lastUpdated: Long,
+  private val configsByRegion: Map<String, Set<AmazonLaunchConfiguration>>,
+  private val refdAmisByRegion: Map<String, Map<String, Set<AmazonLaunchConfiguration>>>,
+  private val lastUpdated: Long,
   override val name: String?
-) : Cacheable
+) : Cacheable {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+
+  /**
+   * @param params["region"]: return a Set<AmazonLaunchConfiguration> across all known accounts in region
+   */
+  fun getLaunchConfigsByRegion(params: Parameters): Set<AmazonLaunchConfiguration> {
+    if (params.region != "") {
+      return configsByRegion[params.region] ?: emptySet()
+    } else {
+      throw IllegalArgumentException("Missing required region parameter")
+    }
+  }
+
+  fun getLaunchConfigsByRegionForImage(params: Parameters): Set<AmazonLaunchConfiguration> {
+    log.debug("getting launch configs in ${javaClass.simpleName}")
+    if (params.region != "" && params.id != "") {
+      return getRefdAmisForRegion(params.region).getOrDefault(params.id, emptySet())
+    } else {
+      throw IllegalArgumentException("Missing required region and id parameters")
+    }
+  }
+
+  /**
+   * @param region: AWS region
+   *
+   * Returns a map of <K: all ami's referenced by a launch config in region, V: set of launch configs referencing K>
+   */
+  fun getRefdAmisForRegion(region: String): Map<String, Set<AmazonLaunchConfiguration>> {
+    log.debug("getting refd amis in ${javaClass.simpleName}")
+    return refdAmisByRegion[region].orEmpty()
+  }
+
+  fun getLastUpdated(): Long {
+    return lastUpdated
+  }
+}

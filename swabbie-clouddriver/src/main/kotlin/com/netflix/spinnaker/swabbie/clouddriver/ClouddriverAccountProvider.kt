@@ -20,7 +20,6 @@ import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
 
 @Component

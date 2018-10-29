@@ -29,6 +29,10 @@ interface Cache<out T> {
   fun contains(key: String?): Boolean
 }
 
+interface SingletonCache<out T> {
+  fun get(): T
+}
+
 open class InMemoryCache<out T : Cacheable>(
   private val source: Set<T>
 ) : Cache<T> {
@@ -57,4 +61,28 @@ open class InMemoryCache<out T : Cacheable>(
   }
 
   val log: Logger = LoggerFactory.getLogger(javaClass)
+}
+
+open class InMemorySingletonCache<out T : Cacheable>(
+  private val source: T
+) : SingletonCache<T> {
+  val log: Logger = LoggerFactory.getLogger(javaClass)
+
+  private val cache = AtomicReference<T>()
+
+  @Scheduled(fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
+  private fun refresh() {
+    try {
+      cache.set(source)
+    } catch (e: Exception) {
+      log.error("Error refreshing cache ${javaClass.name}", e)
+    }
+  }
+
+  override fun get(): T {
+    if (cache.get() == null) {
+      cache.set(source)
+    }
+    return cache.get()
+  }
 }

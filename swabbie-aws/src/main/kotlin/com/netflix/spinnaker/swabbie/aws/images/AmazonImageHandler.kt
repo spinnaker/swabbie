@@ -24,6 +24,7 @@ import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.exception.CacheSizeException
 import com.netflix.spinnaker.swabbie.exception.StaleCacheException
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
@@ -252,6 +253,10 @@ class AmazonImageHandler(
     }
     val imagesUsedByLaunchConfigsForRegion = launchConfigurationCache.get().getRefdAmisForRegion(params.region).keys
     log.info("Checking the {} images used by launch configurations.", imagesUsedByLaunchConfigsForRegion.size)
+    if (imagesUsedByLaunchConfigsForRegion.size < swabbieProperties.minImagesUsedByLC) {
+      throw CacheSizeException("Amazon launch configuration cache contains less than " +
+        "${swabbieProperties.minImagesUsedByLC} images used, aborting for safety.")
+    }
 
     images
       .filter { NAIVE_EXCLUSION !in it.details }
@@ -286,6 +291,10 @@ class AmazonImageHandler(
     }
     val imagesUsedByInstancesInRegion = imagesUsedByinstancesCache.get().getAll(params)
     log.info("Checking {} images used by instances", imagesUsedByInstancesInRegion .size)
+    if (imagesUsedByInstancesInRegion.size < swabbieProperties.minImagesUsedByInst) {
+      throw CacheSizeException("Amazon images used by instances cache contains less than " +
+        "${swabbieProperties.minImagesUsedByInst} images, aborting for safety.")
+    }
 
     images
       .filter { NAIVE_EXCLUSION !in it.details && USED_BY_LAUNCH_CONFIGURATIONS !in it.details }

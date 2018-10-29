@@ -23,6 +23,12 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.ZoneId
 
+/**
+ * @param minImagesUsedByLC minimum number of images used by launch configurations that should be
+ *  in the cache. If not present agents will error to prevent mass marking in the case of edda problems.
+ * @param minImagesUsedByInst minimum number of images used by instances that should be
+ *  in the cache. If not present agents will error to prevent mass marking in the case of edda problems.
+ */
 @ConfigurationProperties("swabbie")
 open class SwabbieProperties {
   var dryRun: Boolean = true
@@ -30,6 +36,8 @@ open class SwabbieProperties {
   var providers: List<CloudProviderConfiguration> = mutableListOf()
   var schedule: Schedule = Schedule()
   var testing: Testing = Testing()
+  var minImagesUsedByLC = 500
+  var minImagesUsedByInst = 500
 }
 
 class Testing {

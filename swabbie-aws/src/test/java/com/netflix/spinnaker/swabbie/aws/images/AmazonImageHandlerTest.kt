@@ -67,7 +67,10 @@ object AmazonImageHandlerTest {
   private val taggingService = mock<TaggingService>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
-  private val swabbieProperties = SwabbieProperties()
+  private val swabbieProperties = SwabbieProperties().apply {
+    minImagesUsedByInst = 0
+    minImagesUsedByLC = 0
+  }
   private val launchConfigurationCache = mock<InMemorySingletonCache<AmazonLaunchConfigurationCache>>()
   private val imagesUsedByinstancesCache = mock<InMemorySingletonCache<AmazonImagesUsedByInstancesCache>>()
 

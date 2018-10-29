@@ -41,7 +41,7 @@ class RedisResourceUseTrackingRepository(
 
   private val log = LoggerFactory.getLogger(javaClass)
   private val LAST_SEEN = "{swabbie:resourceUseTracking}:lastseen"
-  private val READY_FOR_CLEANING = "{swabbie:resourceUseTracking}:readyforcleaning"
+  private val LAST_SEEN_INDEX = "{swabbie:resourceUseTracking}:lastseenindex"
   private val INIT_TIME = "swabbie:inittime"
   private val outOfUseThresholdDays = swabbieProperties.outOfUseThresholdDays
 
@@ -62,30 +62,34 @@ class RedisResourceUseTrackingRepository(
   }
 
   override fun recordUse(resourceIdentifier: String, usedByResourceIdentifier: String) {
-    redisClientDelegate.withCommandsClient { client ->
-      client.hset(
+    val now = clock.instant().toEpochMilli()
+
+    redisClientDelegate.withTransaction { tx ->
+      tx.hset(
         LAST_SEEN,
         resourceIdentifier,
         objectMapper.writeValueAsString(
-          LastSeenInfo(resourceIdentifier, usedByResourceIdentifier, clock.instant().toEpochMilli()))
+          LastSeenInfo(resourceIdentifier, usedByResourceIdentifier, now)
+        )
       )
       // add to sorted set by score
-      // score = day when resource will be ready to delete
+      // score = last_seen timestamp
       // if resource is seen in next X days, resource will be updated
-      client.zadd(READY_FOR_CLEANING, plusXdays(outOfUseThresholdDays).toDouble(), resourceIdentifier)
+      tx.zadd(LAST_SEEN_INDEX, now.toDouble(), resourceIdentifier)
+      tx.exec()
     }
   }
 
   override fun getUnused(): List<LastSeenInfo> {
     val keys = redisClientDelegate.withCommandsClient<Set<String>> { client ->
-      client.zrangeByScore(READY_FOR_CLEANING, 0.0, clock.instant().toEpochMilli().toDouble())
+      client.zrangeByScore(LAST_SEEN_INDEX, 0.0, minusXdays(outOfUseThresholdDays).toDouble())
     }
     return hydrateLastSeen(keys)
   }
 
   override fun getUsed(): Set<String> {
     return redisClientDelegate.withCommandsClient<Set<String>> { client ->
-      client.zrangeByScore(READY_FOR_CLEANING, clock.instant().toEpochMilli().toDouble(), Double.MAX_VALUE)
+      client.zrangeByScore(LAST_SEEN_INDEX, minusXdays(outOfUseThresholdDays).toDouble(), Double.MAX_VALUE)
     }
   }
 
@@ -108,11 +112,11 @@ class RedisResourceUseTrackingRepository(
 
   override fun isUnused(resourceIdentifier: String): Boolean {
     return redisClientDelegate.withCommandsClient<Double> { client ->
-      client.zscore(READY_FOR_CLEANING, resourceIdentifier)
-    }.toLong() < clock.instant().toEpochMilli()
+      client.zscore(LAST_SEEN_INDEX, resourceIdentifier)
+    }.toLong() < minusXdays(outOfUseThresholdDays)
   }
 
-  fun plusXdays(days: Int): Long {
-    return clock.instant().plus(days.toLong(), ChronoUnit.DAYS).toEpochMilli()
+  fun minusXdays(days: Int): Long {
+    return clock.instant().minus(days.toLong(), ChronoUnit.DAYS).toEpochMilli()
   }
 }

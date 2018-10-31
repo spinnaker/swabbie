@@ -64,8 +64,8 @@ class RedisResourceUseTrackingRepository(
   override fun recordUse(resourceIdentifier: String, usedByResourceIdentifier: String) {
     val now = clock.instant().toEpochMilli()
 
-    redisClientDelegate.withTransaction { tx ->
-      tx.hset(
+    redisClientDelegate.withCommandsClient { client ->
+      client.hset(
         LAST_SEEN,
         resourceIdentifier,
         objectMapper.writeValueAsString(
@@ -75,8 +75,7 @@ class RedisResourceUseTrackingRepository(
       // add to sorted set by score
       // score = last_seen timestamp
       // if resource is seen in next X days, resource will be updated
-      tx.zadd(LAST_SEEN_INDEX, now.toDouble(), resourceIdentifier)
-      tx.exec()
+      client.zadd(LAST_SEEN_INDEX, now.toDouble(), resourceIdentifier)
     }
   }
 

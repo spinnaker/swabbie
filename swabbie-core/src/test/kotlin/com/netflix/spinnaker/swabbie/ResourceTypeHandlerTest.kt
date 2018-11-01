@@ -463,13 +463,66 @@ object ResourceTypeHandlerTest {
     val markedResource = MarkedResource(
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
-      namespace = configuration.namespace, //todod eb: fix tests for new marked resource
+      namespace = configuration.namespace,
       projectedDeletionStamp = clock.millis(),
       projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
     )
 
-    whenever(resourceRepository.getMarkedResources()) doReturn
-      listOf(markedResource)
+    whenever(resourceRepository.getMarkedResources())
+      .thenReturn(listOf(markedResource))
+      .thenReturn(emptyList())
+
+
+    val handler = TestResourceTypeHandler(
+      clock = clock,
+      rules = listOf(
+        TestRule(invalidOn = { true }, summary = null)
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(mock()),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedCandidates = mutableListOf(defaultResource),
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = mock(),
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository
+    )
+
+    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
+    handler.mark(
+      workConfiguration = configuration,
+      postMark = { postAction(listOf(defaultResource)) }
+    )
+
+    verify(applicationEventPublisher, times(1)).publishEvent(
+      check<UnMarkResourceEvent> { event ->
+        Assertions.assertTrue((event.markedResource.resourceId == markedResource.resourceId))
+        Assertions.assertTrue((event.workConfiguration.namespace == configuration.namespace))
+      }
+    )
+    verify(resourceRepository, times(1)).remove(any())
+    verify(resourceRepository, never()).upsert(any(), any(), any())
+  }
+
+  @Test
+  fun `should forget resource if it is excluded after being marked`() {
+    val configuration = workConfiguration()
+    val markedResource = MarkedResource(
+      resource = defaultResource,
+      summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
+      namespace = configuration.namespace,
+      projectedDeletionStamp = clock.millis(),
+      projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+    )
+
+    whenever(resourceRepository.getMarkedResources())
+      .thenReturn(emptyList())
+      .thenReturn(listOf(markedResource))
+
+
 
     val handler = TestResourceTypeHandler(
       clock = clock,

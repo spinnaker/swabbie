@@ -21,4 +21,4 @@ import com.netflix.spinnaker.swabbie.model.Application
 import org.springframework.stereotype.Component
 
 @Component
-class Front50ApplicationCache(front50Service: Front50Service) : InMemoryCache<Application>(front50Service.getApplications())
+class Front50ApplicationCache(front50Service: Front50Service) : InMemoryCache<Application>(front50Service::getApplications)

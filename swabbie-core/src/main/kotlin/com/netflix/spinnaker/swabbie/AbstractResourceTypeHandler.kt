@@ -207,24 +207,24 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   }
 
   /**
-   * @param candidates: a list of resources that exist in the account/location defined in the work configuration
+   * @param validMarkedResources: a list of resources that were just marked in the account/location defined in
+   *  the work configuration
    * @param workConfiguration: defines the account/location to work with
    *
    * Fetches already marked resources, filters by work configuration namespace, and un-marks any resource whos id
-   * is not present in candidates.
+   * is not present in validMarkedResources.
    */
-  private fun removeDeletedResourcesFromMarkedResources(
-    candidates: List<T>?,
+  private fun unmarkResources(
+    validMarkedResources: Set<String>,
     workConfiguration: WorkConfiguration
   ) {
     resourceRepository
       .getMarkedResources()
       .filter { it.namespace == workConfiguration.namespace }
       .let { markedResourcesToCheck ->
-        val existingResources = candidates?.map { it.resourceId }?.toHashSet() ?: emptySet<String>()
-        for (mr in markedResourcesToCheck) {
-          if (!existingResources.contains(mr.resourceId)) {
-            ensureResourceUnmarked(mr, workConfiguration, "Resource no longer exists")
+        for (resource in markedResourcesToCheck) {
+          if (!validMarkedResources.contains(resource.resourceId)) {
+            ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies to be deleted")
           }
         }
       }
@@ -238,6 +238,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val violationCounter = AtomicInteger(0)
     val totalResourcesVisitedCounter = AtomicInteger(0)
     val markedResources = mutableListOf<MarkedResource>()
+    val validMarkedIds = mutableSetOf<String>()
 
     try {
       log.info("${javaClass.simpleName} running. Configuration: ", workConfiguration.toLog())
@@ -247,8 +248,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       }
       log.info("Fetched {} resources. Configuration: {}", candidates.size, workConfiguration.toLog())
       totalResourcesVisitedCounter.set(candidates.size)
-
-      removeDeletedResourcesFromMarkedResources(candidates, workConfiguration)
 
       val markedCandidates: List<MarkedResource> = resourceRepository.getMarkedResources()
         .filter { it.namespace == workConfiguration.namespace }
@@ -299,10 +298,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               candidateCounter.incrementAndGet()
               violationCounter.addAndGet(violations.size)
               markedResources.add(newMarkedResource)
+              validMarkedIds.add(newMarkedResource.resourceId)
             }
             else -> {
               // already marked, skipping.
               log.debug("Already marked resource " + alreadyMarkedCandidate.resourceId + " ...skipping")
+              validMarkedIds.add(alreadyMarkedCandidate.resourceId)
             }
           }
         } catch (e: Exception) {
@@ -310,6 +311,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           recordFailureForAction(Action.MARK, workConfiguration, e)
         }
       }
+
+      unmarkResources(validMarkedIds, workConfiguration)
 
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)
     } finally {

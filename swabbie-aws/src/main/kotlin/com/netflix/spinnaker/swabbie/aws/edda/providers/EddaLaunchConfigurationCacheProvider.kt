@@ -37,6 +37,7 @@ open class EddaLaunchConfigurationCacheProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
   override fun load(): AmazonLaunchConfigurationCache {
+    log.info("Loading cache for ${javaClass.simpleName}")
     val configsByRegion = mutableMapOf<String, Set<AmazonLaunchConfiguration>>()
     val refdAmisByRegion = mutableMapOf<String, MutableMap<String, MutableSet<AmazonLaunchConfiguration>>>()
 

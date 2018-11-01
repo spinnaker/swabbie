@@ -36,6 +36,7 @@ open class EddaImagesUsedByInstancesProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
   override fun load(): AmazonImagesUsedByInstancesCache {
+    log.info("Loading cache for ${javaClass.simpleName}")
     val refdAmisByRegion = mutableMapOf<String, Set<String>>()
 
     val regions = workConfigurations.asSequence()

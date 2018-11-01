@@ -46,6 +46,7 @@ open class InMemoryCache<out T : Cacheable>(
   @Scheduled(fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
   private fun refresh() {
     try {
+      log.info("Refreshing cache ${javaClass.name}")
       cache.set(source)
     } catch (e: Exception) {
       log.error("Error refreshing cache ${javaClass.name}", e)
@@ -73,6 +74,7 @@ open class InMemorySingletonCache<out T : Cacheable>(
   @Scheduled(fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
   private fun refresh() {
     try {
+      log.info("Refreshing cache ${javaClass.name}")
       cache.set(source)
     } catch (e: Exception) {
       log.error("Error refreshing cache ${javaClass.name}", e)

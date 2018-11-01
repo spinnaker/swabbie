@@ -76,7 +76,7 @@ open class EddaLaunchConfigurationCacheProvider(
 @Component
 open class EddaLaunchConfigurationCache(
   eddaLaunchConfigurationCacheProvider: EddaLaunchConfigurationCacheProvider
-) : InMemorySingletonCache<AmazonLaunchConfigurationCache>(eddaLaunchConfigurationCacheProvider.load())
+) : InMemorySingletonCache<AmazonLaunchConfigurationCache>(eddaLaunchConfigurationCacheProvider::load)
 
 data class AmazonLaunchConfigurationCache(
   private val configsByRegion: Map<String, Set<AmazonLaunchConfiguration>>,

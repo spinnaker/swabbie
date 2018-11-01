@@ -71,7 +71,7 @@ class BaseImageLabelsExclusionSupplier(
 class BaseImageLabelsCache(
   gateService: DynamicPropertyService
 ) : InMemoryCache<DynamicProperty>(
-  gateService.getProperties("bakery").propertiesList.toSet()
+  gateService.getProperties("bakery")::getPropertiesList
 )
 
 //TODO: make configurable

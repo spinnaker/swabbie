@@ -34,8 +34,9 @@ interface SingletonCache<out T> {
 }
 
 open class InMemoryCache<out T : Cacheable>(
-  private val source: Set<T>
+  private val sourceProvider: () -> Set<T>
 ) : Cache<T> {
+
   override fun contains(key: String?): Boolean {
     if (key == null) return false
     return cache.get().find { it.name == key } != null
@@ -43,11 +44,11 @@ open class InMemoryCache<out T : Cacheable>(
 
   private val cache = AtomicReference<Set<T>>()
 
-  @Scheduled(fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
+  @Scheduled(initialDelay = 0L, fixedDelayString = "\${cache.updateIntervalMillis:900000}")
   private fun refresh() {
     try {
       log.info("Refreshing cache ${javaClass.name}")
-      cache.set(source)
+      cache.set(sourceProvider.invoke())
     } catch (e: Exception) {
       log.error("Error refreshing cache ${javaClass.name}", e)
     }
@@ -55,7 +56,7 @@ open class InMemoryCache<out T : Cacheable>(
 
   override fun get(): Set<T> {
     if (cache.get() == null) {
-      cache.set(source)
+      cache.set(sourceProvider.invoke())
     }
 
     return cache.get()
@@ -65,17 +66,17 @@ open class InMemoryCache<out T : Cacheable>(
 }
 
 open class InMemorySingletonCache<out T : Cacheable>(
-  private val source: T
+  private val sourceProvider: () -> T
 ) : SingletonCache<T> {
   val log: Logger = LoggerFactory.getLogger(javaClass)
 
   private val cache = AtomicReference<T>()
 
-  @Scheduled(fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
+  @Scheduled(initialDelay = 0L, fixedDelayString = "\${cache.updateIntervalMillis:900000}")
   private fun refresh() {
     try {
       log.info("Refreshing cache ${javaClass.name}")
-      cache.set(source)
+      cache.set(sourceProvider.invoke())
     } catch (e: Exception) {
       log.error("Error refreshing cache ${javaClass.name}", e)
     }
@@ -83,7 +84,7 @@ open class InMemorySingletonCache<out T : Cacheable>(
 
   override fun get(): T {
     if (cache.get() == null) {
-      cache.set(source)
+      cache.set(sourceProvider.invoke())
     }
     return cache.get()
   }

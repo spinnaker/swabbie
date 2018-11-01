@@ -27,4 +27,8 @@ interface DynamicPropertyService {
 
 data class PropertyResponse(
   val propertiesList: List<DynamicProperty>
-)
+) {
+  fun getPropertiesList(): Set<DynamicProperty> {
+    return propertiesList.toSet()
+  }
+}

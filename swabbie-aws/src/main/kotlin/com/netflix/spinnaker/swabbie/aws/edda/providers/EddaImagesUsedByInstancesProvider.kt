@@ -72,7 +72,7 @@ open class EddaImagesUsedByInstancesProvider(
 @Component
 open class EddaImagesUsedByInstancesCache(
   eddaImagesUsedByInstancesProvider: EddaImagesUsedByInstancesProvider
-) : InMemorySingletonCache<AmazonImagesUsedByInstancesCache>(eddaImagesUsedByInstancesProvider.load())
+) : InMemorySingletonCache<AmazonImagesUsedByInstancesCache>(eddaImagesUsedByInstancesProvider::load)
 
 data class AmazonImagesUsedByInstancesCache(
   private val refdAmisByRegion: Map<String, Set<String>>,

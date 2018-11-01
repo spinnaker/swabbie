@@ -36,4 +36,4 @@ class EddaEndpointProvider(
 @Component
 class EddaEndpointCache(
   eddaEndpointProvider: EddaEndpointProvider
-) : InMemoryCache<EddaEndpoint>(eddaEndpointProvider.load())
+) : InMemoryCache<EddaEndpoint>(eddaEndpointProvider::load)

@@ -97,7 +97,6 @@ data class AmazonLaunchConfigurationCache(
   }
 
   fun getLaunchConfigsByRegionForImage(params: Parameters): Set<AmazonLaunchConfiguration> {
-    log.debug("getting launch configs in ${javaClass.simpleName}")
     if (params.region != "" && params.id != "") {
       return getRefdAmisForRegion(params.region).getOrDefault(params.id, emptySet())
     } else {
@@ -111,7 +110,6 @@ data class AmazonLaunchConfigurationCache(
    * Returns a map of <K: all ami's referenced by a launch config in region, V: set of launch configs referencing K>
    */
   fun getRefdAmisForRegion(region: String): Map<String, Set<AmazonLaunchConfiguration>> {
-    log.debug("getting refd amis in ${javaClass.simpleName}")
     return refdAmisByRegion[region].orEmpty()
   }
 

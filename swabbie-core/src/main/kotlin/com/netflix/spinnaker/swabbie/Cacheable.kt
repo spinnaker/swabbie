@@ -44,7 +44,7 @@ open class InMemoryCache<out T : Cacheable>(
 
   private val cache = AtomicReference<Set<T>>()
 
-  @Scheduled(initialDelay = 0L, fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
+  @Scheduled(initialDelay = 0L, fixedDelayString = "\${cache.updateIntervalMillis:900000}")
   private fun refresh() {
     try {
       log.info("Refreshing cache ${javaClass.name}")
@@ -72,7 +72,7 @@ open class InMemorySingletonCache<out T : Cacheable>(
 
   private val cache = AtomicReference<T>()
 
-  @Scheduled(initialDelay = 0L, fixedDelay = 15 * 60 * 1000L) //TODO: make configurable
+  @Scheduled(initialDelay = 0L, fixedDelayString = "\${cache.updateIntervalMillis:900000}")
   private fun refresh() {
     try {
       log.info("Refreshing cache ${javaClass.name}")

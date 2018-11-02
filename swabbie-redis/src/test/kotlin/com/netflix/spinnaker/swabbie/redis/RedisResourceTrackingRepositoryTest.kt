@@ -139,7 +139,7 @@ object RedisResourceTrackingRepositoryTest {
 
     listOf(
       MarkedResource(
-        resource = TestResource("marked resourceHash due for deletion now"),
+        resource = TestResource(resourceId = "1", name = "marked resourceHash due for deletion now"),
         summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
         namespace = configuration.namespace,
         projectedDeletionStamp = 0,
@@ -151,14 +151,14 @@ object RedisResourceTrackingRepositoryTest {
         )
       ),
       MarkedResource(
-        resource = TestResource("marked resourceHash not due for deletion 2 seconds later"),
+        resource = TestResource(resourceId = "2", name = "marked resourceHash not due for deletion 2 seconds later"),
         summaries = listOf(Summary("invalid resourceHash 2", "rule 2")),
         namespace = configuration.namespace,
         projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
         projectedSoftDeletionStamp = 0
       ),
       MarkedResource(
-        resource = TestResource("random"),
+        resource = TestResource(resourceId = "3", name = "random"),
         summaries = listOf(Summary("invalid resourceHash 3", "rule 3")),
         namespace = configuration.namespace,
         projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),

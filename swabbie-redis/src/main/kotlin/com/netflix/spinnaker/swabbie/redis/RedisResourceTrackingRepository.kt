@@ -18,13 +18,16 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
+import redis.clients.jedis.ScanParams
+import redis.clients.jedis.ScanResult
+import redis.clients.jedis.Tuple
 import java.time.Clock
 import java.time.Instant
 
@@ -87,26 +90,42 @@ class RedisResourceTrackingRepository(
    *  If true, includes all ids in the sorted set.
    */
   private fun getAllIds(key: String, includeFutureIds: Boolean): Set<String> {
-    return redisClientDelegate.run {
-      this.withCommandsClient<Set<String>> { client ->
-        if (includeFutureIds) {
-          client.zrangeByScore(key, "-inf", "+inf")
-        } else {
-          client.zrangeByScore(key, 0.0, clock.instant().toEpochMilli().toDouble())
+    val results : MutableList<Tuple> = redisClientDelegate.withCommandsClient<MutableList<Tuple>> { client ->
+      val results = mutableListOf<Tuple>()
+      val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
+      var cursor = "0"
+      var shouldContinue = true
+
+      while (shouldContinue) {
+        val scanResult: ScanResult<Tuple> = client.zscan(key, cursor, scanParams)
+        results.addAll(scanResult.result)
+        cursor = scanResult.stringCursor
+        if ("0" == cursor) {
+          shouldContinue = false
         }
       }
+      results
+    }
+
+    return if (includeFutureIds) {
+      results.map { it.element }.toSet()
+    } else {
+      results
+        .filter { it.score >= 0.0 && it.score <= clock.instant().toEpochMilli().toDouble() }
+        .map { it.element }
+        .toSet()
     }
   }
 
   private fun hydrateMarkedResources(resourseIds: Set<String>): List<MarkedResource> {
     if (resourseIds.isEmpty()) return emptyList()
-    return redisClientDelegate.run {
-      this.withCommandsClient<Set<String>> { client ->
-        client.hmget(SINGLE_RESOURCES_KEY, *resourseIds.toTypedArray()).toSet()
-      }.map { json ->
-        objectMapper.readValue<MarkedResource>(json)
-      }
-    }
+    return resourseIds.chunked(REDIS_CHUNK_SIZE).map { sublist ->
+      return redisClientDelegate.withCommandsClient<Set<String>> { client ->
+          client.hmget(SINGLE_RESOURCES_KEY, *sublist.toTypedArray()).toSet()
+        }.map { json ->
+          objectMapper.readValue<MarkedResource>(json)
+        }
+    }.flatten()
   }
 
   override fun upsert(markedResource: MarkedResource, deleteScore: Long, softDeleteScore: Long) {

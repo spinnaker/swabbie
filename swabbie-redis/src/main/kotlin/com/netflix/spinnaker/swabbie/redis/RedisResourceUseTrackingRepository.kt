@@ -20,6 +20,7 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
@@ -27,6 +28,9 @@ import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import redis.clients.jedis.ScanParams
+import redis.clients.jedis.ScanResult
+import redis.clients.jedis.Tuple
 import java.time.Clock
 import java.time.Duration
 import java.time.temporal.ChronoUnit
@@ -80,16 +84,36 @@ class RedisResourceUseTrackingRepository(
   }
 
   override fun getUnused(): List<LastSeenInfo> {
-    val keys = redisClientDelegate.withCommandsClient<Set<String>> { client ->
-      client.zrangeByScore(LAST_SEEN_INDEX, 0.0, minusXdays(outOfUseThresholdDays).toDouble())
-    }
+    val keys = getWithParams(LAST_SEEN_INDEX, 0.0, minusXdays(outOfUseThresholdDays).toDouble())
     return hydrateLastSeen(keys)
   }
 
   override fun getUsed(): Set<String> {
-    return redisClientDelegate.withCommandsClient<Set<String>> { client ->
-      client.zrangeByScore(LAST_SEEN_INDEX, minusXdays(outOfUseThresholdDays).toDouble(), Double.MAX_VALUE)
+    return getWithParams(LAST_SEEN_INDEX, minusXdays(outOfUseThresholdDays).toDouble(), Double.MAX_VALUE)
+  }
+
+  private fun getWithParams(key: String, min: Double, max: Double): Set<String> {
+    val results : MutableList<Tuple> = redisClientDelegate.withCommandsClient<MutableList<Tuple>> { client ->
+      val results = mutableListOf<Tuple>()
+      val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
+      var cursor = "0"
+      var shouldContinue = true
+
+      while (shouldContinue) {
+        val scanResult: ScanResult<Tuple> = client.zscan(key, cursor, scanParams)
+        results.addAll(scanResult.result)
+        cursor = scanResult.stringCursor
+        if ("0" == cursor) {
+          shouldContinue = false
+        }
+      }
+      results
     }
+
+    return results
+      .filter { it.score in min..max }
+      .map { it.element }
+      .toSet()
   }
 
   override fun getLastSeenInfo(resourceIdentifier: String): LastSeenInfo? {
@@ -102,11 +126,13 @@ class RedisResourceUseTrackingRepository(
 
   private fun hydrateLastSeen(keys: Set<String>): List<LastSeenInfo> {
     if (keys.isEmpty()) return emptyList()
-    return redisClientDelegate.withCommandsClient<Set<String>> { client ->
-      client.hmget(LAST_SEEN, *keys.toTypedArray()).toSet()
-    }.map { json ->
-      objectMapper.readValue<LastSeenInfo>(json)
-    }
+    return keys.chunked(REDIS_CHUNK_SIZE).map { sublist ->
+      redisClientDelegate.withCommandsClient<Set<String>> { client ->
+        client.hmget(LAST_SEEN, *sublist.toTypedArray()).toSet()
+      }.map { json ->
+        objectMapper.readValue<LastSeenInfo>(json)
+      }
+    }.flatten()
   }
 
   override fun isUnused(resourceIdentifier: String): Boolean {

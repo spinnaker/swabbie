@@ -18,12 +18,14 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import redis.clients.jedis.ScanParams
 
 @Component
 class RedisResourceStateRepository(
@@ -50,20 +52,36 @@ class RedisResourceStateRepository(
   }
 
   override fun getAll(): List<ResourceState> {
-    ALL_STATES_KEY.let { key ->
       return redisClientDelegate.run {
-        this.withCommandsClient<Set<String>> { client ->
-          client.smembers(key)
-        }.let { set ->
-            if (set.isEmpty()) emptyList()
-            else this.withCommandsClient<Set<String>> { client ->
-              client.hmget(SINGLE_STATE_KEY, *set.map { it }.toTypedArray()).toSet()
-            }.map { json ->
-                objectMapper.readValue<ResourceState>(json)
-              }
+        val set = this.withCommandsClient<Set<String>> { client ->
+          val results = mutableListOf<String>()
+          val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
+          var cursor = "0"
+          var shouldContinue = true
+
+          while (shouldContinue) {
+            val scanResult = client.sscan(ALL_STATES_KEY, cursor, scanParams)
+            results.addAll(scanResult.result)
+            cursor = scanResult.stringCursor
+            if ("0" == cursor) {
+              shouldContinue = false
+            }
           }
+          results.toSet()
+        }
+
+        if (set.isEmpty()) {
+          emptyList()
+        } else {
+          set.chunked(REDIS_CHUNK_SIZE).map { sublist ->
+            this.withCommandsClient<Set<String>> { client ->
+              client.hmget(SINGLE_STATE_KEY, *sublist.map { it }.toTypedArray()).toSet()
+            }.map { json ->
+              objectMapper.readValue<ResourceState>(json)
+            }
+          }.flatten()
+        }
       }
-    }
   }
 
   override fun get(resourceId: String, namespace: String): ResourceState? {

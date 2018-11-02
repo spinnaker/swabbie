@@ -27,8 +27,7 @@ class EchoNotifier(
     echoService.create(
       EchoService.Notification(
         notificationType = Notifier.NotificationType.valueOf(messageType),
-        to = listOf(recipient),
-        cc = listOf(recipient),
+        to = recipient.split(","),
         severity = Notifier.NotificationSeverity.HIGH,
         source = EchoService.Notification.Source("swabbie"),
         templateGroup = "swabbie",

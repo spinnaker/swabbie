@@ -27,3 +27,5 @@ import org.springframework.context.annotation.Import
 @Import(JedisClientConfiguration::class, DynomiteClientConfiguration::class)
 open class RedisConfiguration
 
+
+const val REDIS_CHUNK_SIZE = 100

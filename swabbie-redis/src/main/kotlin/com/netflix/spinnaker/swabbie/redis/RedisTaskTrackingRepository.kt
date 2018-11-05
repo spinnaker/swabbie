@@ -19,6 +19,7 @@
 package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
@@ -26,8 +27,9 @@ import com.netflix.spinnaker.swabbie.repository.TaskState
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
+import redis.clients.jedis.ScanParams
+import redis.clients.jedis.ScanResult
 import java.time.Clock
 import java.util.concurrent.TimeUnit
 
@@ -99,10 +101,23 @@ class RedisTaskTrackingRepository(
   }
 
   private fun getAll(key: String): Map<String, String> {
-    return redisClientDelegate.run {
-      this.withCommandsClient<Map<String, String>> { client ->
-        client.hgetAll(key)
+    return redisClientDelegate.withCommandsClient<Map<String,String>> { client ->
+      val results = mutableMapOf<String,String>()
+      val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
+      var cursor = "0"
+      var shouldContinue = true
+
+      while (shouldContinue) {
+        val scanResult: ScanResult<Map.Entry<String, String>> = client.hscan(key, cursor, scanParams)
+        scanResult.result.forEach { entry ->
+          results[entry.key] = entry.value
+        }
+        cursor = scanResult.stringCursor
+        if ("0" == cursor) {
+          shouldContinue = false
+        }
       }
+      results
     }
   }
 

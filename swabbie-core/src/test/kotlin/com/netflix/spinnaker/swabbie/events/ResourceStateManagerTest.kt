@@ -17,10 +17,13 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
@@ -34,6 +37,12 @@ object ResourceStateManagerTest {
   private val resourceTagger = mock<ResourceTagger>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val registry = NoopRegistry()
+  private val taggingService = mock<TaggingService>()
+  private val taskTrackingRepository = mock<TaskTrackingRepository>()
+
+  private val app = Application(name = "testapp", email = "test@test.com")
+  private val inMemCache = InMemoryCache {setOf(app)}
+  private val applicationsCaches = listOf(inMemCache)
 
   private var resource = TestResource("testResource")
   private var configuration = workConfiguration()
@@ -58,7 +67,10 @@ object ResourceStateManagerTest {
     resourceStateRepository = resourceStateRepository,
     clock = clock,
     registry = registry,
-    resourceTagger = resourceTagger
+    resourceTagger = resourceTagger,
+    taggingService = taggingService,
+    taskTrackingRepository = taskTrackingRepository,
+    applicationsCaches = applicationsCaches
   )
 
   @AfterEach
@@ -162,6 +174,8 @@ object ResourceStateManagerTest {
         )
       )
 
+    whenever(taggingService.upsertImageTag(any())) doReturn "1234"
+
     subject.handleEvents(event)
 
     verify(resourceTagger).unTag(
@@ -179,6 +193,17 @@ object ResourceStateManagerTest {
         && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
         && it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
+    )
+
+    verify(taggingService).upsertImageTag(argWhere {
+      it.tags.containsKey("expiration_time")
+      && it.tags.containsValue("never")
+      && it.imageNames.contains("testResource")
+    })
+
+    verify(taskTrackingRepository).add(
+      argWhere { it == "1234" },
+      argWhere { it.action == Action.OPTOUT }
     )
   }
 

@@ -18,13 +18,17 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.MetricsSupport
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.model.Status
-import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
+import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
+import com.netflix.spinnaker.swabbie.tagging.TaggingService
+import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import net.logstash.logback.argument.StructuredArguments
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
@@ -36,7 +40,10 @@ class ResourceStateManager(
   private val resourceStateRepository: ResourceStateRepository,
   private val clock: Clock,
   private val registry: Registry,
-  @Autowired(required = false) private val resourceTagger: ResourceTagger?
+  @Autowired(required = false) private val resourceTagger: ResourceTagger?,
+  private val taggingService: TaggingService,
+  private val taskTrackingRepository: TaskTrackingRepository,
+  private val applicationsCaches: List<InMemoryCache<Application>>
 ) : MetricsSupport(registry) {
 
   private val log = LoggerFactory.getLogger(javaClass)
@@ -134,33 +141,71 @@ class ResourceStateManager(
   }
 
   private fun updateState(event: Event) {
-    event.markedResource.let { markedResource ->
-      resourceStateRepository.get(
-        resourceId = markedResource.resourceId,
-        namespace = markedResource.namespace
-      ).let { currentState ->
-        val statusName = if (event is OrcaTaskFailureEvent) "${event.action.name} FAILED" else event.action.name
-        val status = Status(statusName, clock.instant().toEpochMilli())
-        currentState?.statuses?.add(status)
-        (currentState?.copy(
-          statuses = currentState.statuses,
-          markedResource = markedResource,
-          softDeleted = event is SoftDeleteResourceEvent,
-          deleted = event is DeleteResourceEvent,
-          optedOut = event is OptOutResourceEvent,
-          currentStatus = status
-        ) ?: ResourceState(
-          markedResource = markedResource,
-          softDeleted = event is SoftDeleteResourceEvent,
-          deleted = event is DeleteResourceEvent,
-          optedOut = event is OptOutResourceEvent,
-          statuses = mutableListOf(status),
-          currentStatus = status
-        )).let {
-          resourceStateRepository.upsert(it)
-        }
-      }
+    val currentState = resourceStateRepository.get(
+      resourceId = event.markedResource.resourceId,
+      namespace = event.markedResource.namespace
+    )
+    val statusName = if (event is OrcaTaskFailureEvent) "${event.action.name} FAILED" else event.action.name
+    val status = Status(statusName, clock.instant().toEpochMilli())
+
+    currentState?.statuses?.add(status)
+    val newState = (currentState?.copy(
+      statuses = currentState.statuses,
+      markedResource = event.markedResource,
+      softDeleted = event is SoftDeleteResourceEvent,
+      deleted = event is DeleteResourceEvent,
+      optedOut = event is OptOutResourceEvent,
+      currentStatus = status
+    ) ?: ResourceState(
+      markedResource = event.markedResource,
+      softDeleted = event is SoftDeleteResourceEvent,
+      deleted = event is DeleteResourceEvent,
+      optedOut = event is OptOutResourceEvent,
+      statuses = mutableListOf(status),
+      currentStatus = status
+    ))
+
+    resourceStateRepository.upsert(newState)
+
+    if (event is OptOutResourceEvent) {
+      log.debug("Tagging resource ${event.markedResource.uniqueId()} with \"expiration_time\":\"never\"")
+      val taskId = tagResource(event.markedResource, event.workConfiguration)
+      log.debug("Tagging resource ${event.markedResource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
     }
+  }
+
+  //todo eb: pull to another kind of ResourceTagger?
+  private fun tagResource(
+    resource: MarkedResource,
+    workConfiguration: WorkConfiguration
+  ): String {
+    val taskId = taggingService.upsertImageTag(
+      UpsertImageTagsRequest(
+        imageNames = setOf(resource.name ?: resource.resourceId),
+        regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
+        tags = mapOf("expiration_time" to "never"),
+        cloudProvider = "aws",
+        cloudProviderType = "aws",
+        application = resolveApplicationOrNull(resource) ?: "swabbie",
+        description = "Setting `expiration_time` to `never` for image ${resource.uniqueId()}"
+      )
+    )
+
+    taskTrackingRepository.add(
+      taskId,
+      TaskCompleteEventInfo(
+        action = Action.OPTOUT,
+        markedResources = listOf(resource),
+        workConfiguration = workConfiguration,
+        submittedTimeMillis = clock.instant().toEpochMilli()
+      )
+    )
+    return taskId
+  }
+
+  private fun resolveApplicationOrNull(markedResource: MarkedResource): String? {
+    val appName = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: return null
+    return if (applicationsCaches.any { it.contains(appName) }) appName else null
   }
 }
 

@@ -39,7 +39,7 @@ open class InMemoryCache<out T : Cacheable>(
 
   override fun contains(key: String?): Boolean {
     if (key == null) return false
-    return cache.get().find { it.name == key } != null
+    return get().find { it.name == key } != null
   }
 
   private val cache = AtomicReference<Set<T>>()

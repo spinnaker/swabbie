@@ -197,6 +197,9 @@ class OrcaTaskMonitoringAgent (
             applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, taskInfo.workConfiguration))
           }
       }
+      Action.OPTOUT -> {
+        // no action needs to be taken because the status was already updated
+      }
       else -> {
         TODO("Not implemented: event publishing not implemented for action ${taskInfo.action}")
       }

@@ -133,10 +133,12 @@ class ResourceController(
     @PathVariable namespace: String
   ) : ResourceState {
     resourceTrackingRepository.find(resourceId, namespace)?.let { markedResource ->
+      log.debug("Found resource ${markedResource.uniqueId()} to opt out.")
       resourceTrackingRepository.remove(markedResource)
       workConfigurations.find {
         it.namespace.equals(namespace, true)
       }?.also { configuration ->
+        log.debug("Publishing opt out event for ${markedResource.uniqueId()}")
         applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, configuration))
       }
     }

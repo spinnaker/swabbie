@@ -63,6 +63,12 @@ class RedisResourceTrackingRepository(
       }
   }
 
+  override fun getNumMarkedResources(): Long {
+    return redisClientDelegate.withCommandsClient<Long> { client ->
+      client.hlen(DELETE_KEY)
+    }
+  }
+
   override fun getMarkedResourcesToSoftDelete(): List<MarkedResource> {
     getAllIds(SOFT_DELETE_KEY, false)
       .let { ids ->

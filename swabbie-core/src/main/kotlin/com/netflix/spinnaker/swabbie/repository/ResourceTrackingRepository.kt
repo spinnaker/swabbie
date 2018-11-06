@@ -35,5 +35,7 @@ interface ResourceTrackingRepository {
   fun getMarkedResourcesToDelete(): List<MarkedResource>
   fun getMarkedResources(): List<MarkedResource>
 
+  fun getNumMarkedResources(): Long
+
   fun find(resourceId: String, namespace: String): MarkedResource?
 }

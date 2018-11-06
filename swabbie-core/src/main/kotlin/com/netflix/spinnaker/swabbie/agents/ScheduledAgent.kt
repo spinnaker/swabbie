@@ -52,12 +52,12 @@ abstract class ScheduledAgent(
           LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
             when {
               timeToWork(swabbieProperties.schedule, clock) -> {
-                log.info("Swabbie time to work!")
+                log.info("Swabbie schedule: working!")
                 runSwabbie()
               }
-              else -> log.info("Swabbie off hours!")
+              else -> log.info("Swabbie schedule: off hours!")
             }
-          else -> log.info("Swabbie takes a day off on {}.!", LocalDateTime.now(clock).dayOfWeek)
+          else -> log.info("Swabbie schedule: off hours on {}.!", LocalDateTime.now(clock).dayOfWeek)
         }
 
       }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)

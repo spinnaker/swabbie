@@ -48,18 +48,25 @@ abstract class ScheduledAgent(
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
       executorService.scheduleWithFixedDelay({
-        when {
-          LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
-            when {
-              timeToWork(swabbieProperties.schedule, clock) -> {
-                log.info("Swabbie schedule: working!")
-                runSwabbie()
+        try {
+          when {
+            LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
+              when {
+                timeToWork(swabbieProperties.schedule, clock) -> {
+                  log.info("Swabbie schedule: working!")
+                  runSwabbie()
+                }
+                else -> log.info("Swabbie schedule: off hours!")
               }
-              else -> log.info("Swabbie schedule: off hours!")
-            }
-          else -> log.info("Swabbie schedule: off hours on {}.!", LocalDateTime.now(clock).dayOfWeek)
+            else -> log.info("Swabbie schedule: off hours on {}.!", LocalDateTime.now(clock).dayOfWeek)
+          }
+        } catch (e: Exception) {
+          registry.counter(
+            failedDuringSchedule.withTags(
+              "agentName", this.javaClass.simpleName
+            )).increment()
+          log.error("Failed during schedule method for {}", javaClass.simpleName)
         }
-
       }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
     }
 
@@ -101,32 +108,32 @@ abstract class ScheduledAgent(
 
   override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
     val action = getAction()
-    try {
-      val handlerAction: (handler: ResourceTypeHandler<*>) -> Unit = {
-        when(action) {
-          Action.MARK -> it.mark(workConfiguration, onCompleteCallback)
-          Action.NOTIFY -> it.notify(workConfiguration, onCompleteCallback)
-          Action.DELETE -> it.delete(workConfiguration, onCompleteCallback)
-          Action.SOFTDELETE-> it.softDelete(workConfiguration, onCompleteCallback)
-          else -> log.warn("Unknown action {}", action.name)
-        }
+    val handlerAction: (handler: ResourceTypeHandler<*>) -> Unit = {
+      when(action) {
+        Action.MARK -> it.mark(workConfiguration, onCompleteCallback)
+        Action.NOTIFY -> it.notify(workConfiguration, onCompleteCallback)
+        Action.DELETE -> it.delete(workConfiguration, onCompleteCallback)
+        Action.SOFTDELETE-> it.softDelete(workConfiguration, onCompleteCallback)
+        else -> log.warn("Unknown action {}", action.name)
       }
+    }
 
-      resourceTypeHandlers.find { handler ->
-        handler.handles(workConfiguration)
-      }?.let { handler ->
-        agentExecutor.execute {
+    resourceTypeHandlers.find { handler ->
+      handler.handles(workConfiguration)
+    }?.let { handler ->
+      agentExecutor.execute {
+        try {
           handlerAction.invoke(handler)
+        } catch (e: Exception) {
+          registry.counter(
+            failedAgentId.withTags(
+              "agentName", this.javaClass.simpleName,
+              "configuration", workConfiguration.namespace,
+              "action", action.name
+            )).increment()
+          log.error("Failed to run {} {} for {}", javaClass.simpleName, action, workConfiguration.namespace, e)
         }
       }
-    } catch (e: Exception) {
-      registry.counter(
-        failedAgentId.withTags(
-          "agentName", this.javaClass.simpleName,
-          "configuration", workConfiguration.namespace,
-          "action", action.name
-        )).increment()
-      log.error("Failed to run agent {}", javaClass.simpleName, e)
     }
   }
 

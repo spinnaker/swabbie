@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie
 
 import com.google.common.collect.Lists
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
@@ -61,7 +62,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val lockingService: Optional<LockingService>,
   private val retrySupport: RetrySupport,
-  private val resourceUseTrackingRepository: ResourceUseTrackingRepository
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
+  private val swabbieProperties: SwabbieProperties
 ) : ResourceTypeHandler<T>, MetricsSupport(registry) {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   private val resourceOwnerField: String = "swabbieResourceOwner"
@@ -382,16 +384,20 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  private fun softDeletionTimestamp(workConfiguration: WorkConfiguration): Long =
-    (workConfiguration.retention + 1).days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+  private fun softDeletionTimestamp(workConfiguration: WorkConfiguration): Long {
+    val daysInFuture = workConfiguration.retention + 1
+    val proposedTime = daysInFuture.days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+    return swabbieProperties.schedule.getNextTimeInWindow(proposedTime)
+  }
 
   private fun deletionTimestamp(workConfiguration: WorkConfiguration): Long {
     if (!workConfiguration.softDelete.enabled) {
       // soft deleting is not enabled, so our deletion time is the same as what our soft deletion time would be
       return softDeletionTimestamp(workConfiguration)
     }
-    return (workConfiguration.retention + workConfiguration.softDelete.waitingPeriodDays + 1)
-      .days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+    val daysInFuture = workConfiguration.retention + workConfiguration.softDelete.waitingPeriodDays + 1
+    val proposedTime = daysInFuture.days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+    return swabbieProperties.schedule.getNextTimeInWindow(proposedTime)
   }
 
   private fun printResult(

@@ -78,7 +78,8 @@ object AmazonAutoScalingGroupHandlerTest {
     retrySupport = RetrySupport(),
     serverGroupProvider = serverGroupProvider,
     orcaService = orcaService,
-    resourceUseTrackingRepository = resourceUseTrackingRepository
+    resourceUseTrackingRepository = resourceUseTrackingRepository,
+    swabbieProperties = SwabbieProperties().also { it.schedule.enabled = false }
   )
 
   @BeforeEach

@@ -23,6 +23,7 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
@@ -622,7 +623,8 @@ object ResourceTypeHandlerTest {
     applicationEventPublisher,
     lockingService,
     retrySupport,
-    resourceUseTrackingRepository
+    resourceUseTrackingRepository,
+    SwabbieProperties()
   ) {
     override fun deleteResources(
       markedResources: List<MarkedResource>,

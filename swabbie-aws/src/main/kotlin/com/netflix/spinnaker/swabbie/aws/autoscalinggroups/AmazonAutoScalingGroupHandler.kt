@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
@@ -54,6 +55,7 @@ class AmazonAutoScalingGroupHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
+  swabbieProperties: SwabbieProperties,
   private val rules: List<Rule<AmazonAutoScalingGroup>>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService,
@@ -71,7 +73,8 @@ class AmazonAutoScalingGroupHandler(
   applicationEventPublisher,
   lockingService,
   retrySupport,
-  resourceUseTrackingRepository
+  resourceUseTrackingRepository,
+  swabbieProperties
 ) {
 
   override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {

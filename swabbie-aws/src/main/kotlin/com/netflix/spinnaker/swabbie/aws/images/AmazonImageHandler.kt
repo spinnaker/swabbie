@@ -75,7 +75,8 @@ class AmazonImageHandler(
   applicationEventPublisher,
   lockingService,
   retrySupport,
-  resourceUseTrackingRepository
+  resourceUseTrackingRepository,
+  swabbieProperties
 ) {
 
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {

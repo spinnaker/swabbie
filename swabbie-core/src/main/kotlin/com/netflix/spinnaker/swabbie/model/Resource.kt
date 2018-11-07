@@ -152,12 +152,23 @@ data class MarkedResource(
     )
   }
 
+  fun barebones(): BarebonesMarkedResource {
+    return BarebonesMarkedResource(
+      namespace = namespace,
+      resourceId = resourceId,
+      name = name,
+      projectedDeletionStamp = projectedDeletionStamp,
+      lastSeenInfo = lastSeenInfo,
+      summaries = summaries
+    )
+  }
+
   fun uniqueId(): String {
     return "$namespace:$resourceId"
   }
 }
 
-data class SlimMarkedResource (
+data class SlimMarkedResource(
   override val summaries: List<Summary>,
   override val namespace: String,
   override var projectedSoftDeletionStamp: Long,
@@ -172,6 +183,15 @@ data class SlimMarkedResource (
   override val name: String?,
   override var lastSeenInfo: LastSeenInfo? = null
 ) : MarkedResourceInterface
+
+data class BarebonesMarkedResource(
+  val namespace: String,
+  val resourceId: String,
+  val name: String?,
+  val projectedDeletionStamp: Long,
+  val lastSeenInfo: LastSeenInfo?,
+  val summaries: List<Summary>
+)
 
 data class NotificationInfo(
   val recipient: String? = null,

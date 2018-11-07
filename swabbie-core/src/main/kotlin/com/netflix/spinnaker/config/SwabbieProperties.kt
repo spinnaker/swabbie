@@ -19,9 +19,7 @@ package com.netflix.spinnaker.config
 import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
 import com.netflix.spinnaker.swabbie.model.SoftDelete
 import org.springframework.boot.context.properties.ConfigurationProperties
-import java.time.DayOfWeek
-import java.time.LocalTime
-import java.time.ZoneId
+import java.time.*
 
 /**
  * @param minImagesUsedByLC minimum number of images used by launch configurations that should be
@@ -206,6 +204,27 @@ class Schedule {
 
   fun getZoneId(): ZoneId {
     return ZoneId.of(defaultTimeZone)
+  }
+
+  /**
+   * Returns proposed timestamp or next time in window
+   */
+  fun getNextTimeInWindow(proposedTimestamp: Long): Long {
+    return if (!enabled || getResolvedDays().isEmpty()) {
+      proposedTimestamp
+    } else {
+      var day = dayFromTimestamp(proposedTimestamp)
+      var incDays = 0
+      while (!getResolvedDays().contains(day)) {
+        day = day.plus(1)
+        incDays += 1
+      }
+      proposedTimestamp.plus(Duration.ofDays(incDays.toLong()).toMillis())
+    }
+  }
+
+  private fun dayFromTimestamp(timestamp: Long): DayOfWeek {
+    return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of(defaultTimeZone)).dayOfWeek
   }
 }
 

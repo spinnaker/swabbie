@@ -52,9 +52,10 @@ open class MetricsSupport(
   protected val restoreCountId: Id = registry.createId("swabbie.resources.restoreCount")
   protected val notifyCountId: Id = registry.createId("swabbie.resources.notifyCount")
   protected val optOutCountId: Id = registry.createId("swabbie.resources.optOutCount")
-  protected val orcaTAskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
+  protected val orcaTaskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
 
   protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
+  protected val failedDuringSchedule: Id = registry.createId("swabbie.scheduled.failed")
   protected val lastRunAgeId: Id = registry.createId("swabbie.agents.run.age")
 
   protected fun recordMarkMetrics(markerTimerId: Long,

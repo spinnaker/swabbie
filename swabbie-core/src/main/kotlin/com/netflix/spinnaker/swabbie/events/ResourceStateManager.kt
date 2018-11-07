@@ -97,7 +97,7 @@ class ResourceStateManager(
       }
 
       is OrcaTaskFailureEvent -> {
-        id = orcaTAskFailureId
+        id = orcaTaskFailureId
         removeTag = false
         msg = generateFailureMessage(event)
         //todo eb: do we want this tagged here?

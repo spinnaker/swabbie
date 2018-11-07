@@ -65,7 +65,7 @@ class RedisResourceTrackingRepository(
 
   override fun getNumMarkedResources(): Long {
     return redisClientDelegate.withCommandsClient<Long> { client ->
-      client.hlen(DELETE_KEY)
+      client.zcard(DELETE_KEY)
     }
   }
 

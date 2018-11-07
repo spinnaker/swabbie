@@ -38,7 +38,6 @@ open class EddaLaunchConfigurationCacheProvider(
 
   override fun load(): AmazonLaunchConfigurationCache {
     log.info("Loading cache for ${javaClass.simpleName}")
-    val configsByRegion = mutableMapOf<String, Set<AmazonLaunchConfiguration>>()
     val refdAmisByRegion = mutableMapOf<String, MutableMap<String, MutableSet<AmazonLaunchConfiguration>>>()
 
     val regions = workConfigurations.asSequence()
@@ -65,10 +64,9 @@ open class EddaLaunchConfigurationCacheProvider(
         refdAmis.getOrPut(it.imageId) { mutableSetOf() }.add(it)
       }
 
-      configsByRegion[region] = launchConfigs
       refdAmisByRegion[region] = refdAmis
     }
-    return AmazonLaunchConfigurationCache(configsByRegion, refdAmisByRegion, clock.millis(), "default")
+    return AmazonLaunchConfigurationCache(refdAmisByRegion, clock.millis(), "default")
 
   }
 }
@@ -79,23 +77,11 @@ open class EddaLaunchConfigurationCache(
 ) : InMemorySingletonCache<AmazonLaunchConfigurationCache>(eddaLaunchConfigurationCacheProvider::load)
 
 data class AmazonLaunchConfigurationCache(
-  private val configsByRegion: Map<String, Set<AmazonLaunchConfiguration>>,
   private val refdAmisByRegion: Map<String, Map<String, Set<AmazonLaunchConfiguration>>>,
   private val lastUpdated: Long,
   override val name: String?
 ) : Cacheable {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-
-  /**
-   * @param params["region"]: return a Set<AmazonLaunchConfiguration> across all known accounts in region
-   */
-  fun getLaunchConfigsByRegion(params: Parameters): Set<AmazonLaunchConfiguration> {
-    if (params.region != "") {
-      return configsByRegion[params.region] ?: emptySet()
-    } else {
-      throw IllegalArgumentException("Missing required region parameter")
-    }
-  }
 
   fun getLaunchConfigsByRegionForImage(params: Parameters): Set<AmazonLaunchConfiguration> {
     if (params.region != "" && params.id != "") {

@@ -191,9 +191,6 @@ object AmazonImageHandlerTest {
     whenever(launchConfigurationCache.get()) doReturn
       AmazonLaunchConfigurationCache(
         mapOf(
-          "us-east-1" to setOf(defaultLaunchConfig)
-        ),
-        mapOf(
           "us-east-1" to mapOf("ami-132" to setOf(defaultLaunchConfig))
         ),
         clock.instant().toEpochMilli(), "default"

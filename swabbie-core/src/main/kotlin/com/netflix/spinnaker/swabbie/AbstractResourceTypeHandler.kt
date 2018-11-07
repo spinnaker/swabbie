@@ -727,7 +727,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         if (notificationType.equals(Notifier.NotificationType.EMAIL.name, true)) {
           val notificationContext = mapOf(
             "resourceOwner" to owner,
-            "resources" to resources.map { it.slim() }, // todo eb: send less data here than slim
+            "application" to FriggaReflectiveNamer().deriveMoniker(resources.first()).app,
+            "resources" to resources.map { it.barebones() },
             "configuration" to workConfiguration,
             "resourceType" to workConfiguration.resourceType.formatted(),
             "spinnakerLink" to workConfiguration.notificationConfiguration.resourceUrl,

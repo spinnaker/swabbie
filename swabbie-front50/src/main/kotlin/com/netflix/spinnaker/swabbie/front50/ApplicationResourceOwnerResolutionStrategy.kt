@@ -16,7 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.front50
 
-import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.InMemoryCache
@@ -34,6 +33,8 @@ class ApplicationResourceOwnerResolutionStrategy(
 ) : ResourceOwnerResolutionStrategy<Resource> {
   private val log: Logger = LoggerFactory.getLogger(this.javaClass)
   private val resourceOwnerId = registry.createId("swabbie.resources.owner")
+
+  override fun primaryFor(): Set<String> = emptySet()
 
   override fun resolve(resource: Resource): String? {
     val applicationToOwnersPairs = mutableSetOf<Pair<String?, String?>>()

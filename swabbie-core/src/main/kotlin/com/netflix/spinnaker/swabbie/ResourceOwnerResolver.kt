@@ -23,37 +23,51 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.regex.Pattern
 
+/**
+ * Looks at all available resolution strategies for finding an owner for a resource,
+ * and returns all owners.
+ */
 @Component
 open class ResourceOwnerResolver<in T : Resource>(
   private val registry: Registry,
   private val resourceOwnerResolutionStrategies: List<ResourceOwnerResolutionStrategy<T>>
 ) : OwnerResolver<T> {
   private val resourceOwnerId = registry.createId("swabbie.resources.owner")
+
   override fun resolve(resource: T): String? {
     try {
-      resourceOwnerResolutionStrategies.mapNotNull {
-        it.resolve(resource)
-      }.let { owners ->
-        val emails = findValidEmails(owners)
-        return if (emails != null) {
-          registry.counter(
-            resourceOwnerId.withTags(
-              "result", "found",
-              "strategy", javaClass.simpleName,
-              "resourceType", resource.resourceType
-            )
-          ).increment()
-          emails.toSet().joinToString(",")
-        } else {
-          registry.counter(
-            resourceOwnerId.withTags(
-              "result", "notFound",
-              "strategy", javaClass.simpleName,
-              "resourceType", resource.resourceType
-            )
-          ).increment()
-          null
+      val otherOwners = mutableSetOf<String>()
+      val primaryOwners = mutableSetOf<String>()
+
+      resourceOwnerResolutionStrategies.forEach { strategy ->
+        val owner = strategy.resolve(resource)
+        owner?.let {
+          if (strategy.primaryFor().contains(resource.resourceType)) {
+            primaryOwners.add(owner)
+          } else {
+            otherOwners.add(owner)
+          }
         }
+      }
+
+      val validEmails = findValidEmails(if (primaryOwners.isNotEmpty()) primaryOwners else otherOwners)
+
+      return if (validEmails.isNotEmpty()) {
+        registry.counter(
+          resourceOwnerId.withTags(
+            "result", "found",
+            "resourceType", resource.resourceType
+          )
+        ).increment()
+        validEmails.joinToString(",")
+      } else {
+        registry.counter(
+          resourceOwnerId.withTags(
+            "result", "notFound",
+            "resourceType", resource.resourceType
+          )
+        ).increment()
+        null
       }
     } catch (e: Exception) {
       log.info("Failed to find owner for {}.", resource, e)
@@ -62,7 +76,7 @@ open class ResourceOwnerResolver<in T : Resource>(
     }
   }
 
-  private fun findValidEmails(emails: List<String>): List<String> {
+  private fun findValidEmails(emails: Set<String>): List<String> {
     return emails.filter {
       Pattern.compile(
         "^(([\\w-]+\\.)+[\\w-]+|([a-zA-Z]|[\\w-]{2,}))@"
@@ -82,6 +96,15 @@ interface OwnerResolver<in T : Resource> {
   fun resolve(resource: T): String?
 }
 
+/**
+ * Defines a specific way to find an owner for a resource,
+ * for example by a tag, from an application, or from an external system
+ */
 interface ResourceOwnerResolutionStrategy<in T : Resource> {
   fun resolve(resource: T): String?
+
+  /**
+   * The resource types for which this resolution strategy knows the primary owner
+   */
+  fun primaryFor(): Set<String>
 }

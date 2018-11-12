@@ -56,6 +56,9 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
       set(name, value)
     }
 
+  fun toLog() =
+    "$resourceId:$resourceType"
+
   override fun equals(other: Any?): Boolean {
     if (this === other) {
       return true

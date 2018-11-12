@@ -22,6 +22,9 @@ import org.springframework.stereotype.Component
 
 @Component
 class AmazonTagOwnerResolutionStrategy : ResourceOwnerResolutionStrategy<Resource> {
+
+  override fun primaryFor(): Set<String> = emptySet()
+
   override fun resolve(resource: Resource): String? {
     if ("tags" in resource.details) {
       (resource.details["tags"] as? List<Map<*, *>>)?.let { tags ->

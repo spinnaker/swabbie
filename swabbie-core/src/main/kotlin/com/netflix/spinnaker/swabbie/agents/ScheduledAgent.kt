@@ -20,6 +20,7 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Schedule
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
+import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
@@ -40,35 +41,15 @@ abstract class ScheduledAgent(
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   private val workConfigurations: List<WorkConfiguration>,
   private val agentExecutor: Executor,
-  private val swabbieProperties: SwabbieProperties
+  private val swabbieProperties: SwabbieProperties,
+  private val cacheStatus: CacheStatus
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val executorService = Executors.newSingleThreadScheduledExecutor()
+  private val startupExecutorService = Executors.newSingleThreadScheduledExecutor()
 
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      executorService.scheduleWithFixedDelay({
-        try {
-          when {
-            LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
-              when {
-                timeToWork(swabbieProperties.schedule, clock) -> {
-                  log.info("Swabbie schedule: working!")
-                  runSwabbie()
-                }
-                else -> log.info("Swabbie schedule: off hours!")
-              }
-            else -> log.info("Swabbie schedule: off hours on {}.!", LocalDateTime.now(clock).dayOfWeek)
-          }
-        } catch (e: Exception) {
-          registry.counter(
-            failedDuringSchedule.withTags(
-              "agentName", this.javaClass.simpleName
-            )).increment()
-          log.error("Failed during schedule method for {}", javaClass.simpleName)
-        }
-      }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
-    }
+    get() = { waitForCacheThenStart() }
 
   override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = { stop() }
@@ -85,6 +66,46 @@ abstract class ScheduledAgent(
         .between(it.getLastAgentRun(), clock.instant())
         .toMillis().toDouble()
     }
+  }
+
+  private fun waitForCacheThenStart() {
+    startupExecutorService.scheduleWithFixedDelay({
+     try {
+       if (!cacheStatus.cachesLoaded()) {
+         log.debug("Can't work until the caches load...")
+       } else {
+         log.debug("Caches loaded.")
+         scheduleSwabbie()
+         startupExecutorService.shutdown()
+       }
+     } catch (e: Exception) {
+       log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.")
+     }
+    }, 0, 5, TimeUnit.SECONDS)
+  }
+
+  private fun scheduleSwabbie() {
+    executorService.scheduleWithFixedDelay({
+      try {
+        when {
+          LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
+            when {
+              timeToWork(swabbieProperties.schedule, clock) -> {
+                log.info("Swabbie schedule: working")
+                runSwabbie()
+              }
+              else -> log.info("Swabbie schedule: off hours")
+            }
+          else -> log.info("Swabbie schedule: off hours on {}", LocalDateTime.now(clock).dayOfWeek)
+        }
+      } catch (e: Exception) {
+        registry.counter(
+          failedDuringSchedule.withTags(
+            "agentName", this.javaClass.simpleName
+          )).increment()
+        log.error("Failed during schedule method for {}", javaClass.simpleName)
+      }
+    }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
   }
 
   private fun runSwabbie() {

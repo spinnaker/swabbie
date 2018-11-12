@@ -42,6 +42,7 @@ class NotificationAgent(
   workConfigurations: List<WorkConfiguration>,
   agentExecutor: Executor,
   swabbieProperties: SwabbieProperties,
+  cacheStatus: CacheStatus,
   private val clock: Clock
 ) : ScheduledAgent(
   clock,
@@ -49,7 +50,8 @@ class NotificationAgent(
   resourceTypeHandlers,
   workConfigurations,
   agentExecutor,
-  swabbieProperties
+  swabbieProperties,
+  cacheStatus
 ) {
   @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
   private var interval: Long = 3600

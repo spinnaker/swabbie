@@ -19,10 +19,13 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.lock.LockManager
+import com.netflix.spinnaker.swabbie.CacheStatus
+import com.netflix.spinnaker.swabbie.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.util.concurrent.CountDownLatch
@@ -40,6 +43,7 @@ object ResourceMarkerAgentTest {
   fun cleanup() {
     reset(lockManager)
   }
+  private val cacheStatus = NoopCacheStatus()
 
   @Test
   fun `should do nothing if no handler is found for configuration`() {
@@ -52,7 +56,8 @@ object ResourceMarkerAgentTest {
       resourceTypeHandlers = listOf(resourceTypeHandler),
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
-      swabbieProperties = SwabbieProperties()
+      swabbieProperties = SwabbieProperties(),
+      cacheStatus = cacheStatus
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).mark(any(), any())
@@ -69,7 +74,8 @@ object ResourceMarkerAgentTest {
       resourceTypeHandlers = listOf(resourceTypeHandler),
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
-      swabbieProperties = SwabbieProperties()
+      swabbieProperties = SwabbieProperties(),
+      cacheStatus = cacheStatus
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler).mark(any(), any())

@@ -7,11 +7,15 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
+interface CacheStatus {
+  abstract fun cachesLoaded(): Boolean
+}
+
 @Component
-class CacheStatus(
+open class InMemoryCacheStatus(
   private val caches: List<Cache<*>>,
   private val singletonCaches: List<SingletonCache<*>>
-) {
+): CacheStatus {
   private var allLoaded = AtomicReference<Boolean>(false)
   private val executorService = Executors.newSingleThreadScheduledExecutor()
   private val log: Logger = LoggerFactory.getLogger(javaClass)
@@ -55,7 +59,11 @@ class CacheStatus(
     }
   }
 
-  fun cachesLoaded(): Boolean {
+  override fun cachesLoaded(): Boolean {
     return allLoaded.get()
   }
+}
+
+open class NoopCacheStatus: CacheStatus {
+  override fun cachesLoaded() = true
 }

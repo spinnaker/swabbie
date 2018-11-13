@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -41,6 +42,7 @@ class ResourceCleanerAgent(
   workConfigurations: List<WorkConfiguration>,
   agentExecutor: Executor,
   swabbieProperties: SwabbieProperties,
+  cacheStatus: CacheStatus,
   private val clock: Clock
 ) : ScheduledAgent(
   clock,
@@ -48,7 +50,8 @@ class ResourceCleanerAgent(
   resourceTypeHandlers,
   workConfigurations,
   agentExecutor,
-  swabbieProperties
+  swabbieProperties,
+  cacheStatus
 ) {
   @Value("\${swabbie.agents.clean.intervalSeconds:3600}")
   private var interval: Long = 3600

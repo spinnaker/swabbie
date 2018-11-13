@@ -56,6 +56,9 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
       set(name, value)
     }
 
+  fun toLog() =
+    "$resourceId:$resourceType"
+
   override fun equals(other: Any?): Boolean {
     if (this === other) {
       return true
@@ -159,7 +162,8 @@ data class MarkedResource(
       name = name,
       projectedDeletionStamp = projectedDeletionStamp,
       lastSeenInfo = lastSeenInfo,
-      summaries = summaries
+      summaries = summaries,
+      createTs = resource.createTs
     )
   }
 
@@ -190,7 +194,8 @@ data class BarebonesMarkedResource(
   val name: String?,
   val projectedDeletionStamp: Long,
   val lastSeenInfo: LastSeenInfo?,
-  val summaries: List<Summary>
+  val summaries: List<Summary>,
+  val createTs: Long
 )
 
 data class NotificationInfo(

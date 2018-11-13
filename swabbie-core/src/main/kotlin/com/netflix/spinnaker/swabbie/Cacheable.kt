@@ -27,15 +27,19 @@ interface Cacheable : Named
 interface Cache<out T> {
   fun get(): Set<T>
   fun contains(key: String?): Boolean
+  fun loadingComplete(): Boolean
 }
 
 interface SingletonCache<out T> {
   fun get(): T
+  fun loadingComplete(): Boolean
 }
 
 open class InMemoryCache<out T : Cacheable>(
   private val sourceProvider: () -> Set<T>
 ) : Cache<T> {
+
+  val log: Logger = LoggerFactory.getLogger(javaClass)
 
   override fun contains(key: String?): Boolean {
     if (key == null) return false
@@ -62,7 +66,9 @@ open class InMemoryCache<out T : Cacheable>(
     return cache.get()
   }
 
-  val log: Logger = LoggerFactory.getLogger(javaClass)
+  override fun loadingComplete(): Boolean {
+    return cache.get() != null
+  }
 }
 
 open class InMemorySingletonCache<out T : Cacheable>(
@@ -87,5 +93,9 @@ open class InMemorySingletonCache<out T : Cacheable>(
       cache.set(sourceProvider.invoke())
     }
     return cache.get()
+  }
+
+  override fun loadingComplete(): Boolean {
+    return cache.get() != null
   }
 }

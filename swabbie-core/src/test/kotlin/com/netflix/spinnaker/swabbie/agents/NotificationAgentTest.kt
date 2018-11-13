@@ -18,9 +18,12 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.swabbie.CacheStatus
+import com.netflix.spinnaker.swabbie.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.nhaarman.mockito_kotlin.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
 
@@ -30,6 +33,7 @@ object NotificationAgentTest {
   private val configuration = workConfiguration()
   private val agentExecutor = BlockingThreadExecutor()
   private val swabbieProperties = SwabbieProperties()
+  private val cacheStatus = NoopCacheStatus()
 
   @Test
   fun `should not notify if no handler found`() {
@@ -42,7 +46,8 @@ object NotificationAgentTest {
       resourceTypeHandlers = listOf(resourceTypeHandler),
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
-      swabbieProperties = swabbieProperties
+      swabbieProperties = swabbieProperties,
+      cacheStatus = cacheStatus
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).notify(any(), any())
@@ -59,7 +64,8 @@ object NotificationAgentTest {
       clock = clock,
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
-      swabbieProperties = swabbieProperties
+      swabbieProperties = swabbieProperties,
+      cacheStatus = cacheStatus
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, times(1)).notify(

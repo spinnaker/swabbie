@@ -628,6 +628,10 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
+  /**
+   * Adds the owner to the resourceOwnerField, for each candidate, and if no owner is found it's resolved to the
+   * "defaultDestination", defined in config
+   */
   private fun List<T>.withResolvedOwners(workConfiguration: WorkConfiguration): List<T> =
     this.map { candidate ->
       candidate.apply {

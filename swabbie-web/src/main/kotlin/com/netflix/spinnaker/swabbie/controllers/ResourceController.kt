@@ -21,6 +21,7 @@ import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
 import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.LoggerFactory
@@ -39,12 +40,23 @@ class ResourceController(
 
   private val log = LoggerFactory.getLogger(javaClass)
 
+  /**
+   * Returns all marked resource in summary, full, or list format.
+   * If both expand and list are specified, expand is returned
+   */
   @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
   fun markedResources(
-    @RequestParam(required = false, defaultValue = "false") expand: Boolean
-  ): List<MarkedResourceInterface> {
-    return resourceTrackingRepository.getMarkedResources().let { markedResources ->
-      if (expand) markedResources else markedResources.map { it.slim() }
+    @RequestParam(required = false, defaultValue = "false") expand: Boolean,
+    @RequestParam(required = false, defaultValue = "false") list: Boolean
+  ): List<Any> {
+    val markedResources = resourceTrackingRepository.getMarkedResources()
+
+    return when {
+      expand -> markedResources
+      list -> markedResources
+                .map { DeleteInfo(it.name.orEmpty(), it.namespace, it.resourceId) }
+                .sortedBy { it.name }
+      else -> markedResources.map { it.slim() }
     }
   }
 
@@ -72,6 +84,12 @@ class ResourceController(
   ): MarkedResource {
     return resourceTrackingRepository.find(resourceId, namespace)
       ?: throw NotFoundException("Resource $namespace/$resourceId not found")
+  }
+
+  @RequestMapping(value = ["/deleted"], method = [RequestMethod.GET])
+  fun markedResources(
+  ): List<DeleteInfo> {
+    return resourceTrackingRepository.getDeleted().sortedBy { it.name }
   }
 
   @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])

@@ -28,6 +28,7 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -238,5 +239,14 @@ object RedisResourceTrackingRepositoryTest {
 
     resourceRepository.getNumMarkedResources() shouldMatch equalTo(200L)
     resourceRepository.getMarkedResources().size shouldMatch equalTo(200)
+  }
+
+  @Test
+  fun `should store a list of deleted resources`() {
+    resourceRepository.upsert(defaultMarkedResource)
+    resourceRepository.remove(defaultMarkedResource)
+
+    resourceRepository.getMarkedResources() shouldMatch equalTo(emptyList())
+    resourceRepository.getDeleted() shouldMatch equalTo(listOf(DeleteInfo("test", "test", "namespace")))
   }
 }

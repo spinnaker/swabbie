@@ -31,7 +31,7 @@ open class InMemoryCacheStatus(
           shutdown()
         }
       } catch (e: Exception) {
-        log.error("Failed while checking the caches in ${javaClass.simpleName}.")
+        log.error("Failed while checking the caches in ${javaClass.simpleName}.", e)
       }
     }, 0, 5, TimeUnit.SECONDS)
   }

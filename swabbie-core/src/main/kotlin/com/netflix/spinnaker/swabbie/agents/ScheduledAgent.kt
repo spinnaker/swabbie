@@ -79,7 +79,7 @@ abstract class ScheduledAgent(
          startupExecutorService.shutdown()
        }
      } catch (e: Exception) {
-       log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.")
+       log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.", e)
      }
     }, 0, 5, TimeUnit.SECONDS)
   }

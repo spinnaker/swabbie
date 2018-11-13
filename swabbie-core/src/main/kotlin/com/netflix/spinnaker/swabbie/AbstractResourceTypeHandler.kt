@@ -667,6 +667,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         return
       }
 
+      log.info("Processing ${markedResources.size} for notification in ${javaClass.simpleName}")
+
       val maxItemsToProcess = Math.min(markedResources.size, workConfiguration.maxItemsProcessedPerCycle)
       markedResources.subList(0, maxItemsToProcess)
         .filter {

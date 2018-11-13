@@ -125,13 +125,17 @@ class RedisResourceTrackingRepository(
 
   private fun hydrateMarkedResources(resourseIds: Set<String>): List<MarkedResource> {
     if (resourseIds.isEmpty()) return emptyList()
-    return resourseIds.chunked(REDIS_CHUNK_SIZE).map { sublist ->
-      return redisClientDelegate.withCommandsClient<Set<String>> { client ->
-          client.hmget(SINGLE_RESOURCES_KEY, *sublist.toTypedArray()).toSet()
-        }.map { json ->
-          objectMapper.readValue<MarkedResource>(json)
-        }
-    }.flatten()
+
+    val hydratedResources = mutableListOf<MarkedResource>()
+    resourseIds.chunked(REDIS_CHUNK_SIZE).forEach { sublist ->
+      val hydrated = redisClientDelegate.withCommandsClient<Set<String>> { client ->
+        client.hmget(SINGLE_RESOURCES_KEY, *sublist.toTypedArray()).toSet()
+      }.map { json ->
+        objectMapper.readValue<MarkedResource>(json)
+      }
+      hydratedResources.addAll(hydrated)
+    }
+    return hydratedResources
   }
 
   override fun upsert(markedResource: MarkedResource, deleteScore: Long, softDeleteScore: Long) {

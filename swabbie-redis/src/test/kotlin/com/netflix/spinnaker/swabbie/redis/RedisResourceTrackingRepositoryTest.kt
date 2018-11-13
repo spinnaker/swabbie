@@ -56,6 +56,19 @@ object RedisResourceTrackingRepositoryTest {
     RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))), objectMapper, clock
   )
 
+  private val defaultMarkedResource = MarkedResource(
+    resource = TestResource(resourceId = "test"),
+    summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
+    namespace = "namespace",
+    projectedDeletionStamp = 1,
+    projectedSoftDeletionStamp = 1,
+    notificationInfo = NotificationInfo(
+      recipient = "yolo@netflixcom",
+      notificationType = "Email",
+      notificationStamp = clock.instant().toEpochMilli()
+    )
+  )
+
   @BeforeEach
   fun setup() {
     jedisPool.resource.use {
@@ -215,5 +228,15 @@ object RedisResourceTrackingRepositoryTest {
     resourceRepository.upsert(markedResource)
 
     resourceRepository.getNumMarkedResources() shouldMatch equalTo(1L)
+  }
+
+  @Test
+  fun `scanning should work`() {
+    for(i in 1..200) {
+      resourceRepository.upsert(defaultMarkedResource.copy(resource = TestResource(resourceId = "$i")))
+    }
+
+    resourceRepository.getNumMarkedResources() shouldMatch equalTo(200L)
+    resourceRepository.getMarkedResources().size shouldMatch equalTo(200)
   }
 }

@@ -23,6 +23,7 @@ import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
@@ -41,6 +42,7 @@ class RedisResourceTrackingRepository(
   private val SINGLE_RESOURCES_KEY = "{swabbie:resource}"
   private val SOFT_DELETE_KEY = "{swabbie:softdeletes}"
   private val DELETE_KEY = "{swabbie:deletes}"
+  private val REMOVED_KEY = "{swabbie:removed}"
 
   private val log = LoggerFactory.getLogger(javaClass)
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
@@ -163,11 +165,38 @@ class RedisResourceTrackingRepository(
   override fun remove(markedResource: MarkedResource) {
     val id = markedResource.uniqueId()
     redisClientDelegate.withCommandsClient { client ->
+      client.sadd(
+        REMOVED_KEY,
+        objectMapper.writeValueAsString(
+          DeleteInfo(markedResource.name.orEmpty(), markedResource.resourceId, markedResource.namespace)
+        )
+      ) // add to the list of everything we've deleted
       client.zrem(DELETE_KEY, id)
       client.zrem(SOFT_DELETE_KEY, id)
       client.hdel(SINGLE_RESOURCES_KEY, id)
     }
   }
+
+  override fun getDeleted(): List<DeleteInfo> {
+    return redisClientDelegate.withCommandsClient<Set<String>> { client ->
+      val results = mutableSetOf<String>()
+      val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
+      var cursor = "0"
+      var shouldContinue = true
+
+      while (shouldContinue) {
+        val scanResult = client.sscan(REMOVED_KEY, cursor, scanParams)
+        results.addAll(scanResult.result)
+        cursor = scanResult.stringCursor
+        if ("0" == cursor) {
+          shouldContinue = false
+        }
+      }
+      results
+      }.map { json ->
+        objectMapper.readValue<DeleteInfo>(json)
+      }.toList()
+    }
 }
 
 

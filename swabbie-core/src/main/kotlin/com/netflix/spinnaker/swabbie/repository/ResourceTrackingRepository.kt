@@ -37,5 +37,13 @@ interface ResourceTrackingRepository {
 
   fun getNumMarkedResources(): Long
 
+  fun getDeleted(): List<DeleteInfo>
+
   fun find(resourceId: String, namespace: String): MarkedResource?
 }
+
+data class DeleteInfo(
+  val name: String,
+  val resourceId: String,
+  val namespace: String
+)

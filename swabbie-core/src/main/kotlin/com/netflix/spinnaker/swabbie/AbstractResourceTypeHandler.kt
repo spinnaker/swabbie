@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie
 
 import com.google.common.collect.Lists
+import com.netflix.frigga.ami.AppVersion
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
@@ -375,7 +376,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ) {
     if (markedResource != null && !workConfiguration.dryRun) {
       try {
-        log.info("{} is no longer a candidate because: $reason.", markedResource)
+        log.info("{} is no longer a candidate because: $reason.", markedResource.uniqueId())
         resourceRepository.remove(markedResource)
         applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
       } catch (e: Exception) {
@@ -612,7 +613,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ): List<List<MarkedResource>> {
     val partitions = mutableListOf<List<MarkedResource>>()
     markedResources.groupBy {
-      FriggaReflectiveNamer().deriveMoniker(it.resource).app
+      FriggaReflectiveNamer().deriveMoniker(it.resource).app //todo eb: images don't have an app
     }.map {
       Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach {
         partitions.add(it)
@@ -724,16 +725,22 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   private fun sendNotification(
     owner: String,
-    workConfiguration:
-    WorkConfiguration,
+    workConfiguration: WorkConfiguration,
     resources: List<MarkedResource>
   ) {
     notifiers.forEach { notifier ->
       workConfiguration.notificationConfiguration.types.forEach { notificationType ->
         if (notificationType.equals(Notifier.NotificationType.EMAIL.name, true)) {
+          //todo eb: remove once we can skip notifications for emails
+          val finalOwner = if (resources.first().resourceType.contains("image", ignoreCase = true)) {
+            workConfiguration.notificationConfiguration.defaultDestination
+          } else {
+            owner
+          }
+          
           val notificationContext = mapOf(
-            "resourceOwner" to owner,
-            "application" to FriggaReflectiveNamer().deriveMoniker(resources.first()).app,
+            "resourceOwner" to finalOwner,
+            "application" to FriggaReflectiveNamer().deriveMoniker(resources.first()).app, //todo eb: this doesn't work for debs
             "resources" to resources.map { it.barebones() },
             "configuration" to workConfiguration,
             "resourceType" to workConfiguration.resourceType.formatted(),
@@ -743,7 +750,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
           retrySupport.retry({
             notifier.notify(
-              recipient = owner,
+              recipient = finalOwner,
               messageType = notificationType,
               additionalContext = notificationContext
             )

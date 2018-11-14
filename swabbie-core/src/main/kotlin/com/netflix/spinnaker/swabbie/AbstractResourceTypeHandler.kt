@@ -319,7 +319,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)
     } finally {
-      recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
+      recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter, totalResourcesVisitedCounter)
       postMark.invoke()
     }
   }

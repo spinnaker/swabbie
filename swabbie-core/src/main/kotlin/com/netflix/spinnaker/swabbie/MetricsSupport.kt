@@ -61,7 +61,8 @@ open class MetricsSupport(
   protected fun recordMarkMetrics(markerTimerId: Long,
                                   workConfiguration: WorkConfiguration,
                                   violationCounter: AtomicInteger,
-                                  candidateCounter: AtomicInteger) {
+                                  candidateCounter: AtomicInteger,
+                                  totalResourcesVisitedCounter: AtomicInteger) {
     markDurationTimer.stop(markerTimerId)
     registry.gauge(
       candidatesCountId.withTags(
@@ -83,6 +84,13 @@ open class MetricsSupport(
         "configuration", workConfiguration.namespace,
         "resourceTypeHandler", javaClass.simpleName
       )).set(exclusionCounters[Action.MARK]!!.toDouble())
+
+    registry.gauge(
+      resourcesVisitedId.withTags(
+        "resourceType", workConfiguration.resourceType,
+        "configuration", workConfiguration.namespace,
+        "resourceTypeHandler", javaClass.simpleName
+      )).set(totalResourcesVisitedCounter.toDouble())
   }
 
   protected fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {

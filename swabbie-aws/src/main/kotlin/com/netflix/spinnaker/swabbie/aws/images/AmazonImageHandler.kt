@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.aws.images
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
@@ -82,8 +81,8 @@ class AmazonImageHandler(
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
     orcaService.orchestrate(
       OrchestrationRequest(
-        // resources are partitioned based on app name, so find app name from first resource
-        application = resolveApplicationOrNull(markedResources.first()) ?: "swabbie",
+        // resources are partitioned based on grouping, so find the app to use from first resource
+        application = determineApp(markedResources.first()),
         job = listOf(
           OrcaJob(
             type = "deleteImage",
@@ -153,7 +152,7 @@ class AmazonImageHandler(
             tags = tags,
             cloudProvider = "aws",
             cloudProviderType = "aws",
-            application = resolveApplicationOrNull(resource) ?: "swabbie",
+            application = determineApp(resource),
             description = "$description for image ${resource.uniqueId()}"
           )
         )
@@ -172,9 +171,14 @@ class AmazonImageHandler(
     return taskIds
   }
 
-  private fun resolveApplicationOrNull(markedResource: MarkedResource): String? {
-    val appName = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: return null
-    return if (applicationsCaches.any { it.contains(appName) }) appName else null
+  private fun determineApp(resource: MarkedResource): String {
+    val grouping: Grouping = resource.grouping?: return "swabbie"
+    if (grouping.type == GroupingType.APPLICATION) {
+      if (applicationsCaches.any { it.contains(grouping.value) }) {
+        return grouping.value
+      }
+    }
+    return "swabbie"
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =
@@ -276,7 +280,6 @@ class AmazonImageHandler(
           )
         }
       }
-
   }
 
   /**

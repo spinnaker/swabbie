@@ -78,7 +78,7 @@ class AmazonSecurityGroupHandler(
           log.info("This resource is about to be deleted {}", markedResource)
           orcaService.orchestrate(
             OrchestrationRequest(
-              application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+              application = determineApp(resource),
               job = listOf(
                 OrcaJob(
                   type = "deleteSecurityGroup",
@@ -91,7 +91,7 @@ class AmazonSecurityGroupHandler(
                   )
                 )
               ),
-              description = "Cleaning up Security Group for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+              description = "Cleaning up Security Group for ${resource.grouping?.value.orEmpty()}"
             )
           ).let { taskResponse ->
             taskTrackingRepository.add(
@@ -107,6 +107,14 @@ class AmazonSecurityGroupHandler(
         }
       }
     }
+  }
+
+  private fun determineApp(resource: Resource): String {
+    val grouping: Grouping = resource.grouping?: return "swabbie"
+    if (grouping.type == GroupingType.APPLICATION) {
+      return grouping.value
+    }
+    return "swabbie"
   }
 
   override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {

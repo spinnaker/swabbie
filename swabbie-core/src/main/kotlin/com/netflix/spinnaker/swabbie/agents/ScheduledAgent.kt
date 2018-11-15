@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory
 import java.time.*
 import java.time.temporal.Temporal
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
@@ -76,12 +77,23 @@ abstract class ScheduledAgent(
        } else {
          log.debug("Caches loaded.")
          scheduleSwabbie()
-         startupExecutorService.shutdown()
+         shutdown(startupExecutorService)
        }
      } catch (e: Exception) {
        log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.", e)
      }
     }, 0, 5, TimeUnit.SECONDS)
+  }
+
+  private fun shutdown(executorService: ExecutorService) {
+    executorService.shutdown()
+    try {
+      if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+        executorService.shutdownNow()
+      }
+    } catch (e: InterruptedException) {
+      executorService.shutdownNow()
+    }
   }
 
   private fun scheduleSwabbie() {

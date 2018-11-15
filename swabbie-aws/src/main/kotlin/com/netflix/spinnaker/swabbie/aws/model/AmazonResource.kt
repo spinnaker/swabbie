@@ -16,7 +16,11 @@
 
 package com.netflix.spinnaker.swabbie.aws.model
 
+import com.netflix.frigga.ami.AppVersion
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.Dates
+import com.netflix.spinnaker.swabbie.model.Grouping
+import com.netflix.spinnaker.swabbie.model.GroupingType
 import com.netflix.spinnaker.swabbie.model.Resource
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -24,6 +28,23 @@ import java.time.ZoneId
 abstract class AmazonResource(
   creationDate: String? // ISO_LOCAL_DATE_TIME format
 ) : Resource() {
+
+  override val grouping: Grouping?
+    get() {
+      if (resourceType.contains("image", ignoreCase = true)) {
+        // Images have only packageName, not app, to group by
+        getTagValue("appversion")?.let { AppVersion.parseName(it)?.packageName }?.let { packageName ->
+          return Grouping(packageName, GroupingType.PACKAGE_NAME)
+        }
+        return null
+
+      } else {
+        FriggaReflectiveNamer().deriveMoniker(this).app?.let { app ->
+          Grouping(app, GroupingType.APPLICATION)
+        }
+        return null
+      }
+    }
 
   override val createTs: Long =
     if (!creationDate.isNullOrBlank())

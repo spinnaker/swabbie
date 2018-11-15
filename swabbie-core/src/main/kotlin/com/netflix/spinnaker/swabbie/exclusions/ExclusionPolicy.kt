@@ -51,23 +51,26 @@ interface ExclusionPolicy {
   fun String.matchPattern(p: String): Boolean =
     p.startsWith("pattern:") && this.contains(p.split(":").last().toRegex())
 
+  /**
+   * Returns a reason for the match if the excludable matches any exclusions.
+   * Takes care of exact match or pattern match.
+   */
   fun byPropertyMatchingResult(
     exclusions: List<Exclusion>,
     excludable: Excludable,
     exclusionType: ExclusionType = getType()
   ): String? {
-    keysAndValues(exclusions, exclusionType).let { kv ->
-      kv.values.toSet().flatten().let { exclusionValues ->
-        if (exclusionValues.size == 1 && exclusionValues[0] == "\\*") {
-          return wildcardMatchMessage(excludable.name!!, exclusionValues.toSet())
-        }
-      }
+    val kv: Map<String, List<String>> = keysAndValues(exclusions, exclusionType)
+    val exclusionValues = kv.values.toSet().flatten()
 
-      // match on property name
-      kv.keys.forEach { key ->
-        findProperty(excludable, key, kv[key]!!)?.let {
-          return patternMatchMessage(key, setOf(it))
-        }
+    if (exclusionValues.size == 1 && exclusionValues[0] == "\\*") {
+      return wildcardMatchMessage(excludable.name!!, exclusionValues.toSet())
+    }
+
+    // match on property name
+    kv.keys.forEach { key ->
+      findProperty(excludable, key, kv.getValue(key))?.let {
+        return patternMatchMessage(key, setOf(it))
       }
     }
 

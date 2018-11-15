@@ -18,7 +18,6 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.model.*
@@ -186,7 +185,7 @@ class ResourceStateManager(
         tags = mapOf("expiration_time" to "never"),
         cloudProvider = "aws",
         cloudProviderType = "aws",
-        application = resolveApplicationOrNull(resource) ?: "swabbie",
+        application = determineApp(resource),
         description = "Setting `expiration_time` to `never` for image ${resource.uniqueId()}"
       )
     )
@@ -203,10 +202,15 @@ class ResourceStateManager(
     return taskId
   }
 
-  private fun resolveApplicationOrNull(markedResource: MarkedResource): String? {
-    val appName = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: return null
-    return if (applicationsCaches.any { it.contains(appName) }) appName else null
+  private fun determineApp(resource: MarkedResource): String {
+    if (resource.grouping?.type == GroupingType.APPLICATION) {
+      if (applicationsCaches.any { it.contains(resource.grouping.value) }) {
+        return resource.grouping.value
+      }
+    }
+    return "swabbie"
   }
+
 }
 
 internal fun MarkedResource.typeAndName(): String {

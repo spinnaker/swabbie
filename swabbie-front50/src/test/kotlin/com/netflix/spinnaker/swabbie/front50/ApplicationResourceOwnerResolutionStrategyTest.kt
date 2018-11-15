@@ -22,6 +22,8 @@ import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.Grouping
+import com.netflix.spinnaker.swabbie.model.GroupingType
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
@@ -42,17 +44,6 @@ object ApplicationResourceOwnerResolutionStrategyTest {
 
     subject.resolve(ResourceOne()) shouldMatch equalTo("name@netflix.com")
   }
-
-  @Test
-  fun `should resolve multiple resource owner from spinnaker application`() {
-    whenever(front50ApplicationCache.get()) doReturn
-      setOf(
-        Application(name = "name", email = "name@netflix.com"),
-        Application(name = "test", email = "test@netflix.com")
-      )
-
-    subject.resolve(ResourceOne()) shouldMatch equalTo("name@netflix.com")
-  }
 }
 
 @JsonTypeName("R")
@@ -61,5 +52,6 @@ data class ResourceOne(
   override val name: String = "name",
   override val resourceType: String = "type",
   override val cloudProvider: String = "provider",
-  override val createTs: Long = System.currentTimeMillis()
+  override val createTs: Long = System.currentTimeMillis(),
+  override val grouping: Grouping? = Grouping(name, GroupingType.APPLICATION)
 ) : Resource()

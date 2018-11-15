@@ -23,6 +23,8 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.Grouping
+import com.netflix.spinnaker.swabbie.model.GroupingType
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
@@ -63,9 +65,9 @@ object Front50ApplicationExclusionPolicyTest {
 
 
     val resources = listOf(
-      TestResource("testapp-v001"),
-      TestResource("test-v001"),
-      TestResource("random")
+      TestResource("testapp-v001", grouping = Grouping("testapp", GroupingType.APPLICATION)),
+      TestResource("test-v001", grouping = Grouping("test", GroupingType.APPLICATION)),
+      TestResource("random", grouping = Grouping("random", GroupingType.APPLICATION))
     )
 
     resources.filter {
@@ -73,7 +75,80 @@ object Front50ApplicationExclusionPolicyTest {
     }.let { filteredResources ->
       assertEquals(1, filteredResources.size, "excluded one by name and the other by email")
       filteredResources.first().resourceId shouldMatch equalTo("random")
-      filteredResources.size shouldMatch equalTo(1)
+    }
+  }
+
+  @Test
+  fun `should exclude based on pattern`(){
+    val exclusions = listOf(
+      Exclusion()
+        .withType(ExclusionType.Application.toString())
+        .withAttributes(
+          listOf(
+            Attribute()
+              .withKey("name")
+              .withValue(
+                listOf("pattern:^cloud")
+              )
+          )
+        )
+    )
+
+    whenever(front50ApplicationCache.get()) doReturn
+      setOf(
+        Application(name = "clouddriver", email = "name@netflix.com"),
+        Application(name = "acloud", email = "test@netflix.com"),
+        Application(name = "wowcloudwow", email = "random@netflix.com")
+      )
+
+    val resources = listOf(
+      TestResource("clouddriver-v001", grouping = Grouping("clouddriver", GroupingType.APPLICATION)),
+      TestResource("acloud-v001", grouping = Grouping("acloud", GroupingType.APPLICATION)),
+      TestResource("wowcloudwow", grouping = Grouping("wowcloudwow", GroupingType.APPLICATION))    )
+
+    resources.filter {
+      Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions) == null
+    }.let { filteredResources ->
+      filteredResources.size shouldMatch equalTo(2)
+    }
+  }
+
+  @Test
+  fun `should ignore images`() {
+    val exclusions = listOf(
+      Exclusion()
+        .withType(ExclusionType.Application.toString())
+        .withAttributes(
+          listOf(
+            Attribute()
+              .withKey("name")
+              .withValue(
+                listOf("testapp")
+              ),
+          Attribute()
+              .withKey("email")
+              .withValue(
+                listOf("test@netflix.com")
+              )
+          )
+        )
+    )
+
+    whenever(front50ApplicationCache.get()) doReturn
+        setOf(
+            Application(name = "testapp", email = "name@netflix.com"),
+            Application(name = "test", email = "test@netflix.com"),
+            Application(name = "random", email = "random@netflix.com")
+        )
+
+    val resources = listOf(
+        TestResource("my-package-0.0.1", grouping = Grouping("my-package", GroupingType.PACKAGE_NAME))
+    )
+
+    resources.filter {
+      Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions) == null
+    }.let { filteredResources ->
+      filteredResources.size shouldMatch equalTo(1) //it doesn't get excluded
     }
   }
 }

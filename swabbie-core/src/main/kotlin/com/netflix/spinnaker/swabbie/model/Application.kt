@@ -29,4 +29,6 @@ data class Application(
     get() = "application"
   override val cloudProvider: String
     get() = "*"
+  override val grouping: Grouping?
+    get() = Grouping(name, GroupingType.APPLICATION)
 }

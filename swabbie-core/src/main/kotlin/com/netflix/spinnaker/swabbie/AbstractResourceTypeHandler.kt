@@ -17,13 +17,11 @@
 package com.netflix.spinnaker.swabbie
 
 import com.google.common.collect.Lists
-import com.netflix.frigga.ami.AppVersion
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
@@ -605,7 +603,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   /**
    * Partitions the list of marked resources to process:
-   * For convenience, partitions are grouped by relevance (here the derived app they are associated with)
+   * For convenience, partitions are grouped by relevance
    */
   fun partitionList(
     markedResources: List<MarkedResource>,
@@ -613,10 +611,10 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ): List<List<MarkedResource>> {
     val partitions = mutableListOf<List<MarkedResource>>()
     markedResources.groupBy {
-      FriggaReflectiveNamer().deriveMoniker(it.resource).app //todo eb: images don't have an app
+      it.resource.grouping
     }.map {
-      Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach {
-        partitions.add(it)
+      Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach { partition ->
+        partitions.add(partition)
       }
     }
 
@@ -737,10 +735,10 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           } else {
             owner
           }
-          
+
           val notificationContext = mapOf(
             "resourceOwner" to finalOwner,
-            "application" to FriggaReflectiveNamer().deriveMoniker(resources.first()).app, //todo eb: this doesn't work for debs
+            "application" to resources.first().resource.grouping?.value.orEmpty(), //todo eb: this prob shouldn't be called app
             "resources" to resources.map { it.barebones() },
             "configuration" to workConfiguration,
             "resourceType" to workConfiguration.resourceType.formatted(),

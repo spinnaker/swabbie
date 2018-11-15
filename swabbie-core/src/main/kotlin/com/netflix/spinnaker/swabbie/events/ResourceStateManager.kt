@@ -18,7 +18,6 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.model.*
@@ -28,6 +27,7 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -43,7 +43,7 @@ class ResourceStateManager(
   @Autowired(required = false) private val resourceTagger: ResourceTagger?,
   private val taggingService: TaggingService,
   private val taskTrackingRepository: TaskTrackingRepository,
-  private val applicationsCaches: List<InMemoryCache<Application>>
+  private val applicationUtils: ApplicationUtils
 ) : MetricsSupport(registry) {
 
   private val log = LoggerFactory.getLogger(javaClass)
@@ -186,7 +186,7 @@ class ResourceStateManager(
         tags = mapOf("expiration_time" to "never"),
         cloudProvider = "aws",
         cloudProviderType = "aws",
-        application = resolveApplicationOrNull(resource) ?: "swabbie",
+        application = applicationUtils.determineApp(resource.resource),
         description = "Setting `expiration_time` to `never` for image ${resource.uniqueId()}"
       )
     )
@@ -203,10 +203,6 @@ class ResourceStateManager(
     return taskId
   }
 
-  private fun resolveApplicationOrNull(markedResource: MarkedResource): String? {
-    val appName = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: return null
-    return if (applicationsCaches.any { it.contains(appName) }) appName else null
-  }
 }
 
 internal fun MarkedResource.typeAndName(): String {

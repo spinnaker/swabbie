@@ -45,7 +45,8 @@ data class SpinnakerAccount(
   override val name: String,
   override val edda: String?,
   override val regions: List<Region>?,
-  override val environment: String
+  override val environment: String,
+  override val grouping: Grouping? = null
 ) : Account, Cacheable, HasDetails() {
   override val resourceId: String
     get() = accountId!!
@@ -62,7 +63,8 @@ data class EmptyAccount(
   override val eddaEnabled: Boolean = false,
   override val edda: String? = "",
   override val regions: List<Region> = emptyList(),
-  override val environment: String = ""
+  override val environment: String = "",
+  override val grouping: Grouping? = null
 ) : Account, HasDetails() {
   override val resourceId: String
     get() = accountId!!

@@ -17,15 +17,18 @@
 package com.netflix.spinnaker.swabbie.front50
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolutionStrategy
 import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.GroupingType
 import com.netflix.spinnaker.swabbie.model.Resource
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
+/**
+ * This doesn't work for images, because they have no application information.
+ */
 @Component
 class ApplicationResourceOwnerResolutionStrategy(
   private val front50ApplicationCache: InMemoryCache<Application>,
@@ -39,7 +42,13 @@ class ApplicationResourceOwnerResolutionStrategy(
   override fun resolve(resource: Resource): String? {
     val applicationToOwnersPairs = mutableSetOf<Pair<String?, String?>>()
 
-    FriggaReflectiveNamer().deriveMoniker(resource).app?.let { derivedApp ->
+    val grouping = resource.grouping
+    var derivedApp : String? = null
+    if (grouping != null && grouping.type == GroupingType.APPLICATION) {
+      derivedApp = grouping.value
+    }
+
+    if (derivedApp != null) {
       applicationToOwnersPairs.addAll(getMatchingFront50Applications(derivedApp))
     }
 

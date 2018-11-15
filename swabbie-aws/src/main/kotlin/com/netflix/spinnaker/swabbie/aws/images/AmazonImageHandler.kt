@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.aws.images
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
@@ -33,6 +32,7 @@ import com.netflix.spinnaker.swabbie.orca.*
 import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
@@ -58,7 +58,7 @@ class AmazonImageHandler(
   private val rules: List<Rule<AmazonImage>>,
   private val imageProvider: ResourceProvider<AmazonImage>,
   private val orcaService: OrcaService,
-  private val applicationsCaches: List<InMemoryCache<Application>>,
+  private val applicationUtils: ApplicationUtils,
   private val taggingService: TaggingService,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
@@ -82,8 +82,8 @@ class AmazonImageHandler(
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
     orcaService.orchestrate(
       OrchestrationRequest(
-        // resources are partitioned based on app name, so find app name from first resource
-        application = resolveApplicationOrNull(markedResources.first()) ?: "swabbie",
+        // resources are partitioned based on grouping, so find the app to use from first resource
+        application = applicationUtils.determineApp(markedResources.first().resource),
         job = listOf(
           OrcaJob(
             type = "deleteImage",
@@ -153,7 +153,7 @@ class AmazonImageHandler(
             tags = tags,
             cloudProvider = "aws",
             cloudProviderType = "aws",
-            application = resolveApplicationOrNull(resource) ?: "swabbie",
+            application = applicationUtils.determineApp(resource.resource),
             description = "$description for image ${resource.uniqueId()}"
           )
         )
@@ -170,11 +170,6 @@ class AmazonImageHandler(
         taskIds.add(taskId)
       }
     return taskIds
-  }
-
-  private fun resolveApplicationOrNull(markedResource: MarkedResource): String? {
-    val appName = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: return null
-    return if (applicationsCaches.any { it.contains(appName) }) appName else null
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =
@@ -276,7 +271,6 @@ class AmazonImageHandler(
           )
         }
       }
-
   }
 
   /**

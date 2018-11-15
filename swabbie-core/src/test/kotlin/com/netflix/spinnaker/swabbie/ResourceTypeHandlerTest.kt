@@ -391,12 +391,24 @@ object ResourceTypeHandlerTest {
   }
 
   @Test
-  fun `should partition the list of resources to delete`() {
+  fun `should partition the list of resources to delete by grouping`() {
     // resources 1 & 2 would be grouped into a partition because their names match to the same app
     // resource 3 would be in its own partition
-    val resource1 = TestResource("1", name = "testResource-v001")
-    val resource2 = TestResource("2", name = "testResource-v002")
+    val resource1 = TestResource("1", name = "testResource-v001", grouping = Grouping("testResource", GroupingType.APPLICATION))
+    val resource2 = TestResource("2", name = "testResource-v002", grouping = Grouping("testResource", GroupingType.APPLICATION))
     val resource3 = TestResource("3", name = "random")
+    val resource4 = TestResource(
+      resourceId = "4",
+      name = "my-package-0.0.2",
+      resourceType = "image",
+      grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
+    )
+    val resource5 = TestResource(
+      resourceId = "5",
+      name = "my-package-0.0.4",
+      resourceType = "image",
+      grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
+    )
 
     val configuration = workConfiguration(
       itemsProcessedBatchSize = 2,
@@ -427,6 +439,22 @@ object ResourceTypeHandlerTest {
         resourceOwner = "test@netflix.com",
         projectedDeletionStamp = clock.millis(),
         projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+      ),
+      MarkedResource(
+        resource = resource4,
+        summaries = listOf(Summary("invalid resource random", "rule 4")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis(),
+        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+      ),
+      MarkedResource(
+        resource = resource5,
+        summaries = listOf(Summary("invalid resource random", "rule 5")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis(),
+        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
       )
     )
 
@@ -449,12 +477,14 @@ object ResourceTypeHandlerTest {
     )
 
     val result = handler.partitionList(markedResources, configuration)
-    Assertions.assertTrue(result.size == 2)
+    Assertions.assertTrue(result.size == 3)
     with (result) {
       Assertions.assertTrue(result[0].size == 2, "resources 1 & 2 because their names match to the same app")
-      Assertions.assertTrue(result[1].size == 1)
+      Assertions.assertTrue(result[1].size == 2)
+      Assertions.assertTrue(result[2].size == 1)
       Assertions.assertTrue(result[0].none { it.name == resource3.name })
-      Assertions.assertTrue(result[1].all { it.name == resource3.name })
+      Assertions.assertTrue(result[1].all { it.name!!.startsWith("my-package")})
+      Assertions.assertTrue(result[2].all { it.name == resource3.name })
     }
   }
 

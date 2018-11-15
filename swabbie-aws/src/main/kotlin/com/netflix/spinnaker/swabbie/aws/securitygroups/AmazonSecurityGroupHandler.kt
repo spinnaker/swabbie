@@ -29,6 +29,7 @@ import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -52,7 +53,8 @@ class AmazonSecurityGroupHandler(
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
-  private val resourceUseTrackingRepository: ResourceUseTrackingRepository
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
+  private val applicationUtils: ApplicationUtils
 ) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
   registry,
   clock,
@@ -78,7 +80,7 @@ class AmazonSecurityGroupHandler(
           log.info("This resource is about to be deleted {}", markedResource)
           orcaService.orchestrate(
             OrchestrationRequest(
-              application = determineApp(resource),
+              application = applicationUtils.determineApp(resource),
               job = listOf(
                 OrcaJob(
                   type = "deleteSecurityGroup",
@@ -107,14 +109,6 @@ class AmazonSecurityGroupHandler(
         }
       }
     }
-  }
-
-  private fun determineApp(resource: Resource): String {
-    val grouping: Grouping = resource.grouping?: return "swabbie"
-    if (grouping.type == GroupingType.APPLICATION) {
-      return grouping.value
-    }
-    return "swabbie"
   }
 
   override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {

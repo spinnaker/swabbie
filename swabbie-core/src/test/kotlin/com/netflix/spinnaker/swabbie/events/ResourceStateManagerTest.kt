@@ -25,6 +25,7 @@ import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -40,12 +41,9 @@ object ResourceStateManagerTest {
   private val taggingService = mock<TaggingService>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
 
-  private val app = Application(name = "testapp", email = "test@test.com")
-  private val inMemCache = InMemoryCache {setOf(app)}
-  private val applicationsCaches = listOf(inMemCache)
-
   private var resource = TestResource("testResource")
   private var configuration = workConfiguration()
+  private val applicationUtils = ApplicationUtils(emptyList())
 
   private val markedResourceWithViolations =  MarkedResource(
     resource = resource,
@@ -70,7 +68,7 @@ object ResourceStateManagerTest {
     resourceTagger = resourceTagger,
     taggingService = taggingService,
     taskTrackingRepository = taskTrackingRepository,
-    applicationsCaches = applicationsCaches
+    applicationUtils = applicationUtils
   )
 
   @AfterEach

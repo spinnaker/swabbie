@@ -40,6 +40,7 @@ import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
 import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
@@ -63,7 +64,6 @@ object AmazonImageHandlerTest {
   private val imageProvider = mock<ResourceProvider<AmazonImage>>()
   private val instanceProvider = mock<ResourceProvider<AmazonInstance>>()
   private val launchConfigurationProvider = mock<ResourceProvider<AmazonLaunchConfiguration>>()
-  private val applicationsCache = mock<InMemoryCache<Application>>()
   private val taggingService = mock<TaggingService>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
@@ -73,6 +73,7 @@ object AmazonImageHandlerTest {
   }
   private val launchConfigurationCache = mock<InMemorySingletonCache<AmazonLaunchConfigurationCache>>()
   private val imagesUsedByinstancesCache = mock<InMemorySingletonCache<AmazonImagesUsedByInstancesCache>>()
+  private val applicationUtils = ApplicationUtils(emptyList())
 
   private val subject = AmazonImageHandler(
     clock = clock,
@@ -92,13 +93,13 @@ object AmazonImageHandlerTest {
     retrySupport = RetrySupport(),
     imageProvider = imageProvider,
     orcaService = orcaService,
-    applicationsCaches = listOf(applicationsCache),
     taggingService = taggingService,
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     swabbieProperties = swabbieProperties,
     launchConfigurationCache = launchConfigurationCache,
-    imagesUsedByinstancesCache = imagesUsedByinstancesCache
+    imagesUsedByinstancesCache = imagesUsedByinstancesCache,
+    applicationUtils = applicationUtils
   )
 
   @BeforeEach

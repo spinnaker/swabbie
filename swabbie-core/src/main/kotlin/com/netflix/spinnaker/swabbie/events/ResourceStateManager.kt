@@ -27,6 +27,7 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -42,7 +43,7 @@ class ResourceStateManager(
   @Autowired(required = false) private val resourceTagger: ResourceTagger?,
   private val taggingService: TaggingService,
   private val taskTrackingRepository: TaskTrackingRepository,
-  private val applicationsCaches: List<InMemoryCache<Application>>
+  private val applicationUtils: ApplicationUtils
 ) : MetricsSupport(registry) {
 
   private val log = LoggerFactory.getLogger(javaClass)
@@ -185,7 +186,7 @@ class ResourceStateManager(
         tags = mapOf("expiration_time" to "never"),
         cloudProvider = "aws",
         cloudProviderType = "aws",
-        application = determineApp(resource),
+        application = applicationUtils.determineApp(resource.resource),
         description = "Setting `expiration_time` to `never` for image ${resource.uniqueId()}"
       )
     )
@@ -200,15 +201,6 @@ class ResourceStateManager(
       )
     )
     return taskId
-  }
-
-  private fun determineApp(resource: MarkedResource): String {
-    if (resource.grouping?.type == GroupingType.APPLICATION) {
-      if (applicationsCaches.any { it.contains(resource.grouping.value) }) {
-        return resource.grouping.value
-      }
-    }
-    return "swabbie"
   }
 
 }

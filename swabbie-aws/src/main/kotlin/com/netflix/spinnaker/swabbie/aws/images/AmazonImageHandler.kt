@@ -32,6 +32,7 @@ import com.netflix.spinnaker.swabbie.orca.*
 import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
@@ -57,7 +58,7 @@ class AmazonImageHandler(
   private val rules: List<Rule<AmazonImage>>,
   private val imageProvider: ResourceProvider<AmazonImage>,
   private val orcaService: OrcaService,
-  private val applicationsCaches: List<InMemoryCache<Application>>,
+  private val applicationUtils: ApplicationUtils,
   private val taggingService: TaggingService,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
@@ -82,7 +83,7 @@ class AmazonImageHandler(
     orcaService.orchestrate(
       OrchestrationRequest(
         // resources are partitioned based on grouping, so find the app to use from first resource
-        application = determineApp(markedResources.first()),
+        application = applicationUtils.determineApp(markedResources.first().resource),
         job = listOf(
           OrcaJob(
             type = "deleteImage",
@@ -152,7 +153,7 @@ class AmazonImageHandler(
             tags = tags,
             cloudProvider = "aws",
             cloudProviderType = "aws",
-            application = determineApp(resource),
+            application = applicationUtils.determineApp(resource.resource),
             description = "$description for image ${resource.uniqueId()}"
           )
         )
@@ -169,16 +170,6 @@ class AmazonImageHandler(
         taskIds.add(taskId)
       }
     return taskIds
-  }
-
-  private fun determineApp(resource: MarkedResource): String {
-    val grouping: Grouping = resource.grouping?: return "swabbie"
-    if (grouping.type == GroupingType.APPLICATION) {
-      if (applicationsCaches.any { it.contains(grouping.value) }) {
-        return grouping.value
-      }
-    }
-    return "swabbie"
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =

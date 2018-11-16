@@ -22,13 +22,7 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
-import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
-import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
-import com.netflix.spinnaker.swabbie.events.SoftDeleteResourceEvent
-import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
-import com.netflix.spinnaker.swabbie.events.formatted
+import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
@@ -161,6 +155,44 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       log.warn("Locking not ENABLED, continuing without locking for ${javaClass.simpleName}")
       callback.invoke()
     }
+  }
+
+  /**
+   * This find the resource, and then opts it out even if it was not marked.
+   * This function is used when a caller makes an opt out request through the controller
+   *  and the resource has not already been marked.
+   */
+  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration){
+    val resource = getCandidate(resourceId, "", workConfiguration)
+      ?: return
+    log.debug("Opting out resource $resourceId in namespace ${workConfiguration.namespace}")
+    val resourceWithOwner = listOf(resource).withResolvedOwners(workConfiguration).first()
+    val newMarkedResource = MarkedResource(
+      resource = resourceWithOwner,
+      summaries = emptyList(),
+      namespace = workConfiguration.namespace,
+      resourceOwner = resourceWithOwner.details[resourceOwnerField] as String,
+      projectedSoftDeletionStamp = softDeletionTimestamp(workConfiguration),
+      projectedDeletionStamp = deletionTimestamp(workConfiguration),
+      lastSeenInfo = resourceUseTrackingRepository.getLastSeenInfo(resourceWithOwner.resourceId)
+    )
+
+    val status = Status(Action.OPTOUT.name, clock.instant().toEpochMilli())
+    val state = ResourceState(
+      markedResource = newMarkedResource,
+      softDeleted = false,
+      deleted = false,
+      optedOut = true,
+      statuses = mutableListOf(status),
+      currentStatus = status
+    )
+
+    // opt out here to ensure there is never a time when this resource is not opted out.
+    resourceStateRepository.upsert(state)
+    resourceRepository.upsert(newMarkedResource)
+
+    //this will trigger the actual opt out action
+    applicationEventPublisher.publishEvent(OptOutResourceEvent(newMarkedResource, workConfiguration))
   }
 
   override fun markResource(resourceId: String, onDemandMarkData: OnDemandMarkData, workConfiguration: WorkConfiguration) {

@@ -61,6 +61,11 @@ interface ResourceTypeHandler<T : Resource> {
   fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit)
 
   /**
+   * Opts a resource out whether or not it has been marked.
+   */
+  fun optOut(resourceId: String, workConfiguration: WorkConfiguration)
+
+  /**
    * Used to check references and augment candidates for further processing
    * Impl should prefer this interface and avoid I/O in [Rule]
    * A rule should leverage metadata added by this function.

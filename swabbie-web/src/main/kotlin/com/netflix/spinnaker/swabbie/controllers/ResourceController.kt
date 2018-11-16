@@ -150,7 +150,8 @@ class ResourceController(
     @PathVariable resourceId: String,
     @PathVariable namespace: String
   ) : ResourceState {
-    resourceTrackingRepository.find(resourceId, namespace)?.let { markedResource ->
+    val markedResource = resourceTrackingRepository.find(resourceId, namespace)
+    if (markedResource != null) {
       log.debug("Found resource ${markedResource.uniqueId()} to opt out.")
       resourceTrackingRepository.remove(markedResource)
       workConfigurations.find {
@@ -159,6 +160,15 @@ class ResourceController(
         log.debug("Publishing opt out event for ${markedResource.uniqueId()}")
         applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, configuration))
       }
+    } else {
+      log.debug("Did not find marked resource ${namespace}:${resourceId} to opt out. Opting out anyways.")
+      val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+
+      val handler = resourceTypeHandlers.find { handler ->
+        handler.handles(workConfiguration)
+      } ?: throw NotFoundException("No handlers for $namespace")
+
+      handler.optOut(resourceId, workConfiguration)
     }
 
     return resourceStateRepository.get(resourceId, namespace) ?: throw NotFoundException()

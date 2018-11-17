@@ -77,15 +77,6 @@ class AmazonAutoScalingGroupHandler(
   swabbieProperties
 ) {
 
-  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
-  }
-
-  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
-  }
-
-
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration

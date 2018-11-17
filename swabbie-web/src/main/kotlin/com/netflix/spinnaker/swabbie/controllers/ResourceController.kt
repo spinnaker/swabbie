@@ -109,11 +109,6 @@ class ResourceController(
     return resourceStateRepository.getByStatus(status)
   }
 
-
-  @RequestMapping(value = ["/canSoftDelete"], method = [RequestMethod.GET])
-  fun markedResourcesReadyForSoftDeletion(): List<MarkedResource> =
-    resourceTrackingRepository.getMarkedResourcesToSoftDelete()
-
   @RequestMapping(value = ["/states"], method = [RequestMethod.GET])
   fun states(
     @RequestParam(required = false) start: Int?,
@@ -172,22 +167,6 @@ class ResourceController(
     }
 
     return resourceStateRepository.get(resourceId, namespace) ?: throw NotFoundException()
-  }
-
-  /**
-   * Restores a resource that has been soft-deleted
-   */
-  @RequestMapping(value = ["/state/{namespace}/{resourceId}/restore"], method = [RequestMethod.PUT])
-  fun restore(
-    @PathVariable resourceId: String,
-    @PathVariable namespace: String
-  ) {
-    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
-    val handler = resourceTypeHandlers.find { handler ->
-      handler.handles(workConfiguration)
-    } ?: throw NotFoundException("No handlers for $namespace")
-
-    handler.restoreResource(resourceId, workConfiguration)
   }
 
   /**

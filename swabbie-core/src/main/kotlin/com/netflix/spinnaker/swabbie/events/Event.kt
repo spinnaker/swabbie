@@ -41,7 +41,7 @@ abstract class Event(
 }
 
 enum class Action {
-  MARK, UNMARK, DELETE, NOTIFY, OPTOUT, SOFTDELETE, RESTORE
+  MARK, UNMARK, DELETE, NOTIFY, OPTOUT
 }
 
 class OwnerNotifiedEvent(
@@ -68,16 +68,6 @@ class OptOutResourceEvent(
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
 ) : Event(Action.OPTOUT, markedResource, workConfiguration)
-
-class SoftDeleteResourceEvent(
-  override val markedResource: MarkedResource,
-  override val workConfiguration: WorkConfiguration
-) : Event(Action.SOFTDELETE, markedResource, workConfiguration)
-
-class RestoreResourceEvent(
-  override val markedResource: MarkedResource,
-  override val workConfiguration: WorkConfiguration
-): Event(Action.RESTORE, markedResource, workConfiguration)
 
 class OrcaTaskFailureEvent(
   override val action: Action,

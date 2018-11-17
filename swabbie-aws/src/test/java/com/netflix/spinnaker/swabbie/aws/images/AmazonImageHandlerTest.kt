@@ -39,7 +39,6 @@ import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
 import com.netflix.spinnaker.swabbie.repository.*
-import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
@@ -64,7 +63,6 @@ object AmazonImageHandlerTest {
   private val imageProvider = mock<ResourceProvider<AmazonImage>>()
   private val instanceProvider = mock<ResourceProvider<AmazonInstance>>()
   private val launchConfigurationProvider = mock<ResourceProvider<AmazonLaunchConfiguration>>()
-  private val taggingService = mock<TaggingService>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val swabbieProperties = SwabbieProperties().apply {
@@ -93,7 +91,6 @@ object AmazonImageHandlerTest {
     retrySupport = RetrySupport(),
     imageProvider = imageProvider,
     orcaService = orcaService,
-    taggingService = taggingService,
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     swabbieProperties = swabbieProperties,
@@ -284,7 +281,7 @@ object AmazonImageHandlerTest {
       }
     )
 
-    verify(resourceRepository, times(1)).upsert(any(), any(), any())
+    verify(resourceRepository, times(1)).upsert(any(), any())
   }
 
   @Test
@@ -325,7 +322,7 @@ object AmazonImageHandlerTest {
     // ami-132 is excluded by exclusion policies, specifically because ami-132 is not allowlisted
     // ami-123 is referenced by an instance, so therefore should not be marked for deletion
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
-    verify(resourceRepository, times(0)).upsert(any(), any(), any())
+    verify(resourceRepository, times(0)).upsert(any(), any())
   }
 
   @Test
@@ -376,7 +373,6 @@ object AmazonImageHandlerTest {
   @Test
   fun `should delete images`() {
     val fifteenDaysAgo = clock.instant().toEpochMilli() - 15 * 24 * 60 * 60 * 1000L
-    val thirteenDaysAgo = clock.instant().toEpochMilli() - 13 * 24 * 60 * 60 * 1000L
     val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
     val image = AmazonImage(
       imageId = "ami-123",
@@ -398,7 +394,6 @@ object AmazonImageHandlerTest {
           namespace = workConfiguration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
-          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "test@netflix.com",
             notificationType = "Email",
@@ -416,97 +411,6 @@ object AmazonImageHandlerTest {
 
     verify(taskTrackingRepository, times(1)).add(any(), any())
     verify(orcaService, times(1)).orchestrate(any())
-  }
-
-  @Test
-  fun `should soft delete images`() {
-    val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
-    val thirteenDaysAgo = clock.instant().minusSeconds(13 * 24 * 60 * 60).toEpochMilli()
-    val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
-    val image = AmazonImage(
-      imageId = "ami-123",
-      resourceId = "ami-123",
-      description = "ancestor_id=ami-122",
-      ownerId = null,
-      state = "available",
-      resourceType = IMAGE,
-      cloudProvider = AWS,
-      name = "123-xenial-hvm-sriov-ebs",
-      creationDate = LocalDateTime.now().minusDays(3).toString()
-    )
-
-    whenever(resourceRepository.getMarkedResourcesToSoftDelete()) doReturn
-      listOf(
-        MarkedResource(
-          resource = image,
-          summaries = listOf(Summary("Image is unused", "testRule 1")),
-          namespace = workConfiguration.namespace,
-          resourceOwner = "test@netflix.com",
-          projectedDeletionStamp = fifteenDaysAgo,
-          projectedSoftDeletionStamp = thirteenDaysAgo,
-          notificationInfo = NotificationInfo(
-            recipient = "test@netflix.com",
-            notificationType = "Email",
-            notificationStamp = clock.instant().toEpochMilli()
-          )
-        )
-      )
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
-    whenever(taggingService.upsertImageTag(any())) doReturn "1234"
-    whenever(imageProvider.getAll(params)) doReturn listOf(image)
-
-    subject.softDelete(workConfiguration) {}
-
-    verify(taggingService, times(1)).upsertImageTag(any())
-    verify(taskTrackingRepository, times(1)).add(any(), any())
-  }
-
-
-  @Test
-  fun `should not soft delete if the images have been seen recently`() {
-    whenever(resourceUseTrackingRepository.getUnused()) doReturn
-      emptyList<LastSeenInfo>()
-    whenever(resourceUseTrackingRepository.getUsed()) doReturn setOf("ami-123")
-
-    val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
-    val thirteenDaysAgo = clock.instant().minusSeconds(13 * 24 * 60 * 60).toEpochMilli()
-    val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
-    val image = AmazonImage(
-      imageId = "ami-123",
-      resourceId = "ami-123",
-      description = "ancestor_id=ami-122",
-      ownerId = null,
-      state = "available",
-      resourceType = IMAGE,
-      cloudProvider = AWS,
-      name = "123-xenial-hvm-sriov-ebs",
-      creationDate = LocalDateTime.now().minusDays(3).toString()
-    )
-
-    whenever(resourceRepository.getMarkedResourcesToSoftDelete()) doReturn
-      listOf(
-        MarkedResource(
-          resource = image,
-          summaries = listOf(Summary("Image is unused", "testRule 1")),
-          namespace = workConfiguration.namespace,
-          resourceOwner = "test@netflix.com",
-          projectedDeletionStamp = fifteenDaysAgo,
-          projectedSoftDeletionStamp = thirteenDaysAgo,
-          notificationInfo = NotificationInfo(
-            recipient = "test@netflix.com",
-            notificationType = "Email",
-            notificationStamp = clock.instant().toEpochMilli()
-          )
-        )
-      )
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
-    whenever(taggingService.upsertImageTag(any())) doReturn "1234"
-    whenever(imageProvider.getAll(params)) doReturn listOf(image)
-
-    subject.softDelete(workConfiguration) {}
-
-    verify(taggingService, times(0)).upsertImageTag(any())
-    verify(taskTrackingRepository, times(0)).add(any(), any())
   }
 
   private fun Long.inDays(): Int = Duration.between(Instant.ofEpochMilli(clock.millis()), Instant.ofEpochMilli(this)).toDays().toInt()
@@ -534,7 +438,6 @@ object AmazonImageHandlerTest {
               dryRun = dryRunMode
               exclusions = exclusionList
               retention = 2
-              softDelete = SoftDelete(true, 2)
               maxAge = maxAgeDays
             }
           )

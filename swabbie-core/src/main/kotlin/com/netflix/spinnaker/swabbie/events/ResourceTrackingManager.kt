@@ -34,7 +34,6 @@ import java.time.Clock
 @Component
 class ResourceTrackingManager(
   private val resourceTrackingRepository: ResourceTrackingRepository,
-  private val clock: Clock,
   registry: Registry
 ) : MetricsSupport(registry) {
 
@@ -48,11 +47,6 @@ class ResourceTrackingManager(
   @EventListener
   fun handleEvents(event: Event) {
     when (event) {
-      is SoftDeleteResourceEvent -> {
-        log.info("Soft deleted {}. Configuration: {}", event.markedResource.uniqueId(), event.workConfiguration)
-        resourceTrackingRepository.setSoftDeleted(event.markedResource)
-      }
-
       is DeleteResourceEvent -> {
         log.info("Deleted {}. Configuration: {}", event.markedResource.uniqueId(), event.workConfiguration)
         resourceTrackingRepository.remove(event.markedResource)

@@ -40,7 +40,6 @@ class RedisResourceTrackingRepository(
 ) : ResourceTrackingRepository {
 
   private val SINGLE_RESOURCES_KEY = "{swabbie:resource}"
-  private val SOFT_DELETE_KEY = "{swabbie:softdeletes}"
   private val DELETE_KEY = "{swabbie:deletes}"
   private val REMOVED_KEY = "{swabbie:removed}"
 
@@ -71,22 +70,11 @@ class RedisResourceTrackingRepository(
     }
   }
 
-  override fun getMarkedResourcesToSoftDelete(): List<MarkedResource> {
-    getAllIds(SOFT_DELETE_KEY, false)
-      .let { ids ->
-        return hydrateMarkedResources(ids)
-      }
-  }
-
   override fun getMarkedResourcesToDelete(): List<MarkedResource> {
     getAllIds(DELETE_KEY, false)
       .let { ids ->
         return hydrateMarkedResources(ids)
       }
-  }
-
-  override fun getIdsOfMarkedResourcesToSoftDelete(): Set<String> {
-    return getAllIds(SOFT_DELETE_KEY, false)
   }
 
   override fun getIdsOfMarkedResourcesToDelete(): Set<String> {
@@ -140,7 +128,7 @@ class RedisResourceTrackingRepository(
     return hydratedResources
   }
 
-  override fun upsert(markedResource: MarkedResource, deleteScore: Long, softDeleteScore: Long) {
+  override fun upsert(markedResource: MarkedResource, deleteScore: Long) {
     val id = markedResource.uniqueId()
 
     markedResource.apply {
@@ -151,14 +139,6 @@ class RedisResourceTrackingRepository(
     redisClientDelegate.withCommandsClient { client ->
       client.hset(SINGLE_RESOURCES_KEY, id, objectMapper.writeValueAsString(markedResource))
       client.zadd(DELETE_KEY, deleteScore.toDouble(), id)
-      client.zadd(SOFT_DELETE_KEY, softDeleteScore.toDouble(), id)
-    }
-  }
-
-  override fun setSoftDeleted(markedResource: MarkedResource) {
-    val id = markedResource.uniqueId()
-    redisClientDelegate.withCommandsClient { client ->
-      client.zrem(SOFT_DELETE_KEY, id)
     }
   }
 
@@ -172,7 +152,6 @@ class RedisResourceTrackingRepository(
         )
       ) // add to the list of everything we've deleted
       client.zrem(DELETE_KEY, id)
-      client.zrem(SOFT_DELETE_KEY, id)
       client.hdel(SINGLE_RESOURCES_KEY, id)
     }
   }

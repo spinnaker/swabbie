@@ -208,7 +208,7 @@ object AmazonAutoScalingGroupHandlerTest {
       }
     )
 
-    verify(resourceRepository, times(1)).upsert(any<MarkedResource>(), any<Long>(), any())
+    verify(resourceRepository, times(1)).upsert(any<MarkedResource>(), any<Long>())
 
   }
 
@@ -236,7 +236,6 @@ object AmazonAutoScalingGroupHandlerTest {
           namespace = workConfiguration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
-          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "test@netflix.com",
             notificationType = "Email",

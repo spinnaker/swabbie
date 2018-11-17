@@ -62,7 +62,6 @@ object RedisResourceTrackingRepositoryTest {
     summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
     namespace = "namespace",
     projectedDeletionStamp = 1,
-    projectedSoftDeletionStamp = 1,
     notificationInfo = NotificationInfo(
       recipient = "yolo@netflixcom",
       notificationType = "Email",
@@ -99,7 +98,6 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
-      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -109,7 +107,6 @@ object RedisResourceTrackingRepositoryTest {
       summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
       namespace = configuration.namespace,
       projectedDeletionStamp = 0,
-      projectedSoftDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
         notificationType = "Email",
@@ -146,7 +143,6 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
-      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -157,7 +153,6 @@ object RedisResourceTrackingRepositoryTest {
         summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
         namespace = configuration.namespace,
         projectedDeletionStamp = 0,
-        projectedSoftDeletionStamp = 0,
         notificationInfo = NotificationInfo(
           recipient = "yolo@netflixcom",
           notificationType = "Email",
@@ -168,15 +163,13 @@ object RedisResourceTrackingRepositoryTest {
         resource = TestResource(resourceId = "2", name = "marked resourceHash not due for deletion 2 seconds later"),
         summaries = listOf(Summary("invalid resourceHash 2", "rule 2")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
-        projectedSoftDeletionStamp = 0
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
       ),
       MarkedResource(
         resource = TestResource(resourceId = "3", name = "random"),
         summaries = listOf(Summary("invalid resourceHash 3", "rule 3")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
-        projectedSoftDeletionStamp = 0
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
       )
     ).forEach { resource ->
       resourceRepository.upsert(resource)
@@ -208,7 +201,6 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
-      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -218,7 +210,6 @@ object RedisResourceTrackingRepositoryTest {
       summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
       namespace = configuration.namespace,
       projectedDeletionStamp = 0,
-      projectedSoftDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
         notificationType = "Email",

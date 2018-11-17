@@ -70,24 +70,19 @@ class TestingController (
 
   /**
    * FOR TESTING
-   * Soft deletes or deletes a resource
+   * Deletes a resource
    */
   @RequestMapping(value = ["/state/{namespace}/{resourceId}"], method = [RequestMethod.DELETE])
-  fun softDelete(
+  fun delete(
     @PathVariable resourceId: String,
-    @PathVariable namespace: String,
-    @RequestParam(required = true) soft: Boolean
+    @PathVariable namespace: String
   ) {
     val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
     val handler = resourceTypeHandlers.find { handler ->
       handler.handles(workConfiguration)
     } ?: throw NotFoundException("No handlers for $namespace")
 
-    if (soft) {
-      handler.softDeleteResource(resourceId, workConfiguration)
-    } else {
-      handler.deleteResource(resourceId, workConfiguration)
-    }
+    handler.deleteResource(resourceId, workConfiguration)
   }
 
   private fun findWorkConfiguration(namespace: SwabbieNamespace): WorkConfiguration {

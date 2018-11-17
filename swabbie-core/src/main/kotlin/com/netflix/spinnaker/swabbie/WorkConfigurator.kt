@@ -90,7 +90,6 @@ open class WorkConfigurator(
               cloudProvider = cloudProviderConfiguration.name,
               resourceType = resourceTypeConfiguration.name,
               retention = resourceTypeConfiguration.retention,
-              softDelete = resourceTypeConfiguration.softDelete,
               exclusions = mergeExclusions(
                 cloudProviderConfiguration.exclusions,
                 resourceTypeConfiguration.exclusions

@@ -43,7 +43,6 @@ object ResourceTrackingManagerTest {
 
   private var subject = ResourceTrackingManager(
     resourceTrackingRepository = resourceTrackingRepository,
-    clock = clock,
     registry = registry
   )
 
@@ -58,8 +57,7 @@ object ResourceTrackingManagerTest {
       resource = resource,
       summaries = listOf(Summary("violates rule 1", "ruleName")),
       namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis(),
-      projectedSoftDeletionStamp = clock.millis()
+      projectedDeletionStamp = clock.millis()
     )
     val event = DeleteResourceEvent(markedResource, configuration)
 
@@ -69,23 +67,4 @@ object ResourceTrackingManagerTest {
       argWhere { it == markedResource }
     )
   }
-
-  @Test
-  fun `should update state on soft delete event`() {
-    val markedResource = MarkedResource(
-      resource = resource,
-      summaries = listOf(Summary("violates rule 1", "ruleName")),
-      namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis(),
-      projectedSoftDeletionStamp = clock.millis()
-    )
-    val event = SoftDeleteResourceEvent(markedResource, configuration)
-
-    subject.handleEvents(event)
-
-    verify(resourceTrackingRepository).setSoftDeleted(
-      argWhere { it == markedResource }
-    )
-  }
-
 }

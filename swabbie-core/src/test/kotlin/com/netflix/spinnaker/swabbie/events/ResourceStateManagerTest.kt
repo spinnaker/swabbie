@@ -49,16 +49,14 @@ object ResourceStateManagerTest {
     resource = resource,
     summaries = listOf(Summary("violates rule 1", "ruleName")),
     namespace = configuration.namespace,
-    projectedDeletionStamp = clock.millis(),
-    projectedSoftDeletionStamp = clock.millis()
+    projectedDeletionStamp = clock.millis()
   )
 
   private val markedResourceNoViolations =  MarkedResource(
     resource = resource,
     summaries = emptyList(),
     namespace = configuration.namespace,
-    projectedDeletionStamp = clock.millis(),
-    projectedSoftDeletionStamp = clock.millis()
+    projectedDeletionStamp = clock.millis()
   )
 
   private val subject = ResourceStateManager(
@@ -202,38 +200,6 @@ object ResourceStateManagerTest {
     verify(taskTrackingRepository).add(
       argWhere { it == "1234" },
       argWhere { it.action == Action.OPTOUT }
-    )
-  }
-
-  @Test
-  fun `should update state and tag when resource is soft deleted`() {
-    val event = SoftDeleteResourceEvent(markedResourceWithViolations, configuration)
-
-    // previously marked resource
-    whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
-      ResourceState(
-        optedOut = false,
-        markedResource = markedResourceWithViolations,
-        statuses = mutableListOf(
-          Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
-        )
-      )
-
-    subject.handleEvents(event)
-
-    verify(resourceTagger).tag(
-      markedResource = markedResourceWithViolations,
-      workConfiguration = configuration,
-      description = "Soft deleted resource ${event.markedResource.typeAndName()}"
-    )
-    verify(resourceStateRepository).upsert(
-      argWhere {
-        it.softDeleted
-          && it.markedResource == markedResourceWithViolations
-          && it.currentStatus!!.name == Action.SOFTDELETE.name
-          && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
-          && it.currentStatus!!.timestamp > it.statuses.first().timestamp
-      }
     )
   }
 

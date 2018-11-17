@@ -59,7 +59,6 @@ class AmazonImageHandler(
   private val imageProvider: ResourceProvider<AmazonImage>,
   private val orcaService: OrcaService,
   private val applicationUtils: ApplicationUtils,
-  private val taggingService: TaggingService,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val swabbieProperties: SwabbieProperties
@@ -110,66 +109,6 @@ class AmazonImageHandler(
       )
       log.debug("Deleting resources ${markedResources.map { it.uniqueId() }} in orca task ${taskResponse.taskId()}")
     }
-  }
-
-  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    val tags = mapOf("spinnaker:swabbie" to "about_to_be_deleted")
-    val taskIds = tagResources(
-      "Adding tag to indicate soft deletion",
-      Action.SOFTDELETE,
-      tags,
-      markedResources,
-      workConfiguration
-    )
-    log.debug("Soft deleting resources ${markedResources.map { it.uniqueId() }} in orca tasks $taskIds.")
-  }
-
-  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    val tags = mapOf("swabbie" to "restored")
-    val taskIds = tagResources(
-      "Updating tag to indicate restoring",
-      Action.RESTORE,
-      tags,
-      markedResources,
-      workConfiguration
-    )
-    log.debug("Restoring resources ${markedResources.map { it.uniqueId() }} in orca tasks $taskIds.")
-  }
-
-  private fun tagResources(
-    description: String,
-    action: Action,
-    tags: Map<String, String>,
-    markedResources: List<MarkedResource>,
-    workConfiguration: WorkConfiguration
-  ): List<String> {
-    val taskIds = mutableListOf<String>()
-    markedResources
-      .forEach { resource ->
-        val taskId = taggingService.upsertImageTag(
-          UpsertImageTagsRequest(
-            imageNames = setOf(resource.name ?: resource.resourceId),
-            regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
-            tags = tags,
-            cloudProvider = "aws",
-            cloudProviderType = "aws",
-            application = applicationUtils.determineApp(resource.resource),
-            description = "$description for image ${resource.uniqueId()}"
-          )
-        )
-
-        taskTrackingRepository.add(
-          taskId,
-          TaskCompleteEventInfo(
-            action = action,
-            markedResources = listOf(resource),
-            workConfiguration = workConfiguration,
-            submittedTimeMillis = clock.instant().toEpochMilli()
-          )
-        )
-        taskIds.add(taskId)
-      }
-    return taskIds
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =

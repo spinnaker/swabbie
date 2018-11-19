@@ -140,7 +140,6 @@ interface Timestamped {
 interface MarkedResourceInterface : Identifiable {
   val summaries: List<Summary>
   val namespace: String
-  var projectedSoftDeletionStamp: Long
   var projectedDeletionStamp: Long
   var notificationInfo: NotificationInfo?
   var markTs: Long?
@@ -157,7 +156,6 @@ data class MarkedResource(
   val resource: Resource,
   override val summaries: List<Summary>,
   override val namespace: String,
-  override var projectedSoftDeletionStamp: Long,
   override var projectedDeletionStamp: Long,
   override var notificationInfo: NotificationInfo? = null,
   override var markTs: Long? = null,
@@ -169,7 +167,6 @@ data class MarkedResource(
     return SlimMarkedResource(
       summaries = summaries,
       namespace = namespace,
-      projectedSoftDeletionStamp = projectedSoftDeletionStamp,
       projectedDeletionStamp = projectedDeletionStamp,
       notificationInfo = notificationInfo,
       markTs = markTs,
@@ -204,7 +201,6 @@ data class MarkedResource(
 data class SlimMarkedResource(
   override val summaries: List<Summary>,
   override val namespace: String,
-  override var projectedSoftDeletionStamp: Long,
   override var projectedDeletionStamp: Long,
   override var notificationInfo: NotificationInfo? = null,
   override var markTs: Long? = null,
@@ -237,7 +233,6 @@ data class NotificationInfo(
 
 data class ResourceState(
   var markedResource: MarkedResource,
-  val softDeleted: Boolean = false,
   val deleted: Boolean = false,
   val optedOut: Boolean = false,
   val statuses: MutableList<Status>,

@@ -131,7 +131,6 @@ abstract class ScheduledAgent(
         Action.MARK -> it.mark(workConfiguration, onCompleteCallback)
         Action.NOTIFY -> it.notify(workConfiguration, onCompleteCallback)
         Action.DELETE -> it.delete(workConfiguration, onCompleteCallback)
-        Action.SOFTDELETE-> it.softDelete(workConfiguration, onCompleteCallback)
         else -> log.warn("Unknown action {}", action.name)
       }
     }

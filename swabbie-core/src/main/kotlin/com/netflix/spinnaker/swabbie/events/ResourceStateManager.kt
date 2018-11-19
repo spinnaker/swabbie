@@ -80,16 +80,6 @@ class ResourceStateManager(
         msg = "${event.markedResource.typeAndName()}. Opted Out"
       }
 
-      is SoftDeleteResourceEvent -> {
-        id = softDeleteCountId
-        msg = "Soft deleted resource ${event.markedResource.typeAndName()}"
-      }
-
-      is RestoreResourceEvent -> {
-        id = restoreCountId
-        msg = "Restored resource ${event.markedResource.typeAndName()}"
-      }
-
       is DeleteResourceEvent -> {
         id = deleteCountId
         removeTag = true
@@ -152,13 +142,11 @@ class ResourceStateManager(
     val newState = (currentState?.copy(
       statuses = currentState.statuses,
       markedResource = event.markedResource,
-      softDeleted = event is SoftDeleteResourceEvent,
       deleted = event is DeleteResourceEvent,
       optedOut = event is OptOutResourceEvent,
       currentStatus = status
     ) ?: ResourceState(
       markedResource = event.markedResource,
-      softDeleted = event is SoftDeleteResourceEvent,
       deleted = event is DeleteResourceEvent,
       optedOut = event is OptOutResourceEvent,
       statuses = mutableListOf(status),

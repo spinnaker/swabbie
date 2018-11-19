@@ -177,24 +177,10 @@ class OrcaTaskMonitoringAgent (
 
   private fun publishEvent(taskInfo: TaskCompleteEventInfo) {
     when (taskInfo.action) {
-      Action.SOFTDELETE -> {
-        taskInfo.markedResources
-          .forEach { markedResource ->
-            applicationEventPublisher.publishEvent(SoftDeleteResourceEvent(markedResource, taskInfo.workConfiguration))
-          }
-      }
       Action.DELETE -> {
         taskInfo.markedResources
           .forEach { markedResource ->
             applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, taskInfo.workConfiguration))
-          }
-      }
-      Action.RESTORE -> {
-        taskInfo.markedResources
-          .forEach { markedResource ->
-            applicationEventPublisher.publishEvent(RestoreResourceEvent(markedResource, taskInfo.workConfiguration))
-            // we also want to opt this resource out in case it was accidentally deleted.
-            applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, taskInfo.workConfiguration))
           }
       }
       Action.OPTOUT -> {

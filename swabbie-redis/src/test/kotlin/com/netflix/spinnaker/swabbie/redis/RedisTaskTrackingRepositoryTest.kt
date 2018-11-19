@@ -71,7 +71,6 @@ object RedisTaskTrackingRepositoryTest {
     cloudProvider = AWS,
     resourceType = "testResourceType",
     retention = 14,
-    softDelete = SoftDelete(),
     exclusions = emptyList(),
     maxAge = 1
   )
@@ -81,7 +80,6 @@ object RedisTaskTrackingRepositoryTest {
     summaries = listOf(Summary("invalid resource 1", "rule 1")),
     namespace = configuration.namespace,
     projectedDeletionStamp = 0,
-    projectedSoftDeletionStamp = 0,
     notificationInfo = NotificationInfo(
       recipient = "yolo@netflixcom",
       notificationType = "Email",

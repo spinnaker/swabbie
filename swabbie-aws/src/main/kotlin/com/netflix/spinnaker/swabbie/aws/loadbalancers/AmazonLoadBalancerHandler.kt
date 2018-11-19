@@ -111,15 +111,6 @@ class AmazonLoadBalancerHandler(
     }
   }
 
-
-  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
-  }
-
-  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
-  }
-
   override fun getCandidate(resourceId: String,
                             resourceName: String,
                             workConfiguration: WorkConfiguration

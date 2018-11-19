@@ -21,16 +21,9 @@ package com.netflix.spinnaker.swabbie.repository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 
 interface ResourceTrackingRepository {
-  fun upsert(
-    markedResource: MarkedResource,
-    deleteScore: Long = markedResource.projectedDeletionStamp,
-    softDeleteScore: Long = markedResource.projectedSoftDeletionStamp
-  )
-  fun setSoftDeleted(markedResource: MarkedResource)
+  fun upsert(markedResource: MarkedResource, deleteScore: Long = markedResource.projectedDeletionStamp)
   fun remove(markedResource: MarkedResource)
 
-  fun getMarkedResourcesToSoftDelete(): List<MarkedResource>
-  fun getIdsOfMarkedResourcesToSoftDelete(): Set<String>
   fun getIdsOfMarkedResourcesToDelete(): Set<String>
   fun getMarkedResourcesToDelete(): List<MarkedResource>
   fun getMarkedResources(): List<MarkedResource>

@@ -29,10 +29,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.*
 import java.time.temporal.Temporal
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
 
@@ -47,7 +44,7 @@ abstract class ScheduledAgent(
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val executorService = Executors.newSingleThreadScheduledExecutor()
-  private val startupExecutorService = Executors.newSingleThreadScheduledExecutor()
+  var runningTask: ScheduledFuture<*>? = null
 
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = { waitForCacheThenStart() }
@@ -70,34 +67,22 @@ abstract class ScheduledAgent(
   }
 
   private fun waitForCacheThenStart() {
-    startupExecutorService.scheduleWithFixedDelay({
-     try {
-       if (!cacheStatus.cachesLoaded()) {
-         log.debug("Can't work until the caches load...")
-       } else {
-         log.debug("Caches loaded.")
-         scheduleSwabbie()
-         shutdown(startupExecutorService)
-       }
-     } catch (e: Exception) {
-       log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.", e)
-     }
-    }, 0, 5, TimeUnit.SECONDS)
-  }
-
-  private fun shutdown(executorService: ExecutorService) {
-    executorService.shutdown()
-    try {
-      if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
-        executorService.shutdownNow()
+    executorService.schedule({
+      try {
+        while (!cacheStatus.cachesLoaded()) {
+          log.debug("Can't work until the caches load...")
+          Thread.sleep(Duration.ofSeconds(5).toMillis())
+        }
+        log.debug("Caches loaded.")
+        scheduleSwabbie()
+      } catch (e: Exception) {
+        log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.", e)
       }
-    } catch (e: InterruptedException) {
-      executorService.shutdownNow()
-    }
+    }, 15, TimeUnit.SECONDS)
   }
 
   private fun scheduleSwabbie() {
-    executorService.scheduleWithFixedDelay({
+    runningTask = executorService.scheduleWithFixedDelay({
       try {
         when {
           LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
@@ -136,7 +121,7 @@ abstract class ScheduledAgent(
   @PreDestroy
   private fun stop() {
     log.info("Stopping agent ${javaClass.simpleName}")
-    executorService.shutdown()
+    runningTask?.cancel(true)
   }
 
   override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {

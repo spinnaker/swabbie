@@ -143,10 +143,11 @@ class OrcaTaskMonitoringAgent (
             }
             response.status.isFailure() -> {
               log.error(
-                "Orca task {} did not complete. Status: {}. Task complete info: {}",
+                "Orca task {} for action {} did not complete. Status: {}. Resources: {}",
                 kv("taskId", taskId),
+                taskInfo.action,
                 kv("responseStatus", response.status),
-                taskInfo
+                taskInfo.markedResources.map { it.uniqueId() }
               )
               taskTrackingRepository.setFailed(taskId)
               taskInfo.markedResources

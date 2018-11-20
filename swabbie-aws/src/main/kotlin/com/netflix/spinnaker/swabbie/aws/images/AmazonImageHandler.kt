@@ -91,7 +91,7 @@ class AmazonImageHandler(
               "imageIds" to markedResources.map { it.resourceId }.toSet(),
               "cloudProvider" to AWS,
               "region" to workConfiguration.location,
-              "stageTimeoutMs" to Duration.ofMinutes(15).toMillis().toString()
+              "stageTimeoutMs" to Duration.ofMinutes(40).toMillis().toString()
             )
           )
         ),

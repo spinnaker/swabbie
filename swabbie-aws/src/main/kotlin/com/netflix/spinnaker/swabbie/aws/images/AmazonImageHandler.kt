@@ -90,8 +90,7 @@ class AmazonImageHandler(
               "credentials" to workConfiguration.account.name,
               "imageIds" to markedResources.map { it.resourceId }.toSet(),
               "cloudProvider" to AWS,
-              "region" to workConfiguration.location,
-              "stageTimeoutMs" to Duration.ofMinutes(15).toMillis().toString()
+              "region" to workConfiguration.location
             )
           )
         ),

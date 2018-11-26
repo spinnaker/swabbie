@@ -45,12 +45,13 @@ import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.*
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
-  private val clock = Clock.systemDefaultZone()
+  private val clock = Clock.fixed(Instant.parse("2018-11-26T09:30:00Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
   private val retrySupport = RetrySupport()
@@ -639,11 +640,19 @@ object ResourceTypeHandlerTest {
     verify(resourceRepository, never()).upsert(any(), any())
   }
 
+  @Test
+  fun `delete time should equal now plus retention days`() {
+    val configuration = workConfiguration(retention = 2)
+    val plus2Days = Instant.parse("2018-11-28T09:30:00Z").toEpochMilli()
+    defaultHandler.deletionTimestamp(configuration) shouldMatch equalTo(plus2Days)
+  }
+
   internal fun workConfiguration(
     exclusions: List<Exclusion> = emptyList(),
     dryRun: Boolean = false,
     itemsProcessedBatchSize: Int = 1,
-    maxItemsProcessedPerCycle: Int = 10
+    maxItemsProcessedPerCycle: Int = 10,
+    retention: Int = 14
   ): WorkConfiguration = WorkConfiguration(
     namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
     account = SpinnakerAccount(
@@ -658,7 +667,7 @@ object ResourceTypeHandlerTest {
     location = "us-east-1",
     cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
     resourceType = TEST_RESOURCE_TYPE,
-    retention = 14,
+    retention = retention,
     exclusions = exclusions,
     dryRun = dryRun,
     maxAge = 1,

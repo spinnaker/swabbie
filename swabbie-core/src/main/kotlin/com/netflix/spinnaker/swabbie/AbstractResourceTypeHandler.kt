@@ -39,14 +39,11 @@ import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import java.time.Clock
-import java.time.Instant
-import java.time.LocalDate
-import java.time.Period
-import java.time.ZoneId
+import java.time.*
 import java.time.temporal.ChronoUnit
 import java.time.temporal.ChronoUnit.DAYS
 import java.util.Optional
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 abstract class AbstractResourceTypeHandler<T : Resource>(
@@ -378,9 +375,10 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  private fun deletionTimestamp(workConfiguration: WorkConfiguration): Long {
-    val daysInFuture = workConfiguration.retention + 1
-    val proposedTime = daysInFuture.days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
+  fun deletionTimestamp(workConfiguration: WorkConfiguration): Long {
+    val daysInFuture = workConfiguration.retention.toLong()
+    val seconds = TimeUnit.DAYS.toSeconds(daysInFuture)
+    val proposedTime = clock.instant().plusSeconds(seconds).toEpochMilli()
     return swabbieProperties.schedule.getNextTimeInWindow(proposedTime)
   }
 

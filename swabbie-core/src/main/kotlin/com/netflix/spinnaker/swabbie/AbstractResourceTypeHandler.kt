@@ -578,19 +578,19 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       log.info("Processing ${markedResources.size} for notification in ${javaClass.simpleName}")
 
       val maxItemsToProcess = Math.min(markedResources.size, workConfiguration.maxItemsProcessedPerCycle)
-      markedResources.subList(0, maxItemsToProcess)
+      val groupedResourcesToNotify = markedResources.subList(0, maxItemsToProcess)
         .filter {
           @Suppress("UNCHECKED_CAST")
           !shouldExcludeResource(it.resource as T, workConfiguration, optedOutResourceStates, Action.NOTIFY)
-        }.groupBy {
-          it.resourceOwner
-        }.forEach { ownersAndResources ->
-          Lists.partition(
-            ownersAndResources.value,
-            workConfiguration.notificationConfiguration.itemsPerMessage
-          ).forEach { partition ->
+        }
+        .groupBy { it.grouping?.value }
+
+      groupedResourcesToNotify.forEach { grouping, resources ->
+        Lists.partition(resources, workConfiguration.notificationConfiguration.itemsPerMessage)
+          .forEach { partition ->
             try {
-              sendNotification(ownersAndResources.key, workConfiguration, partition)
+              val owner = partition.first().resourceOwner
+              sendNotification(owner, workConfiguration, partition)
               partition.forEach { resource ->
                 val offsetStampSinceMarked = ChronoUnit.MILLIS
                   .between(Instant.ofEpochMilli(resource.markTs!!), Instant.now(clock))
@@ -599,7 +599,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
                   .apply {
                     projectedDeletionStamp += offsetStampSinceMarked
                     notificationInfo = NotificationInfo(
-                      recipient = ownersAndResources.key,
+                      recipient = owner, //todo eb: rn emails are getting sent to default owner.
                       notificationStamp = Instant.now(clock).toEpochMilli(),
                       notificationType = Notifier.NotificationType.EMAIL.name
                     )
@@ -611,7 +611,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
                 notifiedMarkedResource.add(resource)
               }
-              log.debug("Notification sent to {} for {} resources", ownersAndResources.key, partition.size)
+              log.debug("Notification sent to {} for {} resources", owner, partition.size)
             } catch (e: Exception) {
               recordFailureForAction(Action.NOTIFY, workConfiguration, e)
             }

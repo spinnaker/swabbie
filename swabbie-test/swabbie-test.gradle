@@ -1,4 +1,4 @@
 dependencies {
   compile project(":swabbie-core")
-  compile "com.natpryce:hamkrest:+"
+  compile spinnaker.dependency("hamkrest")
 }

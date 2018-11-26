@@ -476,6 +476,71 @@ object ResourceTypeHandlerTest {
   }
 
   @Test
+  fun `partition same owner different grouping should be 2 lists`() {
+    val resource1 = TestResource(
+        resourceId = "4",
+        name = "my-other-package-0.0.2",
+        resourceType = "image",
+        grouping = Grouping("my-other-package", GroupingType.PACKAGE_NAME)
+    )
+    val resource2 = TestResource(
+        resourceId = "5",
+        name = "my-package-0.0.4",
+        resourceType = "image",
+        grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
+    )
+
+    val configuration = workConfiguration(
+        itemsProcessedBatchSize = 2,
+        maxItemsProcessedPerCycle = 3
+    )
+
+    val markedResources = listOf(
+        MarkedResource(
+            resource = resource1,
+            summaries = listOf(Summary("invalid resource 1", "rule 1")),
+            namespace = configuration.namespace,
+            resourceOwner = "test@netflix.com",
+            projectedDeletionStamp = clock.millis()
+        ),
+        MarkedResource(
+            resource = resource2,
+            summaries = listOf(Summary("invalid resource 2", "rule 2")),
+            namespace = configuration.namespace,
+            resourceOwner = "test@netflix.com",
+            projectedDeletionStamp = clock.millis()
+        )
+    )
+
+    val handler = TestResourceTypeHandler(
+        clock = clock,
+        rules = listOf(
+            TestRule({ true }, Summary("always invalid", "rule1"))
+        ),
+        resourceTrackingRepository = resourceRepository,
+        resourceStateRepository = resourceStateRepository,
+        ownerResolver = ownerResolver,
+        exclusionPolicies = listOf(),
+        applicationEventPublisher = applicationEventPublisher,
+        simulatedCandidates = mutableListOf(resource1, resource2),
+        notifiers = listOf(mock()),
+        lockingService = lockingService,
+        retrySupport = retrySupport,
+        taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+        resourceUseTrackingRepository = resourceUseTrackingRepository
+    )
+
+    val result = handler.partitionList(markedResources, configuration)
+    Assertions.assertTrue(result.size == 2)
+    with (result) {
+      Assertions.assertTrue(result[0].size == 1)
+      Assertions.assertTrue(result[1].size == 1)
+      Assertions.assertTrue(result[0].none { it.name == resource2.name })
+      Assertions.assertTrue(result[1].none { it.name == resource1.name })
+    }
+  }
+
+  @Test
   fun `should forget resource if no longer violate a rule`() {
     val configuration = workConfiguration()
     val markedResource = MarkedResource(

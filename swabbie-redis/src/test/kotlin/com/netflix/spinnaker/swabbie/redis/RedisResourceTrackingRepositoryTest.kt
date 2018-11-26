@@ -28,6 +28,7 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -54,6 +55,18 @@ object RedisResourceTrackingRepositoryTest {
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val resourceRepository = RedisResourceTrackingRepository(
     RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))), objectMapper, clock
+  )
+
+  private val defaultMarkedResource = MarkedResource(
+    resource = TestResource(resourceId = "test"),
+    summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
+    namespace = "namespace",
+    projectedDeletionStamp = 1,
+    notificationInfo = NotificationInfo(
+      recipient = "yolo@netflixcom",
+      notificationType = "Email",
+      notificationStamp = clock.instant().toEpochMilli()
+    )
   )
 
   @BeforeEach
@@ -85,7 +98,6 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
-      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -95,7 +107,6 @@ object RedisResourceTrackingRepositoryTest {
       summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
       namespace = configuration.namespace,
       projectedDeletionStamp = 0,
-      projectedSoftDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
         notificationType = "Email",
@@ -132,7 +143,6 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
-      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -143,7 +153,6 @@ object RedisResourceTrackingRepositoryTest {
         summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
         namespace = configuration.namespace,
         projectedDeletionStamp = 0,
-        projectedSoftDeletionStamp = 0,
         notificationInfo = NotificationInfo(
           recipient = "yolo@netflixcom",
           notificationType = "Email",
@@ -154,15 +163,13 @@ object RedisResourceTrackingRepositoryTest {
         resource = TestResource(resourceId = "2", name = "marked resourceHash not due for deletion 2 seconds later"),
         summaries = listOf(Summary("invalid resourceHash 2", "rule 2")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
-        projectedSoftDeletionStamp = 0
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
       ),
       MarkedResource(
         resource = TestResource(resourceId = "3", name = "random"),
         summaries = listOf(Summary("invalid resourceHash 3", "rule 3")),
         namespace = configuration.namespace,
-        projectedDeletionStamp = twoDaysFromNow.toEpochMilli(),
-        projectedSoftDeletionStamp = 0
+        projectedDeletionStamp = twoDaysFromNow.toEpochMilli()
       )
     ).forEach { resource ->
       resourceRepository.upsert(resource)
@@ -194,7 +201,6 @@ object RedisResourceTrackingRepositoryTest {
       cloudProvider = AWS,
       resourceType = "testResourceType",
       retention = 14,
-      softDelete = SoftDelete(),
       exclusions = emptyList(),
       maxAge = 1
     )
@@ -204,7 +210,6 @@ object RedisResourceTrackingRepositoryTest {
       summaries = listOf(Summary("invalid resourceHash 1", "rule 1")),
       namespace = configuration.namespace,
       projectedDeletionStamp = 0,
-      projectedSoftDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
         notificationType = "Email",
@@ -215,5 +220,24 @@ object RedisResourceTrackingRepositoryTest {
     resourceRepository.upsert(markedResource)
 
     resourceRepository.getNumMarkedResources() shouldMatch equalTo(1L)
+  }
+
+  @Test
+  fun `scanning should work`() {
+    for(i in 1..200) {
+      resourceRepository.upsert(defaultMarkedResource.copy(resource = TestResource(resourceId = "$i")))
+    }
+
+    resourceRepository.getNumMarkedResources() shouldMatch equalTo(200L)
+    resourceRepository.getMarkedResources().size shouldMatch equalTo(200)
+  }
+
+  @Test
+  fun `should store a list of deleted resources`() {
+    resourceRepository.upsert(defaultMarkedResource)
+    resourceRepository.remove(defaultMarkedResource)
+
+    resourceRepository.getMarkedResources() shouldMatch equalTo(emptyList())
+    resourceRepository.getDeleted() shouldMatch equalTo(listOf(DeleteInfo("test", "test", "namespace")))
   }
 }

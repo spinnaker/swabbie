@@ -20,6 +20,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spinnaker.swabbie.model.Grouping
+import com.netflix.spinnaker.swabbie.model.GroupingType
 import com.netflix.spinnaker.swabbie.model.Resource
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -82,5 +84,6 @@ data class TestResource(
     override val name: String = "name",
     override val resourceType: String = "image",
     override val cloudProvider: String = "provider",
-    override val createTs: Long = Instant.parse("2018-05-24T12:34:56Z").toEpochMilli()
+    override val createTs: Long = Instant.parse("2018-05-24T12:34:56Z").toEpochMilli(),
+    override val grouping: Grouping? = Grouping("group", GroupingType.APPLICATION)
 ) : Resource()

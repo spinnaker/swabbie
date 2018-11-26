@@ -51,14 +51,14 @@ interface ResourceTypeHandler<T : Resource> {
   fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit)
 
   /**
-   * Soft deletes marked resources matching the granularity of [WorkConfiguration].
-   */
-  fun softDelete(workConfiguration: WorkConfiguration, postSoftDelete: () -> Unit)
-
-  /**
    * Deletes marked resources matching the granularity of [WorkConfiguration].
    */
   fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit)
+
+  /**
+   * Opts a resource out whether or not it has been marked.
+   */
+  fun optOut(resourceId: String, workConfiguration: WorkConfiguration)
 
   /**
    * Used to check references and augment candidates for further processing
@@ -80,18 +80,7 @@ interface ResourceTypeHandler<T : Resource> {
 
   /**
    * FOR TESTING
-   * Soft delete a single resource w/o checking if it's still a candidate for soft deletion
-   */
-  fun softDeleteResource(resourceId: String, workConfiguration: WorkConfiguration)
-
-  /**
-   * FOR TESTING
    * Delete a single resource w/o checking if it's still a candidate for deletion
    */
   fun deleteResource(resourceId: String, workConfiguration: WorkConfiguration)
-
-  /**
-   * Restores a single resource
-   */
-  fun restoreResource(resourceId: String, workConfiguration: WorkConfiguration)
 }

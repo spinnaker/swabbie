@@ -23,6 +23,7 @@ import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
@@ -39,8 +40,8 @@ class RedisResourceTrackingRepository(
 ) : ResourceTrackingRepository {
 
   private val SINGLE_RESOURCES_KEY = "{swabbie:resource}"
-  private val SOFT_DELETE_KEY = "{swabbie:softdeletes}"
   private val DELETE_KEY = "{swabbie:deletes}"
+  private val REMOVED_KEY = "{swabbie:removed}"
 
   private val log = LoggerFactory.getLogger(javaClass)
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
@@ -69,22 +70,11 @@ class RedisResourceTrackingRepository(
     }
   }
 
-  override fun getMarkedResourcesToSoftDelete(): List<MarkedResource> {
-    getAllIds(SOFT_DELETE_KEY, false)
-      .let { ids ->
-        return hydrateMarkedResources(ids)
-      }
-  }
-
   override fun getMarkedResourcesToDelete(): List<MarkedResource> {
     getAllIds(DELETE_KEY, false)
       .let { ids ->
         return hydrateMarkedResources(ids)
       }
-  }
-
-  override fun getIdsOfMarkedResourcesToSoftDelete(): Set<String> {
-    return getAllIds(SOFT_DELETE_KEY, false)
   }
 
   override fun getIdsOfMarkedResourcesToDelete(): Set<String> {
@@ -125,16 +115,20 @@ class RedisResourceTrackingRepository(
 
   private fun hydrateMarkedResources(resourseIds: Set<String>): List<MarkedResource> {
     if (resourseIds.isEmpty()) return emptyList()
-    return resourseIds.chunked(REDIS_CHUNK_SIZE).map { sublist ->
-      return redisClientDelegate.withCommandsClient<Set<String>> { client ->
-          client.hmget(SINGLE_RESOURCES_KEY, *sublist.toTypedArray()).toSet()
-        }.map { json ->
-          objectMapper.readValue<MarkedResource>(json)
-        }
-    }.flatten()
+
+    val hydratedResources = mutableListOf<MarkedResource>()
+    resourseIds.chunked(REDIS_CHUNK_SIZE).forEach { sublist ->
+      val hydrated = redisClientDelegate.withCommandsClient<Set<String>> { client ->
+        client.hmget(SINGLE_RESOURCES_KEY, *sublist.toTypedArray()).toSet()
+      }.map { json ->
+        objectMapper.readValue<MarkedResource>(json)
+      }
+      hydratedResources.addAll(hydrated)
+    }
+    return hydratedResources
   }
 
-  override fun upsert(markedResource: MarkedResource, deleteScore: Long, softDeleteScore: Long) {
+  override fun upsert(markedResource: MarkedResource, deleteScore: Long) {
     val id = markedResource.uniqueId()
 
     markedResource.apply {
@@ -145,25 +139,43 @@ class RedisResourceTrackingRepository(
     redisClientDelegate.withCommandsClient { client ->
       client.hset(SINGLE_RESOURCES_KEY, id, objectMapper.writeValueAsString(markedResource))
       client.zadd(DELETE_KEY, deleteScore.toDouble(), id)
-      client.zadd(SOFT_DELETE_KEY, softDeleteScore.toDouble(), id)
-    }
-  }
-
-  override fun setSoftDeleted(markedResource: MarkedResource) {
-    val id = markedResource.uniqueId()
-    redisClientDelegate.withCommandsClient { client ->
-      client.zrem(SOFT_DELETE_KEY, id)
     }
   }
 
   override fun remove(markedResource: MarkedResource) {
     val id = markedResource.uniqueId()
     redisClientDelegate.withCommandsClient { client ->
+      client.sadd(
+        REMOVED_KEY,
+        objectMapper.writeValueAsString(
+          DeleteInfo(markedResource.name.orEmpty(), markedResource.resourceId, markedResource.namespace)
+        )
+      ) // add to the list of everything we've deleted
       client.zrem(DELETE_KEY, id)
-      client.zrem(SOFT_DELETE_KEY, id)
       client.hdel(SINGLE_RESOURCES_KEY, id)
     }
   }
+
+  override fun getDeleted(): List<DeleteInfo> {
+    return redisClientDelegate.withCommandsClient<Set<String>> { client ->
+      val results = mutableSetOf<String>()
+      val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
+      var cursor = "0"
+      var shouldContinue = true
+
+      while (shouldContinue) {
+        val scanResult = client.sscan(REMOVED_KEY, cursor, scanParams)
+        results.addAll(scanResult.result)
+        cursor = scanResult.stringCursor
+        if ("0" == cursor) {
+          shouldContinue = false
+        }
+      }
+      results
+      }.map { json ->
+        objectMapper.readValue<DeleteInfo>(json)
+      }.toList()
+    }
 }
 
 

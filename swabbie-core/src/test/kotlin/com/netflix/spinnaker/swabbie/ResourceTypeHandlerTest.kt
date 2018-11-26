@@ -46,7 +46,6 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
@@ -107,7 +106,7 @@ object ResourceTypeHandlerTest {
 
   @AfterEach
   fun cleanup() {
-    reset(resourceRepository, resourceStateRepository, applicationEventPublisher, ownerResolver)
+    reset(resourceRepository, resourceStateRepository, applicationEventPublisher, ownerResolver, taskTrackingRepository)
   }
 
   @Test
@@ -117,7 +116,7 @@ object ResourceTypeHandlerTest {
     defaultHandler.mark(workConfiguration = workConfiguration(), postMark = { postAction(listOf(defaultResource)) })
 
     inOrder(resourceRepository, applicationEventPublisher) {
-      verify(resourceRepository).upsert(any(), any(), any())
+      verify(resourceRepository).upsert(any(), any())
       verify(applicationEventPublisher).publishEvent(any<MarkResourceEvent>())
     }
   }
@@ -157,7 +156,7 @@ object ResourceTypeHandlerTest {
       postMark = { postAction(resources) }
     )
 
-    verify(resourceRepository, times(2)).upsert(any(), any(), any())
+    verify(resourceRepository, times(2)).upsert(any(), any())
     verify(applicationEventPublisher, times(2)).publishEvent(any<MarkResourceEvent>())
   }
 
@@ -187,7 +186,6 @@ object ResourceTypeHandlerTest {
       resourceUseTrackingRepository = resourceUseTrackingRepository
     )
 
-    val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
       listOf(
@@ -197,7 +195,6 @@ object ResourceTypeHandlerTest {
           namespace = configuration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
-          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
             notificationType = "Email",
@@ -210,7 +207,6 @@ object ResourceTypeHandlerTest {
           namespace = configuration.namespace,
           resourceOwner = "test@netflix.com",
           projectedDeletionStamp = fifteenDaysAgo,
-          projectedSoftDeletionStamp = thirteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
             notificationType = "Email",
@@ -247,7 +243,7 @@ object ResourceTypeHandlerTest {
     alwaysInvalidHandler.mark(workConfiguration = configuration, postMark = { postAction(listOf(defaultResource)) })
 
     verify(applicationEventPublisher, never()).publishEvent(any())
-    verify(resourceRepository, never()).upsert(any(), any(), any())
+    verify(resourceRepository, never()).upsert(any(), any())
   }
 
   @Test
@@ -297,13 +293,12 @@ object ResourceTypeHandlerTest {
       }
     )
 
-    verify(resourceRepository, times(1)).upsert(any(), any(), any())
+    verify(resourceRepository, times(1)).upsert(any(), any())
   }
 
   @Test
   fun `should ignore opted out resources during delete`() {
     val resource = TestResource(resourceId = "testResource", name = "testResourceName")
-    val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     val configuration = workConfiguration()
     val markedResource = MarkedResource(
@@ -312,7 +307,6 @@ object ResourceTypeHandlerTest {
       namespace = configuration.namespace,
       resourceOwner = "test@netflix.com",
       projectedDeletionStamp = fifteenDaysAgo,
-      projectedSoftDeletionStamp = thirteenDaysAgo,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
         notificationType = "Email",
@@ -342,14 +336,13 @@ object ResourceTypeHandlerTest {
     )
 
     verify(applicationEventPublisher, never()).publishEvent(any())
-    verify(resourceRepository, never()).upsert(any(), any(), any())
+    verify(resourceRepository, never()).upsert(any(), any())
   }
 
   @Test
   fun `should ignore opted out resources during mark`() {
     val resource = TestResource(resourceId = "testResource", name = "testResourceName")
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val thirteenDaysAgo = System.currentTimeMillis() - 13 * 24 * 60 * 60 * 1000L
     val configuration = workConfiguration()
     val markedResource = MarkedResource(
       resource = resource,
@@ -357,7 +350,6 @@ object ResourceTypeHandlerTest {
       namespace = configuration.namespace,
       resourceOwner = "test@netflix.com",
       projectedDeletionStamp = fifteenDaysAgo,
-      projectedSoftDeletionStamp = thirteenDaysAgo,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
         notificationType = "Email",
@@ -387,16 +379,28 @@ object ResourceTypeHandlerTest {
     )
 
     verify(applicationEventPublisher, never()).publishEvent(any())
-    verify(resourceRepository, never()).upsert(any(), any(), any())
+    verify(resourceRepository, never()).upsert(any(), any())
   }
 
   @Test
-  fun `should partition the list of resources to delete`() {
+  fun `should partition the list of resources to delete by grouping`() {
     // resources 1 & 2 would be grouped into a partition because their names match to the same app
     // resource 3 would be in its own partition
-    val resource1 = TestResource("1", name = "testResource-v001")
-    val resource2 = TestResource("2", name = "testResource-v002")
+    val resource1 = TestResource("1", name = "testResource-v001", grouping = Grouping("testResource", GroupingType.APPLICATION))
+    val resource2 = TestResource("2", name = "testResource-v002", grouping = Grouping("testResource", GroupingType.APPLICATION))
     val resource3 = TestResource("3", name = "random")
+    val resource4 = TestResource(
+      resourceId = "4",
+      name = "my-package-0.0.2",
+      resourceType = "image",
+      grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
+    )
+    val resource5 = TestResource(
+      resourceId = "5",
+      name = "my-package-0.0.4",
+      resourceType = "image",
+      grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
+    )
 
     val configuration = workConfiguration(
       itemsProcessedBatchSize = 2,
@@ -409,24 +413,35 @@ object ResourceTypeHandlerTest {
         summaries = listOf(Summary("invalid resource 1", "rule 1")),
         namespace = configuration.namespace,
         resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis(),
-        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+        projectedDeletionStamp = clock.millis()
       ),
       MarkedResource(
         resource = resource2,
         summaries = listOf(Summary("invalid resource 2", "rule 2")),
         namespace = configuration.namespace,
         resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis(),
-        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+        projectedDeletionStamp = clock.millis()
       ),
       MarkedResource(
         resource = resource3,
         summaries = listOf(Summary("invalid resource random", "rule 3")),
         namespace = configuration.namespace,
         resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis(),
-        projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+        projectedDeletionStamp = clock.millis()
+      ),
+      MarkedResource(
+        resource = resource4,
+        summaries = listOf(Summary("invalid resource random", "rule 4")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis()
+      ),
+      MarkedResource(
+        resource = resource5,
+        summaries = listOf(Summary("invalid resource random", "rule 5")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis()
       )
     )
 
@@ -449,12 +464,14 @@ object ResourceTypeHandlerTest {
     )
 
     val result = handler.partitionList(markedResources, configuration)
-    Assertions.assertTrue(result.size == 2)
+    Assertions.assertTrue(result.size == 3)
     with (result) {
       Assertions.assertTrue(result[0].size == 2, "resources 1 & 2 because their names match to the same app")
-      Assertions.assertTrue(result[1].size == 1)
+      Assertions.assertTrue(result[1].size == 2)
+      Assertions.assertTrue(result[2].size == 1)
       Assertions.assertTrue(result[0].none { it.name == resource3.name })
-      Assertions.assertTrue(result[1].all { it.name == resource3.name })
+      Assertions.assertTrue(result[1].all { it.name!!.startsWith("my-package")})
+      Assertions.assertTrue(result[2].all { it.name == resource3.name })
     }
   }
 
@@ -465,8 +482,7 @@ object ResourceTypeHandlerTest {
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
       namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis(),
-      projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+      projectedDeletionStamp = clock.millis()
     )
 
     whenever(resourceRepository.getMarkedResources())
@@ -505,7 +521,7 @@ object ResourceTypeHandlerTest {
       }
     )
     verify(resourceRepository, times(1)).remove(any())
-    verify(resourceRepository, never()).upsert(any(), any(), any())
+    verify(resourceRepository, never()).upsert(any(), any())
   }
 
   @Test
@@ -515,8 +531,7 @@ object ResourceTypeHandlerTest {
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
       namespace = configuration.namespace,
-      projectedDeletionStamp = clock.millis(),
-      projectedSoftDeletionStamp = clock.millis().minus(TimeUnit.DAYS.toMillis(1))
+      projectedDeletionStamp = clock.millis()
     )
 
     whenever(resourceRepository.getMarkedResources())
@@ -556,7 +571,7 @@ object ResourceTypeHandlerTest {
       }
     )
     verify(resourceRepository, times(1)).remove(any())
-    verify(resourceRepository, never()).upsert(any(), any(), any())
+    verify(resourceRepository, never()).upsert(any(), any())
   }
 
   internal fun workConfiguration(
@@ -583,8 +598,7 @@ object ResourceTypeHandlerTest {
     dryRun = dryRun,
     maxAge = 1,
     itemsProcessedBatchSize = itemsProcessedBatchSize,
-    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle,
-    softDelete = SoftDelete(false)
+    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle
   )
 
   class TestRule(
@@ -648,31 +662,6 @@ object ResourceTypeHandlerTest {
           }
       }
     }
-
-    override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-      markedResources.forEach { m ->
-        simulatedCandidates
-          ?.removeIf { r -> m.resourceId == r.resourceId }
-          .also { shouldRemove ->
-            if (shouldRemove != null && shouldRemove) {
-              taskTrackingRepository.add(
-                "softDeleteTaskId",
-                TaskCompleteEventInfo(
-                  Action.SOFTDELETE,
-                  listOf(m),
-                  workConfiguration,
-                  null
-                )
-              )
-            }
-          }
-      }
-    }
-
-    override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-      TODO("not implemented")
-    }
-
     // simulates querying for a resource upstream
     override fun getCandidate(
       resourceId: String,

@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.aws.images
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
@@ -33,6 +32,7 @@ import com.netflix.spinnaker.swabbie.orca.*
 import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
@@ -58,8 +58,7 @@ class AmazonImageHandler(
   private val rules: List<Rule<AmazonImage>>,
   private val imageProvider: ResourceProvider<AmazonImage>,
   private val orcaService: OrcaService,
-  private val applicationsCaches: List<InMemoryCache<Application>>,
-  private val taggingService: TaggingService,
+  private val applicationUtils: ApplicationUtils,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val swabbieProperties: SwabbieProperties
@@ -82,8 +81,8 @@ class AmazonImageHandler(
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
     orcaService.orchestrate(
       OrchestrationRequest(
-        // resources are partitioned based on app name, so find app name from first resource
-        application = resolveApplicationOrNull(markedResources.first()) ?: "swabbie",
+        // resources are partitioned based on grouping, so find the app to use from first resource
+        application = applicationUtils.determineApp(markedResources.first().resource),
         job = listOf(
           OrcaJob(
             type = "deleteImage",
@@ -91,8 +90,7 @@ class AmazonImageHandler(
               "credentials" to workConfiguration.account.name,
               "imageIds" to markedResources.map { it.resourceId }.toSet(),
               "cloudProvider" to AWS,
-              "region" to workConfiguration.location,
-              "stageTimeoutMs" to Duration.ofMinutes(15).toMillis().toString()
+              "region" to workConfiguration.location
             )
           )
         ),
@@ -110,71 +108,6 @@ class AmazonImageHandler(
       )
       log.debug("Deleting resources ${markedResources.map { it.uniqueId() }} in orca task ${taskResponse.taskId()}")
     }
-  }
-
-  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    val tags = mapOf("spinnaker:swabbie" to "about_to_be_deleted")
-    val taskIds = tagResources(
-      "Adding tag to indicate soft deletion",
-      Action.SOFTDELETE,
-      tags,
-      markedResources,
-      workConfiguration
-    )
-    log.debug("Soft deleting resources ${markedResources.map { it.uniqueId() }} in orca tasks $taskIds.")
-  }
-
-  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    val tags = mapOf("swabbie" to "restored")
-    val taskIds = tagResources(
-      "Updating tag to indicate restoring",
-      Action.RESTORE,
-      tags,
-      markedResources,
-      workConfiguration
-    )
-    log.debug("Restoring resources ${markedResources.map { it.uniqueId() }} in orca tasks $taskIds.")
-  }
-
-  private fun tagResources(
-    description: String,
-    action: Action,
-    tags: Map<String, String>,
-    markedResources: List<MarkedResource>,
-    workConfiguration: WorkConfiguration
-  ): List<String> {
-    val taskIds = mutableListOf<String>()
-    markedResources
-      .forEach { resource ->
-        val taskId = taggingService.upsertImageTag(
-          UpsertImageTagsRequest(
-            imageNames = setOf(resource.name ?: resource.resourceId),
-            regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
-            tags = tags,
-            cloudProvider = "aws",
-            cloudProviderType = "aws",
-            application = resolveApplicationOrNull(resource) ?: "swabbie",
-            description = "$description for image ${resource.uniqueId()}"
-          )
-        )
-
-        taskTrackingRepository.add(
-          taskId,
-          TaskCompleteEventInfo(
-            action = action,
-            markedResources = listOf(resource),
-            workConfiguration = workConfiguration,
-            submittedTimeMillis = clock.instant().toEpochMilli()
-          )
-        )
-        taskIds.add(taskId)
-      }
-    return taskIds
-  }
-
-  private fun resolveApplicationOrNull(markedResource: MarkedResource): String? {
-    val appName = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: return null
-    return if (applicationsCaches.any { it.contains(appName) }) appName else null
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =
@@ -276,7 +209,6 @@ class AmazonImageHandler(
           )
         }
       }
-
   }
 
   /**

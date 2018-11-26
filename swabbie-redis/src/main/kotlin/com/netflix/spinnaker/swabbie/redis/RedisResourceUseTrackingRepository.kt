@@ -126,13 +126,17 @@ class RedisResourceUseTrackingRepository(
 
   private fun hydrateLastSeen(keys: Set<String>): List<LastSeenInfo> {
     if (keys.isEmpty()) return emptyList()
-    return keys.chunked(REDIS_CHUNK_SIZE).map { sublist ->
-      redisClientDelegate.withCommandsClient<Set<String>> { client ->
+
+    val hydratedLastSeen = mutableListOf<LastSeenInfo>()
+    keys.chunked(REDIS_CHUNK_SIZE).forEach { sublist ->
+      val hydrated = redisClientDelegate.withCommandsClient<Set<String>> { client ->
         client.hmget(LAST_SEEN, *sublist.toTypedArray()).toSet()
       }.map { json ->
         objectMapper.readValue<LastSeenInfo>(json)
       }
-    }.flatten()
+      hydratedLastSeen.addAll(hydrated)
+    }
+    return hydratedLastSeen
   }
 
   override fun isUnused(resourceIdentifier: String): Boolean {

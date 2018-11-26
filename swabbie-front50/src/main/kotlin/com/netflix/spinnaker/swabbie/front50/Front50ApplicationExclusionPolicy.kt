@@ -18,22 +18,31 @@ package com.netflix.spinnaker.swabbie.front50
 
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.Grouping
+import com.netflix.spinnaker.swabbie.model.GroupingType
 import org.springframework.stereotype.Component
 
+/**
+ * todo eb: for images, we could find applications they belong to by seeing what images are running in each:
+ *  find the package name of the image by using Frigga AppVersion,
+ *  then build a cache of packageVersion to listOf(appName).
+ *  Also build a cache of appName to owner.
+ *  This would let us accurately determine which packages are in use by each app by querying both caches
+ */
 @Component
 class Front50ApplicationExclusionPolicy(
   private val front50ApplicationCache: InMemoryCache<Application>
 ) : ResourceExclusionPolicy {
-  private fun findApplication(excludable: Excludable, names: Set<String>): Excludable? {
-    FriggaReflectiveNamer().deriveMoniker(excludable).app?.toLowerCase()?.let { appName ->
-      return front50ApplicationCache.get().find { matchesApplication(it, appName, names) }
-    }
 
+  private fun findApplication(excludable: Excludable, names: Set<String>): Excludable? {
+    val grouping: Grouping = excludable.grouping?: return null
+    if (grouping.type == GroupingType.APPLICATION) {
+      return front50ApplicationCache.get().find { matchesApplication(it, grouping.value, names) }
+    }
     return null
   }
 
@@ -43,11 +52,14 @@ class Front50ApplicationExclusionPolicy(
   }
 
   override fun getType(): ExclusionType = ExclusionType.Application
+
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
-    keysAndValues(exclusions, ExclusionType.Allowlist).let { kv ->
-      findApplication(excludable, kv.values.flatten().toSet())?.let {
-        return byPropertyMatchingResult(exclusions, it)
-      }
+    val kv = keysAndValues(exclusions, ExclusionType.Allowlist)
+    val names =  kv.values.flatten().toSet()
+    val application = findApplication(excludable, names)
+
+    if (application != null) {
+      return byPropertyMatchingResult(exclusions, application)
     }
 
     return null

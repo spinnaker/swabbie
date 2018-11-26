@@ -19,19 +19,17 @@ package com.netflix.spinnaker.swabbie.aws.loadbalancers
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaService
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -55,7 +53,8 @@ class AmazonLoadBalancerHandler(
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
-  private val resourceUseTrackingRepository: ResourceUseTrackingRepository
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
+  private val applicationUtils: ApplicationUtils
 ) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(
   registry,
   clock,
@@ -82,7 +81,7 @@ class AmazonLoadBalancerHandler(
           log.info("This load balancer is about to be deleted {}", markedResource)
           orcaService.orchestrate(
             OrchestrationRequest(
-              application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+              application = applicationUtils.determineApp(resource),
               job = listOf(
                 OrcaJob(
                   type = "deleteLoadBalancer",
@@ -94,7 +93,7 @@ class AmazonLoadBalancerHandler(
                   )
                 )
               ),
-              description = "Cleaning up Load Balancer for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+              description = "Cleaning up Load Balancer for ${resource.grouping?.value.orEmpty()}"
             )
           ).let { taskResponse ->
             taskTrackingRepository.add(
@@ -110,14 +109,6 @@ class AmazonLoadBalancerHandler(
         }
       }
     }
-  }
-
-  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
-  }
-
-  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
   }
 
   override fun getCandidate(resourceId: String,

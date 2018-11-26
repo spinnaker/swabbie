@@ -29,6 +29,7 @@ import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -52,7 +53,8 @@ class AmazonSecurityGroupHandler(
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
-  private val resourceUseTrackingRepository: ResourceUseTrackingRepository
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
+  private val applicationUtils: ApplicationUtils
 ) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
   registry,
   clock,
@@ -78,7 +80,7 @@ class AmazonSecurityGroupHandler(
           log.info("This resource is about to be deleted {}", markedResource)
           orcaService.orchestrate(
             OrchestrationRequest(
-              application = FriggaReflectiveNamer().deriveMoniker(markedResource).app,
+              application = applicationUtils.determineApp(resource),
               job = listOf(
                 OrcaJob(
                   type = "deleteSecurityGroup",
@@ -91,7 +93,7 @@ class AmazonSecurityGroupHandler(
                   )
                 )
               ),
-              description = "Cleaning up Security Group for ${FriggaReflectiveNamer().deriveMoniker(markedResource).app}"
+              description = "Cleaning up Security Group for ${resource.grouping?.value.orEmpty()}"
             )
           ).let { taskResponse ->
             taskTrackingRepository.add(
@@ -107,14 +109,6 @@ class AmazonSecurityGroupHandler(
         }
       }
     }
-  }
-
-  override fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
-  }
-
-  override fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
   }
 
   override fun getCandidate(resourceId: String,

@@ -73,13 +73,16 @@ class RedisResourceStateRepository(
         if (set.isEmpty()) {
           emptyList()
         } else {
-          set.chunked(REDIS_CHUNK_SIZE).map { sublist ->
-            this.withCommandsClient<Set<String>> { client ->
-              client.hmget(SINGLE_STATE_KEY, *sublist.map { it }.toTypedArray()).toSet()
+          val state = mutableSetOf<ResourceState>()
+          set.chunked(REDIS_CHUNK_SIZE).forEach { subset ->
+            val partialState = this.withCommandsClient<Set<String>> { client ->
+              client.hmget(SINGLE_STATE_KEY, *subset.map { it }.toTypedArray()).toSet()
             }.map { json ->
               objectMapper.readValue<ResourceState>(json)
             }
-          }.flatten()
+            state.addAll(partialState)
+          }
+          state.toList()
         }
       }
   }

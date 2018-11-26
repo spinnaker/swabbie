@@ -25,6 +25,7 @@ import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -40,27 +41,22 @@ object ResourceStateManagerTest {
   private val taggingService = mock<TaggingService>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
 
-  private val app = Application(name = "testapp", email = "test@test.com")
-  private val inMemCache = InMemoryCache {setOf(app)}
-  private val applicationsCaches = listOf(inMemCache)
-
   private var resource = TestResource("testResource")
   private var configuration = workConfiguration()
+  private val applicationUtils = ApplicationUtils(emptyList())
 
   private val markedResourceWithViolations =  MarkedResource(
     resource = resource,
     summaries = listOf(Summary("violates rule 1", "ruleName")),
     namespace = configuration.namespace,
-    projectedDeletionStamp = clock.millis(),
-    projectedSoftDeletionStamp = clock.millis()
+    projectedDeletionStamp = clock.millis()
   )
 
   private val markedResourceNoViolations =  MarkedResource(
     resource = resource,
     summaries = emptyList(),
     namespace = configuration.namespace,
-    projectedDeletionStamp = clock.millis(),
-    projectedSoftDeletionStamp = clock.millis()
+    projectedDeletionStamp = clock.millis()
   )
 
   private val subject = ResourceStateManager(
@@ -70,7 +66,7 @@ object ResourceStateManagerTest {
     resourceTagger = resourceTagger,
     taggingService = taggingService,
     taskTrackingRepository = taskTrackingRepository,
-    applicationsCaches = applicationsCaches
+    applicationUtils = applicationUtils
   )
 
   @AfterEach
@@ -204,38 +200,6 @@ object ResourceStateManagerTest {
     verify(taskTrackingRepository).add(
       argWhere { it == "1234" },
       argWhere { it.action == Action.OPTOUT }
-    )
-  }
-
-  @Test
-  fun `should update state and tag when resource is soft deleted`() {
-    val event = SoftDeleteResourceEvent(markedResourceWithViolations, configuration)
-
-    // previously marked resource
-    whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
-      ResourceState(
-        optedOut = false,
-        markedResource = markedResourceWithViolations,
-        statuses = mutableListOf(
-          Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
-        )
-      )
-
-    subject.handleEvents(event)
-
-    verify(resourceTagger).tag(
-      markedResource = markedResourceWithViolations,
-      workConfiguration = configuration,
-      description = "Soft deleted resource ${event.markedResource.typeAndName()}"
-    )
-    verify(resourceStateRepository).upsert(
-      argWhere {
-        it.softDeleted
-          && it.markedResource == markedResourceWithViolations
-          && it.currentStatus!!.name == Action.SOFTDELETE.name
-          && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
-          && it.currentStatus!!.timestamp > it.statuses.first().timestamp
-      }
     )
   }
 

@@ -22,14 +22,13 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
-import com.netflix.spinnaker.swabbie.events.SoftDeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.formatted
+import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
@@ -79,18 +78,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   abstract fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration)
 
   /**
-   * deletes a resource in a reversible way.
-   * Soft deleted resources are produced via [SoftDeleteResourceEvent]
-   * for additional processing
-   */
-  abstract fun softDeleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration)
-
-  /**
-   * restores a soft-deleted resource.
-   */
-  abstract fun restoreResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration)
-
-  /**
    * finds & tracks cleanup candidates
    */
   override fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
@@ -112,13 +99,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   }
 
   /**
-   * Soft deletes expiring resources
-   */
-  override fun softDelete(workConfiguration: WorkConfiguration, postSoftDelete: () -> Unit) {
-    execute(workConfiguration, postSoftDelete, Action.SOFTDELETE)
-  }
-
-  /**
    * Dispatches work based on passed action
    */
   private fun execute(workConfiguration: WorkConfiguration, callback: () -> Unit, action: Action) {
@@ -129,10 +109,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
       Action.NOTIFY -> withLocking(action, workConfiguration) {
         doNotify(workConfiguration, callback)
-      }
-
-      Action.SOFTDELETE -> withLocking(action, workConfiguration) {
-        doSoftDelete(workConfiguration, callback)
       }
 
       Action.DELETE -> withLocking(action, workConfiguration) {
@@ -164,6 +140,42 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
+  /**
+   * This find the resource, and then opts it out even if it was not marked.
+   * This function is used when a caller makes an opt out request through the controller
+   *  and the resource has not already been marked.
+   */
+  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration){
+    val resource = getCandidate(resourceId, "", workConfiguration)
+      ?: return
+    log.debug("Opting out resource $resourceId in namespace ${workConfiguration.namespace}")
+    val resourceWithOwner = listOf(resource).withResolvedOwners(workConfiguration).first()
+    val newMarkedResource = MarkedResource(
+      resource = resourceWithOwner,
+      summaries = emptyList(),
+      namespace = workConfiguration.namespace,
+      resourceOwner = resourceWithOwner.details[resourceOwnerField] as String,
+      projectedDeletionStamp = deletionTimestamp(workConfiguration),
+      lastSeenInfo = resourceUseTrackingRepository.getLastSeenInfo(resourceWithOwner.resourceId)
+    )
+
+    val status = Status(Action.OPTOUT.name, clock.instant().toEpochMilli())
+    val state = ResourceState(
+      markedResource = newMarkedResource,
+      deleted = false,
+      optedOut = true,
+      statuses = mutableListOf(status),
+      currentStatus = status
+    )
+
+    // opt out here to ensure there is never a time when this resource is not opted out.
+    resourceStateRepository.upsert(state)
+    resourceRepository.upsert(newMarkedResource)
+
+    //this will trigger the actual opt out action
+    applicationEventPublisher.publishEvent(OptOutResourceEvent(newMarkedResource, workConfiguration))
+  }
+
   override fun markResource(resourceId: String, onDemandMarkData: OnDemandMarkData, workConfiguration: WorkConfiguration) {
     val resource = getCandidate(resourceId, "", workConfiguration)
       ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
@@ -173,7 +185,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
         namespace = workConfiguration.namespace,
         resourceOwner = onDemandMarkData.resourceOwner,
-        projectedSoftDeletionStamp = onDemandMarkData.projectedSoftDeletionStamp,
         projectedDeletionStamp = onDemandMarkData.projectedDeletionStamp,
         notificationInfo = onDemandMarkData.notificationInfo,
         lastSeenInfo = onDemandMarkData.lastSeenInfo
@@ -184,28 +195,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     applicationEventPublisher.publishEvent(MarkResourceEvent(markedResource, workConfiguration))
   }
 
-  override fun softDeleteResource(resourceId: String, workConfiguration: WorkConfiguration) {
-    val markedResource = resourceRepository.find(resourceId, workConfiguration.namespace)
-      ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
-
-    log.debug("Soft deleting resource $resourceId in namespace ${workConfiguration.namespace} without checking rules.")
-    softDeleteResources(listOf(markedResource), workConfiguration)
-  }
-
   override fun deleteResource(resourceId: String, workConfiguration: WorkConfiguration) {
     val markedResource = resourceRepository.find(resourceId, workConfiguration.namespace)
       ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
 
     log.debug("Deleting resource $resourceId in namespace ${workConfiguration.namespace} without checking rules.")
     deleteResources(listOf(markedResource), workConfiguration)
-  }
-
-  override fun restoreResource(resourceId: String, workConfiguration: WorkConfiguration) {
-    val markedResource = resourceRepository.find(resourceId, workConfiguration.namespace)
-      ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
-
-    log.debug("Restoring resource $resourceId in namespace ${workConfiguration.namespace}.")
-    restoreResources(listOf(markedResource), workConfiguration)
   }
 
   /**
@@ -285,7 +280,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
                 summaries = violations,
                 namespace = workConfiguration.namespace,
                 resourceOwner = candidate.details[resourceOwnerField] as String,
-                projectedSoftDeletionStamp = softDeletionTimestamp(workConfiguration),
                 projectedDeletionStamp = deletionTimestamp(workConfiguration),
                 lastSeenInfo = resourceUseTrackingRepository.getLastSeenInfo(candidate.resourceId)
               )
@@ -318,7 +312,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)
     } finally {
-      recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter)
+      recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter, totalResourcesVisitedCounter)
       postMark.invoke()
     }
   }
@@ -375,7 +369,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ) {
     if (markedResource != null && !workConfiguration.dryRun) {
       try {
-        log.info("{} is no longer a candidate because: $reason.", markedResource)
+        log.info("{} is no longer a candidate because: $reason.", markedResource.uniqueId())
         resourceRepository.remove(markedResource)
         applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
       } catch (e: Exception) {
@@ -384,18 +378,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  private fun softDeletionTimestamp(workConfiguration: WorkConfiguration): Long {
-    val daysInFuture = workConfiguration.retention + 1
-    val proposedTime = daysInFuture.days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
-    return swabbieProperties.schedule.getNextTimeInWindow(proposedTime)
-  }
-
   private fun deletionTimestamp(workConfiguration: WorkConfiguration): Long {
-    if (!workConfiguration.softDelete.enabled) {
-      // soft deleting is not enabled, so our deletion time is the same as what our soft deletion time would be
-      return softDeletionTimestamp(workConfiguration)
-    }
-    val daysInFuture = workConfiguration.retention + workConfiguration.softDelete.waitingPeriodDays + 1
+    val daysInFuture = workConfiguration.retention + 1
     val proposedTime = daysInFuture.days.fromNow.atStartOfDay(clock.zone).toInstant().toEpochMilli()
     return swabbieProperties.schedule.getNextTimeInWindow(proposedTime)
   }
@@ -449,82 +433,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       if (excluded) {
         exclusionCounters[action]?.incrementAndGet()
       }
-    }
-  }
-
-  private fun doSoftDelete(workConfiguration: WorkConfiguration, postSoftDelete: () -> Unit) {
-    if (!workConfiguration.softDelete.enabled) {
-      log.debug("Soft delete not enabled for ${workConfiguration.toLog()}")
-      return
-    }
-    exclusionCounters[Action.SOFTDELETE] = AtomicInteger(0)
-    val candidateCounter = AtomicInteger(0)
-    val softDeletedResources = mutableListOf<MarkedResource>()
-    try {
-      log.info("${javaClass.simpleName} running. Configuration: {}", workConfiguration.toLog())
-      val resourcesToSoftDelete: List<MarkedResource> = resourceRepository.getMarkedResourcesToSoftDelete()
-        .filter { it.notificationInfo != null && !workConfiguration.dryRun }
-        .sortedBy { it.resource.createTs }
-
-      if (resourcesToSoftDelete.isEmpty()) {
-        log.debug("Nothing to soft delete. Configuration: {}", workConfiguration.toLog())
-        return
-      }
-      log.debug("Found ${resourcesToSoftDelete.size} resource(s) to soft delete")
-
-      val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
-        .filter { it.markedResource.namespace == workConfiguration.namespace && it.optedOut }
-
-      // figure out if they still qualify to be any sort of deleted, and deal with it if they don't
-      val candidates: List<T>? = getCandidates(workConfiguration)
-      if (candidates == null || candidates.isEmpty()) {
-        resourcesToSoftDelete
-          .forEach { ensureResourceUnmarked(it, workConfiguration, "No current candidates for deletion") }
-        log.info("Nothing to delete. No upstream resources, Configuration: {}", workConfiguration.toLog())
-        return
-      }
-
-      candidates.withResolvedOwners(workConfiguration).also {
-        preProcessCandidates(it, workConfiguration) //this re-evaluates everything and takes forever.
-      }
-
-      val confirmedSoftDeleteResources = resourcesToSoftDelete
-        .filter { resource ->
-          var shouldSkip = false
-          val candidate = candidates.find { it.resourceId == resource.resourceId }
-          if ((candidate == null || candidate.getViolations().isEmpty()) ||
-            shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.SOFTDELETE)) {
-            shouldSkip = true
-            ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies for deletion")
-          }
-          !shouldSkip
-        }
-
-      val maxItemsToProcess = Math.min(confirmedSoftDeleteResources.size, workConfiguration.maxItemsProcessedPerCycle)
-
-      confirmedSoftDeleteResources.subList(0, maxItemsToProcess).let {
-        partitionList(it, workConfiguration).forEach { partition ->
-          if (!partition.isEmpty()) {
-            try {
-              softDeleteResources(partition, workConfiguration)
-              candidateCounter.addAndGet(partition.size)
-            } catch (e: Exception) {
-              log.error("Failed to soft delete $it. Configuration: {}", workConfiguration.toLog(), e)
-              recordFailureForAction(Action.SOFTDELETE, workConfiguration, e)
-            }
-          }
-        }
-      }
-
-      printResult(
-        candidateCounter,
-        AtomicInteger(confirmedSoftDeleteResources.size),
-        workConfiguration,
-        softDeletedResources,
-        Action.SOFTDELETE
-      )
-    } finally {
-      postSoftDelete.invoke()
     }
   }
 
@@ -604,7 +512,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   /**
    * Partitions the list of marked resources to process:
-   * For convenience, partitions are grouped by relevance (here the derived app they are associated with)
+   * For convenience, partitions are grouped by relevance
    */
   fun partitionList(
     markedResources: List<MarkedResource>,
@@ -612,10 +520,10 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ): List<List<MarkedResource>> {
     val partitions = mutableListOf<List<MarkedResource>>()
     markedResources.groupBy {
-      FriggaReflectiveNamer().deriveMoniker(it.resource).app
+      it.resource.grouping
     }.map {
-      Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach {
-        partitions.add(it)
+      Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach { partition ->
+        partitions.add(partition)
       }
     }
 
@@ -666,6 +574,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         log.info("Nothing to notify for {}. Skipping...", workConfiguration.toLog())
         return
       }
+
+      log.info("Processing ${markedResources.size} for notification in ${javaClass.simpleName}")
 
       val maxItemsToProcess = Math.min(markedResources.size, workConfiguration.maxItemsProcessedPerCycle)
       markedResources.subList(0, maxItemsToProcess)
@@ -722,16 +632,22 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   private fun sendNotification(
     owner: String,
-    workConfiguration:
-    WorkConfiguration,
+    workConfiguration: WorkConfiguration,
     resources: List<MarkedResource>
   ) {
     notifiers.forEach { notifier ->
       workConfiguration.notificationConfiguration.types.forEach { notificationType ->
         if (notificationType.equals(Notifier.NotificationType.EMAIL.name, true)) {
+          //todo eb: remove once we can skip notifications for emails
+          val finalOwner = if (resources.first().resourceType.contains("image", ignoreCase = true)) {
+            workConfiguration.notificationConfiguration.defaultDestination
+          } else {
+            owner
+          }
+
           val notificationContext = mapOf(
-            "resourceOwner" to owner,
-            "application" to FriggaReflectiveNamer().deriveMoniker(resources.first()).app,
+            "resourceOwner" to finalOwner,
+            "application" to resources.first().resource.grouping?.value.orEmpty(), //todo eb: this prob shouldn't be called app
             "resources" to resources.map { it.barebones() },
             "configuration" to workConfiguration,
             "resourceType" to workConfiguration.resourceType.formatted(),
@@ -741,7 +657,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
           retrySupport.retry({
             notifier.notify(
-              recipient = owner,
+              recipient = finalOwner,
               messageType = notificationType,
               additionalContext = notificationContext
             )

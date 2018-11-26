@@ -29,8 +29,7 @@ open class MetricsSupport(
   protected val exclusionCounters = mutableMapOf(
     Action.MARK to AtomicInteger(0),
     Action.DELETE to AtomicInteger(0),
-    Action.NOTIFY to AtomicInteger(0),
-    Action.SOFTDELETE to AtomicInteger(0)
+    Action.NOTIFY to AtomicInteger(0)
   )
 
   protected val markDurationTimer: LongTaskTimer = LongTaskTimer.get(
@@ -48,8 +47,6 @@ open class MetricsSupport(
   protected val markCountId: Id = registry.createId("swabbie.resources.markCount")
   protected val unMarkCountId: Id = registry.createId("swabbie.resources.unMarkCount")
   protected val deleteCountId: Id = registry.createId("swabbie.resources.deleteCount")
-  protected val softDeleteCountId: Id = registry.createId("swabbie.resources.softDeleteCount")
-  protected val restoreCountId: Id = registry.createId("swabbie.resources.restoreCount")
   protected val notifyCountId: Id = registry.createId("swabbie.resources.notifyCount")
   protected val optOutCountId: Id = registry.createId("swabbie.resources.optOutCount")
   protected val orcaTaskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
@@ -61,7 +58,8 @@ open class MetricsSupport(
   protected fun recordMarkMetrics(markerTimerId: Long,
                                   workConfiguration: WorkConfiguration,
                                   violationCounter: AtomicInteger,
-                                  candidateCounter: AtomicInteger) {
+                                  candidateCounter: AtomicInteger,
+                                  totalResourcesVisitedCounter: AtomicInteger) {
     markDurationTimer.stop(markerTimerId)
     registry.gauge(
       candidatesCountId.withTags(
@@ -83,6 +81,13 @@ open class MetricsSupport(
         "configuration", workConfiguration.namespace,
         "resourceTypeHandler", javaClass.simpleName
       )).set(exclusionCounters[Action.MARK]!!.toDouble())
+
+    registry.gauge(
+      resourcesVisitedId.withTags(
+        "resourceType", workConfiguration.resourceType,
+        "configuration", workConfiguration.namespace,
+        "resourceTypeHandler", javaClass.simpleName
+      )).set(totalResourcesVisitedCounter.toDouble())
   }
 
   protected fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {

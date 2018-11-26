@@ -30,7 +30,6 @@ data class WorkConfiguration(
   val cloudProvider: String,
   val resourceType: String,
   val retention: Int,
-  val softDelete: SoftDelete,
   val exclusions: List<Exclusion>,
   val dryRun: Boolean = true,
   val entityTaggingEnabled: Boolean = false,
@@ -47,13 +46,4 @@ class EmptyNotificationConfiguration : NotificationConfiguration(
   enabled = false,
   types = mutableListOf(),
   optOutBaseUrl = ""
-)
-
-/**
- * @param enabled controls if soft deleting is enabled for this work configuration
- * @param waitingPeriodDays how many days swabbie will wait after soft deleting a resource before deleting it
- */
-data class SoftDelete(
-  var enabled: Boolean = false,
-  var waitingPeriodDays: Int = 2
 )

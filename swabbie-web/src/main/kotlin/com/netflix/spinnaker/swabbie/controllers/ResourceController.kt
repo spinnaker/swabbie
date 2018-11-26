@@ -21,6 +21,7 @@ import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
 import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.LoggerFactory
@@ -39,12 +40,23 @@ class ResourceController(
 
   private val log = LoggerFactory.getLogger(javaClass)
 
+  /**
+   * Returns all marked resource in summary, full, or list format.
+   * If both expand and list are specified, expand is returned
+   */
   @RequestMapping(value = ["/marked"], method = [RequestMethod.GET])
   fun markedResources(
-    @RequestParam(required = false, defaultValue = "false") expand: Boolean
-  ): List<MarkedResourceInterface> {
-    return resourceTrackingRepository.getMarkedResources().let { markedResources ->
-      if (expand) markedResources else markedResources.map { it.slim() }
+    @RequestParam(required = false, defaultValue = "false") expand: Boolean,
+    @RequestParam(required = false, defaultValue = "false") list: Boolean
+  ): List<Any> {
+    val markedResources = resourceTrackingRepository.getMarkedResources()
+
+    return when {
+      expand -> markedResources
+      list -> markedResources
+                .map { DeleteInfo(name = it.name.orEmpty(), namespace = it.namespace, resourceId = it.resourceId) }
+                .sortedBy { it.name }
+      else -> markedResources.map { it.slim() }
     }
   }
 
@@ -74,6 +86,12 @@ class ResourceController(
       ?: throw NotFoundException("Resource $namespace/$resourceId not found")
   }
 
+  @RequestMapping(value = ["/deleted"], method = [RequestMethod.GET])
+  fun markedResources(
+  ): List<DeleteInfo> {
+    return resourceTrackingRepository.getDeleted().sortedBy { it.name }
+  }
+
   @RequestMapping(value = ["/canDelete"], method = [RequestMethod.GET])
   fun markedResourcesReadyForDeletion(): List<MarkedResource> =
     resourceTrackingRepository.getMarkedResourcesToDelete()
@@ -90,11 +108,6 @@ class ResourceController(
     }
     return resourceStateRepository.getByStatus(status)
   }
-
-
-  @RequestMapping(value = ["/canSoftDelete"], method = [RequestMethod.GET])
-  fun markedResourcesReadyForSoftDeletion(): List<MarkedResource> =
-    resourceTrackingRepository.getMarkedResourcesToSoftDelete()
 
   @RequestMapping(value = ["/states"], method = [RequestMethod.GET])
   fun states(
@@ -132,7 +145,8 @@ class ResourceController(
     @PathVariable resourceId: String,
     @PathVariable namespace: String
   ) : ResourceState {
-    resourceTrackingRepository.find(resourceId, namespace)?.let { markedResource ->
+    val markedResource = resourceTrackingRepository.find(resourceId, namespace)
+    if (markedResource != null) {
       log.debug("Found resource ${markedResource.uniqueId()} to opt out.")
       resourceTrackingRepository.remove(markedResource)
       workConfigurations.find {
@@ -141,25 +155,18 @@ class ResourceController(
         log.debug("Publishing opt out event for ${markedResource.uniqueId()}")
         applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, configuration))
       }
+    } else {
+      log.debug("Did not find marked resource ${namespace}:${resourceId} to opt out. Opting out anyways.")
+      val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+
+      val handler = resourceTypeHandlers.find { handler ->
+        handler.handles(workConfiguration)
+      } ?: throw NotFoundException("No handlers for $namespace")
+
+      handler.optOut(resourceId, workConfiguration)
     }
 
     return resourceStateRepository.get(resourceId, namespace) ?: throw NotFoundException()
-  }
-
-  /**
-   * Restores a resource that has been soft-deleted
-   */
-  @RequestMapping(value = ["/state/{namespace}/{resourceId}/restore"], method = [RequestMethod.PUT])
-  fun restore(
-    @PathVariable resourceId: String,
-    @PathVariable namespace: String
-  ) {
-    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
-    val handler = resourceTypeHandlers.find { handler ->
-      handler.handles(workConfiguration)
-    } ?: throw NotFoundException("No handlers for $namespace")
-
-    handler.restoreResource(resourceId, workConfiguration)
   }
 
   /**

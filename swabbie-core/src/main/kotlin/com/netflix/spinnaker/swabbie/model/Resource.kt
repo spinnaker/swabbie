@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -46,6 +48,8 @@ const val NAIVE_EXCLUSION = "swabbieNaiveExclusion"
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 abstract class Resource : Excludable, Timestamped, HasDetails() {
+  private val log: Logger = LoggerFactory.getLogger(this.javaClass)
+
   /**
    * requires all subtypes to be annotated with JsonTypeName
    */
@@ -74,6 +78,20 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
   override fun toString(): String {
     return details.toString()
   }
+
+  fun getTagValue(key: String): String? {
+    try {
+      val tags = this.details["tags"] as List<Map<String, String>>
+      tags.forEach { tag ->
+        if (tag.containsKey(key)) {
+          return tag.getValue(key)
+        }
+      }
+    } catch (e: ClassCastException) {
+      log.warn("Resource {} does not have normal tag format: {}", this.toLog(), this.details["tags"])
+    }
+    return null
+  }
 }
 
 /**
@@ -99,6 +117,16 @@ interface Identifiable : Named {
   val resourceId: String
   val resourceType: String
   val cloudProvider: String
+  val grouping: Grouping?
+}
+
+data class Grouping(
+  val value: String,
+  val type: GroupingType
+)
+
+enum class GroupingType {
+  APPLICATION, PACKAGE_NAME
 }
 
 interface Named {
@@ -112,7 +140,6 @@ interface Timestamped {
 interface MarkedResourceInterface : Identifiable {
   val summaries: List<Summary>
   val namespace: String
-  var projectedSoftDeletionStamp: Long
   var projectedDeletionStamp: Long
   var notificationInfo: NotificationInfo?
   var markTs: Long?
@@ -129,7 +156,6 @@ data class MarkedResource(
   val resource: Resource,
   override val summaries: List<Summary>,
   override val namespace: String,
-  override var projectedSoftDeletionStamp: Long,
   override var projectedDeletionStamp: Long,
   override var notificationInfo: NotificationInfo? = null,
   override var markTs: Long? = null,
@@ -141,7 +167,6 @@ data class MarkedResource(
     return SlimMarkedResource(
       summaries = summaries,
       namespace = namespace,
-      projectedSoftDeletionStamp = projectedSoftDeletionStamp,
       projectedDeletionStamp = projectedDeletionStamp,
       notificationInfo = notificationInfo,
       markTs = markTs,
@@ -151,7 +176,8 @@ data class MarkedResource(
       resourceType = resource.resourceType,
       cloudProvider = resource.cloudProvider,
       name = resource.name,
-      lastSeenInfo = lastSeenInfo
+      lastSeenInfo = lastSeenInfo,
+      grouping = grouping
     )
   }
 
@@ -175,7 +201,6 @@ data class MarkedResource(
 data class SlimMarkedResource(
   override val summaries: List<Summary>,
   override val namespace: String,
-  override var projectedSoftDeletionStamp: Long,
   override var projectedDeletionStamp: Long,
   override var notificationInfo: NotificationInfo? = null,
   override var markTs: Long? = null,
@@ -185,7 +210,8 @@ data class SlimMarkedResource(
   override val resourceType: String,
   override val cloudProvider: String,
   override val name: String?,
-  override var lastSeenInfo: LastSeenInfo? = null
+  override var lastSeenInfo: LastSeenInfo? = null,
+  override var grouping: Grouping?
 ) : MarkedResourceInterface
 
 data class BarebonesMarkedResource(
@@ -207,7 +233,6 @@ data class NotificationInfo(
 
 data class ResourceState(
   var markedResource: MarkedResource,
-  val softDeleted: Boolean = false,
   val deleted: Boolean = false,
   val optedOut: Boolean = false,
   val statuses: MutableList<Status>,

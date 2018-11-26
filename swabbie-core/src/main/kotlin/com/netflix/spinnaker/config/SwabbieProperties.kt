@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.config
 
 import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
-import com.netflix.spinnaker.swabbie.model.SoftDelete
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.*
 
@@ -122,7 +121,6 @@ class ResourceTypeConfiguration {
   var entityTaggingEnabled: Boolean = false
   var maxAge: Int = 14
   var notification: NotificationConfiguration = EmptyNotificationConfiguration()
-  var softDelete: SoftDelete = SoftDelete()
 }
 
 class Attribute {

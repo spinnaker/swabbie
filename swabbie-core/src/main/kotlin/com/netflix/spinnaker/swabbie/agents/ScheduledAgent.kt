@@ -84,15 +84,18 @@ abstract class ScheduledAgent(
   }
 
   private fun scheduleSwabbie() {
-    if (dynamicConfigService.isEnabled("swabbie.work", true)) {
       runningTask = executorService.scheduleWithFixedDelay({
         try {
           when {
             LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
               when {
                 timeToWork(swabbieProperties.schedule, clock) -> {
-                  log.info("Swabbie schedule: working")
-                  runSwabbie()
+                  if (dynamicConfigService.isEnabled("swabbie.work", true)) {
+                    log.info("Swabbie schedule: working")
+                    runSwabbie()
+                  } else {
+                    log.info("Swabbie schedule: disabled via property swabbie.work")
+                  }
                 }
                 else -> log.info("Swabbie schedule: off hours")
               }
@@ -106,9 +109,6 @@ abstract class ScheduledAgent(
           log.error("Failed during schedule method for {}", javaClass.simpleName)
         }
       }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
-    } else {
-      log.info("Swabbie schedule: disabled via property swabbie.work")
-    }
   }
 
   private fun runSwabbie() {

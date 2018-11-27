@@ -72,7 +72,7 @@ open class WorkConfigurator(
           cloudProviderConfiguration.accounts.contains(it.name) &&
             it.type.equals(cloudProviderConfiguration.name, ignoreCase = true)
         }.forEach { account ->
-          val accountRegions = account.regions?.filter { !it.deprecated }?.map { it.name } ?: emptyList()
+          val accountRegions = account.regions?.map { it.name } ?: emptyList()
           cloudProviderConfiguration.locations.filter {
             accountRegions.contains(it)
           }.forEach { location ->

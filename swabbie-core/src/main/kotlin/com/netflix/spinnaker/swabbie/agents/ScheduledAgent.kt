@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Schedule
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.MetricsSupport
@@ -40,7 +41,8 @@ abstract class ScheduledAgent(
   private val workConfigurations: List<WorkConfiguration>,
   private val agentExecutor: Executor,
   private val swabbieProperties: SwabbieProperties,
-  private val cacheStatus: CacheStatus
+  private val cacheStatus: CacheStatus,
+  private val dynamicConfigService: DynamicConfigService
 ) : SwabbieAgent, MetricsSupport(registry) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val executorService = Executors.newSingleThreadScheduledExecutor()
@@ -82,27 +84,31 @@ abstract class ScheduledAgent(
   }
 
   private fun scheduleSwabbie() {
-    runningTask = executorService.scheduleWithFixedDelay({
-      try {
-        when {
-          LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
-            when {
-              timeToWork(swabbieProperties.schedule, clock) -> {
-                log.info("Swabbie schedule: working")
-                runSwabbie()
+    if (dynamicConfigService.isEnabled("swabbie.work", true)) {
+      runningTask = executorService.scheduleWithFixedDelay({
+        try {
+          when {
+            LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
+              when {
+                timeToWork(swabbieProperties.schedule, clock) -> {
+                  log.info("Swabbie schedule: working")
+                  runSwabbie()
+                }
+                else -> log.info("Swabbie schedule: off hours")
               }
-              else -> log.info("Swabbie schedule: off hours")
-            }
-          else -> log.info("Swabbie schedule: off hours on {}", LocalDateTime.now(clock).dayOfWeek)
+            else -> log.info("Swabbie schedule: off hours on {}", LocalDateTime.now(clock).dayOfWeek)
+          }
+        } catch (e: Exception) {
+          registry.counter(
+              failedDuringSchedule.withTags(
+                  "agentName", this.javaClass.simpleName
+              )).increment()
+          log.error("Failed during schedule method for {}", javaClass.simpleName)
         }
-      } catch (e: Exception) {
-        registry.counter(
-          failedDuringSchedule.withTags(
-            "agentName", this.javaClass.simpleName
-          )).increment()
-        log.error("Failed during schedule method for {}", javaClass.simpleName)
-      }
-    }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
+      }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
+    } else {
+      log.info("Swabbie schedule: disabled via property swabbie.work")
+    }
   }
 
   private fun runSwabbie() {

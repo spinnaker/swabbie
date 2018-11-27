@@ -26,6 +26,7 @@ import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
@@ -72,6 +73,7 @@ object AmazonImageHandlerTest {
   private val launchConfigurationCache = mock<InMemorySingletonCache<AmazonLaunchConfigurationCache>>()
   private val imagesUsedByinstancesCache = mock<InMemorySingletonCache<AmazonImagesUsedByInstancesCache>>()
   private val applicationUtils = ApplicationUtils(emptyList())
+  private val dynamicConfigService = mock<DynamicConfigService>()
 
   private val subject = AmazonImageHandler(
     clock = clock,
@@ -96,7 +98,8 @@ object AmazonImageHandlerTest {
     swabbieProperties = swabbieProperties,
     launchConfigurationCache = launchConfigurationCache,
     imagesUsedByinstancesCache = imagesUsedByinstancesCache,
-    applicationUtils = applicationUtils
+    applicationUtils = applicationUtils,
+    dynamicConfigService = dynamicConfigService
   )
 
   @BeforeEach
@@ -311,6 +314,9 @@ object AmazonImageHandlerTest {
       )
     )
 
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+        workConfiguration.maxItemsProcessedPerCycle
+
     subject.getCandidates(workConfiguration).let { images ->
       images!!.size shouldMatch equalTo(2)
       Assertions.assertTrue(images.any { it.imageId == "ami-123" })
@@ -401,6 +407,9 @@ object AmazonImageHandlerTest {
           )
         )
       )
+
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+        workConfiguration.maxItemsProcessedPerCycle
 
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
 

@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -43,6 +44,7 @@ class NotificationAgent(
   agentExecutor: Executor,
   swabbieProperties: SwabbieProperties,
   cacheStatus: CacheStatus,
+  dynamicConfigService: DynamicConfigService,
   private val clock: Clock
 ) : ScheduledAgent(
   clock,
@@ -51,7 +53,8 @@ class NotificationAgent(
   workConfigurations,
   agentExecutor,
   swabbieProperties,
-  cacheStatus
+  cacheStatus,
+  dynamicConfigService
 ) {
   @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
   private var interval: Long = 3600

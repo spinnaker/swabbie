@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
@@ -43,6 +44,7 @@ class ResourceMarkerAgent(
   agentExecutor: Executor,
   swabbieProperties: SwabbieProperties,
   cacheStatus: CacheStatus,
+  dynamicConfigService: DynamicConfigService,
   private val clock: Clock
 ) : ScheduledAgent(
   clock,
@@ -51,7 +53,8 @@ class ResourceMarkerAgent(
   workConfigurations,
   agentExecutor,
   swabbieProperties,
-  cacheStatus
+  cacheStatus,
+  dynamicConfigService
 ) {
   @Value("\${swabbie.agents.mark.intervalSeconds:3600}")
   private var interval: Long = 3600

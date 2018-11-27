@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.loadbalancers
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.events.Action
@@ -48,6 +49,7 @@ class AmazonLoadBalancerHandler(
   lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
   swabbieProperties: SwabbieProperties,
+  dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
   private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
   private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
@@ -68,7 +70,8 @@ class AmazonLoadBalancerHandler(
   lockingService,
   retrySupport,
   resourceUseTrackingRepository,
-  swabbieProperties
+  swabbieProperties,
+  dynamicConfigService
 ) {
   override fun deleteResources(
     markedResources: List<MarkedResource>,

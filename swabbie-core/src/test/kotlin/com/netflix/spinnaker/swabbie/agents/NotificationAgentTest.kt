@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
@@ -32,6 +33,7 @@ object NotificationAgentTest {
   private val agentExecutor = BlockingThreadExecutor()
   private val swabbieProperties = SwabbieProperties()
   private val cacheStatus = NoopCacheStatus()
+  private val dynamicConfigService = mock<DynamicConfigService>()
 
   @Test
   fun `should not notify if no handler found`() {
@@ -45,7 +47,8 @@ object NotificationAgentTest {
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
       swabbieProperties = swabbieProperties,
-      cacheStatus = cacheStatus
+      cacheStatus = cacheStatus,
+      dynamicConfigService = dynamicConfigService
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).notify(any(), any())
@@ -63,7 +66,8 @@ object NotificationAgentTest {
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
       swabbieProperties = swabbieProperties,
-      cacheStatus = cacheStatus
+      cacheStatus = cacheStatus,
+      dynamicConfigService = dynamicConfigService
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, times(1)).notify(

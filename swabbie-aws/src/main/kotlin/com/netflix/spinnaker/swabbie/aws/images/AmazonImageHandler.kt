@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.images
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
@@ -30,8 +31,6 @@ import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.*
 import com.netflix.spinnaker.swabbie.repository.*
-import com.netflix.spinnaker.swabbie.tagging.TaggingService
-import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.context.ApplicationEventPublisher
@@ -53,6 +52,7 @@ class AmazonImageHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
+  dynamicConfigService: DynamicConfigService,
   private val launchConfigurationCache: InMemorySingletonCache<AmazonLaunchConfigurationCache>,
   private val imagesUsedByinstancesCache: InMemorySingletonCache<AmazonImagesUsedByInstancesCache>,
   private val rules: List<Rule<AmazonImage>>,
@@ -75,7 +75,8 @@ class AmazonImageHandler(
   lockingService,
   retrySupport,
   resourceUseTrackingRepository,
-  swabbieProperties
+  swabbieProperties,
+  dynamicConfigService
 ) {
 
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {

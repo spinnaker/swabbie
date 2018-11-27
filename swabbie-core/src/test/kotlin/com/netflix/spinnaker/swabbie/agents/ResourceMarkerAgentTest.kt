@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
@@ -38,6 +39,7 @@ object ResourceMarkerAgentTest {
   private val configuration = workConfiguration()
   private val agentExecutor = BlockingThreadExecutor()
   private val onCompleteCallback = {}
+  private val dynamicConfigService = mock<DynamicConfigService>()
 
   @AfterEach
   fun cleanup() {
@@ -57,7 +59,8 @@ object ResourceMarkerAgentTest {
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
       swabbieProperties = SwabbieProperties(),
-      cacheStatus = cacheStatus
+      cacheStatus = cacheStatus,
+      dynamicConfigService = dynamicConfigService
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler, never()).mark(any(), any())
@@ -75,7 +78,8 @@ object ResourceMarkerAgentTest {
       workConfigurations = listOf(configuration),
       agentExecutor = agentExecutor,
       swabbieProperties = SwabbieProperties(),
-      cacheStatus = cacheStatus
+      cacheStatus = cacheStatus,
+      dynamicConfigService = dynamicConfigService
     ).process(configuration, onCompleteCallback)
 
     verify(resourceTypeHandler).mark(any(), any())

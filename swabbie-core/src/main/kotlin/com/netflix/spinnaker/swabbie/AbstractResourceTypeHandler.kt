@@ -20,6 +20,7 @@ import com.google.common.collect.Lists
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.lock.LockManager.LockOptions
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.events.Action
@@ -59,7 +60,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private val lockingService: Optional<LockingService>,
   private val retrySupport: RetrySupport,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
-  private val swabbieProperties: SwabbieProperties
+  private val swabbieProperties: SwabbieProperties,
+  private val dynamicConfigService: DynamicConfigService
 ) : ResourceTypeHandler<T>, MetricsSupport(registry) {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   private val resourceOwnerField: String = "swabbieResourceOwner"
@@ -224,6 +226,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       }
   }
 
+  private fun getMaxItemsProcessedPerCycle(workConfiguration: WorkConfiguration): Int {
+    val key = workConfiguration.namespace + ".maxItemsProcessedPerCycle"
+    return dynamicConfigService.getConfig(Int::class.java, key, workConfiguration.maxItemsProcessedPerCycle)
+  }
+
   private fun doMark(workConfiguration: WorkConfiguration, postMark: () -> Unit) {
     // initialize counters
     exclusionCounters[Action.MARK] = AtomicInteger(0)
@@ -254,7 +261,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         .filter { !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK) }
         .also { preProcessCandidates(it, workConfiguration) }
 
-      val maxItemsToProcess = Math.min(preProcessedCandidates.size, workConfiguration.maxItemsProcessedPerCycle)
+      val maxItemsToProcess = Math.min(preProcessedCandidates.size, getMaxItemsProcessedPerCycle(workConfiguration))
 
       for (candidate in preProcessedCandidates) {
         if (candidateCounter.get() > maxItemsToProcess) {
@@ -389,7 +396,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     markedResources: List<MarkedResource>,
     action: Action
   ) {
-    val totalProcessed = Math.min(workConfiguration.maxItemsProcessedPerCycle, totalResourcesVisitedCounter.get())
+    val totalProcessed = Math.min(getMaxItemsProcessedPerCycle(workConfiguration), totalResourcesVisitedCounter.get())
     log.info("${action.name} Summary: {} candidates out of {} processed. {} scanned. {} excluded. Configuration: {}",
       candidateCounter.get(),
       totalProcessed,
@@ -480,7 +487,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         !shouldSkip
       }
       
-      val maxItemsToProcess = Math.min(confirmedResourcesToDelete.size, workConfiguration.maxItemsProcessedPerCycle)
+      val maxItemsToProcess = Math.min(confirmedResourcesToDelete.size, getMaxItemsProcessedPerCycle(workConfiguration))
       confirmedResourcesToDelete.subList(0, maxItemsToProcess).let {
         partitionList(it, workConfiguration).forEach { partition ->
           if (!partition.isEmpty()) {
@@ -575,7 +582,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
       log.info("Processing ${markedResources.size} for notification in ${javaClass.simpleName}")
 
-      val maxItemsToProcess = Math.min(markedResources.size, workConfiguration.maxItemsProcessedPerCycle)
+      val maxItemsToProcess = Math.min(markedResources.size, getMaxItemsProcessedPerCycle(workConfiguration))
       val groupedResourcesToNotify = markedResources.subList(0, maxItemsToProcess)
         .filter {
           @Suppress("UNCHECKED_CAST")

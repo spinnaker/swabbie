@@ -21,6 +21,7 @@ import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.*
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
@@ -58,6 +59,7 @@ object AmazonAutoScalingGroupHandlerTest {
   private val lockingService = Optional.empty<LockingService>()
   private val orcaService = mock<OrcaService>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
+  private val dynamicConfigService = mock<DynamicConfigService>()
 
   private val subject = AmazonAutoScalingGroupHandler(
     clock = clock,
@@ -79,7 +81,8 @@ object AmazonAutoScalingGroupHandlerTest {
     serverGroupProvider = serverGroupProvider,
     orcaService = orcaService,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
-    swabbieProperties = SwabbieProperties().also { it.schedule.enabled = false }
+    swabbieProperties = SwabbieProperties().also { it.schedule.enabled = false },
+    dynamicConfigService = dynamicConfigService
   )
 
   @BeforeEach
@@ -193,6 +196,8 @@ object AmazonAutoScalingGroupHandlerTest {
           )
       )
     )
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+        workConfiguration.maxItemsProcessedPerCycle
 
     subject.getCandidates(getWorkConfiguration()).let { serverGroups ->
       serverGroups!!.size shouldMatch equalTo(2)
@@ -215,7 +220,6 @@ object AmazonAutoScalingGroupHandlerTest {
   @Test
   fun `should delete server groups`() {
     val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
-    val thirteenDaysAgo = clock.instant().minusSeconds(13 * 24 * 60 * 60).toEpochMilli()
     val workConfiguration = getWorkConfiguration(maxAgeDays = 1)
     val serverGroup = AmazonAutoScalingGroup(
       autoScalingGroupName = "app-v001",
@@ -256,6 +260,8 @@ object AmazonAutoScalingGroupHandlerTest {
         status = OrcaExecutionStatus.SUCCEEDED,
         name = "delete blah"
       )
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+        workConfiguration.maxItemsProcessedPerCycle
 
     subject.delete(workConfiguration, {})
 
@@ -284,6 +290,7 @@ object AmazonAutoScalingGroupHandlerTest {
           exclusions = mutableListOf()
           accounts = accountIds
           locations = regions
+          maxItemsProcessedPerCycle = 10
           resourceTypes = listOf(
             ResourceTypeConfiguration().apply {
               name = "serverGroup"

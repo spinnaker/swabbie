@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.securitygroups
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
@@ -49,6 +49,7 @@ class AmazonSecurityGroupHandler(
   lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
   swabbieProperties: SwabbieProperties,
+  dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonSecurityGroup>>,
   private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
   private val orcaService: OrcaService,
@@ -68,7 +69,8 @@ class AmazonSecurityGroupHandler(
   lockingService,
   retrySupport,
   resourceUseTrackingRepository,
-  swabbieProperties
+  swabbieProperties,
+  dynamicConfigService
 ) {
   override fun deleteResources(
     markedResources: List<MarkedResource>,

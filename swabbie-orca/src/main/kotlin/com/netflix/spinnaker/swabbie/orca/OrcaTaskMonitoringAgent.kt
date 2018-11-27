@@ -114,9 +114,6 @@ class OrcaTaskMonitoringAgent (
     initialize()
 
     val inProgressTasks = taskTrackingRepository.getInProgress()
-    if (inProgressTasks.isEmpty()) {
-      log.debug("No active orca tasks to monitor from ${javaClass.simpleName}.")
-    }
 
     inProgressTasks
       .forEach { taskId ->

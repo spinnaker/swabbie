@@ -25,6 +25,7 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
@@ -45,18 +46,20 @@ import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.*
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
-  private val clock = Clock.systemDefaultZone()
+  private val clock = Clock.fixed(Instant.parse("2018-11-26T09:30:00Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val lockingService = Optional.empty<LockingService>()
   private val retrySupport = RetrySupport()
   private val ownerResolver = mock<ResourceOwnerResolver<TestResource>>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
+  private val dynamicConfigService = mock<DynamicConfigService>()
 
   private val postAction: (resource: List<Resource>) -> Unit = {
     println("swabbie post action on $it")
@@ -79,7 +82,8 @@ object ResourceTypeHandlerTest {
     lockingService = lockingService,
     retrySupport = retrySupport,
     taskTrackingRepository = taskTrackingRepository,
-    resourceUseTrackingRepository = resourceUseTrackingRepository
+    resourceUseTrackingRepository = resourceUseTrackingRepository,
+    dynamicConfigService = dynamicConfigService
   )
   private val alwaysInvalidHandler = TestResourceTypeHandler(
     clock = clock,
@@ -96,7 +100,8 @@ object ResourceTypeHandlerTest {
     lockingService = lockingService,
     retrySupport = retrySupport,
     taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-    resourceUseTrackingRepository = resourceUseTrackingRepository
+    resourceUseTrackingRepository = resourceUseTrackingRepository,
+    dynamicConfigService = dynamicConfigService
   )
 
   @BeforeEach
@@ -147,7 +152,8 @@ object ResourceTypeHandlerTest {
       lockingService = lockingService,
       retrySupport = retrySupport,
       taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = dynamicConfigService
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -183,7 +189,8 @@ object ResourceTypeHandlerTest {
       lockingService = lockingService,
       retrySupport = retrySupport,
       taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = dynamicConfigService
     )
 
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
@@ -278,7 +285,8 @@ object ResourceTypeHandlerTest {
       lockingService = lockingService,
       retrySupport = retrySupport,
       taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = dynamicConfigService
     )
 
     whenever(ownerResolver.resolve(resource1)) doReturn  "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
@@ -343,11 +351,11 @@ object ResourceTypeHandlerTest {
   fun `should ignore opted out resources during mark`() {
     val resource = TestResource(resourceId = "testResource", name = "testResourceName")
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val configuration = workConfiguration()
+    val workConfiguration = workConfiguration()
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("invalid resource 2", "rule 2")),
-      namespace = configuration.namespace,
+      namespace = workConfiguration.namespace,
       resourceOwner = "test@netflix.com",
       projectedDeletionStamp = fifteenDaysAgo,
       notificationInfo = NotificationInfo(
@@ -370,11 +378,12 @@ object ResourceTypeHandlerTest {
         )
       )
 
-
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+        workConfiguration.maxItemsProcessedPerCycle
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
     alwaysInvalidHandler.mark(
-      workConfiguration = configuration,
+      workConfiguration = workConfiguration,
       postMark = { postAction(listOf(resource)) }
     )
 
@@ -460,7 +469,8 @@ object ResourceTypeHandlerTest {
       lockingService = lockingService,
       retrySupport = retrySupport,
       taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = mock()
     )
 
     val result = handler.partitionList(markedResources, configuration)
@@ -513,21 +523,22 @@ object ResourceTypeHandlerTest {
     )
 
     val handler = TestResourceTypeHandler(
-        clock = clock,
-        rules = listOf(
-            TestRule({ true }, Summary("always invalid", "rule1"))
-        ),
-        resourceTrackingRepository = resourceRepository,
-        resourceStateRepository = resourceStateRepository,
-        ownerResolver = ownerResolver,
-        exclusionPolicies = listOf(),
-        applicationEventPublisher = applicationEventPublisher,
-        simulatedCandidates = mutableListOf(resource1, resource2),
-        notifiers = listOf(mock()),
-        lockingService = lockingService,
-        retrySupport = retrySupport,
-        taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-        resourceUseTrackingRepository = resourceUseTrackingRepository
+      clock = clock,
+      rules = listOf(
+          TestRule({ true }, Summary("always invalid", "rule1"))
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedCandidates = mutableListOf(resource1, resource2),
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = retrySupport,
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = dynamicConfigService
     )
 
     val result = handler.partitionList(markedResources, configuration)
@@ -570,7 +581,8 @@ object ResourceTypeHandlerTest {
       lockingService = lockingService,
       retrySupport = mock(),
       taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = dynamicConfigService
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -620,7 +632,8 @@ object ResourceTypeHandlerTest {
       lockingService = lockingService,
       retrySupport = mock(),
       taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = dynamicConfigService
     )
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
@@ -639,11 +652,19 @@ object ResourceTypeHandlerTest {
     verify(resourceRepository, never()).upsert(any(), any())
   }
 
+  @Test
+  fun `delete time should equal now plus retention days`() {
+    val configuration = workConfiguration(retention = 2)
+    val plus2Days = Instant.parse("2018-11-28T09:30:00Z").toEpochMilli()
+    defaultHandler.deletionTimestamp(configuration) shouldMatch equalTo(plus2Days)
+  }
+
   internal fun workConfiguration(
     exclusions: List<Exclusion> = emptyList(),
     dryRun: Boolean = false,
     itemsProcessedBatchSize: Int = 1,
-    maxItemsProcessedPerCycle: Int = 10
+    maxItemsProcessedPerCycle: Int = 10,
+    retention: Int = 14
   ): WorkConfiguration = WorkConfiguration(
     namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
     account = SpinnakerAccount(
@@ -658,7 +679,7 @@ object ResourceTypeHandlerTest {
     location = "us-east-1",
     cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
     resourceType = TEST_RESOURCE_TYPE,
-    retention = 14,
+    retention = retention,
     exclusions = exclusions,
     dryRun = dryRun,
     maxAge = 1,
@@ -689,7 +710,8 @@ object ResourceTypeHandlerTest {
     lockingService: Optional<LockingService>,
     retrySupport: RetrySupport,
     taskTrackingRepository: TaskTrackingRepository,
-    resourceUseTrackingRepository: ResourceUseTrackingRepository
+    resourceUseTrackingRepository: ResourceUseTrackingRepository,
+    dynamicConfigService: DynamicConfigService
   ) : AbstractResourceTypeHandler<TestResource>(
     registry,
     clock,
@@ -703,7 +725,8 @@ object ResourceTypeHandlerTest {
     lockingService,
     retrySupport,
     resourceUseTrackingRepository,
-    SwabbieProperties()
+    SwabbieProperties(),
+    dynamicConfigService
   ) {
     override fun deleteResources(
       markedResources: List<MarkedResource>,

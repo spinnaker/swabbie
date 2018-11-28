@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie.controllers
 
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
-import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
 import com.netflix.spinnaker.swabbie.model.*
@@ -34,8 +33,7 @@ class ResourceController(
   private val resourceStateRepository: ResourceStateRepository,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val applicationEventPublisher: ApplicationEventPublisher,
-  private val workConfigurations: List<WorkConfiguration>,
-  private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
+  private val controllerUtils: ControllerUtils
 ) {
 
   private val log = LoggerFactory.getLogger(javaClass)
@@ -149,19 +147,14 @@ class ResourceController(
     if (markedResource != null) {
       log.debug("Found resource ${markedResource.uniqueId()} to opt out.")
       resourceTrackingRepository.remove(markedResource)
-      workConfigurations.find {
-        it.namespace.equals(namespace, true)
-      }?.also { configuration ->
-        log.debug("Publishing opt out event for ${markedResource.uniqueId()}")
-        applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, configuration))
-      }
-    } else {
-      log.debug("Did not find marked resource ${namespace}:${resourceId} to opt out. Opting out anyways.")
-      val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+      val workConfiguration = controllerUtils.findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
 
-      val handler = resourceTypeHandlers.find { handler ->
-        handler.handles(workConfiguration)
-      } ?: throw NotFoundException("No handlers for $namespace")
+      log.debug("Publishing opt out event for ${markedResource.uniqueId()}")
+      applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, workConfiguration))
+    } else {
+      log.debug("Did not find marked resource $namespace:$resourceId to opt out. Opting out anyways.")
+      val workConfiguration = controllerUtils.findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+      val handler = controllerUtils.findHandler(workConfiguration)
 
       handler.optOut(resourceId, workConfiguration)
     }
@@ -178,22 +171,10 @@ class ResourceController(
     @PathVariable namespace: String,
     @PathVariable resourceId: String
   ): ResourceEvaluation {
-    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+    val workConfiguration = controllerUtils.findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
     val newWorkConfiguration = workConfiguration.copy(dryRun = true)
-
-    val handler = resourceTypeHandlers.find { handler ->
-      handler.handles(newWorkConfiguration)
-    } ?: throw NotFoundException("No handlers for $namespace")
+    val handler = controllerUtils.findHandler(newWorkConfiguration)
 
     return handler.evaluateCandidate(resourceId, resourceId, newWorkConfiguration)
-  }
-
-  private fun findWorkConfiguration(namespace: SwabbieNamespace): WorkConfiguration {
-    return workConfigurations.find { workConfiguration ->
-      workConfiguration.account.name == namespace.accountName
-        && workConfiguration.cloudProvider == namespace.cloudProvider
-        && workConfiguration.resourceType == namespace.resourceType
-        && workConfiguration.location == namespace.region
-    } ?: throw NotFoundException("No configuration found for $namespace")
   }
 }

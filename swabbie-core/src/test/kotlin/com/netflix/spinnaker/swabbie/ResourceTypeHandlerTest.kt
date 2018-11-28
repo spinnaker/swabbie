@@ -48,6 +48,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()
@@ -657,6 +658,117 @@ object ResourceTypeHandlerTest {
     val configuration = workConfiguration(retention = 2)
     val plus2Days = Instant.parse("2018-11-28T09:30:00Z").toEpochMilli()
     defaultHandler.deletionTimestamp(configuration) shouldMatch equalTo(plus2Days)
+  }
+
+  @Test
+  fun `update delete timestamp should work`() {
+    val timestamp10days = clock.millis().plus(TimeUnit.DAYS.toMillis(10))
+    val timestamp1hour = clock.millis().plus(TimeUnit.HOURS.toMillis(1))
+    val resource1 = TestResource(
+        "1",
+        name = "testResource-v001",
+        grouping = Grouping("testResource", GroupingType.APPLICATION),
+        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(11))
+    )
+    val resource2 = TestResource(
+        "2",
+        name = "testResource-v002",
+        grouping = Grouping("testResource", GroupingType.APPLICATION),
+        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
+    )
+    val resource3 = TestResource("3", name = "random", createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10)))
+    val resource4 = TestResource(
+        resourceId = "4",
+        name = "my-package-0.0.2",
+        resourceType = "image",
+        grouping = Grouping("my-package", GroupingType.PACKAGE_NAME),
+        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
+    )
+    val resource5 = TestResource(
+        resourceId = "5",
+        name = "my-package-0.0.4",
+        resourceType = "image",
+        grouping = Grouping("my-package", GroupingType.PACKAGE_NAME),
+        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
+    )
+
+    val configuration = workConfiguration(
+        itemsProcessedBatchSize = 2,
+        maxItemsProcessedPerCycle = 3
+    )
+
+    val markedResource1 = MarkedResource(
+        resource = resource1,
+        summaries = listOf(Summary("invalid resource 1", "rule 1")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = timestamp10days
+    )
+
+    val updatedMarkedResource1 = MarkedResource(
+        resource = resource1,
+        summaries = listOf(Summary("invalid resource 1", "rule 1")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = timestamp1hour
+    )
+
+    val markedResources = listOf(
+        markedResource1,
+        MarkedResource(
+            resource = resource2,
+            summaries = listOf(Summary("invalid resource 2", "rule 2")),
+            namespace = configuration.namespace,
+            resourceOwner = "test@netflix.com",
+            projectedDeletionStamp = timestamp10days
+        ),
+        MarkedResource(
+            resource = resource3,
+            summaries = listOf(Summary("invalid resource random", "rule 3")),
+            namespace = configuration.namespace,
+            resourceOwner = "test@netflix.com",
+            projectedDeletionStamp = timestamp10days
+        ),
+        MarkedResource(
+            resource = resource4,
+            summaries = listOf(Summary("invalid resource random", "rule 4")),
+            namespace = configuration.namespace,
+            resourceOwner = "test@netflix.com",
+            projectedDeletionStamp = timestamp10days
+        ),
+        MarkedResource(
+            resource = resource5,
+            summaries = listOf(Summary("invalid resource random", "rule 5")),
+            namespace = configuration.namespace,
+            resourceOwner = "test@netflix.com",
+            projectedDeletionStamp = timestamp10days
+        )
+    )
+
+    whenever(resourceRepository.getMarkedResources()) doReturn markedResources
+
+    val handler = TestResourceTypeHandler(
+      clock = clock,
+      rules = listOf(
+          TestRule(invalidOn = { true }, summary = null)
+      ),
+      resourceTrackingRepository = resourceRepository,
+      resourceStateRepository = resourceStateRepository,
+      ownerResolver = ownerResolver,
+      exclusionPolicies = listOf(mock()),
+      applicationEventPublisher = applicationEventPublisher,
+      simulatedCandidates = mutableListOf(defaultResource),
+      notifiers = listOf(mock()),
+      lockingService = lockingService,
+      retrySupport = mock(),
+      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
+      resourceUseTrackingRepository = resourceUseTrackingRepository,
+      dynamicConfigService = dynamicConfigService
+    )
+
+    handler.recalculateDeletionTimestamp(3600, 1)
+    verify(resourceRepository, times(1)).upsert(updatedMarkedResource1)
+
   }
 
   internal fun workConfiguration(

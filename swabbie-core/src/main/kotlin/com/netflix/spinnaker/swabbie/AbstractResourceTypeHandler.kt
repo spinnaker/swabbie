@@ -321,6 +321,22 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
+  override fun recalculateDeletionTimestamp(retentionS: Long, numResources: Int) {
+    val newTimestamp = deletionTimestamp(retentionS)
+    log.info("Setting deletion time to $newTimestamp for $numResources resources in ${javaClass.simpleName}.")
+
+    val markedResources = resourceRepository.getMarkedResources()
+        .sortedBy { it.resource.createTs }
+        .take(numResources)
+    markedResources.forEach { resource ->
+      resource.projectedDeletionStamp = newTimestamp
+      resourceRepository.upsert(resource)
+    }
+
+    log.info("New deletion timestamp of $newTimestamp set for resources " +
+        markedResources.map { it.resource.resourceId })
+  }
+
   override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation {
     val candidate = getCandidate(resourceId, resourceName, workConfiguration) ?: return ResourceEvaluation(
       workConfiguration.namespace,
@@ -385,7 +401,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   fun deletionTimestamp(workConfiguration: WorkConfiguration): Long {
     val daysInFuture = workConfiguration.retention.toLong()
     val seconds = TimeUnit.DAYS.toSeconds(daysInFuture)
-    val proposedTime = clock.instant().plusSeconds(seconds).toEpochMilli()
+    return deletionTimestamp(seconds)
+  }
+
+  private fun deletionTimestamp(retentionSeconds: Long): Long {
+    val proposedTime = clock.instant().plusSeconds(retentionSeconds).toEpochMilli()
     return swabbieProperties.schedule.getNextTimeInWindow(proposedTime)
   }
 
@@ -446,7 +466,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val candidateCounter = AtomicInteger(0)
     val markedResources = mutableListOf<MarkedResource>()
     try {
-      val currentMarkedResourcesToDelete = resourceRepository.getMarkedResourcesToDelete() //what if some no longer qualify
+      val currentMarkedResourcesToDelete = resourceRepository.getMarkedResourcesToDelete()
         .filter {
           it.notificationInfo != null && !workConfiguration.dryRun && it.namespace == workConfiguration.namespace
         }

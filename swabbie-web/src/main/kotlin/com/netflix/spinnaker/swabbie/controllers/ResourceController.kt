@@ -196,4 +196,22 @@ class ResourceController(
         && workConfiguration.location == namespace.region
     } ?: throw NotFoundException("No configuration found for $namespace")
   }
+
+  /**
+   * Recalculate deletion timestamp to @retentionS seconds in the future for the
+   * oldest @numResources that are marked
+   */
+  @RequestMapping(value = ["/recalculate/{namespace}/"], method = [RequestMethod.PUT])
+  fun recalculate(
+      @PathVariable namespace: String,
+      @RequestParam(required = true) retentionS: Long,
+      @RequestParam(required = false, defaultValue = "100") numResources: Int
+  ) {
+    log.info("Recalculating deletion timestamp for oldest $numResources resources in $namespace. Setting to ${retentionS}s from now.")
+    val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
+    val handler = resourceTypeHandlers.find { handler ->
+      handler.handles(workConfiguration)
+    } ?: throw NotFoundException("No handlers for $namespace")
+    handler.recalculateDeletionTimestamp(retentionS, numResources)
+  }
 }

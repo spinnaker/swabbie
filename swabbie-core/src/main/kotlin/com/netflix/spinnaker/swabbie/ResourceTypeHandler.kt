@@ -73,9 +73,9 @@ interface ResourceTypeHandler<T : Resource> {
   fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation
 
   /**
-   * Admin api to recalculate deletion timestamp for a number of resources
+   * Admin api to recalculate deletion timestamp for [numResources] to [retentionSeconds] from now
    */
-  fun recalculateDeletionTimestamp(retentionS: Long, numResources: Int)
+  fun recalculateDeletionTimestamp(retentionSeconds: Long, numResources: Int)
 
   /**
    * FOR TESTING

@@ -37,6 +37,8 @@ import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.services.DynamicPropertyService
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -60,6 +62,8 @@ import java.util.*
 @EnableConfigurationProperties(SwabbieProperties::class)
 @ComponentScan(basePackages = arrayOf("com.netflix.spinnaker.swabbie"))
 open class SwabbieConfiguration {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+
   @Autowired
   open fun objectMapper(objectMapper: ObjectMapper) =
     objectMapper.apply {
@@ -87,10 +91,12 @@ open class SwabbieConfiguration {
 
 
   @Bean
-  open fun agentExecutor(): ThreadPoolTaskExecutor =
-    ThreadPoolTaskExecutor().apply {
-      corePoolSize = 20
+  open fun agentExecutor(@Value("\${agents.threads:2}") numThreads: Int): ThreadPoolTaskExecutor {
+    log.info("Using $numThreads threads for the agentExecutor")
+    return ThreadPoolTaskExecutor().apply {
+      corePoolSize = numThreads
     }
+  }
 
   @Bean
   open fun retrySupport(): RetrySupport {

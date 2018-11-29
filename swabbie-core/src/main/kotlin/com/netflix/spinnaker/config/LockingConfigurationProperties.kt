@@ -24,5 +24,4 @@ open class LockingConfigurationProperties {
   var maximumLockDurationMillis: Long? = 60 * 60 * 1000L // 1hour
   var heartbeatRateMillis: Long = 6000
   var leaseDurationMillis: Long = 10000
-  var maxConcurrentLocks: Int = 2
 }

@@ -112,56 +112,62 @@ class OrcaTaskMonitoringAgent (
 
   private fun monitorOrcaTasks() {
     initialize()
+    try {
 
-    val inProgressTasks = taskTrackingRepository.getInProgress()
+      val inProgressTasks = taskTrackingRepository.getInProgress()
 
-    inProgressTasks
-      .forEach { taskId ->
-        val response = getTask(taskId)
-        if (response.status.isComplete()) {
-          val taskInfo = taskTrackingRepository.getTaskDetail(taskId)
-          if (taskInfo == null) {
-            log.error(
-              "TaskDetail not found in tracking repository for {}. Unable to fire completion event for task.",
-              kv("taskId", taskId)
-            )
-            return
-          }
+      inProgressTasks
+          .forEach { taskId ->
+            val response = getTask(taskId)
+            if (response.status.isComplete()) {
+              val taskInfo = taskTrackingRepository.getTaskDetail(taskId)
+              if (taskInfo == null) {
+                log.error(
+                    "TaskDetail not found in tracking repository for {}. Unable to fire completion event for task.",
+                    kv("taskId", taskId)
+                )
+                return
+              }
 
-          when {
-            response.status.isSuccess() -> {
-              log.debug(
-                "Orca task {} succeeded. Task complete info: {}",
-                kv("taskId", taskId),
-                taskInfo
-              )
-              publishEvent(taskInfo)
-              taskTrackingRepository.setSucceeded(taskId)
-            }
-            response.status.isFailure() -> {
-              log.error(
-                "Orca task {} for action {} did not complete. Status: {}. Resources: {}",
-                kv("taskId", taskId),
-                taskInfo.action,
-                kv("responseStatus", response.status),
-                taskInfo.markedResources.map { it.uniqueId() }
-              )
-              taskTrackingRepository.setFailed(taskId)
-              taskInfo.markedResources
-                .forEach { markedResource ->
-                  applicationEventPublisher.publishEvent(
-                    OrcaTaskFailureEvent(taskInfo.action, markedResource, taskInfo.workConfiguration)
+              when {
+                response.status.isSuccess() -> {
+                  log.debug(
+                      "Orca task {} succeeded. Task complete info: {}",
+                      kv("taskId", taskId),
+                      taskInfo
                   )
+                  publishEvent(taskInfo)
+                  taskTrackingRepository.setSucceeded(taskId)
                 }
-            }
-            response.status.isIncomplete() -> {
-              log.debug("Still monitoring orca task {}", kv("taskId", taskId))
+                response.status.isFailure() -> {
+                  log.error(
+                      "Orca task {} for action {} did not complete. Status: {}. Resources: {}",
+                      kv("taskId", taskId),
+                      taskInfo.action,
+                      kv("responseStatus", response.status),
+                      taskInfo.markedResources.map { it.uniqueId() }
+                  )
+                  taskTrackingRepository.setFailed(taskId)
+                  taskInfo.markedResources
+                      .forEach { markedResource ->
+                        applicationEventPublisher.publishEvent(
+                            OrcaTaskFailureEvent(taskInfo.action, markedResource, taskInfo.workConfiguration)
+                        )
+                      }
+                }
+                response.status.isIncomplete() -> {
+                  log.debug("Still monitoring orca task {}", kv("taskId", taskId))
+                }
+              }
             }
           }
-        }
-      }
 
-    clean()
+      clean()
+    } finally {
+      if (lockingService.isPresent) {
+        lockingService.get().numLocksCurrentlyHeld.decrementAndGet() //todo eb: put this in the lockManager?
+      }
+    }
   }
 
   private fun getTask(taskId: String): TaskDetailResponse =
@@ -191,7 +197,7 @@ class OrcaTaskMonitoringAgent (
   }
 
   @Value("\${swabbie.agents.orcaTaskMonitor.intervalSeconds:10}")
-  private var interval: Long = 10
+  private var interval: Long = 60
 
   @Value("\${swabbie.agents.orcaTaskMonitor.delaySeconds:30}")
   private var delay: Long = 0

@@ -124,18 +124,29 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     callback: () -> Unit
   ) {
     if (lockingService.isPresent) {
+      val lockingService = lockingService.get()
+      if (lockingService.numLocksCurrentlyHeld.get() >= lockingService.swabbieMaxConcurrentLocks) {
+        log.warn("Max concurrent locks reached (${lockingService.numLocksCurrentlyHeld.get()}). Will not acquire more.")
+        return
+      }
       val normalizedLockName = ("${action.name}." + workConfiguration.namespace)
         .replace(":", ".")
         .toLowerCase()
       val lockOptions = LockOptions()
         .withLockName(normalizedLockName)
-        .withMaximumLockDuration(lockingService.get().swabbieMaxLockDuration)
-      lockingService.get().acquireLock(lockOptions) {
+        .withMaximumLockDuration(lockingService.swabbieMaxLockDuration)
+      lockingService.acquireLock(lockOptions) {
         callback.invoke()
       }
     } else {
       log.warn("Locking not ENABLED, continuing without locking for ${javaClass.simpleName}")
       callback.invoke()
+    }
+  }
+
+  private fun decNumLocksHeld() {
+    if (lockingService.isPresent) {
+      lockingService.get().numLocksCurrentlyHeld.decrementAndGet() //todo eb: put this in the lockManager?
     }
   }
 
@@ -318,6 +329,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     } finally {
       recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter, totalResourcesVisitedCounter)
       postMark.invoke()
+      decNumLocksHeld()
     }
   }
 
@@ -532,6 +544,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
     } finally {
       postClean.invoke()
+      decNumLocksHeld()
     }
   }
 
@@ -652,6 +665,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       )
     } finally {
       postNotify.invoke()
+      decNumLocksHeld()
     }
   }
 

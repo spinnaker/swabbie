@@ -21,9 +21,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.repository.DeleteInfo
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
@@ -54,7 +54,7 @@ class RedisResourceTrackingRepository(
     val key = "$namespace:$resourceId"
     return redisClientDelegate.withCommandsClient<String> { client ->
         client.hget(SINGLE_RESOURCES_KEY, key)
-      }?.let { objectMapper.readValue(it) }
+      }?.let { readMarkedResource(it) }
   }
 
   override fun getMarkedResources(): List<MarkedResource> {
@@ -120,8 +120,8 @@ class RedisResourceTrackingRepository(
     resourseIds.chunked(REDIS_CHUNK_SIZE).forEach { sublist ->
       val hydrated = redisClientDelegate.withCommandsClient<Set<String>> { client ->
         client.hmget(SINGLE_RESOURCES_KEY, *sublist.toTypedArray()).toSet()
-      }.map { json ->
-        objectMapper.readValue<MarkedResource>(json)
+      }.mapNotNull { json: String ->
+        readMarkedResource(json)
       }
       hydratedResources.addAll(hydrated)
     }
@@ -172,10 +172,26 @@ class RedisResourceTrackingRepository(
         }
       }
       results
-      }.map { json ->
-        objectMapper.readValue<DeleteInfo>(json)
+      }.mapNotNull { json ->
+        var deleteInfo: DeleteInfo? = null
+        try {
+          deleteInfo = objectMapper.readValue(json)
+        } catch (e: Exception) {
+          log.error("Exception reading delete info $json in ${javaClass.simpleName}: ", e)
+        }
+        deleteInfo
       }.toList()
     }
+
+  private fun readMarkedResource(resource: String): MarkedResource? {
+    var markedResource: MarkedResource? = null
+    try {
+      markedResource = objectMapper.readValue(resource)
+    } catch (e: Exception) {
+      log.error("Exception when reading marked resource $resource in ${javaClass.simpleName}: ", e)
+    }
+    return markedResource
+  }
 }
 
 

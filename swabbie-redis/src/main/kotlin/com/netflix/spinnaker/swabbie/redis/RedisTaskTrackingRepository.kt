@@ -19,6 +19,7 @@
 package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
@@ -125,16 +126,15 @@ class RedisTaskTrackingRepository(
     return redisClientDelegate.run {
       this.withCommandsClient<String> { client ->
         client.hget(SUBMITTED_TASKS_KEY, taskId)
-      }.let {
-        objectMapper.readValue(it, TaskCompleteEventInfo::class.java)
-      }
+      }.let { readTaskCompleteInfo(it) }
     }
   }
 
   private fun getAllBefore(daysToGoBack: Int): Set<String> {
     return getAll(SUBMITTED_TASKS_KEY)
       .filterValues { value ->
-        objectMapper.readValue(value, TaskCompleteEventInfo::class.java).let { taskInfo ->
+        val taskInfo = readTaskCompleteInfo(value)
+        if (taskInfo != null) {
           val xDaysAgo = clock.instant().minusMillis(TimeUnit.DAYS.toMillis(daysToGoBack.toLong())).toEpochMilli()
           val submittedTimeMillis = taskInfo.submittedTimeMillis
           if (submittedTimeMillis == null ) {
@@ -147,6 +147,9 @@ class RedisTaskTrackingRepository(
           } else {
             submittedTimeMillis < xDaysAgo
           }
+        } else {
+          log.info("Task info not found for $value")
+          false
         }
       }
       .keys
@@ -162,5 +165,15 @@ class RedisTaskTrackingRepository(
       client.hdel(TASK_STATUS_KEY, *allBefore.toTypedArray())
       client.hdel(SUBMITTED_TASKS_KEY, *allBefore.toTypedArray())
     }
+  }
+
+  private fun readTaskCompleteInfo(value: String): TaskCompleteEventInfo? {
+    var info: TaskCompleteEventInfo? = null
+    try {
+      info = objectMapper.readValue(value)
+    } catch (e: Exception) {
+      log.error("Exception reading task complete event info $value in ${javaClass.simpleName}: ", e)
+    }
+    return info
   }
 }

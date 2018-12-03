@@ -21,8 +21,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
@@ -77,8 +77,8 @@ class RedisResourceStateRepository(
           set.chunked(REDIS_CHUNK_SIZE).forEach { subset ->
             val partialState = this.withCommandsClient<Set<String>> { client ->
               client.hmget(SINGLE_STATE_KEY, *subset.map { it }.toTypedArray()).toSet()
-            }.map { json ->
-              objectMapper.readValue<ResourceState>(json)
+            }.mapNotNull { json ->
+              readState(json)
             }
             state.addAll(partialState)
           }
@@ -93,7 +93,7 @@ class RedisResourceStateRepository(
         this.withCommandsClient<String> { client ->
           client.hget(SINGLE_STATE_KEY, key)
         }?.let { json ->
-            objectMapper.readValue(json, ResourceState::class.java)
+            readState(json)
           }
       }
     }
@@ -111,6 +111,16 @@ class RedisResourceStateRepository(
       }
     }
 
+  }
+
+  private fun readState(state: String): ResourceState? {
+    var resourceState: ResourceState? = null
+    try {
+      resourceState = objectMapper.readValue(state)
+    } catch (e: Exception) {
+      log.error("Exception reading marked resource $state in ${javaClass.simpleName}: ", e)
+    }
+    return resourceState
   }
 }
 

@@ -165,7 +165,7 @@ class Attribute {
 class Schedule {
   var enabled: Boolean = true
   var startTime: String = "09:00"
-  var endTime: String = "15:00"
+  var endTime: String = "16:00"
   val allowedDaysOfWeek: MutableList<DayOfWeek> = mutableListOf()
   var defaultTimeZone: String = "America/Los_Angeles"
 

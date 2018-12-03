@@ -120,7 +120,7 @@ class RedisResourceUseTrackingRepository(
     return redisClientDelegate.withCommandsClient<String> { client ->
       client.hget(LAST_SEEN, resourceIdentifier)
     }?.let {
-      objectMapper.readValue(it, LastSeenInfo::class.java)
+      readLastSeenInfo(it)
     }
   }
 
@@ -131,8 +131,8 @@ class RedisResourceUseTrackingRepository(
     keys.chunked(REDIS_CHUNK_SIZE).forEach { sublist ->
       val hydrated = redisClientDelegate.withCommandsClient<Set<String>> { client ->
         client.hmget(LAST_SEEN, *sublist.toTypedArray()).toSet()
-      }.map { json ->
-        objectMapper.readValue<LastSeenInfo>(json)
+      }.mapNotNull { json ->
+        readLastSeenInfo(json)
       }
       hydratedLastSeen.addAll(hydrated)
     }
@@ -147,5 +147,15 @@ class RedisResourceUseTrackingRepository(
 
   fun minusXdays(days: Int): Long {
     return clock.instant().minus(days.toLong(), ChronoUnit.DAYS).toEpochMilli()
+  }
+
+  private fun readLastSeenInfo(value: String): LastSeenInfo? {
+    var info: LastSeenInfo? = null
+    try {
+      info = objectMapper.readValue(value)
+    } catch (e: Exception) {
+      log.error("Exception reading last seen info $value in ${javaClass.simpleName}: ", e)
+    }
+    return info
   }
 }

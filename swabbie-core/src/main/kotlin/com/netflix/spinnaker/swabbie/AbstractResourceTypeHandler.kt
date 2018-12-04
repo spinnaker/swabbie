@@ -323,18 +323,21 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   override fun recalculateDeletionTimestamp(retentionSeconds: Long, numResources: Int) {
     val newTimestamp = deletionTimestamp(retentionSeconds)
-    log.info("Setting deletion time to $newTimestamp for $numResources resources in ${javaClass.simpleName}.")
+    log.info("Updating deletion time to $newTimestamp for $numResources resources in ${javaClass.simpleName}.")
 
     val markedResources = resourceRepository.getMarkedResources()
         .sortedBy { it.resource.createTs }
-        .take(numResources)
+
+    var countUpdated = 0
     markedResources.forEach { resource ->
-      resource.projectedDeletionStamp = newTimestamp
-      resourceRepository.upsert(resource)
+      if (resource.projectedDeletionStamp > newTimestamp && countUpdated < numResources) {
+        resource.projectedDeletionStamp = newTimestamp
+        resourceRepository.upsert(resource)
+        countUpdated += 1
+      }
     }
 
-    log.info("New deletion timestamp of $newTimestamp set for resources " +
-        markedResources.map { it.resource.resourceId })
+    log.info("Updating deletion time to $newTimestamp complete for $countUpdated resources")
   }
 
   override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation {

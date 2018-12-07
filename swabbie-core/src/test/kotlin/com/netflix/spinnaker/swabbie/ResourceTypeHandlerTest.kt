@@ -66,19 +66,31 @@ object ResourceTypeHandlerTest {
     println("swabbie post action on $it")
   }
 
+  private val defaultRules = mutableListOf(TestRule(
+    invalidOn = { defaultResource.resourceId == "testResource" },
+    summary = Summary("violates rule 1", "ruleName"))
+  )
+
+  private val alwaysInvalidRules = mutableListOf(
+    TestRule({ true }, Summary("always invalid", "rule1"))
+  )
+
+  private val alwaysValidRules = mutableListOf(
+    TestRule(invalidOn = { true }, summary = null)
+  )
+
   private val defaultResource = TestResource(resourceId = "testResource", name = "testResourceName")
+
+  //must update rules and candidates before using
   private val defaultHandler = TestResourceTypeHandler(
     clock = clock,
-    rules = listOf(TestRule(
-      invalidOn = { defaultResource.resourceId == "testResource" },
-      summary = Summary("violates rule 1", "ruleName"))
-    ),
+    rules = mutableListOf(),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
-    exclusionPolicies = listOf(mock()),
+    exclusionPolicies = mutableListOf(mock()),
     ownerResolver = ownerResolver,
     applicationEventPublisher = applicationEventPublisher,
-    simulatedCandidates = mutableListOf(defaultResource),
+    simulatedCandidates = mutableListOf(),
     notifiers = listOf(mock()),
     lockingService = lockingService,
     retrySupport = retrySupport,
@@ -86,24 +98,7 @@ object ResourceTypeHandlerTest {
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     dynamicConfigService = dynamicConfigService
   )
-  private val alwaysInvalidHandler = TestResourceTypeHandler(
-    clock = clock,
-    rules = listOf(
-      TestRule({ true }, Summary("always invalid", "rule1"))
-    ),
-    resourceTrackingRepository = resourceRepository,
-    resourceStateRepository = resourceStateRepository,
-    ownerResolver = ownerResolver,
-    exclusionPolicies = listOf(LiteralExclusionPolicy()),
-    applicationEventPublisher = applicationEventPublisher,
-    simulatedCandidates = mutableListOf(defaultResource),
-    notifiers = listOf(mock()),
-    lockingService = lockingService,
-    retrySupport = retrySupport,
-    taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-    resourceUseTrackingRepository = resourceUseTrackingRepository,
-    dynamicConfigService = dynamicConfigService
-  )
+
 
   @BeforeEach
   fun setup() {
@@ -113,11 +108,16 @@ object ResourceTypeHandlerTest {
   @AfterEach
   fun cleanup() {
     reset(resourceRepository, resourceStateRepository, applicationEventPublisher, ownerResolver, taskTrackingRepository)
+    defaultHandler.clearCandidates()
+    defaultHandler.clearRules()
+    defaultHandler.clearExclusionPolicies()
   }
 
   @Test
   fun `should track a violating resource`() {
     whenever(ownerResolver.resolve(defaultResource)) doReturn "lucious-mayweather@netflix.com"
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
+    defaultHandler.setRules(defaultRules)
 
     defaultHandler.mark(workConfiguration = workConfiguration(), postMark = { postAction(listOf(defaultResource)) })
 
@@ -129,36 +129,22 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should track violating resources`() {
-    val resources: List<TestResource> = listOf(
+    val resources: MutableList<TestResource> = mutableListOf(
       TestResource("invalid resource 1"),
       TestResource("invalid resource 2"),
       TestResource("valid resource")
     )
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = resources.map {
-        TestRule(
-          invalidOn = { it.resourceId == "invalid resource 1" || it.resourceId == "invalid resource 2" },
-          summary = Summary(description = "test rule description", ruleName = "test rule name")
-        )
-      },
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      exclusionPolicies = listOf(mock()),
-      ownerResolver = ownerResolver,
-      notifiers = listOf(mock()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = resources.toMutableList(),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = dynamicConfigService
-    )
+    defaultHandler.setCandidates(resources)
+    defaultHandler.setRules(resources.map {
+      TestRule(
+        invalidOn = { it.resourceId == "invalid resource 1" || it.resourceId == "invalid resource 2" },
+        summary = Summary(description = "test rule description", ruleName = "test rule name")
+      )
+    }.toMutableList())
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
-    handler.mark(
+    defaultHandler.mark(
       workConfiguration = workConfiguration(),
       postMark = { postAction(resources) }
     )
@@ -175,24 +161,8 @@ object ResourceTypeHandlerTest {
       TestResource("2")
     )
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule({ true }, Summary("always invalid", "rule1"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(LiteralExclusionPolicy()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = candidates,
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = dynamicConfigService
-    )
+    defaultHandler.setRules(alwaysInvalidRules)
+    defaultHandler.setCandidates(candidates)
 
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
@@ -225,7 +195,7 @@ object ResourceTypeHandlerTest {
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
-    handler.delete(workConfiguration = configuration, postDelete = { postAction(candidates) })
+    defaultHandler.delete(workConfiguration = configuration, postDelete = { postAction(candidates) })
 
     verify(taskTrackingRepository, times(2)).add(any(), any())
     candidates.size shouldMatch equalTo(0)
@@ -247,8 +217,9 @@ object ResourceTypeHandlerTest {
     ))
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
+    defaultHandler.setRules(alwaysInvalidRules)
 
-    alwaysInvalidHandler.mark(workConfiguration = configuration, postMark = { postAction(listOf(defaultResource)) })
+    defaultHandler.mark(workConfiguration = configuration, postMark = { postAction(listOf(defaultResource)) })
 
     verify(applicationEventPublisher, never()).publishEvent(any())
     verify(resourceRepository, never()).upsert(any(), any())
@@ -270,30 +241,15 @@ object ResourceTypeHandlerTest {
           )
         )
     ))
+    defaultHandler.setRules(alwaysInvalidRules)
+    defaultHandler.setCandidates(mutableListOf(resource1, resource2))
+    defaultHandler.setExclusionPolicies(mutableListOf(AllowListExclusionPolicy(mock(), mock())))
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule({ true }, Summary("always invalid", "rule1"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(AllowListExclusionPolicy(mock(), mock())),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource1, resource2),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = dynamicConfigService
-    )
 
-    whenever(ownerResolver.resolve(resource1)) doReturn  "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
-    whenever(ownerResolver.resolve(resource2)) doReturn  "blah" // excluded because not in allowed list
+    whenever(ownerResolver.resolve(resource1)) doReturn "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
+    whenever(ownerResolver.resolve(resource2)) doReturn "blah" // excluded because not in allowed list
 
-    handler.mark(workConfiguration = configuration, postMark = { postAction(listOf(resource1, resource2)) })
+    defaultHandler.mark(workConfiguration = configuration, postMark = { postAction(listOf(resource1, resource2)) })
 
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<MarkResourceEvent> { event ->
@@ -339,10 +295,9 @@ object ResourceTypeHandlerTest {
         )
       )
 
-    alwaysInvalidHandler.delete(
-      workConfiguration = configuration,
-      postDelete = { postAction(listOf(resource)) }
-    )
+    defaultHandler.setRules(alwaysInvalidRules)
+
+    defaultHandler.delete(workConfiguration = configuration, postDelete = { postAction(listOf(resource)) })
 
     verify(applicationEventPublisher, never()).publishEvent(any())
     verify(resourceRepository, never()).upsert(any(), any())
@@ -380,10 +335,12 @@ object ResourceTypeHandlerTest {
       )
 
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-        workConfiguration.maxItemsProcessedPerCycle
+      workConfiguration.maxItemsProcessedPerCycle
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
-    alwaysInvalidHandler.mark(
+    defaultHandler.setRules(alwaysInvalidRules)
+
+    defaultHandler.mark(
       workConfiguration = workConfiguration,
       postMark = { postAction(listOf(resource)) }
     )
@@ -455,101 +412,65 @@ object ResourceTypeHandlerTest {
       )
     )
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule({ true }, Summary("always invalid", "rule1"))
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource1, resource2, resource3),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = mock()
-    )
+    defaultHandler.setRules(alwaysInvalidRules)
+    defaultHandler.setCandidates(mutableListOf(resource1, resource2, resource3))
 
-    val result = handler.partitionList(markedResources, configuration)
+    val result = defaultHandler.partitionList(markedResources, configuration)
     Assertions.assertTrue(result.size == 3)
-    with (result) {
-      Assertions.assertTrue(result[0].size == 2, "resources 1 & 2 because their names match to the same app")
-      Assertions.assertTrue(result[1].size == 2)
-      Assertions.assertTrue(result[2].size == 1)
-      Assertions.assertTrue(result[0].none { it.name == resource3.name })
-      Assertions.assertTrue(result[1].all { it.name!!.startsWith("my-package")})
-      Assertions.assertTrue(result[2].all { it.name == resource3.name })
-    }
+    Assertions.assertTrue(result[0].size == 2, "resources 1 & 2 because their names match to the same app")
+    Assertions.assertTrue(result[1].size == 2)
+    Assertions.assertTrue(result[2].size == 1)
+    Assertions.assertTrue(result[0].none { it.name == resource3.name })
+    Assertions.assertTrue(result[1].all { it.name!!.startsWith("my-package") })
+    Assertions.assertTrue(result[2].all { it.name == resource3.name })
   }
 
   @Test
   fun `partition same owner different grouping should be 2 lists`() {
     val resource1 = TestResource(
-        resourceId = "4",
-        name = "my-other-package-0.0.2",
-        resourceType = "image",
-        grouping = Grouping("my-other-package", GroupingType.PACKAGE_NAME)
+      resourceId = "4",
+      name = "my-other-package-0.0.2",
+      resourceType = "image",
+      grouping = Grouping("my-other-package", GroupingType.PACKAGE_NAME)
     )
     val resource2 = TestResource(
-        resourceId = "5",
-        name = "my-package-0.0.4",
-        resourceType = "image",
-        grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
+      resourceId = "5",
+      name = "my-package-0.0.4",
+      resourceType = "image",
+      grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
     )
 
     val configuration = workConfiguration(
-        itemsProcessedBatchSize = 2,
-        maxItemsProcessedPerCycle = 3
+      itemsProcessedBatchSize = 2,
+      maxItemsProcessedPerCycle = 3
     )
 
     val markedResources = listOf(
-        MarkedResource(
-            resource = resource1,
-            summaries = listOf(Summary("invalid resource 1", "rule 1")),
-            namespace = configuration.namespace,
-            resourceOwner = "test@netflix.com",
-            projectedDeletionStamp = clock.millis()
-        ),
-        MarkedResource(
-            resource = resource2,
-            summaries = listOf(Summary("invalid resource 2", "rule 2")),
-            namespace = configuration.namespace,
-            resourceOwner = "test@netflix.com",
-            projectedDeletionStamp = clock.millis()
-        )
-    )
-
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-          TestRule({ true }, Summary("always invalid", "rule1"))
+      MarkedResource(
+        resource = resource1,
+        summaries = listOf(Summary("invalid resource 1", "rule 1")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis()
       ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(resource1, resource2),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = retrySupport,
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = dynamicConfigService
+      MarkedResource(
+        resource = resource2,
+        summaries = listOf(Summary("invalid resource 2", "rule 2")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis()
+      )
     )
 
-    val result = handler.partitionList(markedResources, configuration)
+    defaultHandler.setRules(alwaysInvalidRules)
+    defaultHandler.setCandidates(mutableListOf(resource1, resource2))
+
+    val result = defaultHandler.partitionList(markedResources, configuration)
     Assertions.assertTrue(result.size == 2)
-    with (result) {
-      Assertions.assertTrue(result[0].size == 1)
-      Assertions.assertTrue(result[1].size == 1)
-      Assertions.assertTrue(result[0].none { it.name == resource2.name })
-      Assertions.assertTrue(result[1].none { it.name == resource1.name })
-    }
+    Assertions.assertTrue(result[0].size == 1)
+    Assertions.assertTrue(result[1].size == 1)
+    Assertions.assertTrue(result[0].none { it.name == resource2.name })
+    Assertions.assertTrue(result[1].none { it.name == resource1.name })
   }
 
   @Test
@@ -566,28 +487,11 @@ object ResourceTypeHandlerTest {
       .thenReturn(listOf(markedResource))
       .thenReturn(emptyList())
 
-
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule(invalidOn = { true }, summary = null)
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(mock()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(defaultResource),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = mock(),
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = dynamicConfigService
-    )
+    defaultHandler.setRules(alwaysValidRules)
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
-    handler.mark(
+    defaultHandler.mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(defaultResource)) }
     )
@@ -617,28 +521,11 @@ object ResourceTypeHandlerTest {
       .thenReturn(listOf(markedResource))
 
 
-
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-        TestRule(invalidOn = { true }, summary = null)
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(mock()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(defaultResource),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = mock(),
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = dynamicConfigService
-    )
+    defaultHandler.setRules(alwaysValidRules)
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
-    handler.mark(
+    defaultHandler.mark(
       workConfiguration = configuration,
       postMark = { postAction(listOf(defaultResource)) }
     )
@@ -665,108 +552,93 @@ object ResourceTypeHandlerTest {
     val timestamp10days = clock.millis().plus(TimeUnit.DAYS.toMillis(10))
     val timestamp1hour = clock.millis().plus(TimeUnit.HOURS.toMillis(1))
     val resource1 = TestResource(
-        "1",
-        name = "testResource-v001",
-        grouping = Grouping("testResource", GroupingType.APPLICATION),
-        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(11))
+      "1",
+      name = "testResource-v001",
+      grouping = Grouping("testResource", GroupingType.APPLICATION),
+      createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(11))
     )
     val resource2 = TestResource(
-        "2",
-        name = "testResource-v002",
-        grouping = Grouping("testResource", GroupingType.APPLICATION),
-        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
+      "2",
+      name = "testResource-v002",
+      grouping = Grouping("testResource", GroupingType.APPLICATION),
+      createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
     )
     val resource3 = TestResource("3", name = "random", createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10)))
     val resource4 = TestResource(
-        resourceId = "4",
-        name = "my-package-0.0.2",
-        resourceType = "image",
-        grouping = Grouping("my-package", GroupingType.PACKAGE_NAME),
-        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
+      resourceId = "4",
+      name = "my-package-0.0.2",
+      resourceType = "image",
+      grouping = Grouping("my-package", GroupingType.PACKAGE_NAME),
+      createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
     )
     val resource5 = TestResource(
-        resourceId = "5",
-        name = "my-package-0.0.4",
-        resourceType = "image",
-        grouping = Grouping("my-package", GroupingType.PACKAGE_NAME),
-        createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
+      resourceId = "5",
+      name = "my-package-0.0.4",
+      resourceType = "image",
+      grouping = Grouping("my-package", GroupingType.PACKAGE_NAME),
+      createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
     )
 
     val configuration = workConfiguration(
-        itemsProcessedBatchSize = 2,
-        maxItemsProcessedPerCycle = 3
+      itemsProcessedBatchSize = 2,
+      maxItemsProcessedPerCycle = 3
     )
 
     val markedResource1 = MarkedResource(
-        resource = resource1,
-        summaries = listOf(Summary("invalid resource 1", "rule 1")),
-        namespace = configuration.namespace,
-        resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = timestamp10days
+      resource = resource1,
+      summaries = listOf(Summary("invalid resource 1", "rule 1")),
+      namespace = configuration.namespace,
+      resourceOwner = "test@netflix.com",
+      projectedDeletionStamp = timestamp10days
     )
 
     val updatedMarkedResource1 = MarkedResource(
-        resource = resource1,
-        summaries = listOf(Summary("invalid resource 1", "rule 1")),
-        namespace = configuration.namespace,
-        resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = timestamp1hour
+      resource = resource1,
+      summaries = listOf(Summary("invalid resource 1", "rule 1")),
+      namespace = configuration.namespace,
+      resourceOwner = "test@netflix.com",
+      projectedDeletionStamp = timestamp1hour
     )
 
     val markedResources = listOf(
-        markedResource1,
-        MarkedResource(
-            resource = resource2,
-            summaries = listOf(Summary("invalid resource 2", "rule 2")),
-            namespace = configuration.namespace,
-            resourceOwner = "test@netflix.com",
-            projectedDeletionStamp = timestamp10days
-        ),
-        MarkedResource(
-            resource = resource3,
-            summaries = listOf(Summary("invalid resource random", "rule 3")),
-            namespace = configuration.namespace,
-            resourceOwner = "test@netflix.com",
-            projectedDeletionStamp = timestamp10days
-        ),
-        MarkedResource(
-            resource = resource4,
-            summaries = listOf(Summary("invalid resource random", "rule 4")),
-            namespace = configuration.namespace,
-            resourceOwner = "test@netflix.com",
-            projectedDeletionStamp = timestamp10days
-        ),
-        MarkedResource(
-            resource = resource5,
-            summaries = listOf(Summary("invalid resource random", "rule 5")),
-            namespace = configuration.namespace,
-            resourceOwner = "test@netflix.com",
-            projectedDeletionStamp = timestamp10days
-        )
+      markedResource1,
+      MarkedResource(
+        resource = resource2,
+        summaries = listOf(Summary("invalid resource 2", "rule 2")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = timestamp10days
+      ),
+      MarkedResource(
+        resource = resource3,
+        summaries = listOf(Summary("invalid resource random", "rule 3")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = timestamp10days
+      ),
+      MarkedResource(
+        resource = resource4,
+        summaries = listOf(Summary("invalid resource random", "rule 4")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = timestamp10days
+      ),
+      MarkedResource(
+        resource = resource5,
+        summaries = listOf(Summary("invalid resource random", "rule 5")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = timestamp10days
+      )
     )
 
     whenever(resourceRepository.getMarkedResources()) doReturn markedResources
 
-    val handler = TestResourceTypeHandler(
-      clock = clock,
-      rules = listOf(
-          TestRule(invalidOn = { true }, summary = null)
-      ),
-      resourceTrackingRepository = resourceRepository,
-      resourceStateRepository = resourceStateRepository,
-      ownerResolver = ownerResolver,
-      exclusionPolicies = listOf(mock()),
-      applicationEventPublisher = applicationEventPublisher,
-      simulatedCandidates = mutableListOf(defaultResource),
-      notifiers = listOf(mock()),
-      lockingService = lockingService,
-      retrySupport = mock(),
-      taskTrackingRepository = InMemoryTaskTrackingRepository(clock),
-      resourceUseTrackingRepository = resourceUseTrackingRepository,
-      dynamicConfigService = dynamicConfigService
-    )
+    defaultHandler.setRules(alwaysValidRules)
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
 
-    handler.recalculateDeletionTimestamp(3600, 1)
+
+    defaultHandler.recalculateDeletionTimestamp(configuration.namespace, 3600, 1)
     verify(resourceRepository, times(1)).upsert(updatedMarkedResource1)
 
   }
@@ -798,103 +670,4 @@ object ResourceTypeHandlerTest {
     itemsProcessedBatchSize = itemsProcessedBatchSize,
     maxItemsProcessedPerCycle = maxItemsProcessedPerCycle
   )
-
-  class TestRule(
-    private val invalidOn: (Resource) -> Boolean,
-    private val summary: Summary?
-  ) : Rule<TestResource> {
-    override fun apply(resource: TestResource): Result {
-      return if (invalidOn(resource)) Result(summary) else Result(null)
-    }
-  }
-
-  class TestResourceTypeHandler(
-    clock: Clock,
-    resourceTrackingRepository: ResourceTrackingRepository,
-    resourceStateRepository: ResourceStateRepository,
-    ownerResolver: OwnerResolver<TestResource>,
-    applicationEventPublisher: ApplicationEventPublisher,
-    exclusionPolicies: List<ResourceExclusionPolicy>,
-    notifiers: List<Notifier>,
-    private val rules: List<Rule<TestResource>>,
-    private val simulatedCandidates: MutableList<TestResource>?,
-    registry: Registry = NoopRegistry(),
-    lockingService: Optional<LockingService>,
-    retrySupport: RetrySupport,
-    taskTrackingRepository: TaskTrackingRepository,
-    resourceUseTrackingRepository: ResourceUseTrackingRepository,
-    dynamicConfigService: DynamicConfigService
-  ) : AbstractResourceTypeHandler<TestResource>(
-    registry,
-    clock,
-    rules,
-    resourceTrackingRepository,
-    resourceStateRepository,
-    exclusionPolicies,
-    ownerResolver,
-    notifiers,
-    applicationEventPublisher,
-    lockingService,
-    retrySupport,
-    resourceUseTrackingRepository,
-    SwabbieProperties(),
-    dynamicConfigService
-  ) {
-    override fun deleteResources(
-      markedResources: List<MarkedResource>,
-      workConfiguration: WorkConfiguration
-    ) {
-      markedResources.forEach { m ->
-        simulatedCandidates
-          ?.removeIf { r -> m.resourceId == r.resourceId }
-          .also { shouldRemove ->
-            if (shouldRemove != null && shouldRemove) {
-              taskTrackingRepository.add(
-                "deleteTaskId",
-                TaskCompleteEventInfo(
-                  Action.DELETE,
-                  listOf(m),
-                  workConfiguration,
-                  null
-                )
-              )
-            }
-          }
-      }
-    }
-    // simulates querying for a resource upstream
-    override fun getCandidate(
-      resourceId: String,
-      resourceName: String,
-      workConfiguration: WorkConfiguration
-    ): TestResource? {
-      return simulatedCandidates?.find { resourceId == it.resourceId }
-    }
-
-    override fun preProcessCandidates(
-      candidates: List<TestResource>,
-      workConfiguration: WorkConfiguration
-    ): List<TestResource> {
-      log.debug("pre-processing test resources {}", candidates)
-      return candidates
-    }
-
-    override fun handles(workConfiguration: WorkConfiguration): Boolean {
-      return !rules.isEmpty()
-    }
-
-    override fun getCandidates(workConfiguration: WorkConfiguration): List<TestResource>? {
-      return simulatedCandidates
-    }
-
-    override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation {
-      return ResourceEvaluation(
-        namespace = workConfiguration.namespace,
-        resourceId = resourceId,
-        wouldMark = false,
-        wouldMarkReason = "This is a test",
-        summaries = listOf()
-      )
-    }
-  }
 }

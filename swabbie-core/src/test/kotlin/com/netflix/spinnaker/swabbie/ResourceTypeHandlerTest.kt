@@ -637,7 +637,6 @@ object ResourceTypeHandlerTest {
     defaultHandler.setRules(alwaysValidRules)
     defaultHandler.setCandidates(mutableListOf(defaultResource))
 
-
     defaultHandler.recalculateDeletionTimestamp(configuration.namespace, 3600, 1)
     verify(resourceRepository, times(1)).upsert(updatedMarkedResource1)
 

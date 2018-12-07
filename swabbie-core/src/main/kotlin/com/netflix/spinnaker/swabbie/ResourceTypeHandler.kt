@@ -75,7 +75,7 @@ interface ResourceTypeHandler<T : Resource> {
   /**
    * Admin api to recalculate deletion timestamp for [numResources] to [retentionSeconds] from now
    */
-  fun recalculateDeletionTimestamp(retentionSeconds: Long, numResources: Int)
+  fun recalculateDeletionTimestamp(namespace: String, retentionSeconds: Long, numResources: Int)
 
   /**
    * FOR TESTING

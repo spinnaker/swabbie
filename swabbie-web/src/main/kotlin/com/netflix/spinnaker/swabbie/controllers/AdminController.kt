@@ -13,7 +13,7 @@ class AdminController(
   private val log = LoggerFactory.getLogger(javaClass)
 
   /**
-   * Recalculate deletion timestamp to [retentionS] seconds in the future for the
+   * Recalculate deletion timestamp to [retentionSeconds] seconds in the future for the
    * oldest [numResources] that are marked
    */
   @RequestMapping(value = ["/resources/recalculate/{namespace}/"], method = [RequestMethod.PUT])
@@ -26,6 +26,6 @@ class AdminController(
         "Setting to ${retentionSeconds}s from now.")
     val workConfiguration = controllerUtils.findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
     val handler = controllerUtils.findHandler(workConfiguration)
-    handler.recalculateDeletionTimestamp(retentionSeconds, numResources)
+    handler.recalculateDeletionTimestamp(namespace, retentionSeconds, numResources)
   }
 }

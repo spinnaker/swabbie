@@ -766,7 +766,7 @@ object ResourceTypeHandlerTest {
       dynamicConfigService = dynamicConfigService
     )
 
-    handler.recalculateDeletionTimestamp(3600, 1)
+    handler.recalculateDeletionTimestamp(configuration.namespace, 3600, 1)
     verify(resourceRepository, times(1)).upsert(updatedMarkedResource1)
 
   }

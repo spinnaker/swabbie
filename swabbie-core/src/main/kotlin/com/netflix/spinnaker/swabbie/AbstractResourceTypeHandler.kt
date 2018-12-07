@@ -321,12 +321,13 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  override fun recalculateDeletionTimestamp(retentionSeconds: Long, numResources: Int) {
+  override fun recalculateDeletionTimestamp(namespace: String, retentionSeconds: Long, numResources: Int) {
     val newTimestamp = deletionTimestamp(retentionSeconds)
     log.info("Updating deletion time to $newTimestamp for $numResources resources in ${javaClass.simpleName}.")
 
     val markedResources = resourceRepository.getMarkedResources()
-        .sortedBy { it.resource.createTs }
+      .filter { it.namespace == namespace }
+      .sortedBy { it.resource.createTs }
 
     var countUpdated = 0
     markedResources.forEach { resource ->

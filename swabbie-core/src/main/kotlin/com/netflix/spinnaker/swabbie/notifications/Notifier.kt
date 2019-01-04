@@ -21,7 +21,8 @@ interface Notifier {
 
   enum class NotificationType {
     SLACK,
-    EMAIL
+    EMAIL,
+    NONE
   }
 
   enum class NotificationSeverity {

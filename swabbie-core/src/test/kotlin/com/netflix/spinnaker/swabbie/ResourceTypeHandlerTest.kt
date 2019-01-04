@@ -18,23 +18,24 @@ package com.netflix.spinnaker.swabbie
 
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.EMAIL
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.NONE
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
@@ -61,6 +63,9 @@ object ResourceTypeHandlerTest {
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val dynamicConfigService = mock<DynamicConfigService>()
+  private val notifier = mock<Notifier>()
+
+  private val log = LoggerFactory.getLogger(this.javaClass)
 
   private val postAction: (resource: List<Resource>) -> Unit = {
     println("swabbie post action on $it")
@@ -91,7 +96,7 @@ object ResourceTypeHandlerTest {
     ownerResolver = ownerResolver,
     applicationEventPublisher = applicationEventPublisher,
     simulatedCandidates = mutableListOf(),
-    notifiers = listOf(mock()),
+    notifiers = listOf(notifier),
     lockingService = lockingService,
     retrySupport = retrySupport,
     taskTrackingRepository = taskTrackingRepository,
@@ -107,7 +112,14 @@ object ResourceTypeHandlerTest {
 
   @AfterEach
   fun cleanup() {
-    reset(resourceRepository, resourceStateRepository, applicationEventPublisher, ownerResolver, taskTrackingRepository)
+    reset(
+      resourceRepository,
+      resourceStateRepository,
+      applicationEventPublisher,
+      ownerResolver,
+      taskTrackingRepository,
+      notifier
+    )
     defaultHandler.clearCandidates()
     defaultHandler.clearRules()
     defaultHandler.clearExclusionPolicies()
@@ -639,7 +651,88 @@ object ResourceTypeHandlerTest {
 
     defaultHandler.recalculateDeletionTimestamp(configuration.namespace, 3600, 1)
     verify(resourceRepository, times(1)).upsert(updatedMarkedResource1)
+  }
 
+  @Test
+  fun `should notify if required`() {
+    val configuration = workConfiguration(
+      notificationConfiguration = NotificationConfiguration(enabled = true, required = true)
+    )
+
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))) doReturn
+      configuration.maxItemsProcessedPerCycle
+    whenever(ownerResolver.resolve(defaultResource)) doReturn "lucious-mayweather@netflix.com"
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
+    defaultHandler.setRules(defaultRules)
+    whenever(resourceRepository.getMarkedResources()) doReturn listOf(
+      MarkedResource(
+        resource = defaultResource,
+        summaries = listOf(Summary("invalid resource random", "rule 5")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
+        markTs = clock.millis()
+      )
+    )
+
+    val updatedMarkedResource = MarkedResource(
+      resource = defaultResource,
+      summaries = listOf(Summary("invalid resource random", "rule 5")),
+      namespace = configuration.namespace,
+      resourceOwner = "test@netflix.com",
+      projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
+      notificationInfo = NotificationInfo(
+        recipient = "test@netflix.com",
+        notificationType = EMAIL.name,
+        notificationStamp = clock.millis()
+      ),
+      markTs = clock.millis()
+    )
+
+    defaultHandler.notify(configuration) { log.info("done notifying") }
+    verify(notifier, times(1)).notify(any(), any(), any())
+    verify(resourceRepository, times(1)).upsert(updatedMarkedResource)
+  }
+
+  @Test
+  fun `should not send notification if not required`() {
+    val configuration = workConfiguration(
+      notificationConfiguration = NotificationConfiguration(enabled = true, required = false)
+    )
+
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))) doReturn
+      configuration.maxItemsProcessedPerCycle
+    whenever(ownerResolver.resolve(defaultResource)) doReturn "lucious-mayweather@netflix.com"
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
+    defaultHandler.setRules(defaultRules)
+    whenever(resourceRepository.getMarkedResources()) doReturn listOf(
+      MarkedResource(
+        resource = defaultResource,
+        summaries = listOf(Summary("invalid resource random", "rule 5")),
+        namespace = configuration.namespace,
+        resourceOwner = "test@netflix.com",
+        projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
+        markTs = clock.millis()
+      )
+    )
+
+    val updatedMarkedResource = MarkedResource(
+      resource = defaultResource,
+      summaries = listOf(Summary("invalid resource random", "rule 5")),
+      namespace = configuration.namespace,
+      resourceOwner = "test@netflix.com",
+      projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
+      notificationInfo = NotificationInfo(
+        recipient = "",
+        notificationType = NONE.name,
+        notificationStamp = clock.millis()
+      ),
+      markTs = clock.millis()
+    )
+
+    defaultHandler.notify(configuration) { log.info("done notifying") }
+    verify(notifier, times(0)).notify(any(), any(), any())
+    verify(resourceRepository, times(1)).upsert(updatedMarkedResource)
   }
 
   internal fun workConfiguration(
@@ -647,7 +740,8 @@ object ResourceTypeHandlerTest {
     dryRun: Boolean = false,
     itemsProcessedBatchSize: Int = 1,
     maxItemsProcessedPerCycle: Int = 10,
-    retention: Int = 14
+    retention: Int = 14,
+    notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration()
   ): WorkConfiguration = WorkConfiguration(
     namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
     account = SpinnakerAccount(
@@ -667,6 +761,7 @@ object ResourceTypeHandlerTest {
     dryRun = dryRun,
     maxAge = 1,
     itemsProcessedBatchSize = itemsProcessedBatchSize,
-    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle
+    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle,
+    notificationConfiguration = notificationConfiguration
   )
 }

@@ -34,6 +34,7 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.*
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
@@ -144,7 +145,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
    * This function is used when a caller makes an opt out request through the controller
    *  and the resource has not already been marked.
    */
-  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration){
+  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration) {
     val resource = getCandidate(resourceId, "", workConfiguration)
       ?: return
     log.debug("Opting out resource $resourceId in namespace ${workConfiguration.namespace}")
@@ -180,14 +181,14 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
 
     var markedResource = MarkedResource(
-        resource = resource,
-        summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
-        namespace = workConfiguration.namespace,
-        resourceOwner = onDemandMarkData.resourceOwner,
-        projectedDeletionStamp = onDemandMarkData.projectedDeletionStamp,
-        notificationInfo = onDemandMarkData.notificationInfo,
-        lastSeenInfo = onDemandMarkData.lastSeenInfo
-      )
+      resource = resource,
+      summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
+      namespace = workConfiguration.namespace,
+      resourceOwner = onDemandMarkData.resourceOwner,
+      projectedDeletionStamp = onDemandMarkData.projectedDeletionStamp,
+      notificationInfo = onDemandMarkData.notificationInfo,
+      lastSeenInfo = onDemandMarkData.lastSeenInfo
+    )
 
     log.debug("Marking resource $resourceId in namespace ${workConfiguration.namespace} without checking rules.")
     resourceRepository.upsert(markedResource)
@@ -275,8 +276,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           when {
             violations.isEmpty() -> {
               ensureResourceUnmarked(alreadyMarkedCandidate,
-                                     workConfiguration,
-                                     "Resource no longer qualifies for deletion")
+                workConfiguration,
+                "Resource no longer qualifies for deletion")
             }
             alreadyMarkedCandidate == null -> {
               val newMarkedResource = MarkedResource(
@@ -495,8 +496,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       val processedCandidates = candidates
         .filter { candidate ->
           currentMarkedResourcesToDelete.any { r ->
-            candidate.resourceId == r.resourceId }
+            candidate.resourceId == r.resourceId
           }
+        }
         .withResolvedOwners(workConfiguration)
         .also { preProcessCandidates(it, workConfiguration) }
 
@@ -505,12 +507,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         val candidate = processedCandidates.find { it.resourceId == resource.resourceId }
         if ((candidate == null || candidate.getViolations().isEmpty()) ||
           shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.DELETE)) {
-            shouldSkip = true
-            ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies for deletion")
-          }
+          shouldSkip = true
+          ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies for deletion")
+        }
         !shouldSkip
       }
-      
+
       val maxItemsToProcess = Math.min(confirmedResourcesToDelete.size, getMaxItemsProcessedPerCycle(workConfiguration))
       confirmedResourcesToDelete.subList(0, maxItemsToProcess).let {
         partitionList(it, workConfiguration).forEach { partition ->
@@ -619,7 +621,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           .forEach { partition ->
             try {
               val owner = partition.first().resourceOwner
-              sendNotification(owner, workConfiguration, partition)
+              val sendNotification = workConfiguration.notificationConfiguration.required
+              if (sendNotification) {
+                // We may not want to send notifications for some resources because there would be too many.
+                // We only send notifications if it is required (defaults to true)
+                sendNotification(owner, workConfiguration, partition)
+              }
               partition.forEach { resource ->
                 val offsetStampSinceMarked = ChronoUnit.MILLIS
                   .between(Instant.ofEpochMilli(resource.markTs!!), Instant.now(clock))
@@ -628,9 +635,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
                   .apply {
                     projectedDeletionStamp += offsetStampSinceMarked
                     notificationInfo = NotificationInfo(
-                      recipient = owner, //todo eb: rn emails are getting sent to default owner.
+                      recipient = if (sendNotification) owner else "",
                       notificationStamp = Instant.now(clock).toEpochMilli(),
-                      notificationType = Notifier.NotificationType.EMAIL.name
+                      notificationType = if (sendNotification) EMAIL.name else NONE.name
                     )
                   }.also {
                     resourceRepository.upsert(it)
@@ -645,7 +652,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               recordFailureForAction(Action.NOTIFY, workConfiguration, e)
             }
           }
-        }
+      }
 
       printResult(
         candidateCounter,
@@ -666,7 +673,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ) {
     notifiers.forEach { notifier ->
       workConfiguration.notificationConfiguration.types.forEach { notificationType ->
-        if (notificationType.equals(Notifier.NotificationType.EMAIL.name, true)) {
+        if (notificationType.equals(EMAIL.name, true)) {
           //todo eb: remove once we can skip notifications for emails
           val finalOwner = if (resources.first().resourceType.contains("image", ignoreCase = true)) {
             workConfiguration.notificationConfiguration.defaultDestination

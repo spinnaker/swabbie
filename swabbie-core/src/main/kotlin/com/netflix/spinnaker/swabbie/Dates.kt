@@ -16,7 +16,9 @@
 
 package com.netflix.spinnaker.swabbie
 
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class Dates {
@@ -49,6 +51,12 @@ class Dates {
       }
 
       throw exception!!
+    }
+
+    fun toCreationDate(timestampMillis: Long) : String {
+      return LocalDateTime
+        .ofInstant(Instant.ofEpochMilli(timestampMillis), ZoneId.of("America/Los_Angeles"))
+        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSS'Z'"))
     }
   }
 }

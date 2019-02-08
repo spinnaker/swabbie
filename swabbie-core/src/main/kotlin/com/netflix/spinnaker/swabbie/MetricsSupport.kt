@@ -50,6 +50,7 @@ open class MetricsSupport(
   protected val notifyCountId: Id = registry.createId("swabbie.resources.notifyCount")
   protected val optOutCountId: Id = registry.createId("swabbie.resources.optOutCount")
   protected val orcaTaskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
+  protected val totalMarkedId: Id = registry.createId("swabbie.resources.totalMarked")
 
   protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
   protected val failedDuringSchedule: Id = registry.createId("swabbie.scheduled.failed")
@@ -59,7 +60,8 @@ open class MetricsSupport(
                                   workConfiguration: WorkConfiguration,
                                   violationCounter: AtomicInteger,
                                   candidateCounter: AtomicInteger,
-                                  totalResourcesVisitedCounter: AtomicInteger) {
+                                  totalResourcesVisitedCounter: AtomicInteger,
+                                  totalMarkedCount: Long) {
     markDurationTimer.stop(markerTimerId)
     registry.gauge(
       candidatesCountId.withTags(
@@ -88,6 +90,8 @@ open class MetricsSupport(
         "configuration", workConfiguration.namespace,
         "resourceTypeHandler", javaClass.simpleName
       )).set(totalResourcesVisitedCounter.toDouble())
+
+    registry.gauge(totalMarkedId).set(totalMarkedCount.toDouble())
   }
 
   protected fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {

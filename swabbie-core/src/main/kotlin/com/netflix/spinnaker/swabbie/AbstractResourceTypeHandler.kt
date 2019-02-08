@@ -209,22 +209,33 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
    * @param workConfiguration: defines the account/location to work with
    *
    * Fetches already marked resources, filters by work configuration namespace, and un-marks any resource whos id
-   * is not present in validMarkedResources.
+   * is not present in validMarkedResources, up to the configured limit of the number to process.
    */
   private fun unmarkResources(
     validMarkedResources: Set<String>,
     workConfiguration: WorkConfiguration
   ) {
-    resourceRepository
+    val markedResourcesInNamespace = resourceRepository
       .getMarkedResources()
       .filter { it.namespace == workConfiguration.namespace }
-      .let { markedResourcesToCheck ->
-        for (resource in markedResourcesToCheck) {
-          if (!validMarkedResources.contains(resource.resourceId)) {
-            ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies to be deleted")
-          }
+    log.info("Checking for resources to unmark: " +
+      "fetched ${markedResourcesInNamespace.size} marked resources from the database in ${workConfiguration.namespace}," +
+      " ${validMarkedResources.size} resources were qualified to be marked this cycle.")
+    if (validMarkedResources.size < markedResourcesInNamespace.size/2) {
+      log.warn("Number of resources qualified for marking is less than half the number in the database.")
+    }
+
+    var count = 0
+    for (resource in markedResourcesInNamespace) {
+      if (!validMarkedResources.contains(resource.resourceId)) {
+        ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies to be deleted")
+        count += 1
+        if (count >= swabbieProperties.maxUnmarkedPerCycle) {
+          log.warn("Unmarked ${swabbieProperties.maxUnmarkedPerCycle} resources (max allowed). Aborting.")
+          return
         }
       }
+    }
   }
 
   private fun getMaxItemsProcessedPerCycle(workConfiguration: WorkConfiguration): Int {
@@ -317,7 +328,14 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)
     } finally {
-      recordMarkMetrics(timerId, workConfiguration, violationCounter, candidateCounter, totalResourcesVisitedCounter)
+      recordMarkMetrics(
+        timerId,
+        workConfiguration,
+        violationCounter,
+        candidateCounter,
+        totalResourcesVisitedCounter,
+        resourceRepository.getNumMarkedResources()
+      )
       postMark.invoke()
     }
   }

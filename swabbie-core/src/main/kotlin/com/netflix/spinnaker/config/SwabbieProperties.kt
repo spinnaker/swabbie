@@ -35,6 +35,7 @@ open class SwabbieProperties {
   var testing: Testing = Testing()
   var minImagesUsedByLC = 500
   var minImagesUsedByInst = 500
+  var maxUnmarkedPerCycle = 250
 }
 
 class Testing {

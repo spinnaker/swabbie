@@ -34,7 +34,7 @@ allprojects {
   group = "com.netflix.spinnaker.swabbie"
 
   ext {
-    spinnakerDependenciesVersion = '1.6.0'
+    spinnakerDependenciesVersion = '1.31.0'
     if (project.hasProperty('spinnakerDependenciesVersion')) {
       spinnakerDependenciesVersion = project.property('spinnakerDependenciesVersion')
     }

@@ -22,6 +22,7 @@ import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.concurrent.TimeUnit
 
@@ -33,7 +34,8 @@ class RedisUsedResourceRepository(
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
   private val log = LoggerFactory.getLogger(javaClass)
 
-  private val expTime = TimeUnit.DAYS.toSeconds(2).toInt()
+  @Value("\${swabbie.repository.used-resource-repository.retention-ttl:172800}")
+  private var expTime = TimeUnit.DAYS.toSeconds(2).toInt()
 
   init {
     log.info("Using ${javaClass.simpleName}")

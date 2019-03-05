@@ -19,9 +19,12 @@
 package com.netflix.spinnaker.swabbie.repository
 
 /**
- * Track all snapshots that are in use by images
+ * Track a resource that is in use by another type of resource.
+ * This repository provides a way to collect information about use from one resource and query that while processing
+ *  another resource. For example, AWS provides some one way mappings about use (image -> snapshot). This repository
+ *  is used to record if a snapshot is in use by an image.
  */
-interface UsedSnapshotRepository {
-  fun recordUse(snapshotId: String, namespace: String)
-  fun isUsed(snapshotId: String, namespace: String): Boolean
+interface UsedResourceRepository {
+  fun recordUse(resourceType: String, id: String, namespace: String)
+  fun isUsed(resourceType: String, id: String, namespace: String): Boolean
 }

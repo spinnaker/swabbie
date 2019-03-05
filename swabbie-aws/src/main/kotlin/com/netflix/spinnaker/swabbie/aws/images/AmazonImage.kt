@@ -36,7 +36,6 @@ data class AmazonImage(
   private val creationDate: String?
 ) : AmazonResource(creationDate)
 
-@JsonTypeName("blockDevice")
 data class AmazonBlockDevice(
   val ebs: EbsBlockDevice?,
   val noDevice: String?,
@@ -44,7 +43,6 @@ data class AmazonBlockDevice(
   val virtualName: String?
 )
 
-@JsonTypeName("ebs")
 data class AmazonEbs(
   val snapshotId: String?,
   val virtualName: String?

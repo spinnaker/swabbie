@@ -20,36 +20,39 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.repository.UsedSnapshotRepository
+import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.concurrent.TimeUnit
 
 @Component
-class RedisUsedSnapshotRepository(
+class RedisUsedResourceRepository(
   redisClientSelector: RedisClientSelector
-) : UsedSnapshotRepository {
+) : UsedResourceRepository {
 
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
   private val log = LoggerFactory.getLogger(javaClass)
 
-  private val SNAP_USED = "{swabbie:snapshot:used}"
   private val expTime = TimeUnit.DAYS.toSeconds(2).toInt()
 
   init {
     log.info("Using ${javaClass.simpleName}")
   }
 
-  override fun recordUse(snapshotId: String, namespace: String) {
+  override fun recordUse(resourceType: String, id: String, namespace: String) {
     redisClientDelegate.withCommandsClient { client ->
-      client.setex("$SNAP_USED:$snapshotId", expTime, namespace) //todo eb: is this the right thing to store?
+      client.setex(makeKey(resourceType, id), expTime, namespace)
     }
   }
 
-  override fun isUsed(snapshotId: String, namespace: String): Boolean {
+  override fun isUsed(resourceType: String, id: String, namespace: String): Boolean {
     return redisClientDelegate.withCommandsClient<Boolean> { client ->
-      val exists = client.get("$SNAP_USED:$snapshotId")
-      exists != null
+      val ns = client.get(makeKey(resourceType, id))
+      ns != null && ns == namespace
     }
+  }
+
+  private fun makeKey(resourceType: String, id: String): String {
+    return "{swabbie:used:$resourceType}:$id"
   }
 }

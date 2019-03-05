@@ -34,10 +34,8 @@ import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.Application
-import com.netflix.spinnaker.swabbie.model.Region
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.exclusions.NaiveExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
@@ -82,7 +80,7 @@ object AmazonSnapshotHandlerTest {
   private val accountProvider = mock<AccountProvider>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
-  private val usedSnapshotRepository = mock<UsedSnapshotRepository>()
+  private val usedResourceRepository = mock<UsedResourceRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonSnapshot>>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
@@ -103,7 +101,8 @@ object AmazonSnapshotHandlerTest {
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
-      AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
+      AllowListExclusionPolicy(front50ApplicationCache, accountProvider),
+      NaiveExclusionPolicy()
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
@@ -116,13 +115,13 @@ object AmazonSnapshotHandlerTest {
     applicationUtils = applicationUtils,
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
-    usedSnapshotRepository = usedSnapshotRepository,
+    usedResourceRepository = usedResourceRepository,
     swabbieProperties = swabbieProperties
   )
 
   @Test
   fun `description matching works`() {
-    val d = "Created by AWS-VMImport service for import-snap-fh3h9fjz, snapshotId=snap-0c320e46155147100"
+    val d = "Created by AWS-VMImport service for import-snap-fh3h9fjz"
     val d2 = "Copied for DestinationAmi ami-abc5d1bc from SourceAmi ami-51505e46 for SourceSnapshot snap-0ea59b6dfbba3cf48. Task created on 1,482,344,892,652."
     val d3 = "snapshot of image.vmdk"
     assert(!subject.descriptionIsFromAutoBake(d))
@@ -197,7 +196,8 @@ object AmazonSnapshotHandlerTest {
       accountProvider,
       applicationEventPublisher,
       resourceOwnerResolver,
-      taskTrackingRepository
+      taskTrackingRepository,
+      usedResourceRepository
     )
   }
 
@@ -282,6 +282,22 @@ object AmazonSnapshotHandlerTest {
       workConfiguration.maxItemsProcessedPerCycle
 
     // description isn't from a bake, so it won't be marked
+    subject.mark(workConfiguration) { print { "postMark" } }
+    verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
+    verify(resourceRepository, times(0)).upsert(any(), any())
+  }
+
+  @Test
+  fun `should not mark snapshots if they're in use`() {
+    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
+    whenever(usedResourceRepository.isUsed(SNAPSHOT, "snap-000", "aws:${params.region}:${params.account}")) doReturn true
+    whenever(usedResourceRepository.isUsed(SNAPSHOT, "snap-1111", "aws:${params.region}:${params.account}")) doReturn true
+
+    val workConfiguration = getWorkConfiguration()
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+      workConfiguration.maxItemsProcessedPerCycle
+
+    // both snapshots are in use, so they won't be marked
     subject.mark(workConfiguration) { print { "postMark" } }
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
     verify(resourceRepository, times(0)).upsert(any(), any())

@@ -31,8 +31,7 @@ import org.springframework.stereotype.Component
 class OrphanedSnapshotRule : Rule<AmazonSnapshot> {
   override fun apply(resource: AmazonSnapshot): Result {
     if (resource.matchesAnyRule(
-        IMAGE_EXISTS,
-        SNAPSHOT_NOT_FROM_BAKE
+        IMAGE_EXISTS
       )){
       return Result(null)
     }
@@ -51,4 +50,3 @@ class OrphanedSnapshotRule : Rule<AmazonSnapshot> {
 }
 
 const val IMAGE_EXISTS = "imageExists"
-const val SNAPSHOT_NOT_FROM_BAKE = "snapshotNotFromBake"

@@ -51,7 +51,7 @@ object AmazonImageHandlerTest {
   private val accountProvider = mock<AccountProvider>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
-  private val usedSnapshotRepository = mock<UsedSnapshotRepository>()
+  private val usedSnapshotRepository = mock<UsedResourceRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonImage>>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
@@ -96,7 +96,7 @@ object AmazonImageHandlerTest {
     imagesUsedByinstancesCache = imagesUsedByinstancesCache,
     applicationUtils = applicationUtils,
     dynamicConfigService = dynamicConfigService,
-    usedSnapshotRepository = usedSnapshotRepository
+    usedResourceRepository = usedSnapshotRepository
   )
 
   @BeforeEach

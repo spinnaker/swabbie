@@ -53,7 +53,7 @@ class AmazonSnapshotHandler(
   private val applicationUtils: ApplicationUtils,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
-  private val usedSnapshotRepository: UsedSnapshotRepository,
+  private val usedResourceRepository: UsedResourceRepository,
   private val swabbieProperties: SwabbieProperties
 ) : AbstractResourceTypeHandler<AmazonSnapshot>(
   registry,
@@ -119,21 +119,22 @@ class AmazonSnapshotHandler(
     log.info("Checking for existing images for {} snapshots. Params: {} ", candidates.size, params)
     candidates.forEach { snapshot ->
       if (snapshot.description == null) {
-        snapshot.set(SNAPSHOT_NOT_FROM_BAKE, true)
+        snapshot.set(NAIVE_EXCLUSION, true)
         return
       }
 
       if (descriptionIsFromAutoBake(snapshot.description)) {
           // if description contains these keys then it's most likely an auto-captured snapshot.
-        if (usedSnapshotRepository.isUsed(snapshot.snapshotId, "aws:${params.region}:${params.account}")) {
+        if (usedResourceRepository.isUsed(SNAPSHOT, snapshot.snapshotId, "aws:${params.region}:${params.account}")) {
           snapshot.set(IMAGE_EXISTS, true)
         }
       } else {
-        snapshot.set(SNAPSHOT_NOT_FROM_BAKE, true)
+        snapshot.set(NAIVE_EXCLUSION, true)
       }
     }
   }
 
+  //todo eb: generalize this netflix-specific pattern
   fun descriptionIsFromAutoBake(description: String): Boolean {
     //description=name=nflx-sirt-forensics, arch=x86_64, ancestor_name=bionic-classicbase-unstable-x86_64-201902272237-ebs, ancestor_id=ami-067321616378baefc, ancestor_version=nflx-base-5.347.2-h1144.4aace97~unstable
     val pairs = description.replace(" ","").split(",")

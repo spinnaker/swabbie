@@ -61,7 +61,7 @@ class AmazonImageHandler(
   private val applicationUtils: ApplicationUtils,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
-  private val usedSnapshotRepository: UsedSnapshotRepository,
+  private val usedResourceRepository: UsedResourceRepository,
   private val swabbieProperties: SwabbieProperties
 ) : AbstractResourceTypeHandler<AmazonImage>(
   registry,
@@ -164,7 +164,7 @@ class AmazonImageHandler(
       if (image.blockDeviceMappings != null){
         image.blockDeviceMappings.forEach { blockDevice ->
           if (blockDevice.ebs != null && blockDevice.ebs.snapshotId != null) {
-            usedSnapshotRepository.recordUse(blockDevice.ebs.snapshotId, "aws:${params.region}:${params.account}") //todo eb: is this value needed?
+            usedResourceRepository.recordUse(SNAPSHOT, blockDevice.ebs.snapshotId, "aws:${params.region}:${params.account}")
           }
         }
       }

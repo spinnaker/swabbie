@@ -270,8 +270,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
       val preProcessedCandidates = candidates
         .withResolvedOwners(workConfiguration)
-        .filter { !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK) }
         .also { preProcessCandidates(it, workConfiguration) }
+        .filter { !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK) }
 
       val maxItemsToProcess = Math.min(preProcessedCandidates.size, getMaxItemsProcessedPerCycle(workConfiguration))
 

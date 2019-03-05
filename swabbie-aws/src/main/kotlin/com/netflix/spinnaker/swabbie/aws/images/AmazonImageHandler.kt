@@ -61,6 +61,7 @@ class AmazonImageHandler(
   private val applicationUtils: ApplicationUtils,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
+  private val usedResourceRepository: UsedResourceRepository,
   private val swabbieProperties: SwabbieProperties
 ) : AbstractResourceTypeHandler<AmazonImage>(
   registry,
@@ -155,9 +156,17 @@ class AmazonImageHandler(
 
     log.debug("checking references for {} resources. Parameters: {}", images.size, params)
 
-    images.forEach {
-      if (it.name == null || it.description == null) {
-        it.set(NAIVE_EXCLUSION, true) // exclude these with exclusions
+    images.forEach { image ->
+      if (image.name == null || image.description == null) {
+        image.set(NAIVE_EXCLUSION, true) // exclude these with exclusions
+      }
+
+      if (image.blockDeviceMappings != null){
+        image.blockDeviceMappings.forEach { blockDevice ->
+          if (blockDevice.ebs != null && blockDevice.ebs.snapshotId != null) {
+            usedResourceRepository.recordUse(SNAPSHOT, blockDevice.ebs.snapshotId, "aws:${params.region}:${params.account}")
+          }
+        }
       }
     }
 

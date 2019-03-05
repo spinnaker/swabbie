@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.images
 
+import com.amazonaws.services.ec2.model.EbsBlockDevice
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
@@ -27,9 +28,22 @@ data class AmazonImage(
   val ownerId: String?,
   val description: String?,
   val state: String,
+  val blockDeviceMappings: List<AmazonBlockDevice>?,
   override val resourceId: String = imageId,
   override val resourceType: String = IMAGE,
   override val cloudProvider: String = AWS,
   override val name: String?,
   private val creationDate: String?
 ) : AmazonResource(creationDate)
+
+data class AmazonBlockDevice(
+  val ebs: EbsBlockDevice?,
+  val noDevice: String?,
+  val deviceName: String?,
+  val virtualName: String?
+)
+
+data class AmazonEbs(
+  val snapshotId: String?,
+  val virtualName: String?
+)

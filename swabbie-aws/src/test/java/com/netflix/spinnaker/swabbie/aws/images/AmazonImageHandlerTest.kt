@@ -19,12 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.images
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.Attribute
-import com.netflix.spinnaker.config.CloudProviderConfiguration
-import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.config.ResourceTypeConfiguration
-import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.config.*
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
@@ -49,13 +44,14 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.validateMockitoUsage
 import org.springframework.context.ApplicationEventPublisher
 import java.time.*
-import java.util.Optional
+import java.util.*
 
 object AmazonImageHandlerTest {
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()
   private val accountProvider = mock<AccountProvider>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
+  private val usedSnapshotRepository = mock<UsedResourceRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonImage>>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
@@ -99,7 +95,8 @@ object AmazonImageHandlerTest {
     launchConfigurationCache = launchConfigurationCache,
     imagesUsedByinstancesCache = imagesUsedByinstancesCache,
     applicationUtils = applicationUtils,
-    dynamicConfigService = dynamicConfigService
+    dynamicConfigService = dynamicConfigService,
+    usedResourceRepository = usedSnapshotRepository
   )
 
   @BeforeEach
@@ -145,7 +142,8 @@ object AmazonImageHandlerTest {
         resourceType = IMAGE,
         cloudProvider = AWS,
         name = "123-xenial-hvm-sriov-ebs",
-        creationDate = LocalDateTime.now().minusDays(3).toString()
+        creationDate = LocalDateTime.now().minusDays(3).toString(),
+        blockDeviceMappings = emptyList()
       ),
       AmazonImage(
         imageId = "ami-132",
@@ -156,7 +154,8 @@ object AmazonImageHandlerTest {
         resourceType = IMAGE,
         cloudProvider = AWS,
         name = "132-xenial-hvm-sriov-ebs",
-        creationDate = LocalDateTime.now().minusDays(3).toString()
+        creationDate = LocalDateTime.now().minusDays(3).toString(),
+        blockDeviceMappings = emptyList()
       )
     )
 
@@ -345,7 +344,8 @@ object AmazonImageHandlerTest {
         resourceType = IMAGE,
         cloudProvider = AWS,
         name = "123-xenial-hvm-sriov-ebs",
-        creationDate = LocalDateTime.now().minusDays(3).toString()
+        creationDate = LocalDateTime.now().minusDays(3).toString(),
+        blockDeviceMappings = emptyList()
       ),
       AmazonImage(
         imageId = "ami-132",
@@ -356,7 +356,8 @@ object AmazonImageHandlerTest {
         resourceType = IMAGE,
         cloudProvider = AWS,
         name = "132-xenial-hvm-sriov-ebs",
-        creationDate = LocalDateTime.now().minusDays(3).toString()
+        creationDate = LocalDateTime.now().minusDays(3).toString(),
+        blockDeviceMappings = emptyList()
       )
     )
 
@@ -389,7 +390,8 @@ object AmazonImageHandlerTest {
       resourceType = IMAGE,
       cloudProvider = AWS,
       name = "123-xenial-hvm-sriov-ebs",
-      creationDate = LocalDateTime.now().minusDays(3).toString()
+      creationDate = LocalDateTime.now().minusDays(3).toString(),
+      blockDeviceMappings = emptyList()
     )
 
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn

@@ -15,10 +15,10 @@
  */
 
 dependencies {
-  compile spinnaker.dependency("retrofit")
-  compile spinnaker.dependency("okHttpApache")
-  compile spinnaker.dependency("okHttpUrlconnection")
-  compile spinnaker.dependency("retrofitJackson")
-  compile spinnaker.dependency("korkWeb")
-  compile spinnaker.dependency("rxJava")
+  compile "com.squareup.retrofit:retrofit"
+  compile "com.squareup.okhttp:okhttp-apache"
+  compile "com.squareup.okhttp:okhttp-urlconnection"
+  compile "com.squareup.retrofit:converter-jackson"
+  compile "com.netflix.spinnaker.kork:kork-web"
+  compile "io.reactivex:rxjava"
 }

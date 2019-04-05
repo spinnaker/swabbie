@@ -17,5 +17,5 @@
 dependencies {
   compile project(":swabbie-core")
   compile project(":swabbie-retrofit")
-  compile "com.netflix.spinnaker.moniker:moniker:0.2.0"
+  compile "com.netflix.spinnaker.moniker:moniker"
 }

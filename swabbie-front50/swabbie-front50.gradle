@@ -19,5 +19,5 @@ dependencies {
   compile project(":swabbie-core")
 
   testCompile project(":swabbie-test")
-  testCompile spinnaker.dependency("retrofitMock")
+  testCompile "com.squareup.retrofit:retrofit-mock"
 }

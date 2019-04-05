@@ -27,10 +27,10 @@ run {
 mainClassName = "com.netflix.spinnaker.swabbie.MainKt"
 
 dependencies {
-  compile spinnaker.dependency("bootActuator")
-  compile spinnaker.dependency("bootWeb")
-  compile spinnaker.dependency("bootDataRest")
-  compile spinnaker.dependency("korkWeb")
+  compile "org.springframework.boot:spring-boot-starter-actuator"
+  compile "org.springframework.boot:spring-boot-starter-web"
+  compile "org.springframework.boot:spring-boot-starter-data-rest"
+  compile "com.netflix.spinnaker.kork:kork-web"
   compile project(":swabbie-aws")
   compile project(":swabbie-clouddriver")
   compile project(":swabbie-core")

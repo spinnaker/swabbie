@@ -15,17 +15,19 @@
  */
 
 dependencies {
-  compile spinnaker.dependency("slf4j")
-  compile spinnaker.dependency("kork")
-  compile spinnaker.dependency("korkWeb")
-  compile spinnaker.dependency("logstashEncoder")
-  compile "com.netflix.spinnaker.moniker:moniker:0.2.0"
-  compile spinnaker.dependency("retrofitMock")
+  compile "org.slf4j:jcl-over-slf4j"
+  compile "com.netflix.spinnaker.kork:kork-core"
+  compile "com.netflix.spinnaker.kork:kork-web"
+  compile "net.logstash.logback:logstash-logback-encoder"
+  compile "com.netflix.spinnaker.moniker:moniker"
+  compile "com.squareup.retrofit:retrofit"
 
-  spinnaker.group("jackson")
-  compile spinnaker.dependency("retrofitJackson")
-  compile spinnaker.dependency("jacksonJsr310")
-  compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion"
+  compile "com.fasterxml.jackson.core:jackson-annotations"
+  compile "com.fasterxml.jackson.core:jackson-core"
+  compile "com.fasterxml.jackson.core:jackson-databind"
+  compile "com.squareup.retrofit:converter-jackson"
+  compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+  compile "com.fasterxml.jackson.module:jackson-module-kotlin"
   
   testCompile project(":swabbie-test")
 }

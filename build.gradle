@@ -20,44 +20,19 @@ buildscript {
     maven { url "https://plugins.gradle.org/m2/" }
   }
   dependencies {
-    classpath "com.netflix.spinnaker.gradle:spinnaker-dev-plugin:5.2.1"
-    classpath "com.netflix.nebula:nebula-kotlin-plugin:$kotlinVersion"
-    classpath "org.jetbrains.dokka:dokka-gradle-plugin:0.9.18"
+    classpath "com.netflix.spinnaker.gradle:spinnaker-dev-plugin:5.2.2"
   }
+}
+
+plugins {
+  id("nebula.kotlin") version "1.3.21" apply false
+  id("org.jetbrains.dokka") version "0.9.18" apply false
 }
 
 allprojects {
   apply plugin: "spinnaker.base-project"
-  apply plugin: "java"
 
   group = "com.netflix.spinnaker.swabbie"
-
-  ext {
-    spinnakerDependenciesVersion = '1.31.0'
-    if (project.hasProperty('spinnakerDependenciesVersion')) {
-      spinnakerDependenciesVersion = project.property('spinnakerDependenciesVersion')
-    }
-  }
-
-  def checkLocalVersions = [spinnakerDependenciesVersion: spinnakerDependenciesVersion]
-  if (ext.has('versions')) {
-    def extVers = ext.get('versions')
-    if (extVers instanceof Map) {
-      checkLocalVersions.putAll(extVers)
-    }
-  }
-
-  def localVersions = checkLocalVersions.findAll { it.value.endsWith('-SNAPSHOT') }
-  if (localVersions) {
-    logger.info("Enabling mavenLocal repo for $localVersions")
-    repositories {
-      mavenLocal()
-    }
-  }
-
-  spinnaker {
-    dependenciesVersion = spinnakerDependenciesVersion
-  }
 
   configurations.all {
     exclude group: "javax.servlet", module: "servlet-api"
@@ -67,6 +42,7 @@ allprojects {
 }
 
 subprojects {
+  apply plugin: "java"
   apply from: "$rootDir/gradle/kotlin.gradle"
   apply from: "$rootDir/gradle/junit5.gradle"
   apply from: "$rootDir/gradle/license.gradle"
@@ -76,6 +52,9 @@ subprojects {
     jcenter()
   }
 
+  dependencies {
+    api(platform("com.netflix.spinnaker.kork:kork-bom:4.0.0-rc.8-bom"))
+  }
 
   test {
     testLogging {

@@ -27,7 +27,7 @@ import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.test.TestResource
-import main.java.com.netflix.spinnaker.kork.test.time.MutableClock
+import com.netflix.spinnaker.kork.test.time.MutableClock
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

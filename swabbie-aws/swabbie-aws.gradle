@@ -18,8 +18,8 @@ dependencies {
   compile project(":swabbie-core")
   compile project(":swabbie-orca")
   compile project(":swabbie-retrofit")
-  compile spinnaker.dependency("aws")
-  compile spinnaker.dependency("frigga")
+  compile "com.amazonaws:aws-java-sdk"
+  compile "com.netflix.frigga:frigga"
 
 
   testCompile project(":swabbie-test")

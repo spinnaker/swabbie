@@ -53,7 +53,7 @@ subprojects {
   }
 
   dependencies {
-    api(platform("com.netflix.spinnaker.kork:kork-bom:4.0.0-rc.8-bom"))
+    api(platform("com.netflix.spinnaker.kork:kork-bom:4.0.0-rc.10-bom"))
   }
 
   test {

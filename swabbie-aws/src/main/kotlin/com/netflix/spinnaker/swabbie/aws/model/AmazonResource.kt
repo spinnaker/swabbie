@@ -31,13 +31,12 @@ abstract class AmazonResource(
 
   override val grouping: Grouping?
     get() {
-      if (resourceType.contains("image", ignoreCase = true)) {
-        // Images have only packageName, not app, to group by
-        getTagValue("appversion")?.let { AppVersion.parseName(it)?.packageName }?.let { packageName ->
-          return Grouping(packageName, GroupingType.PACKAGE_NAME)
-        }
-        return null
-
+      if (resourceType.contains("image", ignoreCase = true) || resourceType.contains("snapshot", ignoreCase = true)) {
+          // Images and snapshots have only packageName, not app, to group by
+          getTagValue("appversion")?.let { AppVersion.parseName(it)?.packageName }?.let { packageName ->
+            return Grouping(packageName, GroupingType.PACKAGE_NAME)
+          }
+          return null
       } else {
         FriggaReflectiveNamer().deriveMoniker(this).app?.let { app ->
           Grouping(app, GroupingType.APPLICATION)

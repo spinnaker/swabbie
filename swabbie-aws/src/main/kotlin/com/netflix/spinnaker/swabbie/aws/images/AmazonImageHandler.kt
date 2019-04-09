@@ -96,7 +96,7 @@ class AmazonImageHandler(
             )
           )
         ),
-        description = "Deleting Images :${markedResources.map { it.resourceId }}"
+        description = "Deleting Images: ${markedResources.map { it.resourceId }}"
       )
     ).let { taskResponse ->
       taskTrackingRepository.add(

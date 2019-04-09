@@ -23,10 +23,13 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import com.netflix.spinnaker.swabbie.repository.*
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
@@ -72,7 +75,35 @@ class AmazonSnapshotHandler(
   dynamicConfigService
 ) {
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented")
+    orcaService.orchestrate(
+      OrchestrationRequest(
+        // resources are partitioned based on grouping, so find the app to use from first resource
+        application = applicationUtils.determineApp(markedResources.first().resource),
+        job = listOf(
+          OrcaJob(
+            type = "deleteSnapshot",
+            context = mutableMapOf(
+              "credentials" to workConfiguration.account.name,
+              "snapshotIds" to markedResources.map { it.resourceId }.toSet(),
+              "cloudProvider" to AWS,
+              "region" to workConfiguration.location
+            )
+          )
+        ),
+        description = "Deleting Snapshots: ${markedResources.map { it.resourceId }}"
+      )
+    ).let { taskResponse ->
+      taskTrackingRepository.add(
+        taskResponse.taskId(),
+        TaskCompleteEventInfo(
+          action = Action.DELETE,
+          markedResources = markedResources,
+          workConfiguration = workConfiguration,
+          submittedTimeMillis = clock.instant().toEpochMilli()
+        )
+      )
+      log.debug("Deleting resources ${markedResources.map { it.uniqueId() }} in orca task ${taskResponse.taskId()}")
+    }
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =

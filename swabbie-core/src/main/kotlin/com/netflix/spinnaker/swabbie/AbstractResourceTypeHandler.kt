@@ -444,6 +444,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val totalProcessed = Math.min(getMaxItemsProcessedPerCycle(workConfiguration), totalResourcesVisitedCounter.get())
     registry.counter(numberOfCandidates.withTags(
       "actionName", action.name,
+      "resourceType", workConfiguration.resourceType,
       "candidates", candidateCounter.get().toString()
     )).increment()
     log.info("${action.name} Summary: {} candidates out of {} processed. {} scanned. {} excluded. Configuration: {}",

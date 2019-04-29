@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie
 import com.google.common.collect.Lists
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
+import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
@@ -70,7 +71,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
   private val timeoutMillis: Long = 5000
   private val maxAttempts: Int = 3
-  private val numberOfCandidates: Id = registry.createId("swabbie.candidates.processed")
+  private val numberOfCandidatesId: Id = registry.createId("swabbie.candidates.processed")
 
   /**
    * deletes a marked resource. Each handler must implement this function.
@@ -442,11 +443,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     action: Action
   ) {
     val totalProcessed = Math.min(getMaxItemsProcessedPerCycle(workConfiguration), totalResourcesVisitedCounter.get())
-    registry.counter(numberOfCandidates.withTags(
-      "actionName", action.name,
-      "resourceType", workConfiguration.resourceType,
-      "candidates", candidateCounter.get().toString()
-    )).increment()
+    PolledMeter.using(registry)
+      .withId(numberOfCandidatesId)
+      .withTags(workConfiguration.resourceType)
+      .monitorValue(candidateCounter.get())
+
     log.info("${action.name} Summary: {} candidates out of {} processed. {} scanned. {} excluded. Configuration: {}",
       candidateCounter.get(),
       totalProcessed,

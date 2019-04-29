@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie
 
 import com.google.common.collect.Lists
+import com.netflix.spectator.api.BasicTag
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spectator.api.patterns.PolledMeter
@@ -445,7 +446,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val totalProcessed = Math.min(getMaxItemsProcessedPerCycle(workConfiguration), totalResourcesVisitedCounter.get())
     PolledMeter.using(registry)
       .withId(numberOfCandidatesId)
-      .withTags(workConfiguration.resourceType)
+      .withTag(BasicTag(workConfiguration.resourceType,workConfiguration.resourceType))
       .monitorValue(candidateCounter.get())
 
     log.info("${action.name} Summary: {} candidates out of {} processed. {} scanned. {} excluded. Configuration: {}",

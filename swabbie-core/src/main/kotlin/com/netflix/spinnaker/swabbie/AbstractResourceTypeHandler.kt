@@ -446,7 +446,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val totalProcessed = Math.min(getMaxItemsProcessedPerCycle(workConfiguration), totalResourcesVisitedCounter.get())
     PolledMeter.using(registry)
       .withId(numberOfCandidatesId)
-      .withTag(BasicTag(workConfiguration.resourceType,workConfiguration.resourceType))
+      .withTag(BasicTag("resourceType",workConfiguration.resourceType))
       .monitorValue(candidateCounter.get())
 
     log.info("${action.name} Summary: {} candidates out of {} processed. {} scanned. {} excluded. Configuration: {}",

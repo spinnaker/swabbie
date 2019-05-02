@@ -478,11 +478,13 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val creationDate = Instant.ofEpochMilli(resource.createTs).atZone(ZoneId.systemDefault()).toLocalDate()
     if (action != Action.NOTIFY && DAYS.between(creationDate, LocalDate.now()) < workConfiguration.maxAge) {
       log.debug("Excluding resource (newer than {} days) {}", workConfiguration.maxAge, resource)
+      exclusionCounters[action]?.incrementAndGet()
       return true
     }
 
     optedOutResourceStates.find { it.markedResource.resourceId == resource.resourceId }?.let {
       log.debug("Skipping Opted out resource {}", resource)
+      exclusionCounters[action]?.incrementAndGet()
       return true
     }
 

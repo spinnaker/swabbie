@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
@@ -36,6 +37,7 @@ import java.time.Instant
 class RedisResourceTrackingRepository(
   redisClientSelector: RedisClientSelector,
   private val objectMapper: ObjectMapper,
+  private val registry: Registry,
   private val clock: Clock
 ) : ResourceTrackingRepository {
 
@@ -45,6 +47,8 @@ class RedisResourceTrackingRepository(
 
   private val log = LoggerFactory.getLogger(javaClass)
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+
+  private val redisErrors = registry.createId("swabbie.redis.errors")
 
   init {
     log.info("Using ${javaClass.simpleName}")
@@ -113,19 +117,14 @@ class RedisResourceTrackingRepository(
     }
   }
 
-  private fun hydrateMarkedResources(resourseIds: Set<String>): List<MarkedResource> {
-    if (resourseIds.isEmpty()) return emptyList()
-
-    val hydratedResources = mutableListOf<MarkedResource>()
-    resourseIds.chunked(REDIS_CHUNK_SIZE).forEach { sublist ->
-      val hydrated = redisClientDelegate.withCommandsClient<Set<String>> { client ->
-        client.hmget(SINGLE_RESOURCES_KEY, *sublist.toTypedArray()).toSet()
-      }.mapNotNull { json: String ->
+  private fun hydrateMarkedResources(resourceIds: Set<String>): List<MarkedResource> {
+    return resourceIds.chunked(REDIS_CHUNK_SIZE).mapNotNull { subList ->
+      redisClientDelegate.withCommandsClient<Set<String>> { client ->
+        client.hmget(SINGLE_RESOURCES_KEY, *subList.toTypedArray()).toSet()
+      }?.mapNotNull { json: String ->
         readMarkedResource(json)
       }
-      hydratedResources.addAll(hydrated)
-    }
-    return hydratedResources
+    }.flatten()
   }
 
   override fun upsert(markedResource: MarkedResource, deleteScore: Long) {
@@ -177,6 +176,12 @@ class RedisResourceTrackingRepository(
         try {
           deleteInfo = objectMapper.readValue(json)
         } catch (e: Exception) {
+          registry.counter(
+            redisErrors.withTags(
+              "exception", e.javaClass.simpleName,
+              "action", "getDeleted"
+            )
+          ).increment()
           log.error("Exception reading delete info $json in ${javaClass.simpleName}: ", e)
         }
         deleteInfo
@@ -188,6 +193,12 @@ class RedisResourceTrackingRepository(
     try {
       markedResource = objectMapper.readValue(resource)
     } catch (e: Exception) {
+      registry.counter(
+        redisErrors.withTags(
+          "exception", e.javaClass.simpleName,
+          "action", "readMarkedResource"
+        )
+      ).increment()
       log.error("Exception when reading marked resource $resource in ${javaClass.simpleName}: ", e)
     }
     return markedResource

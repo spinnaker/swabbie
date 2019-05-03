@@ -16,20 +16,18 @@
 
 package com.netflix.spinnaker.swabbie
 
-import com.fasterxml.jackson.annotation.JsonTypeName
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.swabbie.model.Grouping
-import com.netflix.spinnaker.swabbie.model.GroupingType
+import com.netflix.spinnaker.swabbie.model.IMAGE
+import com.netflix.spinnaker.swabbie.model.INSTANCE
 import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.test.TestResource
 import org.junit.jupiter.api.Test
-import java.time.Instant
 
 object ResourceOwnerResolverTest {
-
-  private val resource = TestResource("1")
-  private val secondResource = TestResource(id = "2", resourceType = "type")
+  private val resource = TestResource("1", resourceType = IMAGE)
+  private val secondResource = TestResource("2", resourceType = INSTANCE)
 
   @Test
   fun `should resolve to single owner`() {
@@ -76,14 +74,3 @@ class TestStrategy : ResourceOwnerResolutionStrategy<Resource> {
   }
   override fun primaryFor(): Set<String> = setOf("image")
 }
-
-@JsonTypeName("Test")
-data class TestResource(
-    private val id: String,
-    override val resourceId: String = id,
-    override val name: String = "name",
-    override val resourceType: String = "image",
-    override val cloudProvider: String = "provider",
-    override val createTs: Long = Instant.parse("2018-05-24T12:34:56Z").toEpochMilli(),
-    override val grouping: Grouping? = Grouping("group", GroupingType.APPLICATION)
-) : Resource()

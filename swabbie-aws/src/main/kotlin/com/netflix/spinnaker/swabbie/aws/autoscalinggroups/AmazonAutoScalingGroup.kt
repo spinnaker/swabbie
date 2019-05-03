@@ -36,4 +36,12 @@ data class AmazonAutoScalingGroup(
   override val name: String = autoScalingGroupName,
   private val creationDate: String? =
     LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
-) : AmazonResource(creationDate)
+) : AmazonResource(creationDate) {
+  override fun equals(other: Any?): Boolean {
+    return super.equals(other)
+  }
+
+  override fun hashCode(): Int {
+    return super.hashCode()
+  }
+}

@@ -29,4 +29,12 @@ data class AmazonElasticLoadBalancer(
   override val resourceId: String = loadBalancerName!!,
   override val cloudProvider: String = AWS,
   private val creationDate: String?
-) : AmazonResource(creationDate)
+) : AmazonResource(creationDate) {
+  override fun equals(other: Any?): Boolean {
+    return super.equals(other)
+  }
+
+  override fun hashCode(): Int {
+    return super.hashCode()
+  }
+}

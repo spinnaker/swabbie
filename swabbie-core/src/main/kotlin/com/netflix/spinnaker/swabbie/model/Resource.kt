@@ -69,7 +69,7 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
       return true
     }
     return other is Resource &&
-      other.resourceId == this.resourceId && other.resourceType == this.resourceId
+      other.resourceId == this.resourceId && other.resourceType == this.resourceType
   }
 
   override fun hashCode(): Int {

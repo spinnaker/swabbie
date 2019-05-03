@@ -280,7 +280,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       val maxItemsToProcess = Math.min(preProcessedCandidates.size, getMaxItemsProcessedPerCycle(workConfiguration))
 
       for (candidate in preProcessedCandidates) {
-        if (candidateCounter.get() > maxItemsToProcess) {
+        if (candidateCounter.get() >= maxItemsToProcess) {
           log.info("Max items ({}) to process reached, short-circuiting", maxItemsToProcess)
           break
         }

@@ -33,4 +33,12 @@ data class AmazonSecurityGroup(
   override val resourceType: String = SECURITY_GROUP,
   override val cloudProvider: String = AWS,
   private val creationDate: String?
-) : AmazonResource(creationDate)
+) : AmazonResource(creationDate) {
+  override fun equals(other: Any?): Boolean {
+    return super.equals(other)
+  }
+
+  override fun hashCode(): Int {
+    return super.hashCode()
+  }
+}

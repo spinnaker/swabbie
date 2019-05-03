@@ -31,7 +31,15 @@ data class TestResource(
   override val name: String = resourceId,
   override val createTs: Long = Instant.now().minus(10, ChronoUnit.DAYS).toEpochMilli(),
   override val grouping: Grouping? = Grouping("group", GroupingType.APPLICATION)
-) : Resource()
+) : Resource() {
+  override fun equals(other: Any?): Boolean {
+    return super.equals(other)
+  }
+
+  override fun hashCode(): Int {
+    return super.hashCode()
+  }
+}
 
 const val TEST_RESOURCE_PROVIDER_TYPE = "testProvider"
 const val TEST_RESOURCE_TYPE = "testResourceType"

@@ -34,7 +34,15 @@ data class AmazonImage(
   override val cloudProvider: String = AWS,
   override val name: String?,
   private val creationDate: String?
-) : AmazonResource(creationDate)
+) : AmazonResource(creationDate) {
+  override fun equals(other: Any?): Boolean {
+    return super.equals(other)
+  }
+
+  override fun hashCode(): Int {
+    return super.hashCode()
+  }
+}
 
 data class AmazonBlockDevice(
   val ebs: EbsBlockDevice?,

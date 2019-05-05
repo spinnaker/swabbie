@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
+import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
@@ -54,7 +55,10 @@ object RedisResourceTrackingRepositoryTest {
 
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val resourceRepository = RedisResourceTrackingRepository(
-    RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))), objectMapper, clock
+    RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))),
+    objectMapper,
+    NoopRegistry(),
+    clock
   )
 
   private val defaultMarkedResource = MarkedResource(

@@ -121,7 +121,8 @@ class RedisResourceTrackingRepository(
     return resourceIds.chunked(REDIS_CHUNK_SIZE).mapNotNull { subList ->
       redisClientDelegate.withCommandsClient<Set<String>> { client ->
         client.hmget(SINGLE_RESOURCES_KEY, *subList.toTypedArray()).toSet()
-      }?.mapNotNull { json: String ->
+      }?.mapNotNull { json ->
+        log.debug("Attempting to hydrate {}. Json document {}", subList, json)
         readMarkedResource(json)
       }
     }.flatten()

@@ -122,7 +122,6 @@ class RedisResourceTrackingRepository(
       redisClientDelegate.withCommandsClient<Set<String>> { client ->
         client.hmget(SINGLE_RESOURCES_KEY, *subList.toTypedArray()).toSet()
       }?.mapNotNull { json ->
-        log.debug("Attempting to hydrate {}. Json document {}", subList, json)
         readMarkedResource(json)
       }
     }.flatten()
@@ -189,7 +188,11 @@ class RedisResourceTrackingRepository(
       }.toList()
     }
 
-  private fun readMarkedResource(resource: String): MarkedResource? {
+  private fun readMarkedResource(resource: String?): MarkedResource? {
+    if (resource == null) {
+      return null
+    }
+
     var markedResource: MarkedResource? = null
     try {
       markedResource = objectMapper.readValue(resource)

@@ -134,6 +134,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         .toLowerCase()
       val lockOptions = LockOptions()
         .withLockName(normalizedLockName)
+        .withVersion(clock.millis())
         .withMaximumLockDuration(lockingService.get().swabbieMaxLockDuration)
       lockingService.get().acquireLock(lockOptions) {
         callback.invoke()
@@ -322,13 +323,13 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               validMarkedIds.add(alreadyMarkedCandidate.resourceId)
             }
           }
+
+          unmarkResources(validMarkedIds, workConfiguration)
         } catch (e: Exception) {
           log.error("Failed while invoking ${javaClass.simpleName}", e)
           recordFailureForAction(Action.MARK, workConfiguration, e)
         }
       }
-
-      unmarkResources(validMarkedIds, workConfiguration)
 
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)
     } finally {

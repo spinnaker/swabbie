@@ -19,5 +19,13 @@ apply plugin: "nebula.kotlin"
 compileKotlin {
   kotlinOptions {
     languageVersion = "1.3"
+    jvmTarget = "1.8"
+  }
+}
+
+compileTestKotlin {
+  kotlinOptions {
+    languageVersion = "1.3"
+    jvmTarget = "1.8"
   }
 }

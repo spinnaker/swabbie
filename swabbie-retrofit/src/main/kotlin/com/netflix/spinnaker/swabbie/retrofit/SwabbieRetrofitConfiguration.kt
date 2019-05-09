@@ -39,16 +39,16 @@ open class SwabbieRetrofitConfiguration {
 
   private val log = LoggerFactory.getLogger(javaClass)
 
-  @Value("\${okHttpClient.connectionPool.maxIdleConnections:5}")
+  @Value("\${ok-http-client.connection-pool.max-idle-connections:5}")
   var maxIdleConnections = 5
 
-  @Value("\${okHttpClient.connectionPool.keepAliveDurationMs:300000}")
+  @Value("\${ok-http-client.connection-pool.keep-alive-duration-ms:300000}")
   var keepAliveDurationMs = 300000L
 
-  @Value("\${okHttpClient.retryOnConnectionFailure:true}")
+  @Value("\${ok-http-client.retry-on-connection-failure:true}")
   var retryOnConnectionFailure = true
 
-  @Value("\${okHttpClient.spinnakerUser:swabbie@spinnaker.io}")
+  @Value("\${ok-http-client.spinnaker-user:swabbie@spinnaker.io}")
   var spinnakerUser = "swabbie@spinnaker.io"
 
   @Bean(name = arrayOf("retrofitClient", "okClient"))
@@ -72,7 +72,7 @@ open class SwabbieRetrofitConfiguration {
   }
 
   @Bean
-  open fun retrofitLogLevel(@Value("\${retrofit.logLevel:BASIC}") retrofitLogLevel: String)
+  open fun retrofitLogLevel(@Value("\${retrofit.log-level:BASIC}") retrofitLogLevel: String)
     = RestAdapter.LogLevel.valueOf(retrofitLogLevel)
 }
 

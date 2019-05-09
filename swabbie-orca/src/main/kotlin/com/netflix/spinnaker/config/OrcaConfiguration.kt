@@ -37,7 +37,7 @@ import retrofit.converter.JacksonConverter
 @ComponentScan("com.netflix.spinnaker.swabbie.orca")
 open class OrcaConfiguration {
   @Bean
-  open fun orcaEndpoint(@Value("\${orca.baseUrl}") orcaBaseUrl: String): Endpoint
+  open fun orcaEndpoint(@Value("\${orca.base-url}") orcaBaseUrl: String): Endpoint
     = Endpoints.newFixedEndpoint(orcaBaseUrl)
 
   @Bean

@@ -38,7 +38,7 @@ open class EchoConfiguration {
   private val log = LoggerFactory.getLogger(javaClass)
 
   @Bean
-  open fun echoEndpoint(@Value("\${echo.baseUrl}") echoBaseUrl: String) = Endpoints.newFixedEndpoint(echoBaseUrl)
+  open fun echoEndpoint(@Value("\${echo.base-url}") echoBaseUrl: String) = Endpoints.newFixedEndpoint(echoBaseUrl)
 
   @Bean
   open fun echoService(echoEndpoint: Endpoint,

@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnExpression("\${swabbie.testing.enabled:false}")
 open class TestingConfiguration {
 
-  @ConditionalOnExpression("\${swabbie.testing.alwaysCleanRuleConfig.enabled:false}")
+  @ConditionalOnExpression("\${swabbie.testing.always-clean-rule-config.enabled:false}")
   @Bean
   open fun alwaysCleanRule(swabbieProperties: SwabbieProperties) =
     AlwaysCleanRule(swabbieProperties)

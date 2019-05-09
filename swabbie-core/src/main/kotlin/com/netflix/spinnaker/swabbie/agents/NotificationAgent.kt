@@ -56,10 +56,10 @@ class NotificationAgent(
   cacheStatus,
   dynamicConfigService
 ) {
-  @Value("\${swabbie.agents.notify.intervalSeconds:3600}")
+  @Value("\${swabbie.agents.notify.interval-seconds:3600}")
   private var interval: Long = 3600
 
-  @Value("\${swabbie.agents.notify.delaySeconds:10}")
+  @Value("\${swabbie.agents.notify.delay-seconds:10}")
   private var delay: Long = 10
 
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())

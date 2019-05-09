@@ -35,7 +35,7 @@ import retrofit.converter.JacksonConverter
 @ComponentScan("com.netflix.spinnaker.swabbie.front50")
 open class Front50Configuration {
   @Bean
-  open fun front50Endpoint(@Value("\${front50.baseUrl}") front50Url: String): Endpoint = Endpoints.newFixedEndpoint(front50Url)
+  open fun front50Endpoint(@Value("\${front50.base-url}") front50Url: String): Endpoint = Endpoints.newFixedEndpoint(front50Url)
 
   @Bean
   open fun front50Service(front50Endpoint: Endpoint,

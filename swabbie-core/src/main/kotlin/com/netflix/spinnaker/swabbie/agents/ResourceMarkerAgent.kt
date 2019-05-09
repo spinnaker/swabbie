@@ -56,10 +56,10 @@ class ResourceMarkerAgent(
   cacheStatus,
   dynamicConfigService
 ) {
-  @Value("\${swabbie.agents.mark.intervalSeconds:3600}")
+  @Value("\${swabbie.agents.mark.interval-seconds:3600}")
   private var interval: Long = 3600
 
-  @Value("\${swabbie.agents.mark.delaySeconds:0}")
+  @Value("\${swabbie.agents.mark.delay-seconds:0}")
   private var delay: Long = 0
 
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())

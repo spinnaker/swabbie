@@ -104,7 +104,7 @@ open class SwabbieConfiguration {
   }
 
   @Bean
-  open fun maheEndpoint(@Value("\${mahe.baseUrl}") maheBaseUrl: String): Endpoint
+  open fun maheEndpoint(@Value("\${mahe.base-url}") maheBaseUrl: String): Endpoint
     = Endpoints.newFixedEndpoint(maheBaseUrl)
 
   @Bean

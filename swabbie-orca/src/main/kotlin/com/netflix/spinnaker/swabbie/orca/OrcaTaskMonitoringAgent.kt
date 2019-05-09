@@ -190,13 +190,13 @@ class OrcaTaskMonitoringAgent (
     }
   }
 
-  @Value("\${swabbie.agents.orcaTaskMonitor.intervalSeconds:10}")
+  @Value("\${swabbie.agents.orca-task-monitor.interval-seconds:10}")
   private var interval: Long = 60
 
-  @Value("\${swabbie.agents.orcaTaskMonitor.delaySeconds:30}")
+  @Value("\${swabbie.agents.orca-task-monitor.delay-seconds:30}")
   private var delay: Long = 0
 
-  @Value("\${swabbie.agents.orcaTaskMonitor.daysToKeepTasks:2}")
+  @Value("\${swabbie.agents.orca-task-monitor.days-to-keep-tasks:2}")
   private var daysToKeepTasks: Int = 2
 
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())

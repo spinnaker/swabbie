@@ -34,7 +34,7 @@ import retrofit.converter.JacksonConverter
 @Import(RetrofitConfiguration::class)
 open class ClouddriverConfiguration {
   @Bean
-  open fun clouddriverEndpoint(@Value("\${clouddriver.baseUrl}") clouddriverBaseUrl: String) = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
+  open fun clouddriverEndpoint(@Value("\${clouddriver.base-url}") clouddriverBaseUrl: String) = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
 
   @Bean
   open fun clouddriverService(clouddriverEndpoint: Endpoint,

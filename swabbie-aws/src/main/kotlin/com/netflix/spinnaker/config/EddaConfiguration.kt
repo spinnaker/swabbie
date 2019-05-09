@@ -99,7 +99,7 @@ open class EddaConfiguration {
   }
 
   @Bean
-  open fun eddaEndpointsEndpoint(@Value("\${eddaEndpoints.baseUrl}") eddaEndpointsBaseUrl: String): Endpoint {
+  open fun eddaEndpointsEndpoint(@Value("\${edda-endpoints.base-url}") eddaEndpointsBaseUrl: String): Endpoint {
     return Endpoints.newFixedEndpoint(eddaEndpointsBaseUrl)!!
   }
 

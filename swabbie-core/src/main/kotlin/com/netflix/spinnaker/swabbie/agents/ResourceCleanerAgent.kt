@@ -56,10 +56,10 @@ class ResourceCleanerAgent(
   cacheStatus,
   dynamicConfigService
 ) {
-  @Value("\${swabbie.agents.clean.intervalSeconds:3600}")
+  @Value("\${swabbie.agents.clean.interval-seconds:3600}")
   private var interval: Long = 3600
 
-  @Value("\${swabbie.agents.clean.delaySeconds:5}")
+  @Value("\${swabbie.agents.clean.delay-seconds:5}")
   private var delay: Long = 5
 
   private val _lastAgentRun = AtomicReference<Instant>(clock.instant())

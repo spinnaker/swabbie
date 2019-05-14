@@ -16,9 +16,10 @@
 
 package com.netflix.spinnaker.swabbie.front50
 
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.model.Application
 import org.springframework.stereotype.Component
 
 @Component
-class Front50ApplicationCache(front50Service: Front50Service) : InMemoryCache<Application>(front50Service::getApplications)
+class Front50ApplicationCache(front50Service: Front50Service) : InMemoryCache<Application>({ AuthenticatedRequest.allowAnonymous(front50Service::getApplications) })

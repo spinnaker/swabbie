@@ -21,6 +21,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
 import com.netflix.spinnaker.swabbie.model.DynamicProperty
@@ -71,7 +72,7 @@ class BaseImageLabelsExclusionSupplier(
 class BaseImageLabelsCache(
   gateService: DynamicPropertyService
 ) : InMemoryCache<DynamicProperty>(
-  gateService.getProperties("bakery")::getPropertiesList
+  AuthenticatedRequest.allowAnonymous { gateService.getProperties("bakery")::getPropertiesList }
 )
 
 //TODO: make configurable

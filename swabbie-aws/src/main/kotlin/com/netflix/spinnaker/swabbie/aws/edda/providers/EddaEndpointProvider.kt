@@ -1,5 +1,6 @@
 package com.netflix.spinnaker.swabbie.aws.edda.providers
 
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.EndpointProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.aws.edda.EddaEndpointsService
@@ -36,4 +37,4 @@ class EddaEndpointProvider(
 @Component
 class EddaEndpointCache(
   eddaEndpointProvider: EddaEndpointProvider
-) : InMemoryCache<EddaEndpoint>(eddaEndpointProvider::load)
+) : InMemoryCache<EddaEndpoint>({ AuthenticatedRequest.allowAnonymous(eddaEndpointProvider::load) })

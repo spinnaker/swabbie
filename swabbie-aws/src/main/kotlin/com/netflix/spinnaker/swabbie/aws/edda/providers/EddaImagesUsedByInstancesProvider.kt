@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spinnaker.config.EddaApiClient
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -72,7 +73,7 @@ open class EddaImagesUsedByInstancesProvider(
 @Component
 open class EddaImagesUsedByInstancesCache(
   eddaImagesUsedByInstancesProvider: EddaImagesUsedByInstancesProvider
-) : InMemorySingletonCache<AmazonImagesUsedByInstancesCache>(eddaImagesUsedByInstancesProvider::load)
+) : InMemorySingletonCache<AmazonImagesUsedByInstancesCache>({ AuthenticatedRequest.allowAnonymous(eddaImagesUsedByInstancesProvider::load)})
 
 data class AmazonImagesUsedByInstancesCache(
   private val refdAmisByRegion: Map<String, Set<String>>,

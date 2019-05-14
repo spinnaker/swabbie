@@ -39,7 +39,7 @@ abstract class AmazonResource(
           return null
       } else {
         FriggaReflectiveNamer().deriveMoniker(this).app?.let { app ->
-          Grouping(app, GroupingType.APPLICATION)
+          return Grouping(app, GroupingType.APPLICATION)
         }
         return null
       }

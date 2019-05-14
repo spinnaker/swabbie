@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spinnaker.config.EddaApiClient
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.*
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -74,7 +75,7 @@ open class EddaLaunchConfigurationCacheProvider(
 @Component
 open class EddaLaunchConfigurationCache(
   eddaLaunchConfigurationCacheProvider: EddaLaunchConfigurationCacheProvider
-) : InMemorySingletonCache<AmazonLaunchConfigurationCache>(eddaLaunchConfigurationCacheProvider::load)
+) : InMemorySingletonCache<AmazonLaunchConfigurationCache>({ AuthenticatedRequest.allowAnonymous(eddaLaunchConfigurationCacheProvider::load)})
 
 data class AmazonLaunchConfigurationCache(
   private val refdAmisByRegion: Map<String, Map<String, Set<AmazonLaunchConfiguration>>>,

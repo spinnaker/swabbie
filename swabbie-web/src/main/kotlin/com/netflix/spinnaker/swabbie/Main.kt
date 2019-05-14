@@ -24,6 +24,7 @@ import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.scheduling.annotation.EnableAsync
+import org.springframework.scheduling.annotation.EnableScheduling
 
 object MainDefaults {
   val PROPS = mapOf(
@@ -40,6 +41,7 @@ object MainDefaults {
 @Configuration
 @EnableAsync
 @EnableAutoConfiguration
+@EnableScheduling
 @Import(PlatformComponents::class)
 @ComponentScan(basePackages = arrayOf("com.netflix.spinnaker.config", "com.netflix.spinnaker.swabbie.web.config"))
 open class Main : SpringBootServletInitializer() {

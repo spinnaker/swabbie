@@ -233,7 +233,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     var count = 0
     for (resource in markedResourcesInNamespace) {
       if (!validMarkedResources.contains(resource.resourceId)) {
-        ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies to be deleted")
+        ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies to be deleted. Details: ${resource.resource.details}")
         count += 1
         if (count >= swabbieProperties.maxUnmarkedPerCycle) {
           log.warn("Unmarked ${swabbieProperties.maxUnmarkedPerCycle} resources (max allowed) in $javaClass. Aborting.")

@@ -42,7 +42,7 @@ swabbie:
           enabled: false
           dryRun: true
           retention: 10 #days
-          maxAge: 10 #days 
+          maxAge: 10 #days
           exclusions:
             - type: Literal
               attributes:
@@ -58,7 +58,7 @@ swabbie:
           entityTaggingEnabled: true
           notification:
             enabled: true
-            types: 
+            types:
               - email
               - slack
             itemsPerMessage: 5
@@ -114,7 +114,7 @@ Work configuration is derived from the YAML configuration.
 
 #### Marking resources for deletions & Redis
 A marker agent operates on a unit of work by acquiring a simple lock to avoid operating on work in progress.
-The locking mechanism is backed by a distributed redis locking manager. The granularity of the lock name is 
+The locking mechanism is backed by a distributed redis locking manager. The granularity of the lock name is
 `$action:$workConfiguration.namespace`.
 
 ```

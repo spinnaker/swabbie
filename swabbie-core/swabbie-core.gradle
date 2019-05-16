@@ -28,6 +28,6 @@ dependencies {
   compile "com.squareup.retrofit:converter-jackson"
   compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
   compile "com.fasterxml.jackson.module:jackson-module-kotlin"
-  
+
   testCompile project(":swabbie-test")
 }

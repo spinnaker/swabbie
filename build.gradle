@@ -15,7 +15,7 @@
  */
 buildscript {
   ext {
-    korkVersion = "5.2.6"
+    korkVersion = "5.3.4"
   }
   repositories {
     jcenter()

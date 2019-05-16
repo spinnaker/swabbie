@@ -244,7 +244,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   }
 
   private fun getMaxItemsProcessedPerCycle(workConfiguration: WorkConfiguration): Int {
-    val key = workConfiguration.namespace + ".maxItemsProcessedPerCycle"
+    val key = workConfiguration.namespace + ".max-items-processed-per-cycle"
     return dynamicConfigService.getConfig(Int::class.java, key, workConfiguration.maxItemsProcessedPerCycle)
   }
 

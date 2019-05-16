@@ -26,7 +26,12 @@ import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.junit.jupiter.api.AfterAll
@@ -103,7 +108,6 @@ object RedisTaskTrackingRepositoryTest {
 
   private val taskId = "01CRXYGDMCBPS95GRZES56Y44P"
 
-
   @BeforeEach
   fun setup() {
     jedisPool.resource.use {
@@ -167,6 +171,4 @@ object RedisTaskTrackingRepositoryTest {
     Assert.isTrue(trackingRepository.getSucceeded().size == 2, "has two tasks")
     Assert.isTrue(trackingRepository.getFailed().size == 1, "has one task")
   }
-
-
 }

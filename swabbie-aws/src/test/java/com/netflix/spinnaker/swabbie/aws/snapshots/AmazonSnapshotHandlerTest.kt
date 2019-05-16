@@ -25,21 +25,49 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.*
+import com.netflix.spinnaker.config.Attribute
+import com.netflix.spinnaker.config.CloudProviderConfiguration
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.config.ResourceTypeConfiguration
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.InMemoryCache
+import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.NaiveExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.Region
+import com.netflix.spinnaker.swabbie.model.SNAPSHOT
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.orca.OrcaService
-import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
-import com.nhaarman.mockito_kotlin.*
+import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.check
+import com.nhaarman.mockito_kotlin.doReturn
+import com.nhaarman.mockito_kotlin.doThrow
+import com.nhaarman.mockito_kotlin.eq
+import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.reset
+import com.nhaarman.mockito_kotlin.times
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -51,7 +79,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import java.util.*
+import java.util.Optional
 
 object AmazonSnapshotHandlerTest {
 
@@ -73,7 +101,7 @@ object AmazonSnapshotHandlerTest {
   fun `image con`() {
     val raw = "{\"description\":\"name=clouddriver, arch=x86_64, ancestor_name=xenialbase-x86_64-201901230035-ebs, ancestor_id=ami-0fec712ac298b612f, ancestor_version=nflx-base-5.328.0-h1108.7154fd2\",\"kernelId\":null,\"class\":\"com.amazonaws.services.ec2.model.Image\",\"name\":\"clouddriver-1.1623.0-h1739.a209fcb-x86_64-20190130210356-xenial-hvm-sriov-ebs\",\"stateReason\":null,\"virtualizationType\":\"hvm\",\"blockDeviceMappings\":[{\"virtualName\":null,\"ebs\":{\"snapshotId\":\"snap-0fbf910c6568eaa40\",\"encrypted\":false,\"volumeSize\":10,\"deleteOnTermination\":true,\"kmsKeyId\":null,\"class\":\"com.amazonaws.services.ec2.model.EbsBlockDevice\",\"iops\":null,\"volumeType\":\"standard\"},\"class\":\"com.amazonaws.services.ec2.model.BlockDeviceMapping\",\"noDevice\":null,\"deviceName\":\"/dev/sda1\"},{\"virtualName\":\"ephemeral0\",\"ebs\":null,\"class\":\"com.amazonaws.services.ec2.model.BlockDeviceMapping\",\"noDevice\":null,\"deviceName\":\"/dev/sdb\"},{\"virtualName\":\"ephemeral1\",\"ebs\":null,\"class\":\"com.amazonaws.services.ec2.model.BlockDeviceMapping\",\"noDevice\":null,\"deviceName\":\"/dev/sdc\"},{\"virtualName\":\"ephemeral2\",\"ebs\":null,\"class\":\"com.amazonaws.services.ec2.model.BlockDeviceMapping\",\"noDevice\":null,\"deviceName\":\"/dev/sdd\"},{\"virtualName\":\"ephemeral3\",\"ebs\":null,\"class\":\"com.amazonaws.services.ec2.model.BlockDeviceMapping\",\"noDevice\":null,\"deviceName\":\"/dev/sde\"}],\"imageLocation\":\"179727101194/clouddriver-1.1623.0-h1739.a209fcb-x86_64-20190130210356-xenial-hvm-sriov-ebs\",\"public\":false,\"rootDeviceName\":\"/dev/sda1\",\"hypervisor\":\"xen\",\"sriovNetSupport\":\"simple\",\"rootDeviceType\":\"ebs\",\"platform\":null,\"imageOwnerAlias\":null,\"ownerId\":\"179727101194\",\"state\":\"available\",\"imageId\":\"ami-08366161198075aff\",\"imageType\":\"machine\",\"ramdiskId\":null,\"enaSupport\":true,\"productCodes\":[],\"creationDate\":\"2019-01-30T21:08:46.000Z\",\"architecture\":\"x86_64\"}"
     val image: AmazonImage = objectMapper.readValue(raw)
-    assert( image.imageId == "ami-08366161198075aff")
+    assert(image.imageId == "ami-08366161198075aff")
   }
 
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()

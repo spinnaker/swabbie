@@ -19,7 +19,8 @@ package com.netflix.spinnaker.swabbie.agents
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.CacheStatus
+import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.beans.factory.annotation.Value

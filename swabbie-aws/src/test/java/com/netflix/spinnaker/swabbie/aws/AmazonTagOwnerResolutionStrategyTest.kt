@@ -29,7 +29,6 @@ object AmazonTagOwnerResolutionStrategyTest {
     var resource = AwsTestResource("1")
       .withDetail(name = "tags", value = listOf(mapOf("owner" to "test@netflix.com")))
 
-
     AmazonTagOwnerResolutionStrategy().resolve(resource as AmazonResource).let { owner ->
       owner shouldMatch equalTo("test@netflix.com")
     }

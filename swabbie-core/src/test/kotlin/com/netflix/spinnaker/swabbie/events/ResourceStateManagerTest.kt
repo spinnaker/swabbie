@@ -17,16 +17,25 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.Status
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
-import com.netflix.spinnaker.swabbie.model.*
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
-import com.nhaarman.mockito_kotlin.*
+import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.argWhere
+import com.nhaarman.mockito_kotlin.doReturn
+import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.reset
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -45,14 +54,14 @@ object ResourceStateManagerTest {
   private var configuration = workConfiguration()
   private val applicationUtils = ApplicationUtils(emptyList())
 
-  private val markedResourceWithViolations =  MarkedResource(
+  private val markedResourceWithViolations = MarkedResource(
     resource = resource,
     summaries = listOf(Summary("violates rule 1", "ruleName")),
     namespace = configuration.namespace,
     projectedDeletionStamp = clock.millis()
   )
 
-  private val markedResourceNoViolations =  MarkedResource(
+  private val markedResourceNoViolations = MarkedResource(
     resource = resource,
     summaries = emptyList(),
     namespace = configuration.namespace,
@@ -183,18 +192,18 @@ object ResourceStateManagerTest {
     // should have two statuses with OPTOUT being the latest
     verify(resourceStateRepository).upsert(
       argWhere {
-        it.optedOut
-        && it.markedResource == markedResourceWithViolations
-        && it.currentStatus!!.name == Action.OPTOUT.name
-        && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
-        && it.currentStatus!!.timestamp > it.statuses.first().timestamp
+        it.optedOut &&
+        it.markedResource == markedResourceWithViolations &&
+        it.currentStatus!!.name == Action.OPTOUT.name &&
+        it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
+        it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
 
     verify(taggingService).upsertImageTag(argWhere {
-      it.tags.containsKey("expiration_time")
-      && it.tags.containsValue("never")
-      && it.imageNames.contains("testResource")
+      it.tags.containsKey("expiration_time") &&
+      it.tags.containsValue("never") &&
+      it.imageNames.contains("testResource")
     })
 
     verify(taskTrackingRepository).add(
@@ -226,11 +235,11 @@ object ResourceStateManagerTest {
     )
     verify(resourceStateRepository).upsert(
       argWhere {
-        !it.deleted
-        && it.markedResource == markedResourceWithViolations
-        && it.currentStatus!!.name.contains("FAILED", ignoreCase = true)
-        && it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name
-        && it.currentStatus!!.timestamp > it.statuses.first().timestamp
+        !it.deleted &&
+        it.markedResource == markedResourceWithViolations &&
+        it.currentStatus!!.name.contains("FAILED", ignoreCase = true) &&
+        it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
+        it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
   }

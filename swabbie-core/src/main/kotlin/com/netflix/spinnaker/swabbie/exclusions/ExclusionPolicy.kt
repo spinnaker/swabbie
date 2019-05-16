@@ -90,7 +90,7 @@ interface ExclusionPolicy {
     return null
   }
 
-  fun <R: Any?> getProperty(instance: Any, propertyName: String): R {
+  fun <R : Any?> getProperty(instance: Any, propertyName: String): R {
     try {
       return readPropery(instance, propertyName)
     } catch (e: NoSuchElementException) {
@@ -103,7 +103,7 @@ interface ExclusionPolicy {
     }
   }
 
-  private fun <R: Any?> readPropery(instance: Any, propertyName: String): R {
+  private fun <R : Any?> readPropery(instance: Any, propertyName: String): R {
     @Suppress("UNCHECKED_CAST")
     return instance.javaClass.kotlin.memberProperties.first { it.name == propertyName }.get(instance) as R
   }
@@ -137,10 +137,12 @@ interface ExclusionPolicy {
   }
 }
 
-internal fun shouldExclude(excludable: Excludable,
-                           workConfiguration: WorkConfiguration,
-                           exclusionPolicies: List<ExclusionPolicy>,
-                           log: Logger): Boolean {
+internal fun shouldExclude(
+  excludable: Excludable,
+  workConfiguration: WorkConfiguration,
+  exclusionPolicies: List<ExclusionPolicy>,
+  log: Logger
+): Boolean {
   return excludable.shouldBeExcluded(exclusionPolicies, workConfiguration.exclusions).also {
     if (it.excluded) {
       log.info("Excluding resource because reasons: {}, resource: {}", it.reasons, excludable)

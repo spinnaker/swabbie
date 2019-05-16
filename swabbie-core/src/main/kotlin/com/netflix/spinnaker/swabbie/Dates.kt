@@ -53,11 +53,10 @@ class Dates {
       throw exception!!
     }
 
-    fun toCreationDate(timestampMillis: Long) : String {
+    fun toCreationDate(timestampMillis: Long): String {
       return LocalDateTime
         .ofInstant(Instant.ofEpochMilli(timestampMillis), ZoneId.of("America/Los_Angeles"))
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSS'Z'"))
     }
   }
 }
-

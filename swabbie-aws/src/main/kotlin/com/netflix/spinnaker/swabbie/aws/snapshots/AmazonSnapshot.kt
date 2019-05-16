@@ -41,5 +41,5 @@ data class AmazonSnapshot(
   override val resourceType: String = SNAPSHOT,
   override val cloudProvider: String = AWS,
   override val name: String = snapshotId,
-  private val creationDate: String? =  Dates.toCreationDate(startTime)
+  private val creationDate: String? = Dates.toCreationDate(startTime)
 ) : AmazonResource(creationDate)

@@ -20,22 +20,34 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
+import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.util.*
+import java.util.Optional
 
-//TODO: add rules for this handler
+// TODO: add rules for this handler
 @Component
 class AmazonSecurityGroupHandler(
   registry: Registry,
@@ -113,9 +125,10 @@ class AmazonSecurityGroupHandler(
     }
   }
 
-  override fun getCandidate(resourceId: String,
-                            resourceName: String,
-                            workConfiguration: WorkConfiguration
+  override fun getCandidate(
+    resourceId: String,
+    resourceName: String,
+    workConfiguration: WorkConfiguration
   ): AmazonSecurityGroup? = securityGroupProvider.getOne(
     Parameters(
         id = resourceId,
@@ -129,7 +142,7 @@ class AmazonSecurityGroupHandler(
     candidates: List<AmazonSecurityGroup>,
     workConfiguration: WorkConfiguration
   ): List<AmazonSecurityGroup> {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    TODO("not implemented") // To change body of created functions use File | Settings | File Templates.
   }
 
   override fun handles(workConfiguration: WorkConfiguration):

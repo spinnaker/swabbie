@@ -32,7 +32,7 @@ class OrphanedSnapshotRule : Rule<AmazonSnapshot> {
   override fun apply(resource: AmazonSnapshot): Result {
     if (resource.matchesAnyRule(
         IMAGE_EXISTS
-      )){
+      )) {
       return Result(null)
     }
 

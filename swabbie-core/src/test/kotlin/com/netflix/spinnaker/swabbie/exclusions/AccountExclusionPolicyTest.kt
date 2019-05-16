@@ -141,5 +141,4 @@ object AccountExclusionPolicyTest {
       filteredAccounts.first().type shouldMatch equalTo("other")
     }
   }
-
 }

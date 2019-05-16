@@ -22,7 +22,7 @@ import com.netflix.spinnaker.swabbie.model.Account
 import org.springframework.stereotype.Component
 
 @Component
-class AccountExclusionPolicy: BasicExclusionPolicy {
+class AccountExclusionPolicy : BasicExclusionPolicy {
   override fun getType(): ExclusionType = ExclusionType.Account
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     if (excludable is Account) {

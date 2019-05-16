@@ -30,11 +30,11 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
-import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
+import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
+import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.services.DynamicPropertyService
 import org.slf4j.Logger
@@ -56,7 +56,7 @@ import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 import java.time.Clock
-import java.util.*
+import java.util.Optional
 
 @Configuration
 @EnableConfigurationProperties(SwabbieProperties::class)
@@ -78,17 +78,18 @@ open class SwabbieConfiguration {
   open fun clock(): Clock = Clock.systemUTC()
 
   @Bean
-  open fun workConfigurator(swabbieProperties: SwabbieProperties,
-                            accountProvider: AccountProvider,
-                            exclusionPolicies: List<BasicExclusionPolicy>,
-                            exclusionsProviders: Optional<List<ExclusionsSupplier>>): WorkConfigurator {
+  open fun workConfigurator(
+    swabbieProperties: SwabbieProperties,
+    accountProvider: AccountProvider,
+    exclusionPolicies: List<BasicExclusionPolicy>,
+    exclusionsProviders: Optional<List<ExclusionsSupplier>>
+  ): WorkConfigurator {
     return WorkConfigurator(swabbieProperties, accountProvider, exclusionPolicies, exclusionsProviders)
   }
 
   @Bean
   open fun workConfigurations(workConfigurator: WorkConfigurator): List<WorkConfiguration> =
     workConfigurator.generateWorkConfigurations()
-
 
   @Bean
   open fun agentExecutor(@Value("\${agents.threads:2}") numThreads: Int): ThreadPoolTaskExecutor {
@@ -104,16 +105,18 @@ open class SwabbieConfiguration {
   }
 
   @Bean
-  open fun maheEndpoint(@Value("\${mahe.base-url}") maheBaseUrl: String): Endpoint
-    = Endpoints.newFixedEndpoint(maheBaseUrl)
+  open fun maheEndpoint(@Value("\${mahe.base-url}") maheBaseUrl: String): Endpoint =
+    Endpoints.newFixedEndpoint(maheBaseUrl)
 
   @Bean
-  open fun dynamicPropertiesService(maheEndpoint: Endpoint,
-                                    objectMapper: ObjectMapper,
-                                    retrofitClient: Client,
-                                    spinnakerRequestInterceptor: RequestInterceptor,
-                                    retrofitLogLevel: RestAdapter.LogLevel): DynamicPropertyService
-    = RestAdapter.Builder()
+  open fun dynamicPropertiesService(
+    maheEndpoint: Endpoint,
+    objectMapper: ObjectMapper,
+    retrofitClient: Client,
+    spinnakerRequestInterceptor: RequestInterceptor,
+    retrofitLogLevel: RestAdapter.LogLevel
+  ): DynamicPropertyService =
+    RestAdapter.Builder()
       .setRequestInterceptor(spinnakerRequestInterceptor)
       .setEndpoint(maheEndpoint)
       .setClient(retrofitClient)

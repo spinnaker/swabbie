@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 
 class InMemoryTaskTrackingRepository(
   private val clock: Clock
-): TaskTrackingRepository {
+) : TaskTrackingRepository {
 
   private val submittedTasks = HashMap<String, TaskCompleteEventInfo>()
   private val taskStatus = HashMap<String, TaskState>()
@@ -90,4 +90,3 @@ class InMemoryTaskTrackingRepository(
       .keys
   }
 }
-

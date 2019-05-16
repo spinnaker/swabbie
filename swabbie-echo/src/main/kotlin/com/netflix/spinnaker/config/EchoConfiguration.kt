@@ -41,11 +41,13 @@ open class EchoConfiguration {
   open fun echoEndpoint(@Value("\${echo.base-url}") echoBaseUrl: String) = Endpoints.newFixedEndpoint(echoBaseUrl)
 
   @Bean
-  open fun echoService(echoEndpoint: Endpoint,
-                       objectMapper: ObjectMapper,
-                       retrofitClient: Client,
-                       spinnakerRequestInterceptor: RequestInterceptor,
-                       retrofitLogLevel: RestAdapter.LogLevel) = RestAdapter.Builder()
+  open fun echoService(
+    echoEndpoint: Endpoint,
+    objectMapper: ObjectMapper,
+    retrofitClient: Client,
+    spinnakerRequestInterceptor: RequestInterceptor,
+    retrofitLogLevel: RestAdapter.LogLevel
+  ) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(echoEndpoint)
     .setClient(retrofitClient)

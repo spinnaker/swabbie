@@ -26,8 +26,9 @@ import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+
 object AllowListExclusionPolicyTest {
   private val front50ApplicationCache: InMemoryCache<Application> = mock()
 
@@ -62,8 +63,8 @@ object AllowListExclusionPolicyTest {
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(2)
       filteredResources.map { it.resourceId }.let {
-        assertTrue( it.contains("important-v001"), "Allow List by pattern")
-        assertTrue( it.contains("testapp-v001"), "Allow List by name")
+        assertTrue(it.contains("important-v001"), "Allow List by pattern")
+        assertTrue(it.contains("testapp-v001"), "Allow List by name")
       }
       filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
     }
@@ -146,8 +147,8 @@ object AllowListExclusionPolicyTest {
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(2)
       filteredResources.map { it.resourceId }.let {
-        assertTrue( it.contains("grpclab-v001"), "Allow List by pattern")
-        assertTrue( it.contains("testapp-v001"), "Allow List by owner")
+        assertTrue(it.contains("grpclab-v001"), "Allow List by pattern")
+        assertTrue(it.contains("testapp-v001"), "Allow List by owner")
       }
       filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
     }

@@ -29,7 +29,7 @@ import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 object Front50ApplicationExclusionPolicyTest {
@@ -63,7 +63,6 @@ object Front50ApplicationExclusionPolicyTest {
         Application(name = "random", email = "random@netflix.com")
       )
 
-
     val resources = listOf(
       TestResource("testapp-v001", grouping = Grouping("testapp", GroupingType.APPLICATION)),
       TestResource("test-v001", grouping = Grouping("test", GroupingType.APPLICATION)),
@@ -79,7 +78,7 @@ object Front50ApplicationExclusionPolicyTest {
   }
 
   @Test
-  fun `should exclude based on pattern`(){
+  fun `should exclude based on pattern`() {
     val exclusions = listOf(
       Exclusion()
         .withType(ExclusionType.Application.toString())
@@ -104,7 +103,7 @@ object Front50ApplicationExclusionPolicyTest {
     val resources = listOf(
       TestResource("clouddriver-v001", grouping = Grouping("clouddriver", GroupingType.APPLICATION)),
       TestResource("acloud-v001", grouping = Grouping("acloud", GroupingType.APPLICATION)),
-      TestResource("wowcloudwow", grouping = Grouping("wowcloudwow", GroupingType.APPLICATION))    )
+      TestResource("wowcloudwow", grouping = Grouping("wowcloudwow", GroupingType.APPLICATION)))
 
     resources.filter {
       Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions) == null
@@ -148,7 +147,7 @@ object Front50ApplicationExclusionPolicyTest {
     resources.filter {
       Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions) == null
     }.let { filteredResources ->
-      filteredResources.size shouldMatch equalTo(1) //it doesn't get excluded
+      filteredResources.size shouldMatch equalTo(1) // it doesn't get excluded
     }
   }
 }

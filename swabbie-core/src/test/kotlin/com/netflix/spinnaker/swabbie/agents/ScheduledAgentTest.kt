@@ -2,8 +2,11 @@ package com.netflix.spinnaker.swabbie.agents
 
 import com.netflix.spinnaker.config.Schedule
 import org.junit.jupiter.api.Test
-import java.time.*
-
+import java.time.Clock
+import java.time.LocalDateTime
+import java.time.Month
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 object ScheduledAgentTest {
 
@@ -60,5 +63,4 @@ object ScheduledAgentTest {
 
     assert(ScheduledAgent.timeToWork(schedule, clock))
   }
-
 }

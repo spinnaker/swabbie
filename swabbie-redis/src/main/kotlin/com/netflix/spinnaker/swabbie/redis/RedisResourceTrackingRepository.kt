@@ -90,7 +90,7 @@ class RedisResourceTrackingRepository(
    *  If true, includes all ids in the sorted set.
    */
   private fun getAllIds(key: String, includeFutureIds: Boolean): Set<String> {
-    val results : MutableList<Tuple> = redisClientDelegate.withCommandsClient<MutableList<Tuple>> { client ->
+    val results: MutableList<Tuple> = redisClientDelegate.withCommandsClient<MutableList<Tuple>> { client ->
       val results = mutableListOf<Tuple>()
       val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
       var cursor = "0"
@@ -208,5 +208,3 @@ class RedisResourceTrackingRepository(
     return markedResource
   }
 }
-
-

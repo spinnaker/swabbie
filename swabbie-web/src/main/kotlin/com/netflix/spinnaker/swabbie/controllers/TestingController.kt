@@ -23,11 +23,12 @@ import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
-import org.springframework.context.ApplicationEventPublisher
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestMethod
+import org.springframework.web.bind.annotation.RestController
 
 /**
  * This controller is for testing resources by on demand marking and deleting them.
@@ -44,7 +45,7 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @ConditionalOnExpression("\${swabbie.testing.enabled:false}")
 @RequestMapping("/testing/resources")
-class TestingController (
+class TestingController(
   private val workConfigurations: List<WorkConfiguration>,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>
 ) {
@@ -87,10 +88,10 @@ class TestingController (
 
   private fun findWorkConfiguration(namespace: SwabbieNamespace): WorkConfiguration {
     return workConfigurations.find { workConfiguration ->
-      workConfiguration.account.name == namespace.accountName
-        && workConfiguration.cloudProvider == namespace.cloudProvider
-        && workConfiguration.resourceType == namespace.resourceType
-        && workConfiguration.location == namespace.region
+      workConfiguration.account.name == namespace.accountName &&
+        workConfiguration.cloudProvider == namespace.cloudProvider &&
+        workConfiguration.resourceType == namespace.resourceType &&
+        workConfiguration.location == namespace.region
     } ?: throw NotFoundException("No configuration found for $namespace")
   }
 }

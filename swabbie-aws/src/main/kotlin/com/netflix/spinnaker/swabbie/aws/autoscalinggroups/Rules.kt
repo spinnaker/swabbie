@@ -22,7 +22,7 @@ import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
 import org.springframework.stereotype.Component
-import java.util.*
+import java.util.Optional
 
 @Component
 class ZeroInstanceDisabledServerGroupRule : Rule<AmazonAutoScalingGroup> {

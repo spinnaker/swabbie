@@ -25,7 +25,7 @@ import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import java.util.*
+import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
   @Test

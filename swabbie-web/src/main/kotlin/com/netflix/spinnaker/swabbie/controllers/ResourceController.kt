@@ -19,13 +19,21 @@ package com.netflix.spinnaker.swabbie.controllers
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.MarkedResourceInterface
+import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
 import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestMethod
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/resources")
@@ -85,8 +93,7 @@ class ResourceController(
   }
 
   @RequestMapping(value = ["/deleted"], method = [RequestMethod.GET])
-  fun markedResources(
-  ): List<DeleteInfo> {
+  fun markedResources(): List<DeleteInfo> {
     return resourceTrackingRepository.getDeleted().sortedBy { it.name }
   }
 
@@ -99,7 +106,7 @@ class ResourceController(
     @PathVariable status: String
   ): List<ResourceState> {
     val parsedStatus = status.toUpperCase()
-    if (!Action.values().map { it.toString() }.contains(parsedStatus) && parsedStatus != "FAILED"){
+    if (!Action.values().map { it.toString() }.contains(parsedStatus) && parsedStatus != "FAILED") {
       throw IllegalArgumentException(
         "Status $status is not a valid status. Options are: ${Action.values().map { it.toString() }} or FAILED"
       )
@@ -112,9 +119,9 @@ class ResourceController(
     @RequestParam(required = false) start: Int?,
     @RequestParam(required = false) limit: Int?
   ): List<ResourceState> {
-    //todo eb: sort status entries by time for all resources
+    // todo eb: sort status entries by time for all resources
     return resourceStateRepository.getAll().apply {
-      this.subList(start ?: 0, Math.min(this.size, limit ?: Int.MAX_VALUE ))
+      this.subList(start ?: 0, Math.min(this.size, limit ?: Int.MAX_VALUE))
     }
   }
 
@@ -137,12 +144,11 @@ class ResourceController(
   ): List<ResourceState> =
     resourceStateRepository.getAll().filter { it.markedResource.resourceId == resourceId }
 
-
   @RequestMapping(value = ["/state/{namespace}/{resourceId}/optOut"], method = [RequestMethod.PUT])
   fun optOut(
     @PathVariable resourceId: String,
     @PathVariable namespace: String
-  ) : ResourceState {
+  ): ResourceState {
     val markedResource = resourceTrackingRepository.find(resourceId, namespace)
     if (markedResource != null) {
       log.debug("Found resource ${markedResource.uniqueId()} to opt out.")

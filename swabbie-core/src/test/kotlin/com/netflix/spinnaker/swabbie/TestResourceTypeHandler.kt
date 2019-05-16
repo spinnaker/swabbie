@@ -25,13 +25,23 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.Result
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
-import java.util.*
+import java.util.Optional
 
 /**
  * A test resource type handler that provides fake resources to test abstract resource type handler logic

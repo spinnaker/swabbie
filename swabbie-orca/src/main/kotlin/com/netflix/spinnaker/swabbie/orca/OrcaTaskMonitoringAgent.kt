@@ -25,10 +25,12 @@ import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.MetricsSupport
+import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
+import com.netflix.spinnaker.swabbie.events.Action
+import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
+import com.netflix.spinnaker.swabbie.events.OrcaTaskFailureEvent
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
-import com.netflix.spinnaker.swabbie.events.*
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -39,7 +41,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.Temporal
-import java.util.*
+import java.util.Optional
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -47,7 +49,7 @@ import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
 
 @Component
-class OrcaTaskMonitoringAgent (
+class OrcaTaskMonitoringAgent(
   private val clock: Clock,
   val registry: Registry,
   private val swabbieProperties: SwabbieProperties,

@@ -38,7 +38,7 @@ class OrphanedImageRule : Rule<AmazonImage> {
         HAS_SIBLINGS_IN_OTHER_ACCOUNTS,
         IS_BASE_OR_ANCESTOR,
         SEEN_IN_USE_RECENTLY
-      )){
+      )) {
       return Result(null)
     }
 

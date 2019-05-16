@@ -27,7 +27,11 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.Ordered
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
-import javax.servlet.*
+import javax.servlet.Filter
+import javax.servlet.FilterChain
+import javax.servlet.FilterConfig
+import javax.servlet.ServletRequest
+import javax.servlet.ServletResponse
 import javax.servlet.http.HttpServletResponse
 
 @Configuration
@@ -65,4 +69,3 @@ open class WebConfiguration
     override fun destroy() {}
   }
 }
-

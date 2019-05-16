@@ -18,9 +18,13 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.MetricsSupport
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.Status
+import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
@@ -90,7 +94,7 @@ class ResourceStateManager(
         id = orcaTaskFailureId
         removeTag = false
         msg = generateFailureMessage(event)
-        //todo eb: do we want this tagged here?
+        // todo eb: do we want this tagged here?
       }
 
       else -> log.warn("Unknown event type: ${event.javaClass.simpleName}")
@@ -162,7 +166,7 @@ class ResourceStateManager(
     }
   }
 
-  //todo eb: pull to another kind of ResourceTagger?
+  // todo eb: pull to another kind of ResourceTagger?
   private fun tagResource(
     resource: MarkedResource,
     workConfiguration: WorkConfiguration
@@ -190,7 +194,6 @@ class ResourceStateManager(
     )
     return taskId
   }
-
 }
 
 internal fun MarkedResource.typeAndName(): String {
@@ -205,5 +208,5 @@ internal fun MarkedResource.typeAndName(): String {
   }
 }
 
-internal fun String.formatted(): String
-  = this.split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()
+internal fun String.formatted(): String =
+  this.split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()

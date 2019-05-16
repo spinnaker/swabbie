@@ -19,19 +19,18 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.test.TestResource
-import com.nhaarman.mockito_kotlin.mock
-import java.time.Clock
 import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.argWhere
+import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.reset
 import com.nhaarman.mockito_kotlin.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-
+import java.time.Clock
 
 object ResourceTrackingManagerTest {
   private val resourceTrackingRepository = mock<ResourceTrackingRepository>()

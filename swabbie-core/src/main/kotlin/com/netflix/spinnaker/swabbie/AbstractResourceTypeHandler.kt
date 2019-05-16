@@ -29,22 +29,37 @@ import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
+import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.formatted
-import com.netflix.spinnaker.swabbie.events.*
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AlwaysCleanRule
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.Status
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.*
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.EMAIL
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.NONE
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import java.time.*
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.Period
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.time.temporal.ChronoUnit.DAYS
 import java.util.Optional
@@ -177,7 +192,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     resourceStateRepository.upsert(state)
     resourceRepository.upsert(newMarkedResource)
 
-    //this will trigger the actual opt out action
+    // this will trigger the actual opt out action
     applicationEventPublisher.publishEvent(OptOutResourceEvent(newMarkedResource, workConfiguration))
   }
 
@@ -226,7 +241,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     log.info("Checking for resources to unmark: " +
       "fetched ${markedResourcesInNamespace.size} marked resources from the database in ${workConfiguration.namespace}," +
       " ${validMarkedResources.size} resources were qualified to be marked this cycle.")
-    if (validMarkedResources.size < markedResourcesInNamespace.size/2) {
+    if (validMarkedResources.size < markedResourcesInNamespace.size / 2) {
       log.warn("Number of resources qualified for marking is less than half the number in the database.")
     }
 
@@ -306,7 +321,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               )
 
               if (!workConfiguration.dryRun) {
-                //todo eb: should this upsert event happen in ResourceTrackingManager?
+                // todo eb: should this upsert event happen in ResourceTrackingManager?
                 resourceRepository.upsert(newMarkedResource)
                 applicationEventPublisher.publishEvent(MarkResourceEvent(newMarkedResource, workConfiguration))
                 log.info("Marked resource {} for deletion", newMarkedResource)
@@ -447,7 +462,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val totalProcessed = Math.min(getMaxItemsProcessedPerCycle(workConfiguration), totalResourcesVisitedCounter.get())
     PolledMeter.using(registry)
       .withId(numberOfCandidatesId)
-      .withTag(BasicTag("resourceType",workConfiguration.resourceType))
+      .withTag(BasicTag("resourceType", workConfiguration.resourceType))
       .monitorValue(candidateCounter.get())
 
     log.info("${action.name} Summary: {} candidates out of {} processed. {} scanned. {} excluded. Configuration: {}",
@@ -565,7 +580,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         markedResources,
         Action.DELETE
       )
-
     } finally {
       postClean.invoke()
     }
@@ -704,7 +718,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     notifiers.forEach { notifier ->
       workConfiguration.notificationConfiguration.types.forEach { notificationType ->
         if (notificationType.equals(EMAIL.name, true)) {
-          //todo eb: remove once we can skip notifications for emails
+          // todo eb: remove once we can skip notifications for emails
           val finalOwner = if (resources.first().resourceType.contains("image", ignoreCase = true)) {
             workConfiguration.notificationConfiguration.defaultDestination
           } else {
@@ -713,7 +727,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
           val notificationContext = mapOf(
             "resourceOwner" to finalOwner,
-            "application" to resources.first().resource.grouping?.value.orEmpty(), //todo eb: this prob shouldn't be called app
+            "application" to resources.first().resource.grouping?.value.orEmpty(), // todo eb: this prob shouldn't be called app
             "resources" to resources.map { it.barebones() },
             "configuration" to workConfiguration,
             "resourceType" to workConfiguration.resourceType.formatted(),
@@ -739,4 +753,3 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private val Period.fromNow: LocalDate
     get() = LocalDate.now(clock) + this
 }
-

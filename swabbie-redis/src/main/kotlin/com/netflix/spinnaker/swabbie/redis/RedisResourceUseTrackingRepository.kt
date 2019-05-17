@@ -93,7 +93,7 @@ class RedisResourceUseTrackingRepository(
   }
 
   private fun getWithParams(key: String, min: Double, max: Double): Set<String> {
-    val results : MutableList<Tuple> = redisClientDelegate.withCommandsClient<MutableList<Tuple>> { client ->
+    val results: MutableList<Tuple> = redisClientDelegate.withCommandsClient<MutableList<Tuple>> { client ->
       val results = mutableListOf<Tuple>()
       val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
       var cursor = "0"

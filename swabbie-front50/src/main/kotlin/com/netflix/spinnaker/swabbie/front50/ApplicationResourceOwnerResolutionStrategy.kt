@@ -43,7 +43,7 @@ class ApplicationResourceOwnerResolutionStrategy(
     val applicationToOwnersPairs = mutableSetOf<Pair<String?, String?>>()
 
     val grouping = resource.grouping
-    var derivedApp : String? = null
+    var derivedApp: String? = null
     if (grouping != null && grouping.type == GroupingType.APPLICATION) {
       derivedApp = grouping.value
     }
@@ -79,7 +79,7 @@ class ApplicationResourceOwnerResolutionStrategy(
     }.joinToString(",")
   }
 
-  private fun getMatchingFront50Applications(derivedAppName: String): Set<Pair<String,String?>> {
+  private fun getMatchingFront50Applications(derivedAppName: String): Set<Pair<String, String?>> {
     return front50ApplicationCache.get().filter { application ->
       application.name.equals(derivedAppName, ignoreCase = true)
     }.map { application ->

@@ -26,8 +26,8 @@ abstract class Event(
 ) {
   override fun equals(other: Any?): Boolean {
     if (other is Event) {
-      return action == other && other.markedResource == markedResource
-        && workConfiguration == other.workConfiguration
+      return action == other && other.markedResource == markedResource &&
+        workConfiguration == other.workConfiguration
     }
     return super.equals(other)
   }
@@ -73,4 +73,4 @@ class OrcaTaskFailureEvent(
   override val action: Action,
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
-): Event(action, markedResource, workConfiguration)
+) : Event(action, markedResource, workConfiguration)

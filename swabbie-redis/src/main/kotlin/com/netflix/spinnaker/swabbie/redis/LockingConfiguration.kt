@@ -28,7 +28,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Clock
-import java.util.*
+import java.util.Optional
 
 @Configuration
 @ConditionalOnProperty("locking.enabled")
@@ -50,7 +50,7 @@ open class LockingConfiguration(
     redisClientSelector: RedisClientSelector
   ): RedisLockManager {
     return RedisLockManager(
-      null, //Will default to node name
+      null, // Will default to node name
       clock,
       registry,
       objectMapper,
@@ -60,4 +60,3 @@ open class LockingConfiguration(
     )
   }
 }
-

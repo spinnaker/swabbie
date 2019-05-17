@@ -20,24 +20,42 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
+import com.netflix.spinnaker.swabbie.InMemorySingletonCache
+import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exception.CacheSizeException
 import com.netflix.spinnaker.swabbie.exception.StaleCacheException
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.IMAGE
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.SNAPSHOT
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.orca.*
-import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.orca.OrcaJob
+import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.Duration
-import java.util.*
+import java.util.Optional
 import kotlin.system.measureTimeMillis
 
 @Component
@@ -161,7 +179,7 @@ class AmazonImageHandler(
         image.set(NAIVE_EXCLUSION, true) // exclude these with exclusions
       }
 
-      if (image.blockDeviceMappings != null){
+      if (image.blockDeviceMappings != null) {
         image.blockDeviceMappings.forEach { blockDevice ->
           if (blockDevice.ebs != null && blockDevice.ebs.snapshotId != null) {
             usedResourceRepository.recordUse(SNAPSHOT, blockDevice.ebs.snapshotId, "aws:${params.region}:${params.account}")
@@ -233,7 +251,7 @@ class AmazonImageHandler(
       throw StaleCacheException("Amazon images used by instances cache over 1 hour old, aborting.")
     }
     val imagesUsedByInstancesInRegion = imagesUsedByinstancesCache.get().getAll(params)
-    log.info("Checking {} images used by instances", imagesUsedByInstancesInRegion .size)
+    log.info("Checking {} images used by instances", imagesUsedByInstancesInRegion.size)
     if (imagesUsedByInstancesInRegion.size < swabbieProperties.minImagesUsedByInst) {
       throw CacheSizeException("Amazon images used by instances cache contains less than " +
         "${swabbieProperties.minImagesUsedByInst} images, aborting for safety.")
@@ -268,7 +286,7 @@ class AmazonImageHandler(
       .getUnused()
       .map {
         it.resourceId to it.usedByResourceId
-     }.toMap()
+        }.toMap()
 
     images.filter {
       NAIVE_EXCLUSION !in it.details &&

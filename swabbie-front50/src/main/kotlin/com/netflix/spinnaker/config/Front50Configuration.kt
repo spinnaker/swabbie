@@ -38,11 +38,13 @@ open class Front50Configuration {
   open fun front50Endpoint(@Value("\${front50.base-url}") front50Url: String): Endpoint = Endpoints.newFixedEndpoint(front50Url)
 
   @Bean
-  open fun front50Service(front50Endpoint: Endpoint,
-                          objectMapper: ObjectMapper,
-                          retrofitClient: Client,
-                          spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
-                          retrofitLogLevel: RestAdapter.LogLevel): Front50Service = RestAdapter.Builder()
+  open fun front50Service(
+    front50Endpoint: Endpoint,
+    objectMapper: ObjectMapper,
+    retrofitClient: Client,
+    spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
+    retrofitLogLevel: RestAdapter.LogLevel
+  ): Front50Service = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(front50Endpoint)
     .setClient(retrofitClient)

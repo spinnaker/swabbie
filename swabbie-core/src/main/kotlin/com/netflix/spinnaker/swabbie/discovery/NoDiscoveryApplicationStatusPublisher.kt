@@ -1,16 +1,15 @@
 package com.netflix.spinnaker.swabbie.discovery
 
 import com.netflix.appinfo.InstanceInfo
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.OUT_OF_SERVICE
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.UNKNOWN
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.UP
 import com.netflix.discovery.StatusChangeEvent
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.ApplicationListener
 import org.springframework.context.event.ContextRefreshedEvent
-
-import com.netflix.appinfo.InstanceInfo.InstanceStatus.OUT_OF_SERVICE
-import com.netflix.appinfo.InstanceInfo.InstanceStatus.UNKNOWN
-import com.netflix.appinfo.InstanceInfo.InstanceStatus.UP
 
 class NoDiscoveryApplicationStatusPublisher(
   private val publisher: ApplicationEventPublisher

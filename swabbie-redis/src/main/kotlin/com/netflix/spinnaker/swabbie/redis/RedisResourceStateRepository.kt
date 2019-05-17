@@ -110,7 +110,6 @@ class RedisResourceStateRepository(
         resourceState.currentStatus?.name.equals(status, ignoreCase = true)
       }
     }
-
   }
 
   private fun readState(state: String): ResourceState? {

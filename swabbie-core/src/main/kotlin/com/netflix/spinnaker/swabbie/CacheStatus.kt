@@ -15,7 +15,7 @@ interface CacheStatus {
 open class InMemoryCacheStatus(
   private val caches: List<Cache<*>>,
   private val singletonCaches: List<SingletonCache<*>>
-): CacheStatus {
+) : CacheStatus {
   private var allLoaded = AtomicReference<Boolean>(false)
   private val executorService = Executors.newSingleThreadScheduledExecutor()
   private val log: Logger = LoggerFactory.getLogger(javaClass)
@@ -64,6 +64,6 @@ open class InMemoryCacheStatus(
   }
 }
 
-open class NoopCacheStatus: CacheStatus {
+open class NoopCacheStatus : CacheStatus {
   override fun cachesLoaded() = true
 }

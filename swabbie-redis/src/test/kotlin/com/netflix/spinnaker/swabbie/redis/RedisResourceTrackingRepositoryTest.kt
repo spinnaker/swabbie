@@ -26,10 +26,14 @@ import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.model.*
-import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
+import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.repository.DeleteInfo
+import com.netflix.spinnaker.swabbie.test.TestResource
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -228,7 +232,7 @@ object RedisResourceTrackingRepositoryTest {
 
   @Test
   fun `scanning should work`() {
-    for(i in 1..200) {
+    for (i in 1..200) {
       resourceRepository.upsert(defaultMarkedResource.copy(resource = TestResource(resourceId = "$i")))
     }
 

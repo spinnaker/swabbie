@@ -22,20 +22,34 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.*
+import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
+import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
+import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.SNAPSHOT
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.repository.*
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.util.*
+import java.util.Optional
 
 @Component
 class AmazonSnapshotHandler(
@@ -165,11 +179,11 @@ class AmazonSnapshotHandler(
     }
   }
 
-  //todo eb: generalize this netflix-specific pattern
+  // todo eb: generalize this netflix-specific pattern
   fun descriptionIsFromAutoBake(description: String): Boolean {
-    //description=name=nflx-sirt-forensics, arch=x86_64, ancestor_name=bionic-classicbase-unstable-x86_64-201902272237-ebs, ancestor_id=ami-067321616378baefc, ancestor_version=nflx-base-5.347.2-h1144.4aace97~unstable
-    val pairs = description.replace(" ","").split(",")
-    val parsedDescr = mutableMapOf<String,String>()
+    // description=name=nflx-sirt-forensics, arch=x86_64, ancestor_name=bionic-classicbase-unstable-x86_64-201902272237-ebs, ancestor_id=ami-067321616378baefc, ancestor_version=nflx-base-5.347.2-h1144.4aace97~unstable
+    val pairs = description.replace(" ", "").split(",")
+    val parsedDescr = mutableMapOf<String, String>()
     pairs.forEach { pair ->
       val split = pair.split("=")
       if (split.size == 2) {

@@ -56,12 +56,14 @@ open class MetricsSupport(
   protected val failedDuringSchedule: Id = registry.createId("swabbie.scheduled.failed")
   protected val lastRunAgeId: Id = registry.createId("swabbie.agents.run.age")
 
-  protected fun recordMarkMetrics(markerTimerId: Long,
-                                  workConfiguration: WorkConfiguration,
-                                  violationCounter: AtomicInteger,
-                                  candidateCounter: AtomicInteger,
-                                  totalResourcesVisitedCounter: AtomicInteger,
-                                  totalMarkedCount: Long) {
+  protected fun recordMarkMetrics(
+    markerTimerId: Long,
+    workConfiguration: WorkConfiguration,
+    violationCounter: AtomicInteger,
+    candidateCounter: AtomicInteger,
+    totalResourcesVisitedCounter: AtomicInteger,
+    totalMarkedCount: Long
+  ) {
     markDurationTimer.stop(markerTimerId)
     registry.gauge(
       candidatesCountId.withTags(

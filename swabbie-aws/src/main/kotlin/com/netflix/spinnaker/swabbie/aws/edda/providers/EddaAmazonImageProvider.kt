@@ -21,8 +21,8 @@ import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.edda.EddaService
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.model.IMAGE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

@@ -75,5 +75,5 @@ class BaseImageLabelsCache(
   AuthenticatedRequest.allowAnonymous { gateService.getProperties("bakery")::getPropertiesList }
 )
 
-//TODO: make configurable
+// TODO: make configurable
 const val baseAmiKey = "bakery.api.base_label_map"

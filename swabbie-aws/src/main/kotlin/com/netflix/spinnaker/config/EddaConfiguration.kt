@@ -44,12 +44,14 @@ import retrofit.converter.JacksonConverter
 @Import(SwabbieRetrofitConfiguration::class)
 open class EddaConfiguration {
   @Bean
-  open fun eddaApiClients(accountProvider: AccountProvider,
-                          endpointProvider: EndpointProvider,
-                          objectMapper: ObjectMapper,
-                          retrofitClient: Client,
-                          spinnakerRequestInterceptor: RequestInterceptor,
-                          retrofitLogLevel: RestAdapter.LogLevel): List<EddaApiClient> {
+  open fun eddaApiClients(
+    accountProvider: AccountProvider,
+    endpointProvider: EndpointProvider,
+    objectMapper: ObjectMapper,
+    retrofitClient: Client,
+    spinnakerRequestInterceptor: RequestInterceptor,
+    retrofitLogLevel: RestAdapter.LogLevel
+  ): List<EddaApiClient> {
     val accountEddas: List<EddaApiClient> = accountProvider.getAccounts()
       .asSequence()
       .filter {
@@ -104,11 +106,13 @@ open class EddaConfiguration {
   }
 
   @Bean
-  open fun eddaEndpointsService(eddaEndpointsEndpoint: Endpoint,
-                                objectMapper: ObjectMapper,
-                                retrofitClient: Client,
-                                spinnakerRequestInterceptor: RequestInterceptor,
-                                retrofitLogLevel: RestAdapter.LogLevel) = RestAdapter.Builder()
+  open fun eddaEndpointsService(
+    eddaEndpointsEndpoint: Endpoint,
+    objectMapper: ObjectMapper,
+    retrofitClient: Client,
+    spinnakerRequestInterceptor: RequestInterceptor,
+    retrofitLogLevel: RestAdapter.LogLevel
+  ) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(eddaEndpointsEndpoint)
     .setClient(retrofitClient)

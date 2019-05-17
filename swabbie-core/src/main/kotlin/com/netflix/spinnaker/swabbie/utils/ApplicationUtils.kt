@@ -17,7 +17,10 @@
 package com.netflix.spinnaker.swabbie.utils
 
 import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.Application
+import com.netflix.spinnaker.swabbie.model.Grouping
+import com.netflix.spinnaker.swabbie.model.GroupingType
+import com.netflix.spinnaker.swabbie.model.Resource
 import org.springframework.stereotype.Component
 
 @Component
@@ -31,7 +34,7 @@ open class ApplicationUtils(
    * Otherwise, return "swabbie".
    */
   fun determineApp(resource: Resource): String {
-    val grouping: Grouping = resource.grouping?: return "swabbie"
+    val grouping: Grouping = resource.grouping ?: return "swabbie"
     if (grouping.type == GroupingType.APPLICATION) {
       if (applicationsCaches.any { it.contains(grouping.value) }) {
         return grouping.value

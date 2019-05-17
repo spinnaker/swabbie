@@ -31,5 +31,4 @@ open class TestingConfiguration {
   @Bean
   open fun alwaysCleanRule(swabbieProperties: SwabbieProperties) =
     AlwaysCleanRule(swabbieProperties)
-
 }

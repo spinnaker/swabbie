@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component
 @Component
 class OrphanedSecurityGroupRule : Rule<AmazonSecurityGroup> {
   override fun apply(resource: AmazonSecurityGroup): Result {
-    //TODO: implement
+    // TODO: implement
     return Result(null)
   }
 

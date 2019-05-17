@@ -28,7 +28,17 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
+import com.netflix.spinnaker.swabbie.model.Grouping
+import com.netflix.spinnaker.swabbie.model.GroupingType
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
+import com.netflix.spinnaker.swabbie.model.Status
+import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.EMAIL
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.NONE
@@ -39,7 +49,17 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
-import com.nhaarman.mockito_kotlin.*
+import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.check
+import com.nhaarman.mockito_kotlin.doReturn
+import com.nhaarman.mockito_kotlin.eq
+import com.nhaarman.mockito_kotlin.inOrder
+import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.never
+import com.nhaarman.mockito_kotlin.reset
+import com.nhaarman.mockito_kotlin.times
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -49,7 +69,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import java.util.*
+import java.util.Optional
 import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
@@ -86,7 +106,7 @@ object ResourceTypeHandlerTest {
 
   private val defaultResource = TestResource(resourceId = "testResource", name = "testResourceName")
 
-  //must update rules and candidates before using
+  // must update rules and candidates before using
   private val defaultHandler = TestResourceTypeHandler(
     clock = clock,
     rules = mutableListOf(),
@@ -103,7 +123,6 @@ object ResourceTypeHandlerTest {
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     dynamicConfigService = dynamicConfigService
   )
-
 
   @BeforeEach
   fun setup() {
@@ -256,7 +275,6 @@ object ResourceTypeHandlerTest {
     defaultHandler.setRules(alwaysInvalidRules)
     defaultHandler.setCandidates(mutableListOf(resource1, resource2))
     defaultHandler.setExclusionPolicies(mutableListOf(AllowListExclusionPolicy(mock(), mock())))
-
 
     whenever(ownerResolver.resolve(resource1)) doReturn "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
     whenever(ownerResolver.resolve(resource2)) doReturn "blah" // excluded because not in allowed list
@@ -531,7 +549,6 @@ object ResourceTypeHandlerTest {
     whenever(resourceRepository.getMarkedResources())
       .thenReturn(emptyList())
       .thenReturn(listOf(markedResource))
-
 
     defaultHandler.setRules(alwaysValidRules)
     defaultHandler.setCandidates(mutableListOf(defaultResource))

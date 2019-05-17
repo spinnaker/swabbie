@@ -38,4 +38,3 @@ dependencies {
   compile project(":swabbie-front50")
   compile project(":swabbie-redis")
 }
-

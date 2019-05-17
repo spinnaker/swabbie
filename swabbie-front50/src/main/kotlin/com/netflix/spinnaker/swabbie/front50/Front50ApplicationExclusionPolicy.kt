@@ -39,7 +39,7 @@ class Front50ApplicationExclusionPolicy(
 ) : ResourceExclusionPolicy {
 
   private fun findApplication(excludable: Excludable, names: Set<String>): Excludable? {
-    val grouping: Grouping = excludable.grouping?: return null
+    val grouping: Grouping = excludable.grouping ?: return null
     if (grouping.type == GroupingType.APPLICATION) {
       return front50ApplicationCache.get().find { matchesApplication(it, grouping.value, names) }
     }
@@ -55,7 +55,7 @@ class Front50ApplicationExclusionPolicy(
 
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     val kv = keysAndValues(exclusions, ExclusionType.Allowlist)
-    val names =  kv.values.flatten().toSet()
+    val names = kv.values.flatten().toSet()
     val application = findApplication(excludable, names)
 
     if (application != null) {

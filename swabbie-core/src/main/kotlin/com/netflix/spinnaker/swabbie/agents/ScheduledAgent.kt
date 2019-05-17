@@ -28,9 +28,15 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.time.*
+import java.time.Clock
+import java.time.Duration
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.temporal.Temporal
-import java.util.concurrent.*
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
 
@@ -133,7 +139,7 @@ abstract class ScheduledAgent(
   override fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit) {
     val action = getAction()
     val handlerAction: (handler: ResourceTypeHandler<*>) -> Unit = {
-      when(action) {
+      when (action) {
         Action.MARK -> it.mark(workConfiguration, onCompleteCallback)
         Action.NOTIFY -> it.notify(workConfiguration, onCompleteCallback)
         Action.DELETE -> it.delete(workConfiguration, onCompleteCallback)

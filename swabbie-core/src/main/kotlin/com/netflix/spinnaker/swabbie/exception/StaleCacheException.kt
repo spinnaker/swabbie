@@ -18,7 +18,7 @@
 
 package com.netflix.spinnaker.swabbie.exception
 
-class StaleCacheException: RuntimeException {
+class StaleCacheException : RuntimeException {
   constructor(message: String) : super(message)
   constructor(message: String, cause: Throwable) : super(message, cause)
 }

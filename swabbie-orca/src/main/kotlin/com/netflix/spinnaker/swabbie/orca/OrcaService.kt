@@ -16,7 +16,11 @@
 
 package com.netflix.spinnaker.swabbie.orca
 
-import retrofit.http.*
+import retrofit.http.Body
+import retrofit.http.GET
+import retrofit.http.Headers
+import retrofit.http.POST
+import retrofit.http.Path
 
 interface OrcaService {
   @POST("/ops")
@@ -36,7 +40,6 @@ data class TaskResponse(
    */
   fun taskId(): String =
     ref.substring(ref.lastIndexOf("/") + 1)
-
 }
 
 data class TaskDetailResponse(
@@ -72,5 +75,6 @@ class OrchestrationRequest(
 
 class OrcaJob(
   type: String,
-  context: MutableMap<String, Any?>) : HashMap<String, Any?>(context.apply { put("type", type) }
+  context: MutableMap<String, Any?>
+) : HashMap<String, Any?>(context.apply { put("type", type) }
 )

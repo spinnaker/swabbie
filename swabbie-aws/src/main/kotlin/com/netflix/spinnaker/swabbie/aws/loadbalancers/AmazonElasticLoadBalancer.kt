@@ -23,7 +23,7 @@ import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 
 @JsonTypeName("amazonElasticLoadBalancer")
 data class AmazonElasticLoadBalancer(
-  private val loadBalancerName: String?, //TODO: stupid hack, fix this
+  private val loadBalancerName: String?, // TODO: stupid hack, fix this
   override val resourceType: String = LOAD_BALANCER,
   override val name: String = loadBalancerName!!,
   override val resourceId: String = loadBalancerName!!,

@@ -18,7 +18,12 @@ package com.netflix.spinnaker.swabbie
 
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import com.netflix.spinnaker.config.*
+import com.netflix.spinnaker.config.Attribute
+import com.netflix.spinnaker.config.CloudProviderConfiguration
+import com.netflix.spinnaker.config.Exclusion
+import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.config.ResourceTypeConfiguration
+import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
@@ -27,7 +32,7 @@ import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import java.util.*
+import java.util.Optional
 
 object WorkConfiguratorTest {
   private val accountProvider: AccountProvider = mock()

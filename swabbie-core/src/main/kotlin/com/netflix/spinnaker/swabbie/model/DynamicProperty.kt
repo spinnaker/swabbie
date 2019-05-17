@@ -23,4 +23,4 @@ data class DynamicProperty(
   val key: String,
   val value: Any,
   override val name: String = key
-): Cacheable, HasDetails()
+) : Cacheable, HasDetails()

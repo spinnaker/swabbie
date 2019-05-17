@@ -102,8 +102,8 @@ class RedisTaskTrackingRepository(
   }
 
   private fun getAll(key: String): Map<String, String> {
-    return redisClientDelegate.withCommandsClient<Map<String,String>> { client ->
-      val results = mutableMapOf<String,String>()
+    return redisClientDelegate.withCommandsClient<Map<String, String>> { client ->
+      val results = mutableMapOf<String, String>()
       val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
       var cursor = "0"
       var shouldContinue = true
@@ -137,7 +137,7 @@ class RedisTaskTrackingRepository(
         if (taskInfo != null) {
           val xDaysAgo = clock.instant().minusMillis(TimeUnit.DAYS.toMillis(daysToGoBack.toLong())).toEpochMilli()
           val submittedTimeMillis = taskInfo.submittedTimeMillis
-          if (submittedTimeMillis == null ) {
+          if (submittedTimeMillis == null) {
             log.error(
               "Task for resources {} submitted without a submitted time. " +
                 "Not counting task as older than $daysToGoBack days.",
@@ -155,7 +155,7 @@ class RedisTaskTrackingRepository(
       .keys
   }
 
-  //todo eb: this actually cleans up running tasks as well
+  // todo eb: this actually cleans up running tasks as well
   override fun cleanUpFinishedTasks(daysToLeave: Int) {
     val allBefore: Set<String> = getAllBefore(daysToLeave)
     if (allBefore.isEmpty()) return

@@ -17,7 +17,9 @@
 package com.netflix.spinnaker.swabbie.tagging
 
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.model.*
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component

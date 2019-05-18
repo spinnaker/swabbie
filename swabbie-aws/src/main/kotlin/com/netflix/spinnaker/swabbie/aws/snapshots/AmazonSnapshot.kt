@@ -42,4 +42,12 @@ data class AmazonSnapshot(
   override val cloudProvider: String = AWS,
   override val name: String = snapshotId,
   private val creationDate: String? = Dates.toCreationDate(startTime)
-) : AmazonResource(creationDate)
+) : AmazonResource(creationDate) {
+  override fun equals(other: Any?): Boolean {
+    return super.equals(other)
+  }
+
+  override fun hashCode(): Int {
+    return super.hashCode()
+  }
+}

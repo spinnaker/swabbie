@@ -338,12 +338,17 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               validMarkedIds.add(alreadyMarkedCandidate.resourceId)
             }
           }
-
-          unmarkResources(validMarkedIds, workConfiguration)
         } catch (e: Exception) {
           log.error("Failed while invoking ${javaClass.simpleName}", e)
           recordFailureForAction(Action.MARK, workConfiguration, e)
         }
+      }
+
+      try {
+        unmarkResources(validMarkedIds, workConfiguration)
+      } catch (e: Exception) {
+        log.error("Failed to unmark resources {}", validMarkedIds, e)
+        recordFailureForAction(Action.UNMARK, workConfiguration, e)
       }
 
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)

@@ -45,7 +45,7 @@ open class EddaAmazonSnapshotProvider(
       accountId = params.account,
       environment = params.environment
     )?.run {
-      return getSnapshots()
+      return getEbsSnapshots()
     }
 
     return emptyList()
@@ -57,13 +57,13 @@ open class EddaAmazonSnapshotProvider(
       accountId = params.account,
       environment = params.environment
     )?.run {
-      return getSnapshot(params.id)
+      return getEbsSnapshot(params.id)
     }
 
     return null
   }
 
-  private fun EddaService.getSnapshots(): List<AmazonSnapshot> {
+  private fun EddaService.getEbsSnapshots(): List<AmazonSnapshot> {
     return try {
       retrySupport.retry({
         this.getSnapshots()
@@ -75,7 +75,7 @@ open class EddaAmazonSnapshotProvider(
     }
   }
 
-  private fun EddaService.getSnapshots(snapshotId: String): AmazonSnapshot? {
+  private fun EddaService.getEbsSnapshot(snapshotId: String): AmazonSnapshot? {
     return try {
       retrySupport.retry({
         try {

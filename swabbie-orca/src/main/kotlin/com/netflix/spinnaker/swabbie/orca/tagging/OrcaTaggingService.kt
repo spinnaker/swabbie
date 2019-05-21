@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.orca.tagging
 
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
@@ -34,25 +35,49 @@ class OrcaTaggingService(
 
   override fun removeEntityTag(tagRequest: TagRequest) {
     if (tagRequest is DeleteEntityTagsRequest) {
-      orcaService.orchestrate(
-        OrchestrationRequest(
-          application = tagRequest.application,
-          description = tagRequest.description,
-          job = listOf(
-            OrcaJob(
-              type = tagRequest.type,
-              context = mutableMapOf(
-                "tags" to listOf(tagRequest.id)
+      AuthenticatedRequest.allowAnonymous {
+        orcaService.orchestrate(
+          OrchestrationRequest(
+            application = tagRequest.application,
+            description = tagRequest.description,
+            job = listOf(
+              OrcaJob(
+                type = tagRequest.type,
+                context = mutableMapOf(
+                  "tags" to listOf(tagRequest.id)
+                )
               )
             )
           )
         )
-      )
+      }
     }
   }
 
   override fun entityTag(tagRequest: TagRequest) {
     if (tagRequest is UpsertEntityTagsRequest) {
+      AuthenticatedRequest.allowAnonymous {
+        orcaService.orchestrate(
+          OrchestrationRequest(
+            application = tagRequest.application,
+            description = tagRequest.description,
+            job = listOf(
+              OrcaJob(
+                type = tagRequest.type,
+                context = mutableMapOf(
+                  "tags" to tagRequest.tags,
+                  "entityRef" to tagRequest.entityRef
+                )
+              )
+            )
+          )
+        )
+      }
+    }
+  }
+
+  override fun upsertImageTag(tagRequest: UpsertImageTagsRequest): String {
+    return AuthenticatedRequest.allowAnonymous {
       orcaService.orchestrate(
         OrchestrationRequest(
           application = tagRequest.application,
@@ -61,34 +86,16 @@ class OrcaTaggingService(
             OrcaJob(
               type = tagRequest.type,
               context = mutableMapOf(
+                "imageNames" to tagRequest.imageNames,
+                "regions" to tagRequest.regions,
                 "tags" to tagRequest.tags,
-                "entityRef" to tagRequest.entityRef
+                "cloudProvider" to tagRequest.cloudProvider,
+                "cloudProviderType" to tagRequest.cloudProviderType
               )
             )
           )
         )
-      )
+      ).taskId()
     }
-  }
-
-  override fun upsertImageTag(tagRequest: UpsertImageTagsRequest): String {
-    return orcaService.orchestrate(
-      OrchestrationRequest(
-        application = tagRequest.application,
-        description = tagRequest.description,
-        job = listOf(
-          OrcaJob(
-            type = tagRequest.type,
-            context = mutableMapOf(
-              "imageNames" to tagRequest.imageNames,
-              "regions" to tagRequest.regions,
-              "tags" to tagRequest.tags,
-              "cloudProvider" to tagRequest.cloudProvider,
-              "cloudProviderType" to tagRequest.cloudProviderType
-            )
-          )
-        )
-      )
-    ).taskId()
   }
 }

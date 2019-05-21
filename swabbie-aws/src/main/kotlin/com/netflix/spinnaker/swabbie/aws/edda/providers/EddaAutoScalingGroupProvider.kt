@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.edda.providers
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
@@ -42,7 +43,7 @@ open class EddaAutoScalingGroupProvider(
       accountId = params.account,
       environment = params.environment
     )?.run {
-      return getServerGroups()
+      return AuthenticatedRequest.allowAnonymous { getServerGroups() }
     }
 
     return emptyList()

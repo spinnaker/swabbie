@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.edda.providers
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.aws.edda.EddaService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -38,7 +39,7 @@ open class EddaApiSupport(
         return null
       }
 
-      return eddaClient.get()
+      return AuthenticatedRequest.allowAnonymous { eddaClient.get() }
     }
   }
 }

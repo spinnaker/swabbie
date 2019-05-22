@@ -55,7 +55,7 @@ open class EddaAutoScalingGroupProvider(
       accountId = params.account,
       environment = params.environment
     )?.run {
-      return getServerGroup(params.id)
+      return AuthenticatedRequest.allowAnonymous { getServerGroup(params.id) }
     }
 
     return null

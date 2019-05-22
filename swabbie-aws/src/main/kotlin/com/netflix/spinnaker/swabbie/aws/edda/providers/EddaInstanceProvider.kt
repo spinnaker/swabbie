@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.edda.providers
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.edda.EddaService
@@ -63,7 +64,7 @@ open class EddaInstanceProvider(
   private fun EddaService.getNonTerminatedInstances(): List<AmazonInstance> {
     return try {
       retrySupport.retry({
-        this.getInstances()
+        AuthenticatedRequest.allowAnonymous { this.getInstances() }
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
       registry.counter(eddaFailureCountId.withTags("resourceType", INSTANCE)).increment()
@@ -76,7 +77,7 @@ open class EddaInstanceProvider(
     return try {
       retrySupport.retry({
         try {
-          this.getInstance(instanceId)
+          AuthenticatedRequest.allowAnonymous { this.getInstance(instanceId) }
         } catch (e: Exception) {
           if (e is RetrofitError && e.response.status == 404) {
             null

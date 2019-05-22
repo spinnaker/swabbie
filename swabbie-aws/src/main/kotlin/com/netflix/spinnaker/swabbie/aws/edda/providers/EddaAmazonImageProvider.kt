@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.edda.providers
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.edda.EddaService
@@ -64,7 +65,7 @@ open class EddaAmazonImageProvider(
   private fun EddaService.getAmis(): List<AmazonImage> {
     return try {
       retrySupport.retry({
-        this.getImages()
+        AuthenticatedRequest.allowAnonymous { this.getImages() }
       }, maxRetries, retryBackOffMillis, true)
     } catch (e: Exception) {
       registry.counter(eddaFailureCountId.withTags("resourceType", IMAGE)).increment()
@@ -77,7 +78,7 @@ open class EddaAmazonImageProvider(
     return try {
       retrySupport.retry({
         try {
-          this.getImage(imageId)
+          AuthenticatedRequest.allowAnonymous { this.getImage(imageId) }
         } catch (e: Exception) {
           if (e is RetrofitError && e.response.status == 404) {
             null

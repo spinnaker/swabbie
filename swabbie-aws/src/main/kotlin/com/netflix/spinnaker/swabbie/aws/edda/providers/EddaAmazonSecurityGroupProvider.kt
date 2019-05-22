@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.EddaApiClient
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
@@ -37,7 +38,7 @@ open class EddaAmazonSecurityGroupProvider(
       accountId = params.account,
       environment = params.environment
     )?.run {
-      return getSecurityGroups()
+      return AuthenticatedRequest.allowAnonymous { getSecurityGroups() }
     }
 
     return emptyList()
@@ -49,7 +50,7 @@ open class EddaAmazonSecurityGroupProvider(
       accountId = params.account,
       environment = params.environment
     )?.run {
-      return getSecurityGroup(params.id)
+      return AuthenticatedRequest.allowAnonymous { getSecurityGroup(params.id) }
     }
 
     return null

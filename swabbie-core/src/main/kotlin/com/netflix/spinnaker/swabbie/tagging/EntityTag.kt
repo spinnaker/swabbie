@@ -20,7 +20,7 @@ data class EntityTag(
   val namespace: String,
   val value: TagValue?,
   val valueType: String = "object",
-  val category: String = "Swabbie",
+  val category: String = "Clean Up",
   val name: String = "spinnaker_ui_alert:swabbie_deletion_candidate"
 ) : Tag
 

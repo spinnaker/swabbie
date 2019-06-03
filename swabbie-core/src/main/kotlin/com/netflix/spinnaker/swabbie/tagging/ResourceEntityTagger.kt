@@ -63,13 +63,27 @@ class ResourceEntityTagger(
     return markedResource.summaries
       .joinToString(", ") {
         it.description
-      }.also { summary ->
-        val time = markedResource.humanReadableDeletionTime(clock)
-        "Scheduled to be cleaned up on $time<br /> \n " +
-          "* $summary <br /> \n" +
-          "* Click <a href='" +
-          "${workConfiguration.notificationConfiguration.optOutBaseUrl}' target='_blank'>here</a> to opt out."
-      }
+      }.also { summary -> return formatMessage(summary, markedResource, workConfiguration) }
+  }
+
+  private fun formatMessage(message: String, markedResource: MarkedResource, workConfiguration: WorkConfiguration): String {
+    val time = markedResource.humanReadableDeletionTime(clock)
+    val docLink: String = documentationLink(workConfiguration)
+    val resourceId = markedResource.resource.resourceId
+    val namespace = markedResource.namespace
+    return "Scheduled to be cleaned up on $time<br /> \n " +
+    "* $message <br /> \n" +
+      "* Click <a href='" +
+      "${workConfiguration.notificationConfiguration.optOutBaseUrl}/$namespace/$resourceId/optOut' target='_blank'>here</a> to opt out. \n" +
+      docLink
+  }
+
+  private fun documentationLink(workConfiguration: WorkConfiguration): String {
+    if (workConfiguration.notificationConfiguration.docsUrl.isNotEmpty()) {
+      return "* Click <a href='" +
+        "${workConfiguration.notificationConfiguration.docsUrl}' target='_blank'>here</a> to read more on resource clean up"
+    }
+    return ""
   }
 
   override fun unTag(markedResource: MarkedResource, workConfiguration: WorkConfiguration, description: String) {

@@ -70,7 +70,7 @@ open class ResourceOwnerResolver<in T : Resource>(
         null
       }
     } catch (e: Exception) {
-      log.info("Failed to find owner for {}.", resource, e)
+      log.warn("Failed to find owner for {}.", resource, e)
       registry.counter(resourceOwnerId.withTags("result", "failed")).increment()
       return null
     }

@@ -37,7 +37,7 @@ class OrphanedELBRule : Rule<AmazonElasticLoadBalancer> {
       return Result(null)
     }
 
-    log.info("Load Balancer {} has no instances and is not referenced by any Server Group", resource)
+    log.debug("Load Balancer {} has no instances and is not referenced by any Server Group", resource)
     return Result(
       Summary(
         description = "Load Balancer has no instances and is not referenced by any Server Group",

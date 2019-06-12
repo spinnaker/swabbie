@@ -91,7 +91,7 @@ class AmazonSecurityGroupHandler(
     markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
-          log.info("This resource is about to be deleted {}", markedResource)
+          log.debug("This resource is about to be deleted {}", markedResource)
           orcaService.orchestrate(
             OrchestrationRequest(
               application = applicationUtils.determineApp(resource),

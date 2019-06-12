@@ -97,7 +97,7 @@ A single unit of work is scoped to a configuration that defines its granularity.
 
 ```
 data class WorkConfiguration(
-  val namespace: String, // ${cloudProvider:account.name:location:resourceTyoe}
+  val namespace: String, // ${cloudProvider:account.name:location:resourceType}
   val account: Account,
   val location: String, // A region in aws, depends on what cloudProvider
   val cloudProvider: String,

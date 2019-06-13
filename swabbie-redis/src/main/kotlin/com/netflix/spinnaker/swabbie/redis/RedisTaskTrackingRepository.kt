@@ -148,7 +148,7 @@ class RedisTaskTrackingRepository(
             submittedTimeMillis < xDaysAgo
           }
         } else {
-          log.info("Task info not found for $value")
+          log.error("Task info not found for $value")
           false
         }
       }

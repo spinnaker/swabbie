@@ -112,7 +112,6 @@ class TestResourceTypeHandler(
     markedResources.forEach { m ->
       val found = simulatedCandidates.contains(m.resource)
       if (found) {
-        log.info(">> publishing task")
         simulatedCandidates.remove(m.resource)
         taskTrackingRepository.add(
           "deleteTaskId",

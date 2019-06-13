@@ -168,7 +168,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   override fun optOut(resourceId: String, workConfiguration: WorkConfiguration) {
     val resource = getCandidate(resourceId, "", workConfiguration)
       ?: return
-    log.debug("Opting out resource $resourceId in namespace ${workConfiguration.namespace}")
+    log.info("Opting out resource $resourceId in namespace ${workConfiguration.namespace}")
     val resourceWithOwner = listOf(resource).withResolvedOwners(workConfiguration).first()
     val newMarkedResource = MarkedResource(
       resource = resourceWithOwner,
@@ -437,7 +437,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   ) {
     if (markedResource != null && !workConfiguration.dryRun) {
       try {
-        log.info("{} is no longer a candidate because: $reason.", markedResource.uniqueId())
+        log.debug("{} is no longer a candidate because: $reason.", markedResource.uniqueId())
         resourceRepository.remove(markedResource)
         applicationEventPublisher.publishEvent(UnMarkResourceEvent(markedResource, workConfiguration))
       } catch (e: Exception) {

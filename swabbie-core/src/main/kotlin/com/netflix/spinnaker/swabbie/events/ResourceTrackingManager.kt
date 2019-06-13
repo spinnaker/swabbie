@@ -47,7 +47,7 @@ class ResourceTrackingManager(
   fun handleEvents(event: Event) {
     when (event) {
       is DeleteResourceEvent -> {
-        log.info("Deleted {}. Configuration: {}", event.markedResource.uniqueId(), event.workConfiguration)
+        log.debug("Deleted {}. Configuration: {}", event.markedResource.uniqueId(), event.workConfiguration)
         resourceTrackingRepository.remove(event.markedResource)
       }
     }

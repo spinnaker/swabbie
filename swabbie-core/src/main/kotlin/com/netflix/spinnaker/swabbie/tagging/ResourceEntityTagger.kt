@@ -37,7 +37,7 @@ class ResourceEntityTagger(
       return
     }
 
-    log.info("tagging resource {}", markedResource)
+    log.debug("tagging resource {}", markedResource)
     taggingService.entityTag(
       UpsertEntityTagsRequest(
       entityRef = EntityRef(
@@ -92,7 +92,7 @@ class ResourceEntityTagger(
       return
     }
 
-    log.info("removing tagging resource {}", markedResource)
+    log.debug("removing tagging resource {}", markedResource)
     taggingService.removeEntityTag(
       DeleteEntityTagsRequest(
         id = tagId(workConfiguration, markedResource),

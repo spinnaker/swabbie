@@ -89,7 +89,6 @@ data class AmazonImagesUsedByInstancesCache(
    * currently referenced by running EC2 instances in the region
    */
   fun getAll(params: Parameters): Set<String> {
-    log.debug("getting all for ${javaClass.simpleName}")
     if (params.region != "") {
       return refdAmisByRegion[params.region] ?: emptySet()
     } else {

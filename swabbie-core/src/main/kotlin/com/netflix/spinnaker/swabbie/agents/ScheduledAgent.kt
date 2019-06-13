@@ -78,10 +78,10 @@ abstract class ScheduledAgent(
     executorService.schedule({
       try {
         while (!cacheStatus.cachesLoaded()) {
-          log.debug("Can't work until the caches load...")
+          log.info("Can't work until the caches load...")
           Thread.sleep(Duration.ofSeconds(5).toMillis())
         }
-        log.debug("Caches loaded.")
+        log.info("Caches loaded.")
         scheduleSwabbie()
       } catch (e: Exception) {
         log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.", e)

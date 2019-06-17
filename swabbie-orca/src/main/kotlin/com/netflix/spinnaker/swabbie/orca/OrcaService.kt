@@ -78,3 +78,29 @@ class OrcaJob(
   context: MutableMap<String, Any?>
 ) : HashMap<String, Any?>(context.apply { put("type", type) }
 )
+
+/**
+ * Returns a random number of seconds, from 0 to [ceiling]
+ */
+private fun generateRandomWaitTimeS(ceiling: Long): Int {
+  val randNumber = Math.random()
+  return (ceiling * randNumber).toInt()
+}
+
+/**
+ * Generates a wait stage with a random wait time between 0 and [ceiling].
+ * This stage is meant to be used at the start of an orca task to stagger
+ * the start of many delete tasks, and the default [stageId] is 0.
+ *
+ * Optionally, you can add a [stageId] and [requisiteStageRefIds] to
+ * construct a stage you can place anywhere in your pipeline.
+ */
+fun generateWaitStageWithRandWaitTime(ceiling: Long, stageId: String = "0", requisiteStageRefIds: List<String> = emptyList()) =
+  OrcaJob(
+    type = "wait",
+    context = mutableMapOf(
+      "waitTime" to generateRandomWaitTimeS(ceiling),
+      "refId" to stageId,
+      "requisiteStageRefIds" to requisiteStageRefIds
+    )
+  )

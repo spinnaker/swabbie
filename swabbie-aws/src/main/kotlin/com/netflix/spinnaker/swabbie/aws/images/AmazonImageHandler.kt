@@ -43,6 +43,7 @@ import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
+import com.netflix.spinnaker.swabbie.orca.generateWaitStageWithRandWaitTime
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
@@ -51,6 +52,7 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -98,19 +100,24 @@ class AmazonImageHandler(
   dynamicConfigService
 ) {
 
+  @Value("\${swabbie.agents.clean.interval-seconds:3600}")
+  private var cleanInterval: Long = 3600
+
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
     orcaService.orchestrate(
       OrchestrationRequest(
         // resources are partitioned based on grouping, so find the app to use from first resource
         application = applicationUtils.determineApp(markedResources.first().resource),
         job = listOf(
+          generateWaitStageWithRandWaitTime(cleanInterval),
           OrcaJob(
             type = "deleteImage",
             context = mutableMapOf(
               "credentials" to workConfiguration.account.name,
               "imageIds" to markedResources.map { it.resourceId }.toSet(),
               "cloudProvider" to AWS,
-              "region" to workConfiguration.location
+              "region" to workConfiguration.location,
+              "requisiteStageRefIds" to listOf("0")
             )
           )
         ),

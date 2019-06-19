@@ -29,7 +29,6 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceProvider
@@ -85,7 +84,6 @@ object AmazonAutoScalingGroupHandlerTest {
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
-  private val lockingService = Optional.empty<LockingService>()
   private val orcaService = mock<OrcaService>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val dynamicConfigService = mock<DynamicConfigService>()
@@ -105,7 +103,6 @@ object AmazonAutoScalingGroupHandlerTest {
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
 
-    lockingService = lockingService,
     retrySupport = RetrySupport(),
     serverGroupProvider = serverGroupProvider,
     orcaService = orcaService,
@@ -232,7 +229,7 @@ object AmazonAutoScalingGroupHandlerTest {
       serverGroups!!.size shouldMatch equalTo(2)
     }
 
-    subject.mark(workConfiguration, postMark = { print("Done") })
+    subject.mark(workConfiguration)
 
     // testapp-v001 is excluded by exclusion policies, specifically because testapp-v001 is not in allow list
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -291,7 +288,7 @@ object AmazonAutoScalingGroupHandlerTest {
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
         workConfiguration.maxItemsProcessedPerCycle
 
-    subject.delete(workConfiguration, {})
+    subject.delete(workConfiguration)
 
     verify(orcaService, times(1)).orchestrate(any())
 

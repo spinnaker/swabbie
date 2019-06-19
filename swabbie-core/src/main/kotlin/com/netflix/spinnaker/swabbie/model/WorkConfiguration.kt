@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.model
 
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.NotificationConfiguration
+import com.netflix.spinnaker.swabbie.events.Action
 
 /**
  * @param retention How many days swabbie will wait until starting the deletion process (soft delete, then delete)
@@ -40,7 +41,29 @@ data class WorkConfiguration(
 ) {
 
   fun toLog(): String = "$namespace/$account/$location/$cloudProvider/$resourceType"
+  fun toWorkItems(): List<WorkItem> {
+    return listOf(Action.MARK, Action.NOTIFY, Action.DELETE).map {
+      WorkItem(id = "${it.name}:$namespace".toLowerCase(), workConfiguration = this, action = it)
+    }
+  }
+
+  override fun equals(other: Any?): Boolean {
+    return (other != null && other is WorkConfiguration && other.namespace == namespace)
+  }
+
+  override fun hashCode(): Int {
+    return namespace.hashCode()
+  }
 }
+
+/**
+ * A unit of work associated with a [WorkConfiguration]
+ */
+data class WorkItem(
+  val id: String,
+  val workConfiguration: WorkConfiguration,
+  val action: Action
+)
 
 class EmptyNotificationConfiguration : NotificationConfiguration(
   enabled = false,

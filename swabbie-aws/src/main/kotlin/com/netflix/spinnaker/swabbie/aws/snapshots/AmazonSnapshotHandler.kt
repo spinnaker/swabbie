@@ -23,7 +23,6 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
-import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceProvider
@@ -51,7 +50,6 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.util.Optional
 
 @Component
 class AmazonSnapshotHandler(
@@ -63,7 +61,6 @@ class AmazonSnapshotHandler(
   resourceOwnerResolver: ResourceOwnerResolver<AmazonSnapshot>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonSnapshot>>,
@@ -84,7 +81,6 @@ class AmazonSnapshotHandler(
   resourceOwnerResolver,
   notifiers,
   applicationEventPublisher,
-  lockingService,
   retrySupport,
   resourceUseTrackingRepository,
   swabbieProperties,

@@ -41,7 +41,6 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
-import java.util.Optional
 
 /**
  * A test resource type handler that provides fake resources to test abstract resource type handler logic
@@ -57,7 +56,6 @@ class TestResourceTypeHandler(
   private val rules: MutableList<TestRule> = mutableListOf(),
   private var simulatedCandidates: MutableList<TestResource> = mutableListOf(),
   registry: Registry = NoopRegistry(),
-  lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
   private val taskTrackingRepository: TaskTrackingRepository,
   resourceUseTrackingRepository: ResourceUseTrackingRepository,
@@ -72,7 +70,6 @@ class TestResourceTypeHandler(
   ownerResolver,
   notifiers,
   applicationEventPublisher,
-  lockingService,
   retrySupport,
   resourceUseTrackingRepository,
   SwabbieProperties(),

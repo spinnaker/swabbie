@@ -43,17 +43,17 @@ interface ResourceTypeHandler<T : Resource> {
   /**
    * Marks a single marked resource matching the granularity of [WorkConfiguration].
    */
-  fun mark(workConfiguration: WorkConfiguration, postMark: () -> Unit)
+  fun mark(workConfiguration: WorkConfiguration)
 
   /**
    * Notifies resource owners
    */
-  fun notify(workConfiguration: WorkConfiguration, postNotify: () -> Unit)
+  fun notify(workConfiguration: WorkConfiguration)
 
   /**
    * Deletes marked resources matching the granularity of [WorkConfiguration].
    */
-  fun delete(workConfiguration: WorkConfiguration, postDelete: () -> Unit)
+  fun delete(workConfiguration: WorkConfiguration)
 
   /**
    * Opts a resource out whether or not it has been marked.

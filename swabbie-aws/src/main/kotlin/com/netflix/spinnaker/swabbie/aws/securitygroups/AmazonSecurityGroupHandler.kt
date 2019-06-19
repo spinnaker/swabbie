@@ -21,7 +21,6 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
-import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceProvider
@@ -45,7 +44,6 @@ import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.util.Optional
 
 // TODO: add rules for this handler
 @Component
@@ -58,7 +56,6 @@ class AmazonSecurityGroupHandler(
   resourceOwnerResolver: ResourceOwnerResolver<AmazonSecurityGroup>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  lockingService: Optional<LockingService>,
   retrySupport: RetrySupport,
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
@@ -78,7 +75,6 @@ class AmazonSecurityGroupHandler(
   resourceOwnerResolver,
   notifiers,
   applicationEventPublisher,
-  lockingService,
   retrySupport,
   resourceUseTrackingRepository,
   swabbieProperties,

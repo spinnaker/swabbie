@@ -26,9 +26,9 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 /**
- * @param minImagesUsedByLC minimum number of images used by launch configurations that should be
+ * @param {@link #minImagesUsedByLC} minimum number of images used by launch configurations that should be
  *  in the cache. If not present agents will error to prevent mass marking in the case of edda problems.
- * @param minImagesUsedByInst minimum number of images used by instances that should be
+ * @param {@link #minImagesUsedByInst} minimum number of images used by instances that should be
  *  in the cache. If not present agents will error to prevent mass marking in the case of edda problems.
  */
 @ConfigurationProperties("swabbie")
@@ -190,31 +190,16 @@ class Schedule {
   var enabled: Boolean = true
   var startTime: String = "09:00"
   var endTime: String = "16:00"
-  val allowedDaysOfWeek: MutableList<DayOfWeek> = mutableListOf()
-  var defaultTimeZone: String = "America/Los_Angeles"
 
-  fun getResolvedDays(): List<DayOfWeek> {
-    return if (!enabled) {
-      mutableListOf(
-        DayOfWeek.MONDAY,
-        DayOfWeek.TUESDAY,
-        DayOfWeek.WEDNESDAY,
-        DayOfWeek.THURSDAY,
-        DayOfWeek.FRIDAY,
-        DayOfWeek.SATURDAY,
-        DayOfWeek.SUNDAY
-      )
-    } else if (allowedDaysOfWeek.isEmpty()) {
-      mutableListOf(
-        DayOfWeek.MONDAY,
-        DayOfWeek.TUESDAY,
-        DayOfWeek.WEDNESDAY,
-        DayOfWeek.THURSDAY
-      )
-    } else {
-      allowedDaysOfWeek
-    }
-  }
+  // default days overridable in config
+  var allowedDaysOfWeek: List<DayOfWeek> = listOf(
+    DayOfWeek.MONDAY,
+    DayOfWeek.TUESDAY,
+    DayOfWeek.WEDNESDAY,
+    DayOfWeek.THURSDAY
+  )
+
+  var defaultTimeZone: String = "America/Los_Angeles"
 
   fun getResolvedStartTime(): LocalTime {
     return LocalTime.parse(startTime)
@@ -232,12 +217,12 @@ class Schedule {
    * Returns proposed timestamp or next time in window
    */
   fun getNextTimeInWindow(proposedTimestamp: Long): Long {
-    return if (!enabled || getResolvedDays().isEmpty()) {
+    return if (!enabled) {
       proposedTimestamp
     } else {
       var day = dayFromTimestamp(proposedTimestamp)
       var incDays = 0
-      while (!getResolvedDays().contains(day)) {
+      while (!allowedDaysOfWeek.contains(day)) {
         day = day.plus(1)
         incDays += 1
       }

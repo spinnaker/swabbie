@@ -28,10 +28,12 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.lang.IllegalStateException
 import java.time.Clock
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.LocalDate
 import java.time.temporal.Temporal
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -75,59 +77,49 @@ abstract class ScheduledAgent(
   }
 
   private fun waitForCacheThenStart() {
-    executorService.schedule({
-      try {
-        while (!cacheStatus.cachesLoaded()) {
-          log.info("Can't work until the caches load...")
-          Thread.sleep(Duration.ofSeconds(5).toMillis())
-        }
-        log.info("Caches loaded.")
-        scheduleSwabbie()
-      } catch (e: Exception) {
-        log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.", e)
+    try {
+      while (!cacheStatus.cachesLoaded()) {
+        log.debug("Can't work until the caches load...")
+        Thread.sleep(Duration.ofSeconds(5).toMillis())
       }
-    }, 15, TimeUnit.SECONDS)
+      log.debug("Caches loaded.")
+      scheduleSwabbie()
+    } catch (e: Exception) {
+      log.error("Failed while waiting for cache to start in ${javaClass.simpleName}.", e)
+    }
   }
 
   private fun scheduleSwabbie() {
-      runningTask = executorService.scheduleWithFixedDelay({
-        try {
-          when {
-            LocalDateTime.now(clock).dayOfWeek in swabbieProperties.schedule.getResolvedDays() ->
-              when {
-                timeToWork(swabbieProperties.schedule, clock) -> {
-                  if (dynamicConfigService.isEnabled("swabbie.work", true)) {
-                    log.info("Swabbie schedule: working")
-                    runSwabbie()
-                  } else {
-                    log.info("Swabbie schedule: disabled via property swabbie.work")
-                  }
+    runningTask = executorService.scheduleWithFixedDelay({
+      when {
+        dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false) -> {
+          log.info("Swabbie schedule: disabled via property $SWABBIE_FLAG_PROPERY")
+        }
+        timeToWork(swabbieProperties.schedule, clock) -> {
+          try {
+            initialize()
+            workConfigurations.forEach { workConfiguration ->
+              log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
+              process(
+                workConfiguration = workConfiguration,
+                onCompleteCallback = {
+                  finalize(workConfiguration)
                 }
-                else -> log.info("Swabbie schedule: off hours")
-              }
-            else -> log.info("Swabbie schedule: off hours on {}", LocalDateTime.now(clock).dayOfWeek)
-          }
-        } catch (e: Exception) {
-          registry.counter(
+              )
+            }
+          } catch (e: Exception) {
+            registry.counter(
               failedDuringSchedule.withTags(
-                  "agentName", this.javaClass.simpleName
+                "agentName", this.javaClass.simpleName
               )).increment()
-          log.error("Failed during schedule method for {}", javaClass.simpleName)
+            log.error("Failed during schedule method for {}", javaClass.simpleName)
+          }
         }
-      }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
-  }
-
-  private fun runSwabbie() {
-    initialize()
-    workConfigurations.forEach { workConfiguration ->
-      log.info("{} running with configuration {}", this.javaClass.simpleName, workConfiguration)
-      process(
-        workConfiguration = workConfiguration,
-        onCompleteCallback = {
-          finalize(workConfiguration)
+        else -> {
+          log.info("Swabbie schedule: off hours on {}", LocalDateTime.now(clock).dayOfWeek)
         }
-      )
-    }
+      }
+    }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
   }
 
   @PreDestroy
@@ -174,15 +166,12 @@ abstract class ScheduledAgent(
 
       val startTime: LocalTime = schedule.getResolvedStartTime()
       val endTime: LocalTime = schedule.getResolvedEndTime()
-      val now = LocalTime.from(clock.instant().atZone(schedule.getZoneId()))
-
-      return if (startTime <= endTime) {
-        // Work during the day
-        now.isAfter(startTime) && now.isBefore(endTime)
-      } else {
-        // Work during the night
-        now.isAfter(startTime) || now.isBefore(endTime)
+      val now: LocalTime = LocalTime.from(clock.instant().atZone(schedule.getZoneId()))
+      if (startTime.isAfter(endTime)) {
+        throw IllegalStateException("Scheduled startTime: $startTime cannot be after endTime: $endTime")
       }
+
+      return LocalDate.now(clock).dayOfWeek in schedule.allowedDaysOfWeek && now.isAfter(startTime) && now.isBefore(endTime)
     }
   }
 
@@ -191,3 +180,5 @@ abstract class ScheduledAgent(
   abstract fun getAgentDelay(): Long
   abstract fun getAction(): Action
 }
+
+const val SWABBIE_FLAG_PROPERY = "swabbie.work"

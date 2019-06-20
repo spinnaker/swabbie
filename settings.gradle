@@ -25,7 +25,8 @@ include 'swabbie-test',
   'swabbie-orca',
   'swabbie-clouddriver',
   'swabbie-front50',
-  'swabbie-web'
+  'swabbie-web',
+  'swabbie-bom'
 
 def setBuildFile(project) {
   project.buildFileName = "${project.name}.gradle"

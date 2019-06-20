@@ -48,32 +48,34 @@ allprojects {
 }
 
 subprojects {
-  apply plugin: "java"
-  apply from: "$rootDir/gradle/kotlin.gradle"
-  apply from: "$rootDir/gradle/junit5.gradle"
-  apply from: "$rootDir/gradle/license.gradle"
-  apply from: "$rootDir/gradle/dokka.gradle"
+  if (name != "swabbie-bom") {
+    apply plugin: "java"
+    apply from: "$rootDir/gradle/kotlin.gradle"
+    apply from: "$rootDir/gradle/junit5.gradle"
+    apply from: "$rootDir/gradle/license.gradle"
+    apply from: "$rootDir/gradle/dokka.gradle"
 
-  repositories {
-    jcenter()
-  }
-
-  dependencies {
-    api(platform("com.netflix.spinnaker.kork:kork-bom:$korkVersion"))
-  }
-
-  test {
-    testLogging {
-      exceptionFormat = "full"
-      events 'PASSED', 'FAILED', 'SKIPPED'
+    repositories {
+      jcenter()
     }
-    afterSuite { desc, result ->
-      if (!desc.parent) {
-        println "\nTest result: ${result.resultType}"
-        println "Test summary: ${result.testCount} tests, " +
-          "${result.successfulTestCount} succeeded, " +
-          "${result.failedTestCount} failed, " +
-          "${result.skippedTestCount} skipped"
+
+    dependencies {
+      api(platform("com.netflix.spinnaker.kork:kork-bom:$korkVersion"))
+    }
+
+    test {
+      testLogging {
+        exceptionFormat = "full"
+        events 'PASSED', 'FAILED', 'SKIPPED'
+      }
+      afterSuite { desc, result ->
+        if (!desc.parent) {
+          println "\nTest result: ${result.resultType}"
+          println "Test summary: ${result.testCount} tests, " +
+            "${result.successfulTestCount} succeeded, " +
+            "${result.failedTestCount} failed, " +
+            "${result.skippedTestCount} skipped"
+        }
       }
     }
   }

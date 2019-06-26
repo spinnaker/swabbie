@@ -1,8 +1,8 @@
 # Swabbie
 
-_**IMPORTANT:** This service is currently under development and is not ready for production._
+_**IMPORTANT:** This service is currently under development, and is actively being used for deleting images and snapshots of ebs volumes._
 
-Swabbie is a service automating the cleanup of unused resources, such as EBS Volumes and Security Groups.
+Swabbie is a service automating the cleanup of unused resources, such as EBS Volumes and Images.
 It's a replacement for Janitor Monkey. It can be extended to clean up a variety of resource types.
 It applies a set of rules to mark cleanup candidates. Once marked, a resource is scheduled for deletion, and an owner is notified.
 
@@ -38,18 +38,25 @@ swabbie:
                 - never
                 - pattern:^\d+(d|m|y)$
       resourceTypes:
-        - name: securityGroup
-          enabled: false
-          dryRun: true
-          retention: 10 #days
-          maxAge: 10 #days
+        - name: image
+          enabled: true
+          dryRun: false
+          retention: 2
+          maxAge: 30
           exclusions:
             - type: Literal
               attributes:
-                - key: name
+                - key: description
                   value:
-                    - nf_infranstructure
-                    - nf_datacenter
+                    - pattern:name=base
+          notification:
+            enabled: true
+            required: true
+            types:
+              - EMAIL
+            defaultDestination: swabbie-email-notifications@
+            optOutBaseUrl: apiUrl
+            resourceUrl: helpfulUrl
         - name: loadBalancer
           enabled: true
           dryRun: true

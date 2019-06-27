@@ -569,6 +569,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           if (!partition.isEmpty()) {
             try {
               deleteResources(partition, workConfiguration)
+              partition.forEach { it -> applicationEventPublisher.publishEvent(DeleteResourceEvent(it, workConfiguration)) }
               candidateCounter.addAndGet(partition.size)
             } catch (e: Exception) {
               log.error("Failed to delete $it. Configuration: {}", workConfiguration.toLog(), e)

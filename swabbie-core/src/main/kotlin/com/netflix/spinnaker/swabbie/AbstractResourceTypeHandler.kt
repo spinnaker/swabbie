@@ -569,7 +569,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           if (!partition.isEmpty()) {
             try {
               deleteResources(partition, workConfiguration)
-              sendDeleteEvents(partition, workConfiguration)
+              partition
+                .forEach { it -> applicationEventPublisher.publishEvent(DeleteResourceEvent(it, workConfiguration))}
               candidateCounter.addAndGet(partition.size)
             } catch (e: Exception) {
               log.error("Failed to delete $it. Configuration: {}", workConfiguration.toLog(), e)
@@ -751,12 +752,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         }
       }
     }
-  }
-
-  private fun sendDeleteEvents(
-    resources: List<MarkedResource>,
-    workConfiguration: WorkConfiguration
-  ) { resources.forEach { applicationEventPublisher.publishEvent(DeleteResourceEvent(it, workConfiguration)) }
   }
 
   private val Int.days: Period

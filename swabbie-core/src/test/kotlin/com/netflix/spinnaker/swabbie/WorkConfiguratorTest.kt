@@ -77,7 +77,7 @@ object WorkConfiguratorTest {
       providers = listOf(
         CloudProviderConfiguration().apply {
           name = "aws"
-          exclusions = mutableListOf()
+          exclusions = mutableSetOf()
           accounts = listOf("test")
           locations = listOf("us-east-1")
           resourceTypes = listOf(
@@ -143,7 +143,7 @@ object WorkConfiguratorTest {
       providers = listOf(
         CloudProviderConfiguration().apply {
           name = "aws"
-          exclusions = mutableListOf()
+          exclusions = mutableSetOf()
           accounts = listOf("test")
           locations = listOf("us-east-1")
           resourceTypes = listOf(
@@ -166,11 +166,11 @@ object WorkConfiguratorTest {
               name = "ami"
               enabled = true
               dryRun = false
-              exclusions = mutableListOf(
+              exclusions = mutableSetOf(
                 Exclusion()
                   .withType(ExclusionType.Account.toString())
                   .withAttributes(
-                    listOf(
+                    setOf(
                       Attribute()
                         .withKey("name")
                         .withValue(

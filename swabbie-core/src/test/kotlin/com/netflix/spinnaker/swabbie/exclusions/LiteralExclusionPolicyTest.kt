@@ -31,7 +31,7 @@ object LiteralExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Literal.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("name")
               .withValue(
@@ -61,7 +61,7 @@ object LiteralExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Literal.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("resourceId")
               .withValue(

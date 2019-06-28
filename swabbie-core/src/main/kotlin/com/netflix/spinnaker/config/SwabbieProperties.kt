@@ -53,7 +53,7 @@ class AlwaysCleanRuleConfig {
 }
 
 class CloudProviderConfiguration {
-  var exclusions: MutableList<Exclusion>? = null
+  var exclusions: MutableSet<Exclusion>? = null
   var name: String = ""
   var locations: List<String> = mutableListOf()
   var accounts: List<String> = mutableListOf()
@@ -102,7 +102,7 @@ open class NotificationConfiguration(
 
 class Exclusion {
   var type: String = ""
-  var attributes: List<Attribute> = mutableListOf()
+  var attributes: MutableSet<Attribute> = mutableSetOf()
   override fun toString(): String {
     return "Exclusion(type='$type', attributes=$attributes)"
   }
@@ -112,9 +112,9 @@ class Exclusion {
       type = t
     }
 
-  fun withAttributes(attrs: List<Attribute>): Exclusion =
+  fun withAttributes(attrs: Set<Attribute>): Exclusion =
     this.apply {
-      attributes = attrs
+      attributes = attrs.toMutableSet()
     }
 
   override fun equals(other: Any?): Boolean {
@@ -140,7 +140,7 @@ class ResourceTypeConfiguration {
   var enabled: Boolean = false
   var dryRun: Boolean = true
   var retention: Int = 14
-  var exclusions: MutableList<Exclusion> = mutableListOf()
+  var exclusions: MutableSet<Exclusion> = mutableSetOf()
   lateinit var name: String
   var entityTaggingEnabled: Boolean = false
   var maxAge: Int = 14

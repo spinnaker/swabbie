@@ -260,7 +260,7 @@ object AmazonSnapshotHandlerTest {
         Exclusion()
           .withType(ExclusionType.Allowlist.toString())
           .withAttributes(
-            listOf(
+            setOf(
               Attribute()
                 .withKey("snapshotId")
                 .withValue(
@@ -344,7 +344,7 @@ object AmazonSnapshotHandlerTest {
       providers = listOf(
         CloudProviderConfiguration().apply {
           name = "aws"
-          exclusions = mutableListOf()
+          exclusions = mutableSetOf()
           accounts = accountIds
           locations = regions
           resourceTypes = listOf(
@@ -352,7 +352,7 @@ object AmazonSnapshotHandlerTest {
               name = "snapshot"
               enabled = isEnabled
               dryRun = dryRunMode
-              exclusions = exclusionList
+              exclusions = exclusionList.toMutableSet()
               retention = 2
               maxAge = maxAgeDays
             }

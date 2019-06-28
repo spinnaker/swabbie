@@ -116,9 +116,9 @@ open class WorkConfigurator(
     return all
   }
 
-  private fun mergeExclusions(global: MutableList<Exclusion>?, local: MutableList<Exclusion>?): List<Exclusion> {
+  private fun mergeExclusions(global: MutableSet<Exclusion>?, local: Set<Exclusion>?): Set<Exclusion> {
     if ((global == null || global.isEmpty()) && (local == null || local.isEmpty())) {
-      return emptyList()
+      return emptySet()
     } else if ((global == null || global.isEmpty()) && local != null) {
       return local
     } else if (global != null && (local == null || local.isEmpty())) {
@@ -131,19 +131,19 @@ open class WorkConfigurator(
     // include runtime exclusions
     exclusionsSuppliers.ifPresent { exclusionsProviders ->
       exclusionsProviders.forEach { exclusionProvider ->
-        merge(exclusionProvider.get(), global)
+        merge(exclusionProvider.get().toSet(), global)
       }
     }
 
-    return global.toList()
+    return global
   }
 
-  private fun merge(from: List<Exclusion>, to: MutableList<Exclusion>) {
+  private fun merge(from: Set<Exclusion>, to: MutableSet<Exclusion>) {
     from.forEach { f ->
       var found = false
       to.forEach { t ->
         if (t.type == f.type) {
-          (t.attributes as MutableList).addAll(f.attributes)
+          (t.attributes).addAll(f.attributes)
           found = true
         }
       }

@@ -33,7 +33,7 @@ object AmazonTagExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Tag.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("expiration_time")
               .withValue(
@@ -74,7 +74,7 @@ object AmazonTagExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Tag.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("expiration_time")
               .withValue(

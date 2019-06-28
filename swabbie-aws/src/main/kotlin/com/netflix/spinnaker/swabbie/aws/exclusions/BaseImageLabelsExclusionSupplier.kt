@@ -50,7 +50,7 @@ class BaseImageLabelsExclusionSupplier(
             Exclusion()
               .withType(ExclusionType.Literal.toString())
               .withAttributes(
-                listOf(
+                setOf(
                   Attribute()
                     .withKey("name")
                     .withValue(

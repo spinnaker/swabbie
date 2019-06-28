@@ -38,7 +38,7 @@ object AllowListExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Allowlist.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("application.name")
               .withValue(
@@ -76,7 +76,7 @@ object AllowListExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Allowlist.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("name")
               .withValue(
@@ -114,7 +114,7 @@ object AllowListExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Allowlist.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("swabbieResourceOwner")
               .withValue(

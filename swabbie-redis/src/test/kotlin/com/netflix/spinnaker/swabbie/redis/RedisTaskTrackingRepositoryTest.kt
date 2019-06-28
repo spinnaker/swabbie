@@ -76,7 +76,7 @@ object RedisTaskTrackingRepositoryTest {
     cloudProvider = AWS,
     resourceType = "testResourceType",
     retention = 14,
-    exclusions = emptyList(),
+    exclusions = emptySet(),
     maxAge = 1
   )
 

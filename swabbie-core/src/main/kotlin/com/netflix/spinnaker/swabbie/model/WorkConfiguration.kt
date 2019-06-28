@@ -30,7 +30,7 @@ data class WorkConfiguration(
   val cloudProvider: String,
   val resourceType: String,
   val retention: Int,
-  val exclusions: List<Exclusion>,
+  val exclusions: Set<Exclusion>,
   val dryRun: Boolean = true,
   val entityTaggingEnabled: Boolean = false,
   val notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration(),

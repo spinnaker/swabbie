@@ -239,7 +239,7 @@ object ResourceTypeHandlerTest {
       Exclusion()
         .withType(ExclusionType.Literal.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("name")
               .withValue(listOf(defaultResource.name))
@@ -265,7 +265,7 @@ object ResourceTypeHandlerTest {
       Exclusion()
         .withType(ExclusionType.Allowlist.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("swabbieResourceOwner")
               .withValue(listOf("lucious-mayweather@netflix.com"))
@@ -774,7 +774,7 @@ object ResourceTypeHandlerTest {
     cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
     resourceType = TEST_RESOURCE_TYPE,
     retention = retention,
-    exclusions = exclusions,
+    exclusions = exclusions.toSet(),
     dryRun = dryRun,
     maxAge = 1,
     itemsProcessedBatchSize = itemsProcessedBatchSize,

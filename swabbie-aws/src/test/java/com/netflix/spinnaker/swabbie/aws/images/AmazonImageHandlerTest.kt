@@ -295,7 +295,7 @@ object AmazonImageHandlerTest {
         Exclusion()
           .withType(ExclusionType.Allowlist.toString())
           .withAttributes(
-            listOf(
+            setOf(
               Attribute()
                 .withKey("imageId")
                 .withValue(
@@ -340,7 +340,7 @@ object AmazonImageHandlerTest {
         Exclusion()
           .withType(ExclusionType.Allowlist.toString())
           .withAttributes(
-            listOf(
+            setOf(
               Attribute()
                 .withKey("imageId")
                 .withValue(
@@ -477,7 +477,7 @@ object AmazonImageHandlerTest {
       providers = listOf(
         CloudProviderConfiguration().apply {
           name = "aws"
-          exclusions = mutableListOf()
+          exclusions = mutableSetOf()
           accounts = accountIds
           locations = regions
           resourceTypes = listOf(
@@ -485,7 +485,7 @@ object AmazonImageHandlerTest {
               name = "image"
               enabled = isEnabled
               dryRun = dryRunMode
-              exclusions = exclusionList
+              exclusions = exclusionList.toMutableSet()
               retention = 2
               maxAge = maxAgeDays
             }

@@ -99,7 +99,7 @@ class TemporalTagExclusionSupplier : ExclusionsSupplier {
             .withValue(
               supportedTemporalTagValues
             )
-        }
+        }.toSet()
       )
     )
   }

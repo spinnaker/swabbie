@@ -215,7 +215,7 @@ object AmazonAutoScalingGroupHandlerTest {
         Exclusion()
           .withType(ExclusionType.Allowlist.toString())
           .withAttributes(
-            listOf(
+            setOf(
               Attribute()
                 .withKey("autoScalingGroupName")
                 .withValue(
@@ -314,7 +314,7 @@ object AmazonAutoScalingGroupHandlerTest {
       providers = listOf(
         CloudProviderConfiguration().apply {
           name = "aws"
-          exclusions = mutableListOf()
+          exclusions = mutableSetOf()
           accounts = accountIds
           locations = regions
           maxItemsProcessedPerCycle = 10
@@ -323,7 +323,7 @@ object AmazonAutoScalingGroupHandlerTest {
               name = "serverGroup"
               enabled = isEnabled
               dryRun = dryRunMode
-              exclusions = exclusionList
+              exclusions = exclusionList.toMutableSet()
               retention = 2
               maxAge = maxAgeDays
             }

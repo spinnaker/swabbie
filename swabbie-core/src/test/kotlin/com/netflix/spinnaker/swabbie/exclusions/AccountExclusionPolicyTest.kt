@@ -31,7 +31,7 @@ object AccountExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Account.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("name")
               .withValue(
@@ -85,7 +85,7 @@ object AccountExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Account.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("type")
               .withValue(

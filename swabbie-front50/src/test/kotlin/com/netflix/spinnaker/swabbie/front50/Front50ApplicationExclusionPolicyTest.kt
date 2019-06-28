@@ -41,7 +41,7 @@ object Front50ApplicationExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Application.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("name")
               .withValue(
@@ -83,7 +83,7 @@ object Front50ApplicationExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Application.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("name")
               .withValue(
@@ -118,7 +118,7 @@ object Front50ApplicationExclusionPolicyTest {
       Exclusion()
         .withType(ExclusionType.Application.toString())
         .withAttributes(
-          listOf(
+          setOf(
             Attribute()
               .withKey("name")
               .withValue(

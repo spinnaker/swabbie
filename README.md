@@ -2,24 +2,13 @@
 
 _**IMPORTANT:** This service is currently under development, and is actively being used for deleting images and snapshots of ebs volumes._
 
-Swabbie is a service automating the cleanup of unused resources, such as EBS Volumes and Images.
-It's a replacement for Janitor Monkey. It can be extended to clean up a variety of resource types.
-It applies a set of rules to mark cleanup candidates. Once marked, a resource is scheduled for deletion, and an owner is notified.
+Swabbie automates the cleanup of unused resources such as EBS Volumes and Images.
+As a Janitor Monkey replacement, it can also be extended to clean up a variety of resource types.
+Swabbie applies a set of rules to mark cleanup candidates. Once marked, a resource is scheduled for deletion, and an owner is notified.
 
 ## Configuration
 ```
 swabbie:
-  agents:
-    mark:
-      enabled: true
-      intervalSeconds: 3600000
-    clean:
-      enabled: false
-      intervalSeconds: 3600000
-    notify:
-      enabled: false
-      intervalSeconds: 3600000
-
   providers:
     - name: aws
       locations:
@@ -83,12 +72,9 @@ swabbie:
 
 
 ## Concepts
-#### Agents
-An agent is a scheduled class in charge of initiating and dispatching work to a resource type handler:
-
-- `ResourceMarkerAgent`: Marks violating resources.
-- `ResourceCleanerAgent`: Cleans marked resources.
-- `NotificationAgent`: Ensures a notification is sent out to a resource owner.
+#### Work Queue
+Swabbie uses a queue to keep track of work to be processed by resource handlers.
+Work items on the queue are derived from the application configuration and are initialized at start time.
 
 
 #### Resource Type Handler
@@ -100,7 +86,8 @@ Responsibilities include:
   - Deleting a resource.
 
 #### Work, Work, Work...
-A single unit of work is scoped to a configuration that defines its granularity.
+A `WorkItem` is single unit of work that is scoped to a configuration that defines its granularity.
+A `WorkItem` also defines the action to invoke by a handler.
 
 ```
 data class WorkConfiguration(
@@ -120,9 +107,8 @@ data class WorkConfiguration(
 Work configuration is derived from the YAML configuration.
 
 #### Marking resources for deletions & Redis
-A marker agent operates on a unit of work by acquiring a simple lock to avoid operating on work in progress.
-The locking mechanism is backed by a distributed redis locking manager. The granularity of the lock name is
-`$action:$workConfiguration.namespace`.
+A Queue processor routinely checks the queue for work items to process. A redis lock manager is used for coordination to ensure that only one work item is processed at a time by a worker.
+
 
 ```
 locking:

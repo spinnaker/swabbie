@@ -35,7 +35,6 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceProvider
@@ -112,7 +111,6 @@ object AmazonSnapshotHandlerTest {
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonSnapshot>>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
-  private val lockingService = Optional.empty<LockingService>()
   private val orcaService = mock<OrcaService>()
   private val snapshotProvider = mock<ResourceProvider<AmazonSnapshot>>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
@@ -134,7 +132,6 @@ object AmazonSnapshotHandlerTest {
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
-    lockingService = lockingService,
     retrySupport = RetrySupport(),
     dynamicConfigService = dynamicConfigService,
     rules = listOf(OrphanedSnapshotRule()),
@@ -274,7 +271,7 @@ object AmazonSnapshotHandlerTest {
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
       workConfiguration.maxItemsProcessedPerCycle
 
-    subject.mark(workConfiguration, postMark = { print("Done") })
+    subject.mark(workConfiguration)
 
     // snap-111 is excluded by exclusion policies, specifically because snap-111 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -310,7 +307,7 @@ object AmazonSnapshotHandlerTest {
       workConfiguration.maxItemsProcessedPerCycle
 
     // description isn't from a bake, so it won't be marked
-    subject.mark(workConfiguration) { print { "postMark" } }
+    subject.mark(workConfiguration)
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
     verify(resourceRepository, times(0)).upsert(any(), any())
   }
@@ -326,7 +323,7 @@ object AmazonSnapshotHandlerTest {
       workConfiguration.maxItemsProcessedPerCycle
 
     // both snapshots are in use, so they won't be marked
-    subject.mark(workConfiguration) { print { "postMark" } }
+    subject.mark(workConfiguration)
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
     verify(resourceRepository, times(0)).upsert(any(), any())
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Netflix, Inc.
+ * Copyright 2019 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,28 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.agents
+package com.netflix.spinnaker.swabbie.work
 
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.WorkItem
 
-interface SwabbieAgent : DiscoveryActivated {
-  fun process(workConfiguration: WorkConfiguration, onCompleteCallback: () -> Unit)
-  fun initialize()
-  fun finalize(workConfiguration: WorkConfiguration)
+interface WorkQueue {
+  /**
+   * For initializing the queue with a list of [WorkItem]
+   */
+  fun seed()
+  fun pop(): WorkItem?
+  fun push(workItem: WorkItem)
+  fun isEmpty(): Boolean
+
+  /**
+   * Empties the queue
+   */
+  fun clear() {
+    var tmp = pop()
+    while (tmp != null) {
+      tmp = pop()
+    }
+  }
+
+  fun size(): Int
 }

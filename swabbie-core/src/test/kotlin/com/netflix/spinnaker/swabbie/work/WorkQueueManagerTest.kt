@@ -1,4 +1,20 @@
-package com.netflix.spinnaker.swabbie.agents
+/*
+ * Copyright 2019 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License")
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spinnaker.config.Schedule
 import org.junit.jupiter.api.Assertions
@@ -11,7 +27,7 @@ import java.time.ZoneOffset
 import java.time.LocalDate
 import java.time.DayOfWeek
 
-object ScheduledAgentTest {
+object WorkQueueManagerTest {
 
   @Test
   fun `should handle days according to schedule`() {
@@ -24,10 +40,10 @@ object ScheduledAgentTest {
 
     val schedule = Schedule()
     schedule.allowedDaysOfWeek = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
-    assert(ScheduledAgent.timeToWork(schedule, clock))
+    assert(WorkQueueManager.timeToWork(schedule, clock))
 
     schedule.allowedDaysOfWeek = listOf(DayOfWeek.TUESDAY)
-    assert(!ScheduledAgent.timeToWork(schedule, clock))
+    assert(!WorkQueueManager.timeToWork(schedule, clock))
 
     // startTime > endTime
     schedule.startTime = "20:00"
@@ -35,7 +51,7 @@ object ScheduledAgentTest {
     schedule.allowedDaysOfWeek = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
 
     Assertions.assertThrows(IllegalStateException::class.java, {
-      ScheduledAgent.timeToWork(schedule, clock)
+      WorkQueueManager.timeToWork(schedule, clock)
     }, "Scheduled startTime: ${schedule.startTime} cannot be after endTime: ${schedule.endTime}")
   }
 
@@ -46,7 +62,7 @@ object ScheduledAgentTest {
     val instant = dateTime.toInstant(ZoneOffset.of("-7"))
     val clock = Clock.fixed(instant, zoneId)
 
-    assert(!ScheduledAgent.timeToWork(Schedule(), clock))
+    assert(!WorkQueueManager.timeToWork(Schedule(), clock))
   }
 
   @Test
@@ -56,7 +72,7 @@ object ScheduledAgentTest {
     val instant = dateTime.toInstant(ZoneOffset.UTC)
     val clock = Clock.fixed(instant, zoneId)
 
-    assert(ScheduledAgent.timeToWork(Schedule(), clock))
+    assert(WorkQueueManager.timeToWork(Schedule(), clock))
   }
 
   @Test
@@ -66,6 +82,6 @@ object ScheduledAgentTest {
     val instant = dateTime.toInstant(ZoneOffset.UTC)
     val clock = Clock.fixed(instant, zoneId)
 
-    assert(!ScheduledAgent.timeToWork(Schedule(), clock))
+    assert(!WorkQueueManager.timeToWork(Schedule(), clock))
   }
 }

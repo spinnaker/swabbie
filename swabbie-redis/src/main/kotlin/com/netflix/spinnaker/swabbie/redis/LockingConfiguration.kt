@@ -23,6 +23,7 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.kork.jedis.lock.RedisLockManager
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -31,18 +32,25 @@ import java.time.Clock
 import java.util.Optional
 
 @Configuration
-@ConditionalOnProperty("locking.enabled")
 @EnableConfigurationProperties(LockingConfigurationProperties::class)
 open class LockingConfiguration(
   private val lockingConfigurationProperties: LockingConfigurationProperties
 ) {
 
   @Bean
+  @ConditionalOnProperty("locking.enabled")
   open fun lockingService(lockManager: LockManager): LockingService {
     return LockingService(lockManager, lockingConfigurationProperties)
   }
 
   @Bean
+  @ConditionalOnMissingBean(LockManager::class)
+  open fun noopLockingService(): LockingService {
+    return LockingService.NOOP()
+  }
+
+  @Bean
+  @ConditionalOnProperty("locking.enabled")
   open fun lockManager(
     clock: Clock,
     registry: Registry,

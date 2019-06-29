@@ -33,7 +33,6 @@ import com.netflix.spinnaker.swabbie.model.Grouping
 import com.netflix.spinnaker.swabbie.model.GroupingType
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
-import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.Status
@@ -64,12 +63,10 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import java.util.Optional
 import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
@@ -77,19 +74,12 @@ object ResourceTypeHandlerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val clock = Clock.fixed(Instant.parse("2018-11-26T09:30:00Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
-  private val lockingService = Optional.empty<LockingService>()
   private val retrySupport = RetrySupport()
   private val ownerResolver = mock<ResourceOwnerResolver<TestResource>>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val dynamicConfigService = mock<DynamicConfigService>()
   private val notifier = mock<Notifier>()
-
-  private val log = LoggerFactory.getLogger(this.javaClass)
-
-  private val postAction: (resource: List<Resource>) -> Unit = {
-    println("swabbie post action on $it")
-  }
 
   private val defaultRules = mutableListOf(TestRule(
     invalidOn = { defaultResource.resourceId == "testResource" },
@@ -117,7 +107,6 @@ object ResourceTypeHandlerTest {
     applicationEventPublisher = applicationEventPublisher,
     simulatedCandidates = mutableListOf(),
     notifiers = listOf(notifier),
-    lockingService = lockingService,
     retrySupport = retrySupport,
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
@@ -150,7 +139,7 @@ object ResourceTypeHandlerTest {
     defaultHandler.setCandidates(mutableListOf(defaultResource))
     defaultHandler.setRules(defaultRules)
 
-    defaultHandler.mark(workConfiguration = workConfiguration(), postMark = { postAction(listOf(defaultResource)) })
+    defaultHandler.mark(workConfiguration = workConfiguration())
 
     inOrder(resourceRepository, applicationEventPublisher) {
       verify(resourceRepository).upsert(any(), any())
@@ -176,8 +165,7 @@ object ResourceTypeHandlerTest {
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.mark(
-      workConfiguration = workConfiguration(),
-      postMark = { postAction(resources) }
+      workConfiguration = workConfiguration()
     )
 
     verify(resourceRepository, times(2)).upsert(any(), any())
@@ -226,7 +214,7 @@ object ResourceTypeHandlerTest {
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
-    defaultHandler.delete(workConfiguration = configuration, postDelete = { postAction(candidates) })
+    defaultHandler.delete(workConfiguration = configuration)
 
     verify(taskTrackingRepository, times(2)).add(any(), any())
     candidates.size shouldMatch equalTo(0)
@@ -250,7 +238,7 @@ object ResourceTypeHandlerTest {
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.setRules(alwaysInvalidRules)
 
-    defaultHandler.mark(workConfiguration = configuration, postMark = { postAction(listOf(defaultResource)) })
+    defaultHandler.mark(workConfiguration = configuration)
 
     verify(applicationEventPublisher, never()).publishEvent(any())
     verify(resourceRepository, never()).upsert(any(), any())
@@ -279,7 +267,7 @@ object ResourceTypeHandlerTest {
     whenever(ownerResolver.resolve(resource1)) doReturn "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
     whenever(ownerResolver.resolve(resource2)) doReturn "blah" // excluded because not in allowed list
 
-    defaultHandler.mark(workConfiguration = configuration, postMark = { postAction(listOf(resource1, resource2)) })
+    defaultHandler.mark(workConfiguration = configuration)
 
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<MarkResourceEvent> { event ->
@@ -327,7 +315,7 @@ object ResourceTypeHandlerTest {
 
     defaultHandler.setRules(alwaysInvalidRules)
 
-    defaultHandler.delete(workConfiguration = configuration, postDelete = { postAction(listOf(resource)) })
+    defaultHandler.delete(workConfiguration = configuration)
 
     verify(applicationEventPublisher, never()).publishEvent(any())
     verify(resourceRepository, never()).upsert(any(), any())
@@ -371,8 +359,7 @@ object ResourceTypeHandlerTest {
     defaultHandler.setRules(alwaysInvalidRules)
 
     defaultHandler.mark(
-      workConfiguration = workConfiguration,
-      postMark = { postAction(listOf(resource)) }
+      workConfiguration = workConfiguration
     )
 
     verify(applicationEventPublisher, never()).publishEvent(any())
@@ -522,8 +509,7 @@ object ResourceTypeHandlerTest {
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.mark(
-      workConfiguration = configuration,
-      postMark = { postAction(listOf(defaultResource)) }
+      workConfiguration = configuration
     )
 
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -555,8 +541,7 @@ object ResourceTypeHandlerTest {
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.mark(
-      workConfiguration = configuration,
-      postMark = { postAction(listOf(defaultResource)) }
+      workConfiguration = configuration
     )
 
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -706,7 +691,7 @@ object ResourceTypeHandlerTest {
       markTs = clock.millis()
     )
 
-    defaultHandler.notify(configuration) { log.info("done notifying") }
+    defaultHandler.notify(configuration)
     verify(notifier, times(1)).notify(any(), any(), any())
     verify(resourceRepository, times(1)).upsert(updatedMarkedResource)
   }
@@ -747,7 +732,7 @@ object ResourceTypeHandlerTest {
       markTs = clock.millis()
     )
 
-    defaultHandler.notify(configuration) { log.info("done notifying") }
+    defaultHandler.notify(configuration)
     verify(notifier, times(0)).notify(any(), any(), any())
     verify(resourceRepository, times(1)).upsert(updatedMarkedResource)
   }

@@ -47,7 +47,6 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.type.filter.AssignableTypeFilter
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.util.ClassUtils
 import retrofit.Endpoint
 import retrofit.Endpoints
@@ -90,14 +89,6 @@ open class SwabbieConfiguration {
   @Bean
   open fun workConfigurations(workConfigurator: WorkConfigurator): List<WorkConfiguration> =
     workConfigurator.generateWorkConfigurations()
-
-  @Bean
-  open fun agentExecutor(@Value("\${agents.threads:2}") numThreads: Int): ThreadPoolTaskExecutor {
-    log.info("Using $numThreads threads for the agentExecutor")
-    return ThreadPoolTaskExecutor().apply {
-      corePoolSize = numThreads
-    }
-  }
 
   @Bean
   open fun retrySupport(): RetrySupport {

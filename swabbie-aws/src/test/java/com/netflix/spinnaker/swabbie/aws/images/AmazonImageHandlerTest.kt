@@ -30,7 +30,6 @@ import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.InMemorySingletonCache
-import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceProvider
@@ -93,7 +92,6 @@ object AmazonImageHandlerTest {
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonImage>>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
-  private val lockingService = Optional.empty<LockingService>()
   private val orcaService = mock<OrcaService>()
   private val imageProvider = mock<ResourceProvider<AmazonImage>>()
   private val instanceProvider = mock<ResourceProvider<AmazonInstance>>()
@@ -122,8 +120,6 @@ object AmazonImageHandlerTest {
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
-
-    lockingService = lockingService,
     retrySupport = RetrySupport(),
     imageProvider = imageProvider,
     orcaService = orcaService,
@@ -311,7 +307,10 @@ object AmazonImageHandlerTest {
       images!!.size shouldMatch equalTo(2)
     }
 
-    subject.mark(workConfiguration, postMark = { print("Done") })
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+      workConfiguration.maxItemsProcessedPerCycle
+
+    subject.mark(workConfiguration)
 
     // ami-132 is excluded by exclusion policies, specifically because ami-123 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -360,7 +359,7 @@ object AmazonImageHandlerTest {
       Assertions.assertTrue(images.any { it.imageId == "ami-132" })
     }
 
-    subject.mark(workConfiguration) { print { "postMark" } }
+    subject.mark(workConfiguration)
 
     // ami-132 is excluded by exclusion policies, specifically because ami-132 is not allowlisted
     // ami-123 is referenced by an instance, so therefore should not be marked for deletion
@@ -405,7 +404,7 @@ object AmazonImageHandlerTest {
       Assertions.assertTrue(images.any { it.imageId == "ami-132" })
     }
 
-    subject.mark(workConfiguration, { print { "postMark" } })
+    subject.mark(workConfiguration)
 
     // ami-132 is an ancestor/base for ami-123 so skip that
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -456,7 +455,7 @@ object AmazonImageHandlerTest {
     whenever(imageProvider.getAll(params)) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
 
-    subject.delete(workConfiguration) {}
+    subject.delete(workConfiguration)
 
     verify(taskTrackingRepository, times(1)).add(any(), any())
     verify(orcaService, times(1)).orchestrate(any())

@@ -48,39 +48,39 @@ class WorkProcessor(
   @Scheduled(fixedDelayString = "\${swabbie.work.intervalMs:180000}")
   fun process() {
     do {
-      try {
-        val work = workQueue.pop()
-        if (work == null) {
-          log.debug("No Work to do. Skipping...")
-        } else {
-          process(work)
+      withLocking {
+        try {
+          val work = workQueue.pop()
+          if (work == null) {
+            log.debug("No Work to do. Skipping...")
+          } else {
+            process(work)
+          }
+        } catch (e: Exception) {
+          log.error("Error while processing work", e)
         }
-      } catch (e: Exception) {
-        log.error("Error while processing work", e)
       }
     } while (!workQueue.isEmpty())
   }
 
   private fun process(work: WorkItem) {
-    withLocking {
-      try {
-        resourceTypeHandlers.find {
-          it.handles(work.workConfiguration)
-        }?.let { handler ->
-          log.debug("Processing: $work")
-          when (work.action) {
-            Action.MARK -> handler.mark(work.workConfiguration)
-            Action.NOTIFY -> handler.notify(work.workConfiguration)
-            Action.DELETE -> handler.delete(work.workConfiguration)
-            else -> log.warn("Unknown action {}", work.action.name)
-          }
-
-          work.track(success = true)
+    try {
+      resourceTypeHandlers.find {
+        it.handles(work.workConfiguration)
+      }?.let { handler ->
+        log.debug("Processing: $work")
+        when (work.action) {
+          Action.MARK -> handler.mark(work.workConfiguration)
+          Action.NOTIFY -> handler.notify(work.workConfiguration)
+          Action.DELETE -> handler.delete(work.workConfiguration)
+          else -> log.warn("Unknown action {}", work.action.name)
         }
-      } catch (e: Exception) {
-        log.error("Failed to process: {}", work, e)
-        work.track(success = false)
+
+        work.track(success = true)
       }
+    } catch (e: Exception) {
+      log.error("Failed to process: {}", work, e)
+      work.track(success = false)
     }
   }
 

@@ -65,7 +65,7 @@ class WorkQueueManager(
 
   override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
-      if (isEnabled()) {
+      if (!isEnabled()) {
         // should only empty the queue if disabled.
         queue.clear()
       }

@@ -47,8 +47,8 @@ class WorkProcessor(
    */
   @Scheduled(fixedDelayString = "\${swabbie.work.intervalMs:180000}")
   fun process() {
-    do {
-      withLocking {
+    withLocking {
+      do {
         try {
           val work = workQueue.pop()
           if (work == null) {
@@ -59,8 +59,8 @@ class WorkProcessor(
         } catch (e: Exception) {
           log.error("Error while processing work", e)
         }
-      }
-    } while (!workQueue.isEmpty())
+      } while (!workQueue.isEmpty())
+    }
   }
 
   private fun process(work: WorkItem) {

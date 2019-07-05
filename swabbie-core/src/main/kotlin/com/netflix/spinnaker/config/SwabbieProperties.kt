@@ -91,12 +91,13 @@ open class NotificationConfiguration(
   var itemsPerMessage: Int = 10,
   var resourceUrl: String = "",
   var defaultDestination: String = "swabbie@spinnaker.io",
-  var docsUrl: String = ""
+  var docsUrl: String = "",
+  var spinnakerWebUrl: String = ""
 ) {
   override fun toString(): String {
     return "NotificationConfiguration(" +
       "enabled=$enabled, types=$types, optOutBaseUrl='$optOutBaseUrl', itemsPerMessage=$itemsPerMessage, " +
-      "resourceUrl='$resourceUrl', defaultDestination='$defaultDestination', docsUrl='$docsUrl')"
+      "resourceUrl='$resourceUrl', defaultDestination='$defaultDestination', docsUrl='$docsUrl', spinnakerWebUrl='$spinnakerWebUrl')"
   }
 }
 

@@ -685,8 +685,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
             "configuration" to workConfiguration,
             "resourceType" to workConfiguration.resourceType.formatted(),
             "spinnakerLink" to workConfiguration.notificationConfiguration.resourceUrl,
-            "optOutLink" to workConfiguration.notificationConfiguration.optOutBaseUrl,
-            "spinnakerWebUrl" to workConfiguration.notificationConfiguration.spinnakerWebUrl
+            "optOutLink" to workConfiguration.notificationConfiguration.optOutBaseUrl
           )
 
           retrySupport.retry({

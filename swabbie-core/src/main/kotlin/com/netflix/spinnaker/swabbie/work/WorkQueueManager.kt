@@ -117,7 +117,7 @@ class WorkQueueManager(
 
   private fun WorkQueue.track() {
     PolledMeter.using(registry)
-      .withName("swabbie.redis.queue.size")
+      .withName("swabbie.redis.queueSize")
       .monitorValue(size())
   }
 

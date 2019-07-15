@@ -44,7 +44,8 @@ class OrcaTaggingService(
               OrcaJob(
                 type = tagRequest.type,
                 context = mutableMapOf(
-                  "tags" to listOf(tagRequest.id)
+                  "tags" to listOf(tagRequest.id),
+                  "id" to tagRequest.id
                 )
               )
             )

@@ -17,11 +17,12 @@
 package com.netflix.spinnaker.swabbie.tagging
 
 data class EntityTag(
+
   val namespace: String,
   val value: TagValue?,
   val valueType: String = "object",
   val category: String = "Clean Up",
-  val name: String = "spinnaker_ui_alert:swabbie_deletion_candidate"
+  val name: String = SwabbieEntityTag.swabbieEntityTag
 ) : Tag
 
 data class TagValue(
@@ -55,3 +56,9 @@ open class EntityTagRequest(
   open val application: String,
   open val description: String
 ) : TagRequest
+
+open class SwabbieEntityTag {
+  companion object {
+    const val swabbieEntityTag = "spinnaker_ui_alert:swabbie_deletion_candidate"
+  }
+}

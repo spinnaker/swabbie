@@ -21,6 +21,7 @@ import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
 import com.netflix.spinnaker.swabbie.tagging.DeleteEntityTagsRequest
+import com.netflix.spinnaker.swabbie.tagging.SwabbieEntityTag
 import com.netflix.spinnaker.swabbie.tagging.TagRequest
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertEntityTagsRequest
@@ -44,7 +45,7 @@ class OrcaTaggingService(
               OrcaJob(
                 type = tagRequest.type,
                 context = mutableMapOf(
-                  "tags" to listOf(tagRequest.id),
+                  "tags" to listOf(SwabbieEntityTag.swabbieEntityTag),
                   "id" to tagRequest.id
                 )
               )

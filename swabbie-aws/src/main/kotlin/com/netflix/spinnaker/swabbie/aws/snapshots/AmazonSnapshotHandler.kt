@@ -87,8 +87,8 @@ class AmazonSnapshotHandler(
   dynamicConfigService
 ) {
 
-  @Value("\${swabbie.agents.clean.interval-seconds:3600}")
-  private var cleanInterval: Long = 3600
+  @Value("\${swabbie.clean.jitter-interval:600}")
+  private var cleanInterval: Long = 600
 
   /**
    * Deletes resources in a two part request to stagger the deletion.

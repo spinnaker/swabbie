@@ -96,8 +96,8 @@ class AmazonImageHandler(
   dynamicConfigService
 ) {
 
-  @Value("\${swabbie.agents.clean.interval-seconds:3600}")
-  private var cleanInterval: Long = 3600
+  @Value("\${swabbie.clean.jitter-interval:600}")
+  private var cleanInterval: Long = 600
 
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
     orcaService.orchestrate(

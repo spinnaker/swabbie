@@ -22,11 +22,11 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
 import com.netflix.spinnaker.swabbie.InMemorySingletonCache
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
-import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
+import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exception.CacheSizeException
 import com.netflix.spinnaker.swabbie.exception.StaleCacheException
@@ -73,7 +73,7 @@ class AmazonImageHandler(
   private val launchConfigurationCache: InMemorySingletonCache<AmazonLaunchConfigurationCache>,
   private val imagesUsedByinstancesCache: InMemorySingletonCache<AmazonImagesUsedByInstancesCache>,
   private val rules: List<Rule<AmazonImage>>,
-  private val imageProvider: ResourceProvider<AmazonImage>,
+  private val aws: AWS,
   private val orcaService: OrcaService,
   private val applicationUtils: ApplicationUtils,
   private val taskTrackingRepository: TaskTrackingRepository,
@@ -138,13 +138,13 @@ class AmazonImageHandler(
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonImage>? {
     val params = Parameters(
-        account = workConfiguration.account.accountId!!,
-        region = workConfiguration.location,
-        environment = workConfiguration.account.environment
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
     )
 
-    return imageProvider.getAll(params).also { images ->
-      log.info("Got {} images.", images?.size)
+    return aws.getImages(params).also { images ->
+      log.info("Got {} images.", images.size)
     }
   }
 
@@ -307,13 +307,13 @@ class AmazonImageHandler(
 
   override fun getCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): AmazonImage? {
     val params = Parameters(
-        id = resourceId,
-        account = workConfiguration.account.accountId!!,
-        region = workConfiguration.location,
-        environment = workConfiguration.account.environment
+      id = resourceId,
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
     )
 
-    return imageProvider.getOne(params)
+    return aws.getImage(params)
   }
 }
 

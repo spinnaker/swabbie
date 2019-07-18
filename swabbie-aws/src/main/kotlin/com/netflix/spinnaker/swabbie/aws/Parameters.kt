@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Netflix, Inc.
+ * Copyright 2019 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
-
-import com.netflix.spinnaker.swabbie.model.Resource
-
-interface ResourceProvider<out T : Resource> {
-  /**
-   * Gets all resources with [Parameters]
-   * Implementations MUST throw to bubble up failures to get resources
-   */
-  fun getAll(params: Parameters): List<T>?
-
-  /**
-   * Gets a single resource with [Parameters]
-   * Implementations MUST throw to bubble up failures to get resources
-   */
-  fun getOne(params: Parameters): T?
-}
+package com.netflix.spinnaker.swabbie.aws
 
 data class Parameters(
   val region: String,

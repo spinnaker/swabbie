@@ -27,12 +27,10 @@ import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
-@Component
-open class EddaAmazonElasticLoadBalancerProvider(
-  private val eddaApiClients: List<EddaApiClient>,
+class EddaAmazonElasticLoadBalancerProvider(
+  eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry
 ) : ResourceProvider<AmazonElasticLoadBalancer>, EddaApiSupport(eddaApiClients, registry) {

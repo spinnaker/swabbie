@@ -27,11 +27,9 @@ import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.model.IMAGE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
-@Component
-open class EddaAmazonImageProvider(
+class EddaAmazonImageProvider(
   eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry

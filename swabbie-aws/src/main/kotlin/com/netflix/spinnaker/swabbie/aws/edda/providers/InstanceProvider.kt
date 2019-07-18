@@ -14,14 +14,21 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.config
+package com.netflix.spinnaker.swabbie.aws.edda.providers
 
-import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
-import org.springframework.context.annotation.ComponentScan
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Import
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 
-@Configuration
-@ComponentScan(basePackages = ["com.netflix.spinnaker.swabbie.aws"])
-@Import(SwabbieRetrofitConfiguration::class)
-open class AwsConfiguration
+class InstanceProvider(
+  private val aws: AWS
+) : ResourceProvider<AmazonInstance>, AWS by aws {
+  override fun getAll(params: Parameters): List<AmazonInstance>? {
+    return getInstances(params)
+  }
+
+  override fun getOne(params: Parameters): AmazonInstance? {
+    return getInstance(params)
+  }
+}

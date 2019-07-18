@@ -24,10 +24,8 @@ import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 
-@Component
-open class EddaAmazonSecurityGroupProvider(
+class EddaAmazonSecurityGroupProvider(
   eddaApiClients: List<EddaApiClient>,
   registry: Registry
 ) : ResourceProvider<AmazonSecurityGroup>, EddaApiSupport(eddaApiClients, registry) {

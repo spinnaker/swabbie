@@ -17,21 +17,17 @@
 package com.netflix.spinnaker.swabbie.aws.edda.providers
 
 import com.netflix.spinnaker.config.EddaApiClient
-import com.netflix.spinnaker.security.AuthenticatedRequest
-import com.netflix.spinnaker.swabbie.Cacheable
 import com.netflix.spinnaker.swabbie.CachedViewProvider
-import com.netflix.spinnaker.swabbie.InMemorySingletonCache
 import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import java.time.Clock
 
-@Component
-open class EddaImagesUsedByInstancesProvider(
+class EddaImagesUsedByInstancesProvider(
   private val clock: Clock,
   private val workConfigurations: List<WorkConfiguration>,
   private val instanceProvider: ResourceProvider<AmazonInstance>,
@@ -69,34 +65,5 @@ open class EddaImagesUsedByInstancesProvider(
     }
 
     return AmazonImagesUsedByInstancesCache(refdAmisByRegion, clock.millis(), "default")
-  }
-}
-
-@Component
-open class EddaImagesUsedByInstancesCache(
-  eddaImagesUsedByInstancesProvider: EddaImagesUsedByInstancesProvider
-) : InMemorySingletonCache<AmazonImagesUsedByInstancesCache>({ AuthenticatedRequest.allowAnonymous(eddaImagesUsedByInstancesProvider::load) })
-
-data class AmazonImagesUsedByInstancesCache(
-  private val refdAmisByRegion: Map<String, Set<String>>,
-  private val lastUpdated: Long,
-  override val name: String?
-) : Cacheable {
-  private val log: Logger = LoggerFactory.getLogger(javaClass)
-
-  /**
-   * @param params.region: return a Set<String> of Amazon imageIds (i.e. "ami-abc123")
-   * currently referenced by running EC2 instances in the region
-   */
-  fun getAll(params: Parameters): Set<String> {
-    if (params.region != "") {
-      return refdAmisByRegion[params.region] ?: emptySet()
-    } else {
-      throw IllegalArgumentException("Missing required region parameter")
-    }
-  }
-
-  fun getLastUpdated(): Long {
-    return lastUpdated
   }
 }

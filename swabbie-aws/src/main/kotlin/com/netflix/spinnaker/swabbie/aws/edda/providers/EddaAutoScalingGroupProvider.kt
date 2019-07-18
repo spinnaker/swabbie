@@ -27,11 +27,9 @@ import com.netflix.spinnaker.swabbie.aws.edda.EddaService
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
-@Component
-open class EddaAutoScalingGroupProvider(
+class EddaAutoScalingGroupProvider(
   eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry

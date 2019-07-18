@@ -34,8 +34,8 @@ import com.netflix.spinnaker.swabbie.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.WorkConfigurator
-import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonImagesUsedByInstancesCache
-import com.netflix.spinnaker.swabbie.aws.edda.providers.AmazonLaunchConfigurationCache
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent

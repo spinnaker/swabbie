@@ -29,11 +29,9 @@ import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import retrofit.RetrofitError
 
-@Component
-open class EddaAmazonSnapshotProvider(
+class EddaAmazonSnapshotProvider(
   eddaApiClients: List<EddaApiClient>,
   private val retrySupport: RetrySupport,
   private val registry: Registry

@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.aws
 
-import com.netflix.spinnaker.swabbie.model.EddaEndpoint
+import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
+import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 
-interface EndpointProvider {
-  fun getEndpoints(): Set<EddaEndpoint>
+interface AWS {
+  fun getInstances(params: Parameters): List<AmazonInstance>
+  fun getInstance(params: Parameters): AmazonInstance?
+  fun getLaunchConfigurations(params: Parameters): List<AmazonLaunchConfiguration>
+  fun getLaunchConfiguration(params: Parameters): AmazonLaunchConfiguration?
 }

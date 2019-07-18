@@ -16,39 +16,43 @@
 
 package com.netflix.spinnaker.swabbie.aws.caches
 
+import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.CachedViewProvider
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Clock
 
 class ImagesUsedByInstancesProvider(
   private val clock: Clock,
-  private val workConfigurations: List<WorkConfiguration>,
+  private val accountProvider: AccountProvider,
   private val aws: AWS
 ) : CachedViewProvider<AmazonImagesUsedByInstancesCache>, AWS by aws {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-
   override fun load(): AmazonImagesUsedByInstancesCache {
     log.info("Loading cache for ${javaClass.simpleName}")
     val refdAmisByRegion = mutableMapOf<String, Set<String>>()
-    workConfigurations.asSequence().forEach { w: WorkConfiguration ->
-      val instances: Set<AmazonInstance> = getInstances(Parameters(
-        region = w.location,
-        account = w.account.accountId!!,
-        environment = w.account.environment
-      ))
-        .toSet()
+    accountProvider.getAccounts()
+      .filter { it.cloudProvider == "aws" && !it.regions.isNullOrEmpty() }
+      .forEach { account ->
+        account.regions!!.forEach { region ->
+          val instances: List<AmazonInstance> = getInstances(
+            Parameters(
+              region = region.name,
+              account = account.accountId!!,
+              environment = account.environment
+            )
+          )
 
-      val refdAmis: Set<String> = instances
-        .map { it.imageId }
-        .toSet()
+          val refdAmis: Set<String> = instances
+            .map { it.imageId }
+            .toSet()
 
-      refdAmisByRegion[w.location] = refdAmis.toSet()
-    }
+          refdAmisByRegion[region.name] = refdAmis.toSet()
+        }
+      }
 
     return AmazonImagesUsedByInstancesCache(refdAmisByRegion, clock.millis(), "default")
   }

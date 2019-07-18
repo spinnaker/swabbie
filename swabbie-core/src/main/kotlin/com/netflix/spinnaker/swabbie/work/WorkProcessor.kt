@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.lock.LockManager
+import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
@@ -36,7 +37,8 @@ class WorkProcessor(
   val registry: Registry,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   private val workQueue: WorkQueue,
-  private val lockingService: LockingService
+  private val lockingService: LockingService,
+  private val cacheStatus: CacheStatus
 ) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workId = registry.createId("swabbie.work")
@@ -47,6 +49,11 @@ class WorkProcessor(
    */
   @Scheduled(fixedDelayString = "\${swabbie.work.intervalMs:180000}")
   fun process() {
+    if (!cacheStatus.cachesLoaded()) {
+      log.warn("Caches not fully loaded yet. Skipping")
+      return
+    }
+
     withLocking {
       do {
         try {

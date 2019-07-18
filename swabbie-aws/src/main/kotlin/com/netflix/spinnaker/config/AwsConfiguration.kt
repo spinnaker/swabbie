@@ -16,8 +16,12 @@
 
 package com.netflix.spinnaker.config
 
+import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.CachedViewProvider
 import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
@@ -35,17 +39,19 @@ open class AwsConfiguration {
   open fun imagesUsedByInstancesProvider(
     clock: Clock,
     workConfigurations: List<WorkConfiguration>,
+    accountProvider: AccountProvider,
     aws: AWS
-  ): ImagesUsedByInstancesProvider {
-    return ImagesUsedByInstancesProvider(clock, workConfigurations, aws)
+  ): CachedViewProvider<AmazonImagesUsedByInstancesCache> {
+    return ImagesUsedByInstancesProvider(clock, accountProvider, aws)
   }
 
   @Bean
   open fun launchConfigurationCacheProvider(
     clock: Clock,
     workConfigurations: List<WorkConfiguration>,
+    accountProvider: AccountProvider,
     aws: AWS
-  ): LaunchConfigurationCacheProvider {
-    return LaunchConfigurationCacheProvider(clock, workConfigurations, aws)
+  ): CachedViewProvider<AmazonLaunchConfigurationCache> {
+    return LaunchConfigurationCacheProvider(clock, workConfigurations, accountProvider, aws)
   }
 }

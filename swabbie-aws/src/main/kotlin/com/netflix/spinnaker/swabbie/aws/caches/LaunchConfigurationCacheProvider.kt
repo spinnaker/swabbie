@@ -16,10 +16,12 @@
 
 package com.netflix.spinnaker.swabbie.aws.caches
 
+import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.CachedViewProvider
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
+import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -28,6 +30,7 @@ import java.time.Clock
 class LaunchConfigurationCacheProvider(
   private val clock: Clock,
   private val workConfigurations: List<WorkConfiguration>,
+  private val accountProvider: AccountProvider,
   private val aws: AWS
 ) : CachedViewProvider<AmazonLaunchConfigurationCache>, AWS by aws {
 
@@ -36,23 +39,31 @@ class LaunchConfigurationCacheProvider(
   override fun load(): AmazonLaunchConfigurationCache {
     log.info("Loading cache for ${javaClass.simpleName}")
     val refdAmisByRegion = mutableMapOf<String, MutableMap<String, MutableSet<AmazonLaunchConfiguration>>>()
-    workConfigurations.forEach { w: WorkConfiguration ->
-      val launchConfigs: Set<AmazonLaunchConfiguration> = aws.getLaunchConfigurations(
-        Parameters(
-          region = w.location,
-          account = w.account.accountId!!,
-          environment = w.account.environment
-        )
-        ).toSet()
+    val configuredRegions = workConfigurations.map { it.location }.toSet()
+    accountProvider.getAccounts()
+      .filter(isCorrectCloudProviderAndRegion(configuredRegions))
+      .forEach { account ->
+        account.regions!!.forEach { region ->
+          val launchConfigs: Set<AmazonLaunchConfiguration> = getLaunchConfigurations(
+            Parameters(
+              region = region.name,
+              account = account.accountId!!,
+              environment = account.environment
+            )
+          ).toSet()
 
-      val refdAmis = mutableMapOf<String, MutableSet<AmazonLaunchConfiguration>>()
-      launchConfigs.forEach {
-        refdAmis.getOrPut(it.imageId) { mutableSetOf() }.add(it)
+          val refdAmis = mutableMapOf<String, MutableSet<AmazonLaunchConfiguration>>()
+          launchConfigs.forEach {
+            refdAmis.getOrPut(it.imageId) { mutableSetOf() }.add(it)
+          }
+
+          refdAmisByRegion[region.name] = refdAmis
+        }
       }
-
-      refdAmisByRegion[w.location] = refdAmis
-    }
 
     return AmazonLaunchConfigurationCache(refdAmisByRegion, clock.millis(), "default")
   }
+
+  private fun isCorrectCloudProviderAndRegion(configuredRegions: Set<String>) =
+    { account: Account -> account.cloudProvider == "aws" && !account.regions.isNullOrEmpty() && account.regions!!.any { it.name in configuredRegions } }
 }

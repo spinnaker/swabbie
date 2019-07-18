@@ -23,26 +23,14 @@ import com.netflix.spinnaker.swabbie.aws.edda.EddaEndpointsService
 import com.netflix.spinnaker.swabbie.aws.edda.EddaService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.EndpointProvider
-import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.edda.Edda
 import com.netflix.spinnaker.swabbie.aws.edda.caches.EddaEndpointCache
-import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaAmazonElasticLoadBalancerProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaAmazonImageProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaAmazonSecurityGroupProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaAmazonSnapshotProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaAutoScalingGroupProvider
 import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaEndpointProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaImagesUsedByInstancesProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.InstanceProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaLaunchConfigurationCacheProvider
-import com.netflix.spinnaker.swabbie.aws.edda.providers.LaunchConfigurationProvider
 
-import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
-import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
@@ -56,7 +44,6 @@ import retrofit.RequestInterceptor
 import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
-import java.time.Clock
 
 @ConditionalOnExpression("\${edda.enabled:true}")
 @Configuration
@@ -121,51 +108,6 @@ open class EddaConfiguration {
   }
 
   @Bean
-  open fun eddaAmazonElasticLoadBalancerProvider(
-    eddaApiClients: List<EddaApiClient>,
-    retrySupport: RetrySupport,
-    registry: Registry
-  ): EddaAmazonElasticLoadBalancerProvider {
-    return EddaAmazonElasticLoadBalancerProvider(eddaApiClients, retrySupport, registry)
-  }
-
-  @Bean
-  open fun eddaAmazonImageProvider(
-    eddaApiClients: List<EddaApiClient>,
-    retrySupport: RetrySupport,
-    registry: Registry
-  ): EddaAmazonImageProvider {
-    return EddaAmazonImageProvider(eddaApiClients, retrySupport, registry)
-  }
-
-  @Bean
-  open fun eddaAmazonSecurityGroupProvider(
-    eddaApiClients: List<EddaApiClient>,
-    retrySupport: RetrySupport,
-    registry: Registry
-  ): EddaAmazonSecurityGroupProvider {
-    return EddaAmazonSecurityGroupProvider(eddaApiClients, registry)
-  }
-
-  @Bean
-  open fun eddaAmazonSnapshotProvider(
-    eddaApiClients: List<EddaApiClient>,
-    retrySupport: RetrySupport,
-    registry: Registry
-  ): EddaAmazonSnapshotProvider {
-    return EddaAmazonSnapshotProvider(eddaApiClients, retrySupport, registry)
-  }
-
-  @Bean
-  open fun eddaAmazonAutoScalingGroupProvider(
-    eddaApiClients: List<EddaApiClient>,
-    retrySupport: RetrySupport,
-    registry: Registry
-  ): EddaAutoScalingGroupProvider {
-    return EddaAutoScalingGroupProvider(eddaApiClients, retrySupport, registry)
-  }
-
-  @Bean
   open fun eddaEndpointCache(eddaEndpointsService: EddaEndpointsService): EddaEndpointCache {
     return EddaEndpointCache(eddaEndpointsService)
   }
@@ -181,23 +123,8 @@ open class EddaConfiguration {
   }
 
   @Bean
-  open fun eddaImagesUsedByInstancesProvider(clock: Clock, workConfigurations: List<WorkConfiguration>, instanceProvider: ResourceProvider<AmazonInstance>, eddaApiClients: List<EddaApiClient>): EddaImagesUsedByInstancesProvider {
-    return EddaImagesUsedByInstancesProvider(clock, workConfigurations, instanceProvider, eddaApiClients)
-  }
-
-  @Bean
-  open fun eddaLaunchConfigurationCacheProvider(clock: Clock, workConfigurations: List<WorkConfiguration>, launchConfigurationProvider: ResourceProvider<AmazonLaunchConfiguration>, eddaApiClients: List<EddaApiClient>): EddaLaunchConfigurationCacheProvider {
-    return EddaLaunchConfigurationCacheProvider(clock, workConfigurations, launchConfigurationProvider, eddaApiClients)
-  }
-
-  @Bean
-  open fun launchConfigurationProvider(aws: AWS): LaunchConfigurationProvider {
-    return LaunchConfigurationProvider(aws)
-  }
-
-  @Bean
-  open fun instanceProvider(aws: AWS): InstanceProvider {
-    return InstanceProvider(aws)
+  open fun aws(eddaApiClients: List<EddaApiClient>, retrySupport: RetrySupport, registry: Registry): AWS {
+    return Edda(eddaApiClients, retrySupport, registry)
   }
 
   @Bean

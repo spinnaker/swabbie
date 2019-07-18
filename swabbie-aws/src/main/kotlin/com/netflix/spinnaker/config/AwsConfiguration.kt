@@ -16,12 +16,36 @@
 
 package com.netflix.spinnaker.config
 
+import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
+import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import java.time.Clock
 
 @Configuration
 @ComponentScan(basePackages = ["com.netflix.spinnaker.swabbie.aws"])
 @Import(SwabbieRetrofitConfiguration::class)
-open class AwsConfiguration
+open class AwsConfiguration {
+  @Bean
+  open fun imagesUsedByInstancesProvider(
+    clock: Clock,
+    workConfigurations: List<WorkConfiguration>,
+    aws: AWS
+  ): ImagesUsedByInstancesProvider {
+    return ImagesUsedByInstancesProvider(clock, workConfigurations, aws)
+  }
+
+  @Bean
+  open fun launchConfigurationCacheProvider(
+    clock: Clock,
+    workConfigurations: List<WorkConfiguration>,
+    aws: AWS
+  ): LaunchConfigurationCacheProvider {
+    return LaunchConfigurationCacheProvider(clock, workConfigurations, aws)
+  }
+}

@@ -16,13 +16,27 @@
 
 package com.netflix.spinnaker.swabbie.aws
 
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
+import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
+import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
+import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
 
 interface AWS {
   fun getInstances(params: Parameters): List<AmazonInstance>
   fun getInstance(params: Parameters): AmazonInstance?
   fun getLaunchConfigurations(params: Parameters): List<AmazonLaunchConfiguration>
   fun getLaunchConfiguration(params: Parameters): AmazonLaunchConfiguration?
+  fun getElasticLoadBalancers(params: Parameters): List<AmazonElasticLoadBalancer>
+  fun getElasticLoadBalancer(params: Parameters): AmazonElasticLoadBalancer?
+  fun getImages(params: Parameters): List<AmazonImage>
+  fun getImage(params: Parameters): AmazonImage?
+  fun getSecurityGroups(params: Parameters): List<AmazonSecurityGroup>
+  fun getSecurityGroup(params: Parameters): AmazonSecurityGroup?
+  fun getSnapshots(params: Parameters): List<AmazonSnapshot>
+  fun getSnapshot(params: Parameters): AmazonSnapshot?
+  fun getServerGroups(params: Parameters): List<AmazonAutoScalingGroup>
+  fun getServerGroup(params: Parameters): AmazonAutoScalingGroup?
 }

@@ -30,13 +30,12 @@ import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.InMemorySingletonCache
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.WorkConfigurator
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
-import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
@@ -93,9 +92,7 @@ object AmazonImageHandlerTest {
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val orcaService = mock<OrcaService>()
-  private val imageProvider = mock<ResourceProvider<AmazonImage>>()
-  private val instanceProvider = mock<ResourceProvider<AmazonInstance>>()
-  private val launchConfigurationProvider = mock<ResourceProvider<AmazonLaunchConfiguration>>()
+  private val aws = mock<AWS>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val swabbieProperties = SwabbieProperties().apply {
@@ -121,7 +118,7 @@ object AmazonImageHandlerTest {
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
     retrySupport = RetrySupport(),
-    imageProvider = imageProvider,
+    aws = aws,
     orcaService = orcaService,
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
@@ -166,7 +163,7 @@ object AmazonImageHandlerTest {
       )
 
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(imageProvider.getAll(params)) doReturn listOf(
+    whenever(aws.getImages(params)) doReturn listOf(
       AmazonImage(
         imageId = "ami-123",
         resourceId = "ami-123",
@@ -236,10 +233,8 @@ object AmazonImageHandlerTest {
     validateMockitoUsage()
     reset(
       resourceRepository,
-      imageProvider,
+      aws,
       accountProvider,
-      instanceProvider,
-      launchConfigurationProvider,
       applicationEventPublisher,
       resourceOwnerResolver,
       taskTrackingRepository,
@@ -371,7 +366,7 @@ object AmazonImageHandlerTest {
   fun `should not mark ancestor or base images`() {
     val workConfiguration = getWorkConfiguration()
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(imageProvider.getAll(params)) doReturn listOf(
+    whenever(aws.getImages(params)) doReturn listOf(
       AmazonImage(
         imageId = "ami-123",
         resourceId = "ami-123",
@@ -452,7 +447,7 @@ object AmazonImageHandlerTest {
 
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
 
-    whenever(imageProvider.getAll(params)) doReturn listOf(image)
+    whenever(aws.getImages(params)) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
 
     subject.delete(workConfiguration)

@@ -14,54 +14,40 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws.edda.providers
+package com.netflix.spinnaker.swabbie.aws.caches
 
-import com.netflix.spinnaker.config.EddaApiClient
 import com.netflix.spinnaker.swabbie.CachedViewProvider
-import com.netflix.spinnaker.swabbie.Parameters
-import com.netflix.spinnaker.swabbie.ResourceProvider
-import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
+import com.netflix.spinnaker.swabbie.aws.Parameters
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Clock
 
-class EddaImagesUsedByInstancesProvider(
+class ImagesUsedByInstancesProvider(
   private val clock: Clock,
   private val workConfigurations: List<WorkConfiguration>,
-  private val instanceProvider: ResourceProvider<AmazonInstance>,
-  private val eddaApiClients: List<EddaApiClient>
-) : CachedViewProvider<AmazonImagesUsedByInstancesCache> {
+  private val aws: AWS
+) : CachedViewProvider<AmazonImagesUsedByInstancesCache>, AWS by aws {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
   override fun load(): AmazonImagesUsedByInstancesCache {
     log.info("Loading cache for ${javaClass.simpleName}")
     val refdAmisByRegion = mutableMapOf<String, Set<String>>()
-
-    val regions = workConfigurations.asSequence()
-      .map { it.location }
-      .toSet()
-
-    regions.forEach { region: String ->
-      val instances: Set<AmazonInstance> = eddaApiClients
-        .filter { region == it.region }
-        .flatMap { edda ->
-          instanceProvider.getAll(
-            Parameters(
-              region = region,
-              account = edda.account.accountId!!,
-              environment = edda.account.environment
-            )
-          ) ?: emptyList()
-        }
+    workConfigurations.asSequence().forEach { w: WorkConfiguration ->
+      val instances: Set<AmazonInstance> = getInstances(Parameters(
+        region = w.location,
+        account = w.account.accountId!!,
+        environment = w.account.environment
+      ))
         .toSet()
 
-      val refdAmis: Set<String> = instances.asSequence()
+      val refdAmis: Set<String> = instances
         .map { it.imageId }
         .toSet()
 
-      refdAmisByRegion[region] = refdAmis
+      refdAmisByRegion[w.location] = refdAmis.toSet()
     }
 
     return AmazonImagesUsedByInstancesCache(refdAmisByRegion, clock.millis(), "default")

@@ -15,7 +15,7 @@ class ControllerUtils(
     return workConfigurations.find { workConfiguration ->
       workConfiguration.account.name == namespace.accountName &&
           workConfiguration.cloudProvider == namespace.cloudProvider &&
-          workConfiguration.resourceType == namespace.resourceType &&
+          workConfiguration.resourceType.equals(namespace.resourceType, true) &&
           workConfiguration.location == namespace.region
     } ?: throw NotFoundException("No configuration found for $namespace")
   }

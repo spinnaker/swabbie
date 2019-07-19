@@ -17,15 +17,23 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.EndpointProvider
+import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.aws.edda.EddaEndpointsService
 import com.netflix.spinnaker.swabbie.aws.edda.EddaService
+import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.EndpointProvider
+import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.edda.Edda
+import com.netflix.spinnaker.swabbie.aws.edda.caches.EddaEndpointCache
+import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaEndpointProvider
+
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
@@ -37,10 +45,9 @@ import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
+@ConditionalOnExpression("\${edda.enabled:true}")
 @Configuration
-@ComponentScan(basePackages = arrayOf(
-  "com.netflix.spinnaker.swabbie.aws"
-))
+@ComponentScan(basePackages = ["com.netflix.spinnaker.swabbie.aws"])
 @Import(SwabbieRetrofitConfiguration::class)
 open class EddaConfiguration {
   @Bean
@@ -101,8 +108,23 @@ open class EddaConfiguration {
   }
 
   @Bean
+  open fun eddaEndpointCache(eddaEndpointsService: EddaEndpointsService): EddaEndpointCache {
+    return EddaEndpointCache(eddaEndpointsService)
+  }
+
+  @Bean
+  open fun eddaEndpointProvider(eddaEndpointCache: EddaEndpointCache): EndpointProvider {
+    return EddaEndpointProvider(eddaEndpointCache)
+  }
+
+  @Bean
   open fun eddaEndpointsEndpoint(@Value("\${edda-endpoints.base-url}") eddaEndpointsBaseUrl: String): Endpoint {
     return Endpoints.newFixedEndpoint(eddaEndpointsBaseUrl)!!
+  }
+
+  @Bean
+  open fun aws(eddaApiClients: List<EddaApiClient>, retrySupport: RetrySupport, registry: Registry): AWS {
+    return Edda(eddaApiClients, retrySupport, registry)
   }
 
   @Bean
@@ -112,14 +134,16 @@ open class EddaConfiguration {
     retrofitClient: Client,
     spinnakerRequestInterceptor: RequestInterceptor,
     retrofitLogLevel: RestAdapter.LogLevel
-  ) = RestAdapter.Builder()
-    .setRequestInterceptor(spinnakerRequestInterceptor)
-    .setEndpoint(eddaEndpointsEndpoint)
-    .setClient(retrofitClient)
-    .setLogLevel(retrofitLogLevel)
-    .setConverter(JacksonConverter(objectMapper))
-    .build()
-    .create(EddaEndpointsService::class.java)
+  ): EddaEndpointsService {
+    return RestAdapter.Builder()
+      .setRequestInterceptor(spinnakerRequestInterceptor)
+      .setEndpoint(eddaEndpointsEndpoint)
+      .setClient(retrofitClient)
+      .setLogLevel(retrofitLogLevel)
+      .setConverter(JacksonConverter(objectMapper))
+      .build()
+      .create(EddaEndpointsService::class.java)
+  }
 }
 
 data class EddaApiClient(

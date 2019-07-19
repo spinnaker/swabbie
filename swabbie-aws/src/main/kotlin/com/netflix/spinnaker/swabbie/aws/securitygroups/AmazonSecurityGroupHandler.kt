@@ -21,15 +21,13 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
-import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
@@ -60,7 +58,7 @@ class AmazonSecurityGroupHandler(
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonSecurityGroup>>,
-  private val securityGroupProvider: ResourceProvider<AmazonSecurityGroup>,
+  private val aws: AWS,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
@@ -125,12 +123,12 @@ class AmazonSecurityGroupHandler(
     resourceId: String,
     resourceName: String,
     workConfiguration: WorkConfiguration
-  ): AmazonSecurityGroup? = securityGroupProvider.getOne(
+  ): AmazonSecurityGroup? = aws.getSecurityGroup(
     Parameters(
-        id = resourceId,
-        account = workConfiguration.account.accountId!!,
-        region = workConfiguration.location,
-        environment = workConfiguration.account.environment
+      id = resourceId,
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
     )
   )
 
@@ -141,13 +139,11 @@ class AmazonSecurityGroupHandler(
     TODO("not implemented") // To change body of created functions use File | Settings | File Templates.
   }
 
-  override fun handles(workConfiguration: WorkConfiguration):
-    Boolean = workConfiguration.resourceType == SECURITY_GROUP &&
-    workConfiguration.cloudProvider == AWS &&
-    !rules.isEmpty()
+  // TODO: disabled
+  override fun handles(workConfiguration: WorkConfiguration): Boolean = false
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
-    securityGroupProvider.getAll(
+    aws.getSecurityGroups(
       Parameters(
         account = workConfiguration.account.accountId!!,
         region = workConfiguration.location,

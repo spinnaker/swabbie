@@ -22,9 +22,9 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
@@ -60,7 +60,7 @@ class AmazonAutoScalingGroupHandler(
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonAutoScalingGroup>>,
-  private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
+  private val aws: AWS,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository
@@ -127,8 +127,8 @@ class AmazonAutoScalingGroupHandler(
       environment = workConfiguration.account.environment
     )
 
-    return serverGroupProvider.getAll(params).also { serverGroups ->
-      log.info("Got {} Server Groups. Checking references", serverGroups?.size)
+    return aws.getServerGroups(params).also { serverGroups ->
+      log.info("Got {} Server Groups. Checking references", serverGroups.size)
     }
   }
 
@@ -182,6 +182,6 @@ class AmazonAutoScalingGroupHandler(
       environment = workConfiguration.account.environment
     )
 
-    return serverGroupProvider.getOne(params)
+    return aws.getServerGroup(params)
   }
 }

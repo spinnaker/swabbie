@@ -16,14 +16,42 @@
 
 package com.netflix.spinnaker.config
 
+import com.netflix.spinnaker.swabbie.AccountProvider
+import com.netflix.spinnaker.swabbie.CachedViewProvider
+import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
+import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
+import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import java.time.Clock
 
 @Configuration
-@ComponentScan(basePackages = arrayOf(
-  "com.netflix.spinnaker.swabbie.aws"
-))
+@ComponentScan(basePackages = ["com.netflix.spinnaker.swabbie.aws"])
 @Import(SwabbieRetrofitConfiguration::class)
-open class AwsConfiguration
+open class AwsConfiguration {
+  @Bean
+  open fun imagesUsedByInstancesProvider(
+    clock: Clock,
+    workConfigurations: List<WorkConfiguration>,
+    accountProvider: AccountProvider,
+    aws: AWS
+  ): CachedViewProvider<AmazonImagesUsedByInstancesCache> {
+    return ImagesUsedByInstancesProvider(clock, accountProvider, aws)
+  }
+
+  @Bean
+  open fun launchConfigurationCacheProvider(
+    clock: Clock,
+    workConfigurations: List<WorkConfiguration>,
+    accountProvider: AccountProvider,
+    aws: AWS
+  ): CachedViewProvider<AmazonLaunchConfigurationCache> {
+    return LaunchConfigurationCacheProvider(clock, workConfigurations, accountProvider, aws)
+  }
+}

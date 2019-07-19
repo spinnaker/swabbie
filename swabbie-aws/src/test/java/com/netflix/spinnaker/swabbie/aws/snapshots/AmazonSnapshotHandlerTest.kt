@@ -35,10 +35,10 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.WorkConfigurator
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
@@ -112,7 +112,7 @@ object AmazonSnapshotHandlerTest {
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val orcaService = mock<OrcaService>()
-  private val snapshotProvider = mock<ResourceProvider<AmazonSnapshot>>()
+  private val aws = mock<AWS>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val swabbieProperties = SwabbieProperties().apply {}
@@ -135,7 +135,7 @@ object AmazonSnapshotHandlerTest {
     retrySupport = RetrySupport(),
     dynamicConfigService = dynamicConfigService,
     rules = listOf(OrphanedSnapshotRule()),
-    snapshotProvider = snapshotProvider,
+    aws = aws,
     orcaService = orcaService,
     applicationUtils = applicationUtils,
     taskTrackingRepository = taskTrackingRepository,
@@ -182,7 +182,7 @@ object AmazonSnapshotHandlerTest {
       )
 
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(snapshotProvider.getAll(params)) doReturn listOf(
+    whenever(aws.getSnapshots(params)) doReturn listOf(
       AmazonSnapshot(
         volumeId = "vol-000",
         state = "completed",
@@ -217,7 +217,7 @@ object AmazonSnapshotHandlerTest {
     Mockito.validateMockitoUsage()
     reset(
       resourceRepository,
-      snapshotProvider,
+      aws,
       accountProvider,
       applicationEventPublisher,
       resourceOwnerResolver,
@@ -241,7 +241,7 @@ object AmazonSnapshotHandlerTest {
   @Test
   fun `should fail if exception is thrown`() {
     val configuration = getWorkConfiguration()
-    whenever(snapshotProvider.getAll(any())) doThrow
+    whenever(aws.getSnapshots(any())) doThrow
       IllegalStateException("oh wow error")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
@@ -286,7 +286,7 @@ object AmazonSnapshotHandlerTest {
   @Test
   fun `should not mark snapshots if they are not from a bake`() {
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(snapshotProvider.getAll(params)) doReturn listOf(
+    whenever(aws.getSnapshots(params)) doReturn listOf(
       AmazonSnapshot(
         volumeId = "vol-000",
         state = "completed",

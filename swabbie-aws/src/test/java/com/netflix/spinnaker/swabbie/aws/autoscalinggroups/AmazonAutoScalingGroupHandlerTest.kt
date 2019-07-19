@@ -29,10 +29,10 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
 import com.netflix.spinnaker.swabbie.WorkConfigurator
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
@@ -77,7 +77,7 @@ import java.util.Optional
 object AmazonAutoScalingGroupHandlerTest {
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()
   private val accountProvider = mock<AccountProvider>()
-  private val serverGroupProvider = mock<ResourceProvider<AmazonAutoScalingGroup>>()
+  private val aws = mock<AWS>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
@@ -104,7 +104,7 @@ object AmazonAutoScalingGroupHandlerTest {
     applicationEventPublisher = applicationEventPublisher,
 
     retrySupport = RetrySupport(),
-    serverGroupProvider = serverGroupProvider,
+    aws = aws,
     orcaService = orcaService,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     swabbieProperties = SwabbieProperties().also { it.schedule.enabled = false },
@@ -147,7 +147,7 @@ object AmazonAutoScalingGroupHandlerTest {
   @AfterEach
   fun cleanup() {
     validateMockitoUsage()
-    reset(serverGroupProvider, accountProvider, applicationEventPublisher, resourceOwnerResolver)
+    reset(aws, accountProvider, applicationEventPublisher, resourceOwnerResolver)
   }
 
   @Test
@@ -158,7 +158,7 @@ object AmazonAutoScalingGroupHandlerTest {
   @Test
   fun `should find server groups cleanup candidates`() {
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(serverGroupProvider.getAll(params)) doReturn listOf(
+    whenever(aws.getServerGroups(params)) doReturn listOf(
       AmazonAutoScalingGroup(
         autoScalingGroupName = "testapp-v001",
         instances = listOf(
@@ -185,7 +185,7 @@ object AmazonAutoScalingGroupHandlerTest {
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(serverGroupProvider.getAll(params)) doReturn listOf(
+    whenever(aws.getServerGroups(params)) doReturn listOf(
       AmazonAutoScalingGroup(
         autoScalingGroupName = "testapp-v001",
         instances = listOf(
@@ -273,7 +273,7 @@ object AmazonAutoScalingGroupHandlerTest {
         )
       )
 
-    whenever(serverGroupProvider.getAll(any())) doReturn listOf(serverGroup)
+    whenever(aws.getServerGroups(any())) doReturn listOf(serverGroup)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
     whenever(orcaService.getTask("1234")) doReturn
       TaskDetailResponse(

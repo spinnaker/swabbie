@@ -21,9 +21,9 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
@@ -58,8 +58,7 @@ class AmazonLoadBalancerHandler(
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
-  private val loadBalancerProvider: ResourceProvider<AmazonElasticLoadBalancer>,
-  private val serverGroupProvider: ResourceProvider<AmazonAutoScalingGroup>,
+  private val aws: AWS,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
@@ -124,9 +123,9 @@ class AmazonLoadBalancerHandler(
     resourceId: String,
     resourceName: String,
     workConfiguration: WorkConfiguration
-  ): AmazonElasticLoadBalancer? = loadBalancerProvider.getOne(
+  ): AmazonElasticLoadBalancer? = aws.getElasticLoadBalancer(
     Parameters(
-      id = resourceName!!,
+      id = resourceName,
       account = workConfiguration.account.accountId!!,
       region = workConfiguration.location,
       environment = workConfiguration.account.environment
@@ -140,13 +139,13 @@ class AmazonLoadBalancerHandler(
   }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =
-    loadBalancerProvider.getAll(
+    aws.getElasticLoadBalancers(
       Parameters(
         account = workConfiguration.account.accountId!!,
         region = workConfiguration.location,
         environment = workConfiguration.account.environment
       )
-    ).orEmpty()
+    )
 
   override fun preProcessCandidates(
     candidates: List<AmazonElasticLoadBalancer>,
@@ -163,14 +162,14 @@ class AmazonLoadBalancerHandler(
     workConfiguration: WorkConfiguration,
     loadBalancers: List<AmazonElasticLoadBalancer>
   ): List<AmazonElasticLoadBalancer> {
-    serverGroupProvider.getAll(
+    aws.getServerGroups(
       Parameters(
         account = workConfiguration.account.accountId!!,
         region = workConfiguration.location,
         environment = workConfiguration.account.environment
       )
     ).let { serverGroups ->
-      if (serverGroups == null || serverGroups.isEmpty()) {
+      if (serverGroups.isEmpty()) {
         throw IllegalStateException("Unable to retrieve server groups")
       }
 
@@ -183,7 +182,7 @@ class AmazonLoadBalancerHandler(
   }
 
   private fun List<AmazonElasticLoadBalancer>.addServerGroupReferences(serverGroup: AmazonAutoScalingGroup) = filter {
-    (serverGroup.details["loadBalancerNames"] as List<*>).contains(it.name)
+    (serverGroup.details["loadBalancerNames"] as List<String>).contains(it.name)
   }.map { elb ->
     elb.details["serverGroups"] = elb.details["serverGroups"] ?: mutableListOf<String>()
     (elb.details["serverGroups"] as MutableList<String>).add(serverGroup.name)

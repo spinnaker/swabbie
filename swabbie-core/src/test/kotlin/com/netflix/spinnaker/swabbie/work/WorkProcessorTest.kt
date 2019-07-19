@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.LockingService
+import com.netflix.spinnaker.swabbie.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.AWS
@@ -84,7 +85,8 @@ object WorkProcessorTest {
     registry = NoopRegistry(),
     resourceTypeHandlers = listOf(handler1, handler2),
     workQueue = workQueue,
-    lockingService = LockingService.NOOP()
+    lockingService = LockingService.NOOP(),
+    cacheStatus = NoopCacheStatus()
   )
 
   @BeforeEach

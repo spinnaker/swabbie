@@ -23,9 +23,9 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
-import com.netflix.spinnaker.swabbie.Parameters
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.ResourceProvider
+import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
@@ -64,7 +64,7 @@ class AmazonSnapshotHandler(
   retrySupport: RetrySupport,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonSnapshot>>,
-  private val snapshotProvider: ResourceProvider<AmazonSnapshot>,
+  private val aws: AWS,
   private val orcaService: OrcaService,
   private val applicationUtils: ApplicationUtils,
   private val taskTrackingRepository: TaskTrackingRepository,
@@ -140,7 +140,7 @@ class AmazonSnapshotHandler(
       environment = workConfiguration.account.environment
     )
 
-    return snapshotProvider.getOne(params)
+    return aws.getSnapshot(params)
   }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonSnapshot>? {
@@ -150,8 +150,8 @@ class AmazonSnapshotHandler(
       environment = workConfiguration.account.environment
     )
 
-    return snapshotProvider.getAll(params).also { snapshots ->
-      log.info("Got {} snapshots.", snapshots?.size)
+    return aws.getSnapshots(params).also { snapshots ->
+      log.info("Got {} snapshots.", snapshots.size)
     }
   }
 

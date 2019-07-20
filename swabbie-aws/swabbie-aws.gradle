@@ -18,9 +18,13 @@ dependencies {
   compile project(":swabbie-core")
   compile project(":swabbie-orca")
   compile project(":swabbie-retrofit")
-  compile "com.amazonaws:aws-java-sdk-ec2"
-  compile "com.netflix.frigga:frigga"
+  api "com.netflix.spinnaker.kork:kork-aws:$korkVersion"
 
+  api "com.amazonaws:aws-java-sdk-ec2"
+  api "com.amazonaws:aws-java-sdk-autoscaling"
+  api "com.amazonaws:aws-java-sdk-sts"
+  api "com.amazonaws:aws-java-sdk-elasticloadbalancing"
+  api "com.netflix.frigga:frigga"
 
   testCompile project(":swabbie-test")
 }

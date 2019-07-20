@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.Date
 
 object ZeroInstanceDisabledServerGroupRuleTest {
   @Test
@@ -29,7 +30,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = Date.from(Instant.now())
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -44,7 +45,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       autoScalingGroupName = "testapp-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = Date.from(Instant.now())
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)

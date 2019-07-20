@@ -24,9 +24,7 @@ import com.netflix.spinnaker.swabbie.CachedViewProvider
 import com.netflix.spinnaker.swabbie.InMemorySingletonCache
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
-import org.springframework.stereotype.Component
 
-@Component
 open class AmazonLaunchConfigurationInMemoryCache(
   private val provider: CachedViewProvider<AmazonLaunchConfigurationCache>
 ) : InMemorySingletonCache<AmazonLaunchConfigurationCache>(

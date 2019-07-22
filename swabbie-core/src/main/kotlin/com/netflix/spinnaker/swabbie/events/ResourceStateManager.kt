@@ -31,6 +31,7 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import com.netflix.spinnaker.swabbie.tagging.UpsertServerGroupTagsRequest
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments
 import org.slf4j.LoggerFactory
@@ -171,7 +172,41 @@ class ResourceStateManager(
     resource: MarkedResource,
     workConfiguration: WorkConfiguration
   ): String {
-    val taskId = taggingService.upsertImageTag(
+    val taskId = with(resource.resourceType) {
+      when {
+        equals("serverGroup", true) -> tagAsg(resource)
+        equals("image", true) -> tagImage(resource)
+        else -> log.error("Failed to tag resource ${resource.uniqueId()}")
+      }
+    }
+    taskTrackingRepository.add(
+      taskId.toString(),
+      TaskCompleteEventInfo(
+        action = Action.OPTOUT,
+        markedResources = listOf(resource),
+        workConfiguration = workConfiguration,
+        submittedTimeMillis = clock.instant().toEpochMilli()
+      )
+    )
+    return taskId.toString()
+  }
+
+  private fun tagAsg(resource: MarkedResource): String {
+    return taggingService.upsertAsgTag(
+      UpsertServerGroupTagsRequest(
+        serverGroupName = resource.resourceId,
+        regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
+        tags = mapOf("expiration_time" to "never"),
+        cloudProvider = "aws",
+        cloudProviderType = "aws",
+        application = applicationUtils.determineApp(resource.resource),
+        description = "Setting `expiration_time` to `never` for serverGroup ${resource.uniqueId()}"
+      )
+    )
+  }
+
+  private fun tagImage(resource: MarkedResource): String {
+    return taggingService.upsertImageTag(
       UpsertImageTagsRequest(
         imageNames = setOf(resource.name ?: resource.resourceId),
         regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
@@ -182,17 +217,6 @@ class ResourceStateManager(
         description = "Setting `expiration_time` to `never` for image ${resource.uniqueId()}"
       )
     )
-
-    taskTrackingRepository.add(
-      taskId,
-      TaskCompleteEventInfo(
-        action = Action.OPTOUT,
-        markedResources = listOf(resource),
-        workConfiguration = workConfiguration,
-        submittedTimeMillis = clock.instant().toEpochMilli()
-      )
-    )
-    return taskId
   }
 }
 

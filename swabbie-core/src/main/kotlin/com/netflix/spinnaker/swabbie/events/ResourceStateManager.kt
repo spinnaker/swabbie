@@ -191,7 +191,7 @@ class ResourceStateManager(
     return taskId.toString()
   }
 
-  private fun tagAsg(resource: MarkedResource,workConfiguration: WorkConfiguration): String {
+  private fun tagAsg(resource: MarkedResource, workConfiguration: WorkConfiguration): String {
     return taggingService.upsertAsgTag(
       UpsertServerGroupTagsRequest(
         serverGroupName = resource.resourceId,

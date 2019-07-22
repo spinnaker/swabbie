@@ -28,7 +28,7 @@ data class UpsertServerGroupTagsRequest(
   val tags: Map<String, String>,
   val cloudProvider: String,
   val cloudProviderType: String,
-  val credentials : String,
+  val credentials: String,
   override val application: String,
   override val description: String
 ) : AmazonServerGroupTagsRequest("upsertServerGroupTags", application, description)

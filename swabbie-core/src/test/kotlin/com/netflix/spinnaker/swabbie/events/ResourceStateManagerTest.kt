@@ -51,11 +51,19 @@ object ResourceStateManagerTest {
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
 
   private var resource = TestResource("testResource")
+  private var imageResource = TestResource(resourceId = "testImageResource", resourceType = "image")
   private var configuration = workConfiguration()
   private val applicationUtils = ApplicationUtils(emptyList())
 
   private val markedResourceWithViolations = MarkedResource(
     resource = resource,
+    summaries = listOf(Summary("violates rule 1", "ruleName")),
+    namespace = configuration.namespace,
+    projectedDeletionStamp = clock.millis()
+  )
+
+  private val markedImageResourceWithViolations = MarkedResource(
+    resource = imageResource,
     summaries = listOf(Summary("violates rule 1", "ruleName")),
     namespace = configuration.namespace,
     projectedDeletionStamp = clock.millis()
@@ -167,13 +175,13 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and untag resource when it's opted out`() {
-    val event = OptOutResourceEvent(markedResourceWithViolations, configuration)
+    val event = OptOutResourceEvent(markedImageResourceWithViolations, configuration)
 
     // previously marked resource
-    whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
+    whenever(resourceStateRepository.get(markedImageResourceWithViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
         optedOut = false,
-        markedResource = markedResourceWithViolations,
+        markedResource = markedImageResourceWithViolations,
         statuses = mutableListOf(
           Status(name = Action.MARK.name, timestamp = clock.instant().minusMillis(3000).toEpochMilli())
         )
@@ -184,7 +192,7 @@ object ResourceStateManagerTest {
     subject.handleEvents(event)
 
     verify(resourceTagger).unTag(
-      markedResource = markedResourceWithViolations,
+      markedResource = markedImageResourceWithViolations,
       workConfiguration = configuration,
       description = "${event.markedResource.typeAndName()}. Opted Out"
     )
@@ -193,7 +201,7 @@ object ResourceStateManagerTest {
     verify(resourceStateRepository).upsert(
       argWhere {
         it.optedOut &&
-        it.markedResource == markedResourceWithViolations &&
+        it.markedResource == markedImageResourceWithViolations &&
         it.currentStatus!!.name == Action.OPTOUT.name &&
         it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
         it.currentStatus!!.timestamp > it.statuses.first().timestamp
@@ -203,7 +211,12 @@ object ResourceStateManagerTest {
     verify(taggingService).upsertImageTag(argWhere {
       it.tags.containsKey("expiration_time") &&
       it.tags.containsValue("never") &&
-      it.imageNames.contains("testResource")
+      it.imageNames.contains("testResource") &&
+        it.regions != null &&
+        it.cloudProvider != null &&
+        it.cloudProviderType != null
+      it.application != null
+      it.description != null
     })
 
     verify(taskTrackingRepository).add(

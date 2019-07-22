@@ -174,7 +174,7 @@ class ResourceStateManager(
   ): String {
     val taskId = with(resource.resourceType) {
       when {
-        equals("serverGroup", true) -> tagAsg(resource)
+        equals("serverGroup", true) -> tagAsg(resource, workConfiguration)
         equals("image", true) -> tagImage(resource)
         else -> log.error("Failed to tag resource ${resource.uniqueId()}")
       }
@@ -191,7 +191,7 @@ class ResourceStateManager(
     return taskId.toString()
   }
 
-  private fun tagAsg(resource: MarkedResource): String {
+  private fun tagAsg(resource: MarkedResource,workConfiguration: WorkConfiguration): String {
     return taggingService.upsertAsgTag(
       UpsertServerGroupTagsRequest(
         serverGroupName = resource.resourceId,
@@ -199,6 +199,7 @@ class ResourceStateManager(
         tags = mapOf("expiration_time" to "never"),
         cloudProvider = "aws",
         cloudProviderType = "aws",
+        credentials = workConfiguration.account.name.toString(),
         application = applicationUtils.determineApp(resource.resource),
         description = "Setting `expiration_time` to `never` for serverGroup ${resource.uniqueId()}"
       )

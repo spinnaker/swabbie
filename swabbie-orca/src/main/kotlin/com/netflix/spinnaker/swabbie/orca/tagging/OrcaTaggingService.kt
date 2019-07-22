@@ -116,7 +116,8 @@ class OrcaTaggingService(
                 "regions" to tagRequest.regions,
                 "tags" to tagRequest.tags,
                 "cloudProvider" to tagRequest.cloudProvider,
-                "cloudProviderType" to tagRequest.cloudProviderType
+                "cloudProviderType" to tagRequest.cloudProviderType,
+                "credentials" to tagRequest.credentials
               )
             )
           )

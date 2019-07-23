@@ -133,6 +133,7 @@ class ResourceTypeConfiguration {
   var entityTaggingEnabled: Boolean = false
   var maxAge: Int = 14
   var notification: NotificationConfiguration = EmptyNotificationConfiguration()
+  var rule: BasicRule? = null
 }
 
 class Attribute {
@@ -169,6 +170,14 @@ class Attribute {
     result = 31 * result + value.hashCode()
     return result
   }
+}
+
+/**
+ * A simple configured rule
+ */
+class BasicRule {
+  var name: String = ""
+  var attributes: List<Attribute> = emptyList()
 }
 
 /**

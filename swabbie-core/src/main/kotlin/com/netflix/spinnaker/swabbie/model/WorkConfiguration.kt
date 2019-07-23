@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.model
 
+import com.netflix.spinnaker.config.BasicRule
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
@@ -40,7 +41,8 @@ data class WorkConfiguration(
   val maxAge: Int = 14,
   val maxItemsProcessedPerCycle: Int = 10,
   val itemsProcessedBatchSize: Int = 5,
-  val enabledActions: List<Action> = listOf(Action.MARK, Action.NOTIFY, Action.DELETE)
+  val enabledActions: List<Action> = listOf(Action.MARK, Action.NOTIFY, Action.DELETE),
+  val rule: BasicRule? = null
 ) {
   private val log = LoggerFactory.getLogger(javaClass)
 

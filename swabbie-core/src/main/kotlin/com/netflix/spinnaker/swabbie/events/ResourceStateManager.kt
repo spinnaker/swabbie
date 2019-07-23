@@ -176,11 +176,11 @@ class ResourceStateManager(
       when {
         equals("serverGroup", true) -> tagAsg(resource, workConfiguration)
         equals("image", true) -> tagImage(resource)
-        else -> log.error("Failed to tag resource ${resource.uniqueId()}")
+        else -> log.error("Failed to tag resource ${resource.uniqueId()} with aws expiration_time tag ")
       }
     }
     taskTrackingRepository.add(
-      taskId.toString(),
+      taskId!!.toString(),
       TaskCompleteEventInfo(
         action = Action.OPTOUT,
         markedResources = listOf(resource),
@@ -188,7 +188,7 @@ class ResourceStateManager(
         submittedTimeMillis = clock.instant().toEpochMilli()
       )
     )
-    return taskId.toString()
+    return taskId!!.toString()
   }
 
   private fun tagAsg(resource: MarkedResource, workConfiguration: WorkConfiguration): String {

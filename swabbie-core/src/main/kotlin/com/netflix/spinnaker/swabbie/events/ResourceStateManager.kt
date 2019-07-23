@@ -163,7 +163,9 @@ class ResourceStateManager(
     if (event is OptOutResourceEvent) {
       log.debug("Tagging resource ${event.markedResource.uniqueId()} with \"expiration_time\":\"never\"")
       val taskId = tagResource(event.markedResource, event.workConfiguration)
-      log.debug("Tagging resource ${event.markedResource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
+      if (taskId != null) {
+        log.debug("Tagging resource ${event.markedResource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
+      }
     }
   }
 
@@ -171,24 +173,29 @@ class ResourceStateManager(
   private fun tagResource(
     resource: MarkedResource,
     workConfiguration: WorkConfiguration
-  ): String {
-    val taskId = with(resource.resourceType) {
+  ): String? {
+    var taskId: String? = with(resource.resourceType) {
       when {
         equals("serverGroup", true) -> tagAsg(resource, workConfiguration)
         equals("image", true) -> tagImage(resource)
-        else -> log.error("Failed to tag resource ${resource.uniqueId()} with aws expiration_time tag ")
+        else -> {
+          log.error("Failed to tag resource ${resource.uniqueId()} with aws expiration_time tag ")
+          return null
+        }
       }
     }
-    taskTrackingRepository.add(
-      taskId!!.toString(),
-      TaskCompleteEventInfo(
-        action = Action.OPTOUT,
-        markedResources = listOf(resource),
-        workConfiguration = workConfiguration,
-        submittedTimeMillis = clock.instant().toEpochMilli()
+    if (taskId != null) {
+      taskTrackingRepository.add(
+        taskId.toString(),
+        TaskCompleteEventInfo(
+          action = Action.OPTOUT,
+          markedResources = listOf(resource),
+          workConfiguration = workConfiguration,
+          submittedTimeMillis = clock.instant().toEpochMilli()
+        )
       )
-    )
-    return taskId!!.toString()
+    }
+    return taskId
   }
 
   private fun tagAsg(resource: MarkedResource, workConfiguration: WorkConfiguration): String {

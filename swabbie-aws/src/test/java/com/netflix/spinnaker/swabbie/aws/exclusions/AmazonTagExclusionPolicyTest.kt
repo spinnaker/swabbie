@@ -70,20 +70,6 @@ object AmazonTagExclusionPolicyTest {
   @Test
   fun `should exclude a resource based on temporal tags`() {
     val tenDays = 10L
-    val exclusions = listOf(
-      Exclusion()
-        .withType(ExclusionType.Tag.toString())
-        .withAttributes(
-          setOf(
-            Attribute()
-              .withKey("expiration_time")
-              .withValue(
-                listOf("pattern:^\\d+(d|m|y)\$")
-              )
-          )
-        )
-    )
-
     val resources = listOf(
       AwsTestResource(
         id = "1",
@@ -103,10 +89,10 @@ object AmazonTagExclusionPolicyTest {
         )
       ))
     resources.filter {
-      AmazonTagExclusionPolicy().apply(it, exclusions) == null
+      AmazonTagExclusionPolicy().apply(it, emptyList()) == null
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(1)
-      filteredResources.first().resourceId shouldMatch equalTo("2")
+      filteredResources.first().resourceId shouldMatch equalTo("1")
     }
   }
 }

@@ -25,46 +25,24 @@ import org.springframework.stereotype.Component
 
 @Component
 class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
-  private val tagsField = "tags"
   override fun getType(): ExclusionType = ExclusionType.Tag
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
-    if (excludable is AmazonResource) {
-      keysAndValues(exclusions, ExclusionType.Tag)
-        .let { excludingTags ->
-          if (tagsField in excludable.details) {
-            (excludable.details[tagsField] as List<Map<*, *>>).map { tag ->
-              tag.keys.find { key ->
-                excludingTags[key] != null
-              }?.let { key ->
-                if (key in TemporalTagExclusionSupplier.temporalTags) {
-                  excludingTags[key]!!.map { target ->
-                    TemporalTagExclusionSupplier
-                      .computeAndCompareAge(
-                        excludable = excludable,
-                        tagValue = tag[key] as String,
-                        target = target
-                      ).let {
-                        when {
-                          it.age == Age.OLDER || it.age == Age.INFINITE ->
-                            return patternMatchMessage(tag[key] as String, excludingTags[key]!!.toSet())
-                          it.age == Age.YOUNGER ->
-                            return null
-                          else -> {
-                            // no need to check age here.
-                            log.debug("Resource age comparison with {}. Result: {}", excludable.createTs, it)
-                          }
-                        }
-                    }
-                  }
-                }
+    if (excludable !is AmazonResource || excludable.tags().isNullOrEmpty()) {
+      return null
+    }
 
-                if (excludingTags[key]!!.contains(tag[key] as? String)) {
-                  return patternMatchMessage(tag[key] as String, excludingTags[key]!!.toSet())
-                }
-              }
-            }
-          }
-        }
+    val tags = excludable.tags()!!
+    if (excludable.expired()) {
+      val temporalTag = tags.find { excludable.expired(it) }!!
+      return patternMatchMessage(temporalTag.key, setOf(temporalTag.value as String))
+    }
+
+    val configuredKeysAndTargetValues = keysAndValues(exclusions, ExclusionType.Tag)
+    tags.forEach { tag ->
+      val target = configuredKeysAndTargetValues[tag.key] ?: emptyList()
+      if (target.contains(tag.value as String)) {
+        return patternMatchMessage(tag.key, setOf(tag.value as String))
+      }
     }
 
     return null

@@ -23,9 +23,11 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
+import com.netflix.spinnaker.swabbie.tagging.TemporalTags
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
@@ -81,20 +83,36 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
     return details.toString()
   }
 
-  fun getTagValue(key: String): String? {
-    try {
-      val tags = this.details["tags"] as List<Map<String, String>>
-      tags.forEach { tag ->
-        if (tag.containsKey(key)) {
-          return tag.getValue(key)
-        }
+  fun tags(): List<BasicTag>? {
+    return (details["tags"] as? List<Map<String, String>>)?.flatMap {
+      it.entries.map { tag ->
+        BasicTag(tag.key, tag.value)
       }
-    } catch (e: ClassCastException) {
-      log.warn("Resource {} does not have normal tag format: {}", this.toLog(), this.details["tags"])
     }
-    return null
+  }
+
+  fun getTagValue(key: String): Any? = tags()?.find { it.key == key }?.value
+
+  fun expired(): Boolean {
+    return tags()?.any { expired(it) } ?: false
+  }
+
+  fun expired(temporalTag: BasicTag): Boolean {
+    if (temporalTag.value == "never" || !TemporalTags.isTemporal(temporalTag)) {
+      return false
+    }
+
+    val (amount, unit) = TemporalTags.toTemporalPair(temporalTag)!!
+    val ttl = Duration.of(amount, unit).toDays()
+    val resourceAge = Duration.between(Instant.ofEpochMilli(createTs), Instant.now())
+    return resourceAge.toDays() > ttl
   }
 }
+
+data class BasicTag(
+  val key: String,
+  val value: Any?
+)
 
 /**
  * The details field will include all non strongly typed fields of the Resource

@@ -16,58 +16,50 @@
 
 package com.netflix.spinnaker.swabbie.aws
 
-import com.netflix.spinnaker.swabbie.aws.exclusions.Age
-import com.netflix.spinnaker.swabbie.aws.exclusions.TemporalTagExclusionSupplier
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.BasicTag
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.stereotype.Component
 
 /**
- * A general rule that applies when temporal tags are found on an amazon resource
- * When the resolved resource age is older than today, the resource will be marked for deletion if
- * [WorkConfiguration.rule] attribues match the resource
+ * The resource will be marked for deletion if:
+ *  - The resource is older than the ttl provided through temporal tags ("expiration_time", "expires", "ttl")
+ *  - [WorkConfiguration.rule] attributes match the resource's other identifying tag attributes
+ * @See [com.netflix.spinnaker.swabbie.model.BasicTag]
  */
+
 @Component
 class TemporalThresholdRule<T : AmazonResource>(
   private val workConfigurations: List<WorkConfiguration>
 ) : Rule<T> {
-  private val temporalRegex = "pattern:^\\\\d+(d|m|y|w)\$\""
   override fun apply(resource: T): Result {
-    val tags = resource.details["tags"] as? List<Map<String, String>> ?: return Result(null)
-    val workConfiguration: WorkConfiguration? = workConfigurations.find {
+    val tags: List<BasicTag> = resource.tags() ?: return Result(null)
+    val workConfiguration: WorkConfiguration = workConfigurations.find {
       it.resourceType == resource.resourceType
     } ?: return Result(null)
 
-    if (workConfiguration!!.rule == null) {
+    val rule = workConfiguration.rule ?: return Result(null)
+    if (rule.name != "Tag") {
       return Result(null)
     }
 
-    // should only apply if properties in the rule are matched on the resource
-    if (workConfiguration.rule!!.name == "Tag") {
-      for (attribute in workConfiguration.rule!!.attributes) {
-        val matchedTag = tags.find { tag ->
-          tag.keys.any { it == attribute.key && tag[attribute.key] in attribute.value }
-        }
-
-        if (matchedTag != null) {
-          TemporalTagExclusionSupplier.temporalTags.forEach { key ->
-            resource.getTagValue(key)?.let {
-              val ageResult = TemporalTagExclusionSupplier.computeAndCompareAge(resource, it, temporalRegex)
-              if (ageResult.age == Age.OLDER) {
-                return Result(
-                  Summary(
-                    description = "${resource.resourceType}  ${resource.resourceId} is tagged for deletion.",
-                    ruleName = javaClass.simpleName
-                  )
-                )
-              }
-            }
-          }
+    val matched = rule.attributes
+      .any { attribute ->
+        tags.any { tag ->
+          tag.key == attribute.key && tag.value in attribute.value
         }
       }
+
+    if (resource.expired() && matched) {
+      return Result(
+        Summary(
+          description = "${resource.resourceType} ${resource.resourceId} is tagged with a expiration time",
+          ruleName = javaClass.simpleName
+        )
+      )
     }
 
     return Result(null)

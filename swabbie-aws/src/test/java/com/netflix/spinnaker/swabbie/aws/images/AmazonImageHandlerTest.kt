@@ -1,19 +1,18 @@
 /*
- * Copyright 2018 Netflix, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License")
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
+* Copyright 2018 Netflix, Inc.
+*
+* Licensed under the Apache License, Version 2.0 (the "License")
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 package com.netflix.spinnaker.swabbie.aws.images
 
 import com.natpryce.hamkrest.equalTo
@@ -80,6 +79,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.util.Date
 import java.util.Optional
 
 object AmazonImageHandlerTest {
@@ -208,7 +208,7 @@ object AmazonImageHandlerTest {
       name = "test-app-v001-111920",
       launchConfigurationName = "test-app-v001-111920",
       imageId = "ami-132",
-      createdTime = clock.instant().toEpochMilli().minus(Duration.ofDays(3).toMillis())
+      createdTime = Date.from(clock.instant().minus(Duration.ofDays(3)))
     )
 
     whenever(imagesUsedByinstancesCache.get()) doReturn
@@ -346,7 +346,7 @@ object AmazonImageHandlerTest {
     )
 
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-        workConfiguration.maxItemsProcessedPerCycle
+      workConfiguration.maxItemsProcessedPerCycle
 
     subject.getCandidates(workConfiguration).let { images ->
       images!!.size shouldMatch equalTo(2)
@@ -443,7 +443,7 @@ object AmazonImageHandlerTest {
       )
 
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-        workConfiguration.maxItemsProcessedPerCycle
+      workConfiguration.maxItemsProcessedPerCycle
 
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
 

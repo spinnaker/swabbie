@@ -72,18 +72,15 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Optional
+import java.util.Date
 
 object AmazonSnapshotHandlerTest {
-
-  private val log: Logger = LoggerFactory.getLogger(this.javaClass)
-  val objectMapper = ObjectMapper().registerKotlinModule().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+  private val objectMapper = ObjectMapper().registerKotlinModule().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
   @Test
   fun `data convert`() {
@@ -187,7 +184,7 @@ object AmazonSnapshotHandlerTest {
         volumeId = "vol-000",
         state = "completed",
         progress = "100%",
-        startTime = 1519943308000,
+        startTime = Date.from(Instant.ofEpochMilli(1519943308000)),
         volumeSize = 10,
         description = "name=swabbie, arch=x86_64, ancestor_name=xb-ebs, ancestor_id=ami-0000, ancestor_version=nflx-base-5",
         snapshotId = "snap-000",
@@ -200,7 +197,7 @@ object AmazonSnapshotHandlerTest {
         volumeId = "vol-111",
         state = "completed",
         progress = "100%",
-        startTime = 1519943307000,
+        startTime = Date.from(Instant.ofEpochMilli(1519943307000)),
         volumeSize = 10,
         description = "name=swabbie, arch=x86_64, ancestor_name=xb-ebs, ancestor_id=ami-0000, ancestor_version=nflx-base-4",
         snapshotId = "snap-1111",
@@ -291,7 +288,7 @@ object AmazonSnapshotHandlerTest {
         volumeId = "vol-000",
         state = "completed",
         progress = "100%",
-        startTime = 1519943308000,
+        startTime = Date.from(Instant.ofEpochMilli(1519943308000)),
         volumeSize = 10,
         description = "i am a snapshot would you look at that",
         snapshotId = "snap-000",

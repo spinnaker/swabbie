@@ -31,6 +31,7 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
+import com.netflix.spinnaker.swabbie.tagging.UpsertServerGroupTagsRequest
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments
 import org.slf4j.LoggerFactory
@@ -160,18 +161,56 @@ class ResourceStateManager(
     resourceStateRepository.upsert(newState)
 
     if (event is OptOutResourceEvent) {
-      log.debug("Tagging resource ${event.markedResource.uniqueId()} with \"expiration_time\":\"never\"")
-      val taskId = tagResource(event.markedResource, event.workConfiguration)
-      log.debug("Tagging resource ${event.markedResource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
+      tagResource(event.markedResource, event.workConfiguration)
     }
   }
 
   // todo eb: pull to another kind of ResourceTagger?
+  // todo aravind : handle snapshots tagging
   private fun tagResource(
     resource: MarkedResource,
     workConfiguration: WorkConfiguration
-  ): String {
-    val taskId = taggingService.upsertImageTag(
+  ) {
+    log.debug("Tagging resource ${resource.uniqueId()} with \"expiration_time\":\"never\"")
+    val taskId = when (resource.resourceType) {
+        "serverGroup" -> tagAsg(resource, workConfiguration)
+        "image" -> tagImage(resource)
+        else -> {
+          log.error("Cannot tag resource type ${resource.resourceType} with an infrastructure tag ")
+          null
+        }
+      }
+    if (taskId != null) {
+      taskTrackingRepository.add(
+        taskId,
+        TaskCompleteEventInfo(
+          action = Action.OPTOUT,
+          markedResources = listOf(resource),
+          workConfiguration = workConfiguration,
+          submittedTimeMillis = clock.instant().toEpochMilli()
+        )
+      )
+      log.debug("Tagging resource ${resource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
+    }
+  }
+
+  private fun tagAsg(resource: MarkedResource, workConfiguration: WorkConfiguration): String {
+    return taggingService.upsertAsgTag(
+      UpsertServerGroupTagsRequest(
+        serverGroupName = resource.resourceId,
+        regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
+        tags = mapOf("expiration_time" to "never"),
+        cloudProvider = "aws",
+        cloudProviderType = "aws",
+        credentials = workConfiguration.account.name.toString(),
+        application = applicationUtils.determineApp(resource.resource),
+        description = "Setting `expiration_time` to `never` for serverGroup ${resource.uniqueId()}"
+      )
+    )
+  }
+
+  private fun tagImage(resource: MarkedResource): String {
+    return taggingService.upsertImageTag(
       UpsertImageTagsRequest(
         imageNames = setOf(resource.name ?: resource.resourceId),
         regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
@@ -182,17 +221,6 @@ class ResourceStateManager(
         description = "Setting `expiration_time` to `never` for image ${resource.uniqueId()}"
       )
     )
-
-    taskTrackingRepository.add(
-      taskId,
-      TaskCompleteEventInfo(
-        action = Action.OPTOUT,
-        markedResources = listOf(resource),
-        workConfiguration = workConfiguration,
-        submittedTimeMillis = clock.instant().toEpochMilli()
-      )
-    )
-    return taskId
   }
 }
 

@@ -21,6 +21,7 @@ interface TaggingService {
   fun removeEntityTag(tagRequest: TagRequest)
 
   fun upsertImageTag(tagRequest: UpsertImageTagsRequest): String
+  fun upsertAsgTag(tagRequest: UpsertServerGroupTagsRequest): String
 }
 
 interface TagRequest

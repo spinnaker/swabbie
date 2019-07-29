@@ -20,22 +20,21 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.INSTANCE
-import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.Date
 
 @JsonTypeName("amazonInstance")
 data class AmazonInstance(
   val instanceId: String,
   val imageId: String,
   val tags: List<Map<String, String>>,
-  private val launchTime: Long,
+  private val launchTime: Date,
   override val resourceId: String = instanceId,
   override val resourceType: String = INSTANCE,
   override val cloudProvider: String = AWS,
   override val name: String = instanceId,
-  private val creationDate: String? =
-    LocalDateTime.ofInstant(Instant.ofEpochMilli(launchTime), ZoneId.systemDefault()).toString()
+  private val creationDate: String? = LocalDateTime.ofInstant(launchTime.toInstant(), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
   fun getAutoscalingGroup(): String? {
     return tags

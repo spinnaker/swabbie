@@ -47,7 +47,7 @@ class WorkProcessor(
    * Takes work [WorkItem] off the [WorkQueue], acquires a lock and
    * dispatches the corresponding work configuration to a suitable handler for processing
    */
-  @Scheduled(fixedDelayString = "\${swabbie.work.intervalMs:180000}")
+  @Scheduled(fixedDelayString = "\${swabbie.work.interval-ms:180000}")
   fun process() {
     if (!cacheStatus.cachesLoaded()) {
       log.warn("Caches not fully loaded yet. Skipping")

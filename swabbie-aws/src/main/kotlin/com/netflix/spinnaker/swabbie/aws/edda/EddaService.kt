@@ -63,7 +63,7 @@ interface EddaService {
   @GET("/api/v2/view/instances/{instanceId}")
   fun getInstance(@Path("instanceId") instanceId: String): AmazonInstance
 
-  @GET("/api/v2/view/instances;state.name=running,stopped,starting,rebooting;_expand")
+  @GET("/api/v2/view/instances;state.name=running,stopped,starting,rebooting,shutting-down;_expand")
   fun getInstances(): List<AmazonInstance>
 
   @GET("/api/v2/aws/launchConfigurations;_expand")

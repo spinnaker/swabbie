@@ -44,6 +44,7 @@ class LaunchConfigurationCacheProvider(
       .filter(isCorrectCloudProviderAndRegion(configuredRegions))
       .forEach { account ->
         account.regions!!.forEach { region ->
+          log.info("Reading launch configurations in {}/{}/{}", account.accountId, region.name, account.environment)
           val launchConfigs: Set<AmazonLaunchConfiguration> = getLaunchConfigurations(
             Parameters(
               region = region.name,

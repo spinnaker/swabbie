@@ -46,7 +46,9 @@ data class SpinnakerAccount(
   override val edda: String?,
   override val regions: List<Region>?,
   override val environment: String,
-  override val grouping: Grouping? = null
+  override val grouping: Grouping? = null,
+  val assumeRole: String = "role/spinnaker",
+  val sessionName: String = "Spinnaker"
 ) : Account, Cacheable, HasDetails() {
   override val resourceId: String
     get() = accountId!!

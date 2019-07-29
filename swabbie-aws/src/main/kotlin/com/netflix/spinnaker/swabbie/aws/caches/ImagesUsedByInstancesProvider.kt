@@ -37,7 +37,8 @@ class ImagesUsedByInstancesProvider(
     accountProvider.getAccounts()
       .filter { it.cloudProvider == "aws" && !it.regions.isNullOrEmpty() }
       .forEach { account ->
-        account.regions!!.forEach { region ->
+        account.regions!!.filterNot { it.deprecated }.forEach { region ->
+          log.info("Reading instances in {}/{}/{}", account.accountId, region.name, account.environment)
           val instances: List<AmazonInstance> = getInstances(
             Parameters(
               region = region.name,

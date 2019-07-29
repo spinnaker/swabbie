@@ -67,11 +67,12 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
-import java.time.Clock
-import java.time.Duration
 import java.time.Instant
+import java.time.Clock
 import java.time.ZoneOffset
+import java.time.Duration
 import java.time.temporal.ChronoUnit
+import java.util.Date
 import java.util.Optional
 
 object AmazonAutoScalingGroupHandlerTest {
@@ -165,7 +166,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        createdTime = System.currentTimeMillis()
+        createdTime = Date()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
@@ -173,7 +174,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-00000")
         ),
         loadBalancerNames = listOf(),
-        createdTime = System.currentTimeMillis()
+        createdTime = Date()
       )
     )
 
@@ -184,6 +185,8 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
+    val twoDaysAgo = clock.instant().minus(2, ChronoUnit.DAYS)
+
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(aws.getServerGroups(params)) doReturn listOf(
       AmazonAutoScalingGroup(
@@ -192,13 +195,13 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
+        createdTime = Date.from(twoDaysAgo)
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
         instances = listOf(),
         loadBalancerNames = listOf(),
-        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
+        createdTime = Date.from(twoDaysAgo)
       ).apply {
         set("suspendedProcesses", listOf(
           mapOf("processName" to "AddToLoadBalancer")
@@ -250,7 +253,7 @@ object AmazonAutoScalingGroupHandlerTest {
       autoScalingGroupName = "app-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().minus(3, ChronoUnit.DAYS).toEpochMilli()
+      createdTime = Date.from(clock.instant().minus(3, ChronoUnit.DAYS))
     ).apply {
       set("suspendedProcesses", listOf(
         mapOf("processName" to "AddToLoadBalancer")

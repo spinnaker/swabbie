@@ -20,22 +20,21 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
-import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.Date
 
 @JsonTypeName("amazonAutoScalingGroup")
 data class AmazonAutoScalingGroup(
   val autoScalingGroupName: String,
   val instances: List<Map<String, Any>>?,
   val loadBalancerNames: List<String>?,
-  private val createdTime: Long,
+  private val createdTime: Date,
   override val resourceId: String = autoScalingGroupName,
   override val resourceType: String = SERVER_GROUP,
   override val cloudProvider: String = AWS,
   override val name: String = autoScalingGroupName,
-  private val creationDate: String? =
-    LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
+  private val creationDate: String? = LocalDateTime.ofInstant(createdTime.toInstant(), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
   override fun equals(other: Any?): Boolean {
     return super.equals(other)

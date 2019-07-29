@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Netflix, Inc.
+ * Copyright 2019 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
@@ -31,3 +31,20 @@ data class UpsertImageTagsRequest(
   override val application: String,
   override val description: String
 ) : ImageTagsRequest("upsertImageTags", application, description)
+
+open class AmazonServerGroupTagsRequest(
+  open val type: String,
+  open val application: String,
+  open val description: String
+) : TagRequest
+
+data class UpsertServerGroupTagsRequest(
+  val serverGroupName: String,
+  val regions: Set<String>,
+  val tags: Map<String, String>,
+  val cloudProvider: String,
+  val cloudProviderType: String,
+  val credentials: String,
+  override val application: String,
+  override val description: String
+) : AmazonServerGroupTagsRequest("upsertServerGroupTags", application, description)

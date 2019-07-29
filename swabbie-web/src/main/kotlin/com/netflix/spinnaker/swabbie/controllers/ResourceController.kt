@@ -154,14 +154,12 @@ class ResourceController(
       log.debug("Found resource ${markedResource.uniqueId()} to opt out.")
       resourceTrackingRepository.remove(markedResource)
       val workConfiguration = controllerUtils.findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
-
       log.debug("Publishing opt out event for ${markedResource.uniqueId()}")
       applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, workConfiguration))
     } else {
       log.debug("Did not find marked resource $namespace:$resourceId to opt out. Opting out anyways.")
       val workConfiguration = controllerUtils.findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
       val handler = controllerUtils.findHandler(workConfiguration)
-
       handler.optOut(resourceId, workConfiguration)
     }
 

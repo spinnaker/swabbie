@@ -20,24 +20,20 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.aws.edda.EddaEndpointsService
-import com.netflix.spinnaker.swabbie.aws.edda.EddaService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.EndpointProvider
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.edda.Edda
 import com.netflix.spinnaker.swabbie.aws.edda.caches.EddaEndpointCache
 import com.netflix.spinnaker.swabbie.aws.edda.providers.EddaEndpointProvider
-
-import com.netflix.spinnaker.swabbie.model.Account
-import com.netflix.spinnaker.swabbie.model.Region
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RequestInterceptor
@@ -45,68 +41,11 @@ import retrofit.RestAdapter
 import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
-@ConditionalOnExpression("\${edda.enabled:true}")
+@ConditionalOnExpression("\${edda.enabled:false}")
 @Configuration
 @ComponentScan(basePackages = ["com.netflix.spinnaker.swabbie.aws"])
 @Import(SwabbieRetrofitConfiguration::class)
 open class EddaConfiguration {
-  @Bean
-  open fun eddaApiClients(
-    accountProvider: AccountProvider,
-    endpointProvider: EndpointProvider,
-    objectMapper: ObjectMapper,
-    retrofitClient: Client,
-    spinnakerRequestInterceptor: RequestInterceptor,
-    retrofitLogLevel: RestAdapter.LogLevel
-  ): List<EddaApiClient> {
-    val accountEddas: List<EddaApiClient> = accountProvider.getAccounts()
-      .asSequence()
-      .filter {
-        it.eddaEnabled
-      }.map { account ->
-        account.regions!!.map { region ->
-          EddaApiClient(
-            region.name,
-            account,
-            objectMapper,
-            retrofitClient,
-            spinnakerRequestInterceptor,
-            retrofitLogLevel
-          )
-        }
-      }.toList()
-      .flatten()
-
-    val endpointEddas: List<EddaApiClient> = endpointProvider.getEndpoints()
-      .asSequence()
-      .filter { endpoint ->
-        accountEddas.none {
-          endpoint.region == it.region &&
-            endpoint.accountId == it.account.accountId &&
-            endpoint.environment == it.account.environment
-        }
-      }.map {
-        EddaApiClient(
-          it.region,
-          SpinnakerAccount(
-            true,
-            it.accountId,
-            "aws",
-            it.name,
-            it.endpoint,
-            listOf(Region(false, it.region)),
-            it.environment
-          ),
-          objectMapper,
-          retrofitClient,
-          spinnakerRequestInterceptor,
-          retrofitLogLevel
-        )
-      }.toList()
-
-    return listOf(accountEddas, endpointEddas).flatten()
-  }
-
   @Bean
   open fun eddaEndpointCache(eddaEndpointsService: EddaEndpointsService): EddaEndpointCache {
     return EddaEndpointCache(eddaEndpointsService)
@@ -123,8 +62,27 @@ open class EddaConfiguration {
   }
 
   @Bean
-  open fun aws(eddaApiClients: List<EddaApiClient>, retrySupport: RetrySupport, registry: Registry): AWS {
-    return Edda(eddaApiClients, retrySupport, registry)
+  @Primary
+  open fun edda(
+    retrySupport: RetrySupport,
+    registry: Registry,
+    objectMapper: ObjectMapper,
+    retrofitClient: Client,
+    retrofitLogLevel: RestAdapter.LogLevel,
+    spinnakerRequestInterceptor: RequestInterceptor,
+    accountProvider: AccountProvider,
+    endpointProvider: EndpointProvider
+  ): AWS {
+    return Edda(
+      retrySupport,
+      registry,
+      objectMapper,
+      retrofitClient,
+      retrofitLogLevel,
+      spinnakerRequestInterceptor,
+      accountProvider,
+      endpointProvider
+    )
   }
 
   @Bean
@@ -144,23 +102,4 @@ open class EddaConfiguration {
       .build()
       .create(EddaEndpointsService::class.java)
   }
-}
-
-data class EddaApiClient(
-  val region: String,
-  val account: Account,
-  private val objectMapper: ObjectMapper,
-  private val retrofitClient: Client,
-  private val spinnakerRequestInterceptor: RequestInterceptor,
-  private val retrofitLogLevel: RestAdapter.LogLevel
-) {
-  fun get(): EddaService =
-    RestAdapter.Builder()
-      .setRequestInterceptor(spinnakerRequestInterceptor)
-      .setEndpoint(Endpoints.newFixedEndpoint(account.edda!!.replace("{{region}}", region)))
-      .setClient(retrofitClient)
-      .setLogLevel(retrofitLogLevel)
-      .setConverter(JacksonConverter(objectMapper))
-      .build()
-      .create(EddaService::class.java)
 }

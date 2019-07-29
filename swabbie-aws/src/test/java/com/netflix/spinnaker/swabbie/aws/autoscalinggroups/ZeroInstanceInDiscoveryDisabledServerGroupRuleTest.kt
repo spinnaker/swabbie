@@ -25,6 +25,7 @@ import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.Date
 import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
@@ -36,7 +37,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = Date.from(Instant.now())
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -65,7 +66,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = Date.from(Instant.now())
     ).apply {
       set(IS_DISABLED, true)
     }
@@ -101,7 +102,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234", "InstanceId" to "i-01235")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = Date.from(Instant.now())
     ).apply {
       set(IS_DISABLED, true)
     }

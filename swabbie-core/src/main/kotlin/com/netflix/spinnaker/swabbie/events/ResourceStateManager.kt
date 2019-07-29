@@ -161,32 +161,28 @@ class ResourceStateManager(
     resourceStateRepository.upsert(newState)
 
     if (event is OptOutResourceEvent) {
-      log.debug("Tagging resource ${event.markedResource.uniqueId()} with \"expiration_time\":\"never\"")
-      val taskId = tagResource(event.markedResource, event.workConfiguration)
-      if (taskId != null) {
-        log.debug("Tagging resource ${event.markedResource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
-      }
+      tagResource(event.markedResource, event.workConfiguration)
     }
   }
 
   // todo eb: pull to another kind of ResourceTagger?
+  // todo aravind : handle snapshots tagging
   private fun tagResource(
     resource: MarkedResource,
     workConfiguration: WorkConfiguration
-  ): String? {
-    var taskId: String? = with(resource.resourceType) {
-      when {
-        equals("serverGroup", true) -> tagAsg(resource, workConfiguration)
-        equals("image", true) -> tagImage(resource)
+  ) {
+    log.debug("Tagging resource ${resource.uniqueId()} with \"expiration_time\":\"never\"")
+    val taskId = when (resource.resourceType) {
+        "serverGroup" -> tagAsg(resource, workConfiguration)
+        "image" -> tagImage(resource)
         else -> {
-          log.error("Failed to tag resource ${resource.uniqueId()} with aws expiration_time tag ")
-          return null
+          log.error("Cannot tag resource type ${resource.resourceType} with an infrastructure tag ")
+          null
         }
       }
-    }
     if (taskId != null) {
       taskTrackingRepository.add(
-        taskId.toString(),
+        taskId,
         TaskCompleteEventInfo(
           action = Action.OPTOUT,
           markedResources = listOf(resource),
@@ -194,8 +190,8 @@ class ResourceStateManager(
           submittedTimeMillis = clock.instant().toEpochMilli()
         )
       )
+      log.debug("Tagging resource ${resource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
     }
-    return taskId
   }
 
   private fun tagAsg(resource: MarkedResource, workConfiguration: WorkConfiguration): String {

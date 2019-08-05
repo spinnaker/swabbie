@@ -166,7 +166,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        createdTime = Date()
+        createdTime = System.currentTimeMillis()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
@@ -174,7 +174,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-00000")
         ),
         loadBalancerNames = listOf(),
-        createdTime = Date()
+        createdTime = System.currentTimeMillis()
       )
     )
 
@@ -195,13 +195,13 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        createdTime = Date.from(twoDaysAgo)
+        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
         instances = listOf(),
         loadBalancerNames = listOf(),
-        createdTime = Date.from(twoDaysAgo)
+        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
       ).apply {
         set("suspendedProcesses", listOf(
           mapOf("processName" to "AddToLoadBalancer")
@@ -253,7 +253,7 @@ object AmazonAutoScalingGroupHandlerTest {
       autoScalingGroupName = "app-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      createdTime = Date.from(clock.instant().minus(3, ChronoUnit.DAYS))
+      createdTime = Instant.now().minus(3, ChronoUnit.DAYS).toEpochMilli()
     ).apply {
       set("suspendedProcesses", listOf(
         mapOf("processName" to "AddToLoadBalancer")

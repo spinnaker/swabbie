@@ -30,7 +30,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Date.from(Instant.now())
+      createdTime = Instant.now().toEpochMilli()
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -45,7 +45,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       autoScalingGroupName = "testapp-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      createdTime = Date.from(Instant.now())
+      createdTime = Instant.now().toEpochMilli()
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)

@@ -37,7 +37,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Date.from(Instant.now())
+      createdTime = Instant.now().toEpochMilli()
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -66,7 +66,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Date.from(Instant.now())
+      createdTime = Instant.now().toEpochMilli()
     ).apply {
       set(IS_DISABLED, true)
     }
@@ -102,7 +102,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234", "InstanceId" to "i-01235")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Date.from(Instant.now())
+      createdTime = Instant.now().toEpochMilli()
     ).apply {
       set(IS_DISABLED, true)
     }

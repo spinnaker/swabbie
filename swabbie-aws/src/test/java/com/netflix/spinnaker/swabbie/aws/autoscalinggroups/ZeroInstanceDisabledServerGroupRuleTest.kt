@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import java.util.Date
 
 object ZeroInstanceDisabledServerGroupRuleTest {
   @Test

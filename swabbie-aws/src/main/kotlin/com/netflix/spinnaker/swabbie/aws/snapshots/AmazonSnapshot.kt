@@ -22,9 +22,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.util.Date
+import com.netflix.spinnaker.swabbie.Dates
 
 @JsonTypeName("amazonSnapshot")
 data class AmazonSnapshot(
@@ -32,7 +30,7 @@ data class AmazonSnapshot(
   val state: String,
   val progress: String,
   val volumeSize: Int,
-  val startTime: Date,
+  val startTime: Long,
   val description: String?,
   val snapshotId: String,
   val ownerId: String,
@@ -43,7 +41,7 @@ data class AmazonSnapshot(
   override val resourceType: String = SNAPSHOT,
   override val cloudProvider: String = AWS,
   override val name: String = snapshotId,
-  private val creationDate: String? = LocalDateTime.ofInstant(startTime.toInstant(), ZoneId.systemDefault()).toString()
+  private val creationDate: String? = Dates.toCreationDate(startTime)
 ) : AmazonResource(creationDate) {
   override fun equals(other: Any?): Boolean {
     return super.equals(other)

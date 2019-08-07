@@ -22,19 +22,19 @@ import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.Date
+import java.time.Instant
 
 @JsonTypeName("amazonAutoScalingGroup")
 data class AmazonAutoScalingGroup(
   val autoScalingGroupName: String,
   val instances: List<Map<String, Any>>?,
   val loadBalancerNames: List<String>?,
-  private val createdTime: Date,
+  private val createdTime: Long,
   override val resourceId: String = autoScalingGroupName,
   override val resourceType: String = SERVER_GROUP,
   override val cloudProvider: String = AWS,
   override val name: String = autoScalingGroupName,
-  private val creationDate: String? = LocalDateTime.ofInstant(createdTime.toInstant(), ZoneId.systemDefault()).toString()
+  private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
   override fun equals(other: Any?): Boolean {
     return super.equals(other)

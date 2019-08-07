@@ -21,8 +21,12 @@ import com.amazonaws.services.securitytoken.AWSSecurityTokenService
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.kork.aws.bastion.BastionConfig
+import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.CachedViewProvider
+import com.netflix.spinnaker.swabbie.InMemorySingletonCache
+import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Vanilla
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
@@ -31,13 +35,27 @@ import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationInMemoryCache
 import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesInMemoryCache
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
+import com.netflix.spinnaker.swabbie.aws.images.AmazonImageHandler
+import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.IMAGE
+import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import java.rmi.registry.Registry
 import java.time.Clock
 
 @Configuration
@@ -106,5 +124,55 @@ open class AwsConfiguration {
     accountProvider: AccountProvider
   ): AWS {
     return Vanilla(sts, objectMapper, accountProvider)
+  }
+
+  @Bean
+  @ConditionalOnBean(
+    value = [AmazonImagesUsedByInstancesInMemoryCache::class, AmazonLaunchConfigurationInMemoryCache::class]
+  )
+  open fun amazonImageHandler(
+    registry: com.netflix.spectator.api.Registry,
+    clock: Clock,
+    notifiers: List<Notifier>,
+    resourceTrackingRepository: ResourceTrackingRepository,
+    resourceStateRepository: ResourceStateRepository,
+    resourceOwnerResolver: ResourceOwnerResolver<AmazonImage>,
+    exclusionPolicies: List<ResourceExclusionPolicy>,
+    applicationEventPublisher: ApplicationEventPublisher,
+    retrySupport: RetrySupport,
+    dynamicConfigService: DynamicConfigService,
+    launchConfigurationCache: InMemorySingletonCache<AmazonLaunchConfigurationCache>,
+    imagesUsedByinstancesCache: InMemorySingletonCache<AmazonImagesUsedByInstancesCache>,
+    rules: List<Rule<AmazonImage>>,
+    aws: AWS,
+    orcaService: OrcaService,
+    applicationUtils: ApplicationUtils,
+    taskTrackingRepository: TaskTrackingRepository,
+    resourceUseTrackingRepository: ResourceUseTrackingRepository,
+    usedResourceRepository: UsedResourceRepository,
+    swabbieProperties: SwabbieProperties
+  ): AmazonImageHandler{
+    return AmazonImageHandler(
+      registry,
+      clock,
+      notifiers,
+      resourceTrackingRepository,
+      resourceStateRepository,
+      resourceOwnerResolver,
+      exclusionPolicies,
+      applicationEventPublisher,
+      retrySupport,
+      dynamicConfigService,
+      launchConfigurationCache,
+      imagesUsedByinstancesCache,
+      rules,
+      aws,
+      orcaService,
+      applicationUtils,
+      taskTrackingRepository,
+      resourceUseTrackingRepository,
+      usedResourceRepository,
+      swabbieProperties
+    )
   }
 }

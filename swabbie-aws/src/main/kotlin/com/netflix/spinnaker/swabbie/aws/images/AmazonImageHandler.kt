@@ -61,10 +61,6 @@ import java.time.Clock
 import java.time.Duration
 import kotlin.system.measureTimeMillis
 
-@ConditionalOnBean(
-  value = [AmazonImagesUsedByInstancesInMemoryCache::class, AmazonLaunchConfigurationInMemoryCache::class]
-)
-@Component
 class AmazonImageHandler(
   registry: Registry,
   clock: Clock,

@@ -73,10 +73,15 @@ class OrchestrationRequest(
   val job: List<OrcaJob>
 )
 
+// todo emjburns: service account should be configurable
 class OrcaJob(
   type: String,
   context: MutableMap<String, Any?>
-) : HashMap<String, Any?>(context.apply { put("type", type) }
+) : HashMap<String, Any?>(
+  context.apply {
+    put("type", type)
+    put("user", "swabbie@spinnaker.io")
+  }
 )
 
 /**

@@ -26,14 +26,13 @@ import com.netflix.spinnaker.swabbie.CachedViewProvider
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Vanilla
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
-import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesInMemoryCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationInMemoryCache
+import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
 import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
-import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesInMemoryCache
 import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
@@ -75,7 +74,6 @@ open class AwsConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean(LaunchConfigurationCacheProvider::class)
   open fun launchConfigurationInMemoryCache(
     provider: CachedViewProvider<AmazonLaunchConfigurationCache>
   ): AmazonLaunchConfigurationInMemoryCache {
@@ -83,7 +81,6 @@ open class AwsConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean(ImagesUsedByInstancesProvider::class)
   open fun imagesUsedByInstancesInMemoryCache(
     provider: CachedViewProvider<AmazonImagesUsedByInstancesCache>
   ): AmazonImagesUsedByInstancesInMemoryCache {

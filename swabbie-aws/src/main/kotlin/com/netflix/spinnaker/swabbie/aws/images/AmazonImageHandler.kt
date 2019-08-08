@@ -22,13 +22,11 @@ import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
 import com.netflix.spinnaker.swabbie.InMemorySingletonCache
-import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
-import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesInMemoryCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
-import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationInMemoryCache
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exception.CacheSizeException
 import com.netflix.spinnaker.swabbie.exception.StaleCacheException
@@ -54,13 +52,13 @@ import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.Duration
 import kotlin.system.measureTimeMillis
 
+@Component
 class AmazonImageHandler(
   registry: Registry,
   clock: Clock,

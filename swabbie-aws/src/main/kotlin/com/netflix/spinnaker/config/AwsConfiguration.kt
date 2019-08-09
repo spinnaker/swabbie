@@ -31,7 +31,6 @@ import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationInMemoryCache
 import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
 import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
-import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
@@ -51,11 +50,7 @@ open class AwsConfiguration {
     workConfigurations: List<WorkConfiguration>,
     accountProvider: AccountProvider,
     aws: AWS
-  ): CachedViewProvider<AmazonImagesUsedByInstancesCache>? {
-    if (workConfigurations.none { it.resourceType == IMAGE }) {
-      return null
-    }
-
+  ): CachedViewProvider<AmazonImagesUsedByInstancesCache> {
     return ImagesUsedByInstancesProvider(clock, accountProvider, aws)
   }
 
@@ -65,11 +60,7 @@ open class AwsConfiguration {
     workConfigurations: List<WorkConfiguration>,
     accountProvider: AccountProvider,
     aws: AWS
-  ): CachedViewProvider<AmazonLaunchConfigurationCache>? {
-    if (workConfigurations.none { it.resourceType == IMAGE }) {
-      return null
-    }
-
+  ): CachedViewProvider<AmazonLaunchConfigurationCache> {
     return LaunchConfigurationCacheProvider(clock, workConfigurations, accountProvider, aws)
   }
 

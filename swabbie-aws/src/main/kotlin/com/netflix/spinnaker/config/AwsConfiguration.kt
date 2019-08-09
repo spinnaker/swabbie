@@ -19,7 +19,9 @@ package com.netflix.spinnaker.config
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.netflix.awsobjectmapper.AmazonObjectMapperConfigurer
 import com.netflix.spinnaker.kork.aws.bastion.BastionConfig
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.CachedViewProvider
@@ -43,6 +45,11 @@ import java.time.Clock
 @Import(BastionConfig::class)
 open class AwsConfiguration {
   private val defaultRegion = "us-west-2" // TODO: (Jeyrs) Make configurable
+
+  // AWS object mapper ensures edda and vanilla aws responses are the same
+  @Bean
+  open fun amazonObjectMapper(): ObjectMapper =
+    AmazonObjectMapperConfigurer.createConfigured().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 
   @Bean
   open fun imagesUsedByInstancesProvider(

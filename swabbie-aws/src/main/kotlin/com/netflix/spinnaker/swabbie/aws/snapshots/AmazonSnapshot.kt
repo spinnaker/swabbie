@@ -23,14 +23,16 @@ import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.Dates
+import java.time.Instant
+import java.time.ZoneId
 
 @JsonTypeName("amazonSnapshot")
-data class AmazonSnapshot(
+class AmazonSnapshot(
   val volumeId: String,
   val state: String,
   val progress: String,
   val volumeSize: Int,
-  val startTime: Long,
+  startTime: Any,
   val description: String?,
   val snapshotId: String,
   val ownerId: String,
@@ -41,13 +43,32 @@ data class AmazonSnapshot(
   override val resourceType: String = SNAPSHOT,
   override val cloudProvider: String = AWS,
   override val name: String = snapshotId,
-  private val creationDate: String? = Dates.toCreationDate(startTime)
+  creationDate: String? = getCreationDate(startTime)
 ) : AmazonResource(creationDate) {
-  override fun equals(other: Any?): Boolean {
-    return super.equals(other)
-  }
+  val startTime: Long = convertStartTime(startTime)
 
-  override fun hashCode(): Int {
-    return super.hashCode()
+  /**
+   * Amazon returns [startTime] as a String (date), whereas edda returns it as a Long.
+   * This allows either of those formats to be accepted and used successfully.
+   */
+  companion object {
+    private fun convertStartTime(value: Any): Long {
+      return when (value) {
+        is String -> Dates
+          .toLocalDateTime(value)
+          .toInstant(ZoneId.systemDefault().rules.getOffset(Instant.now()))
+          .toEpochMilli()
+        is Long -> value
+        else -> throw IllegalArgumentException("Start time must be String (date) or Long, but given ${value.javaClass}")
+      }
+    }
+
+    private fun getCreationDate(value: Any): String? {
+      return when (value) {
+        is String -> value
+        is Long -> Dates.toCreationDate(value)
+        else -> throw IllegalArgumentException("Start time must be String (date) or Long, but given ${value.javaClass}")
+      }
+    }
   }
 }

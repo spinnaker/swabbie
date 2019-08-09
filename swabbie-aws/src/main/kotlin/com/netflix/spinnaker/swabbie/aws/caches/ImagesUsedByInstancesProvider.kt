@@ -37,7 +37,9 @@ class ImagesUsedByInstancesProvider(
     accountProvider.getAccounts()
       .filter { it.cloudProvider == "aws" && !it.regions.isNullOrEmpty() }
       .forEach { account ->
-        account.regions!!.filterNot { it.deprecated }.forEach { region ->
+        account.regions!!.forEach { region ->
+          // we need to read all the instances in every region, no matter if it's deprecated or not,
+          // because we need to see all the AMIs that are in use.
           log.info("Reading instances in {}/{}/{}", account.accountId, region.name, account.environment)
           val instances: List<AmazonInstance> = getInstances(
             Parameters(

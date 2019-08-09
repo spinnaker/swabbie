@@ -79,7 +79,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.Date
 import java.util.Optional
 
 object AmazonImageHandlerTest {
@@ -208,7 +207,7 @@ object AmazonImageHandlerTest {
       name = "test-app-v001-111920",
       launchConfigurationName = "test-app-v001-111920",
       imageId = "ami-132",
-      createdTime = Date.from(clock.instant().minus(Duration.ofDays(3)))
+      createdTime = clock.instant().minus(Duration.ofDays(3)).toEpochMilli()
     )
 
     whenever(imagesUsedByinstancesCache.get()) doReturn

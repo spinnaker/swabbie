@@ -192,10 +192,10 @@ class OrcaTaskMonitoringAgent(
     }
   }
 
-  @Value("\${swabbie.agents.orca-task-monitor.interval-seconds:10}")
+  @Value("\${swabbie.agents.orca-task-monitor.interval-seconds:60}")
   private var interval: Long = 60
 
-  @Value("\${swabbie.agents.orca-task-monitor.delay-seconds:30}")
+  @Value("\${swabbie.agents.orca-task-monitor.delay-seconds:60}")
   private var delay: Long = 0
 
   @Value("\${swabbie.agents.orca-task-monitor.days-to-keep-tasks:2}")

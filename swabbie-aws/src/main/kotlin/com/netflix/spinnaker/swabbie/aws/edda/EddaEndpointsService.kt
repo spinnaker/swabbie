@@ -18,6 +18,9 @@ package com.netflix.spinnaker.swabbie.aws.edda
 
 import retrofit.http.GET
 
+/**
+ * This is a service for discovering which edda endpoints are available.
+ */
 interface EddaEndpointsService {
   @GET("/api/v1/edda/endpoints.json")
   fun getEddaEndpoints(): EddaEndpointsContainer

@@ -49,4 +49,31 @@ object WorkConfigurationTest {
       assert(setOf(workConfiguration) == map { it.workConfiguration }.toSet())
     }
   }
+
+  @Test
+  fun `should only use enabled actions`() {
+    val workConfiguration = WorkConfiguration(
+      namespace = "workConfiguration1",
+      account = SpinnakerAccount(
+        name = "test",
+        accountId = "id",
+        type = "type",
+        edda = "",
+        regions = emptyList(),
+        eddaEnabled = false,
+        environment = "test"
+      ),
+      location = "us-east-1",
+      cloudProvider = AWS,
+      resourceType = "testResourceType",
+      retention = 14,
+      exclusions = emptySet(),
+      maxAge = 1,
+      enabledActions = listOf(Action.MARK)
+    )
+
+    val workItems = workConfiguration.toWorkItems()
+    assert(workItems.size == 1)
+    assert(workItems[0].action == Action.MARK)
+  }
 }

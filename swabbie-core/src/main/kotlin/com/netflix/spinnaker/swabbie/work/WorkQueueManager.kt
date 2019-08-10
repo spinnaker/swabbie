@@ -75,7 +75,7 @@ class WorkQueueManager(
    * Monitors and refills the [WorkQueue] if empty.
    * The queue is emptied if swabbie is disabled via a persisted property/config or outside the configured schedule
    */
-  @Scheduled(fixedDelayString = "\${swabbie.queue.monitorIntervalMs:900000}")
+  @Scheduled(fixedDelayString = "\${swabbie.queue.monitor-interval-ms:900000}")
   fun monitor() {
     if (isEnabled()) {
       queue.refillOnEmpty()
@@ -95,6 +95,7 @@ class WorkQueueManager(
       return false
     }
 
+    log.info("Swabbie schedule: time to work")
     return true
   }
 

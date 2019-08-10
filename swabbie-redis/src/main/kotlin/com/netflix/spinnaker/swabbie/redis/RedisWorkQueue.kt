@@ -21,6 +21,7 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkItem
 import com.netflix.spinnaker.swabbie.work.WorkQueue
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 /**
@@ -33,10 +34,16 @@ class RedisWorkQueue(
   redisClientSelector: RedisClientSelector,
   private val _seed: List<WorkConfiguration>
 ) : WorkQueue {
-  private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+  private val log = LoggerFactory.getLogger(javaClass)
   private val workItems: List<WorkItem> = _seed.map { it.toWorkItems() }.flatten()
+  private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+
+  init {
+    log.info("Using ${javaClass.simpleName}")
+  }
 
   override fun seed() {
+    log.debug("Seeding work queue with ${workItems.map { "${it.action} in ${it.id}" }}")
     workItems.forEach {
       push(it)
     }

@@ -16,15 +16,14 @@
 
 package com.netflix.spinnaker.swabbie.aws.edda
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.security.AuthenticatedRequest
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.EndpointProvider
-import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
@@ -32,12 +31,12 @@ import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfig
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
-import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
-import com.netflix.spinnaker.swabbie.model.INSTANCE
 import com.netflix.spinnaker.swabbie.model.IMAGE
+import com.netflix.spinnaker.swabbie.model.INSTANCE
+import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
+import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
-import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -46,15 +45,15 @@ import retrofit.RequestInterceptor
 import retrofit.RestAdapter
 import retrofit.RetrofitError
 import retrofit.client.Client
-import retrofit.converter.JacksonConverter
+import retrofit.converter.Converter
 
 class Edda(
   private val retrySupport: RetrySupport,
   private val registry: Registry,
-  private val objectMapper: ObjectMapper,
   private val retrofitClient: Client,
   private val retrofitLogLevel: RestAdapter.LogLevel,
   private val spinnakerRequestInterceptor: RequestInterceptor,
+  private val eddaConverter: Converter,
   accountProvider: AccountProvider,
   endpointProvider: EndpointProvider
 ) : AWS {
@@ -198,13 +197,16 @@ class Edda(
     return result.toMap()
   }
 
+  /**
+   * The [eddaConverter] is used here to convert edda data so that it matches vanilla AWS responses.
+   */
   private fun eddaByRegion(endPoint: String, region: String): EddaService {
     return RestAdapter.Builder()
       .setRequestInterceptor(spinnakerRequestInterceptor)
       .setEndpoint(Endpoints.newFixedEndpoint(endPoint.replace("{{region}}", region)))
       .setClient(retrofitClient)
       .setLogLevel(retrofitLogLevel)
-      .setConverter(JacksonConverter(objectMapper))
+      .setConverter(eddaConverter)
       .build()
       .create(EddaService::class.java)
   }

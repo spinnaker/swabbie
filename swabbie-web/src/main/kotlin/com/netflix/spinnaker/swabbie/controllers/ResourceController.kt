@@ -144,6 +144,13 @@ class ResourceController(
   ): List<ResourceState> =
     resourceStateRepository.getAll().filter { it.markedResource.resourceId == resourceId }
 
+  @RequestMapping(value = ["/state/{namespace}/{resourceId}"], method = [RequestMethod.GET])
+  fun getState(
+    @PathVariable namespace: String,
+    @PathVariable resourceId: String
+  ): ResourceState? =
+    resourceStateRepository.get(resourceId, namespace)
+
   @RequestMapping(value = ["/state/{namespace}/{resourceId}/optOut"], method = [RequestMethod.PUT])
   fun optOut(
     @PathVariable resourceId: String,

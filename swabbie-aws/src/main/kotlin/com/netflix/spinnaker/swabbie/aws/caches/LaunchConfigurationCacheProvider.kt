@@ -43,7 +43,7 @@ class LaunchConfigurationCacheProvider(
     accountProvider.getAccounts()
       .filter(isCorrectCloudProviderAndRegion(configuredRegions))
       .forEach { account ->
-        account.regions!!.forEach { region ->
+        account.regions?.forEach { region ->
           log.info("Reading launch configurations in {}/{}/{}", account.accountId, region.name, account.environment)
           val launchConfigs: Set<AmazonLaunchConfiguration> = getLaunchConfigurations(
             Parameters(
@@ -58,7 +58,9 @@ class LaunchConfigurationCacheProvider(
             refdAmis.getOrPut(it.imageId) { mutableSetOf() }.add(it)
           }
 
-          refdAmisByRegion[region.name] = refdAmis
+          val currentAmis = refdAmisByRegion.getOrDefault(region.name, mutableMapOf())
+          currentAmis.putAll(refdAmis)
+          refdAmisByRegion[region.name] = currentAmis
         }
       }
 
@@ -66,5 +68,6 @@ class LaunchConfigurationCacheProvider(
   }
 
   private fun isCorrectCloudProviderAndRegion(configuredRegions: Set<String>) =
-    { account: Account -> account.cloudProvider == "aws" && !account.regions.isNullOrEmpty() && account.regions!!.any { it.name in configuredRegions } }
+    { account: Account ->
+      account.cloudProvider == "aws" && !account.regions.isNullOrEmpty() && account.regions!!.any { it.name in configuredRegions } }
 }

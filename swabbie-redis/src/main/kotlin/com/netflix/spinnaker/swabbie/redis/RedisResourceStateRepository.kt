@@ -24,13 +24,20 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
+import java.time.Clock
+import java.util.concurrent.TimeUnit
 
 @Component
 class RedisResourceStateRepository(
   redisClientSelector: RedisClientSelector,
-  private val objectMapper: ObjectMapper
+  private val objectMapper: ObjectMapper,
+  private val clock: Clock,
+  @Value("\${swabbie.state.deleted-retention-days:30}") private val deletedRetentionDays: Long,
+  @Value("\${swabbie.state.max-cleaned:500}") private val maxCleaned: Int
 ) : ResourceStateRepository {
 
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
@@ -112,6 +119,15 @@ class RedisResourceStateRepository(
     }
   }
 
+  override fun remove(resourceId: String, namespace: String) {
+    "$namespace:$resourceId".let { id ->
+      redisClientDelegate.withCommandsClient { client ->
+        client.hdel(SINGLE_STATE_KEY, id)
+        client.srem(ALL_STATES_KEY, id)
+      }
+    }
+  }
+
   private fun readState(state: String): ResourceState? {
     var resourceState: ResourceState? = null
     try {
@@ -121,6 +137,41 @@ class RedisResourceStateRepository(
     }
     return resourceState
   }
+
+  @Scheduled(fixedDelay = 300000L) // initialDelay = 300000L
+  private fun clean() {
+    cleanDeletedResources()
+  }
+
+  /**
+   * Removes deleted resources from the repository after [deletedRetentionDays] days
+   */
+  internal fun cleanDeletedResources() {
+    log.info("Cleaning deleted resources from the ${javaClass.simpleName}")
+    var numCleaned = 0
+    getAll().forEach { resource ->
+      if (numCleaned >= maxCleaned) {
+        log.info("Short circuiting cleaning of the ${javaClass.simpleName}, cleaned $numCleaned resources")
+        return
+      }
+
+      if (resource.hasBeenDeleted() && resource.shouldClean()) {
+        remove(resource.markedResource.resourceId, resource.markedResource.namespace)
+        numCleaned ++
+      }
+    }
+    log.info("Cleaned $numCleaned deleted resources from the ${javaClass.simpleName}")
+  }
+
+  private fun ResourceState.hasBeenDeleted(): Boolean = statuses.any { it.name.equals("delete", true) }
+
+  /**
+   * Returns true if it was marked more than [deletedRetentionDays] ago
+   */
+  private fun ResourceState.shouldClean(): Boolean =
+    statuses.any { it.name.equals("mark", true) } &&
+    statuses.first { it.name.equals("mark", true) }
+      .timestamp.plus(TimeUnit.DAYS.toMillis(deletedRetentionDays)) < clock.instant().toEpochMilli()
 }
 
 const val SINGLE_STATE_KEY = "{swabbie:resourceState}"

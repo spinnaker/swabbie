@@ -33,7 +33,7 @@ class ImagesUsedByInstancesProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun load(): AmazonImagesUsedByInstancesCache {
     log.info("Loading cache for ${javaClass.simpleName}")
-    val refdAmisByRegion = mutableMapOf<String, Set<String>>()
+    val refdAmisByRegion = mutableMapOf<String, MutableSet<String>>()
     accountProvider.getAccounts()
       .filter { it.cloudProvider == "aws" && !it.regions.isNullOrEmpty() }
       .forEach { account ->
@@ -53,7 +53,9 @@ class ImagesUsedByInstancesProvider(
             .map { it.imageId }
             .toSet()
 
-          refdAmisByRegion[region.name] = refdAmis.toSet()
+          val currentAmis = refdAmisByRegion.getOrDefault(region.name, mutableSetOf())
+          currentAmis.addAll(refdAmis)
+          refdAmisByRegion[region.name] = currentAmis
         }
       }
 

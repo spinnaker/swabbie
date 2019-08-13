@@ -63,7 +63,3 @@ open class InMemoryCacheStatus(
     return allLoaded.get()
   }
 }
-
-open class NoopCacheStatus : CacheStatus {
-  override fun cachesLoaded() = true
-}

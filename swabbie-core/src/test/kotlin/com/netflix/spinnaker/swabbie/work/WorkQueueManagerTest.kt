@@ -16,18 +16,53 @@
 
 package com.netflix.spinnaker.swabbie.work
 
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.DOWN
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.UP
+import com.netflix.discovery.StatusChangeEvent
+import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.Schedule
-import org.junit.jupiter.api.Assertions
+import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
+import com.netflix.spinnaker.swabbie.test.InMemoryWorkQueue
+import com.netflix.spinnaker.swabbie.test.NoopCacheStatus
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
+import com.nhaarman.mockito_kotlin.mock
 import org.junit.jupiter.api.Test
+import strikt.api.expect
+import strikt.api.expectThat
+import strikt.api.expectThrows
+import strikt.assertions.isFalse
+import strikt.assertions.isTrue
 import java.time.Clock
+import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Month
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.LocalDate
-import java.time.DayOfWeek
 
 object WorkQueueManagerTest {
+
+  val zoneId = ZoneId.of("UTC")
+  val dateTime = LocalDateTime.of(2018, Month.SEPTEMBER, 18, 17, 0, 0) // tues at 10am PST, in UTC
+  val instant = dateTime.toInstant(ZoneOffset.UTC)
+  val defaultClock = Clock.fixed(instant, zoneId)
+
+  val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
+  val workQueue = InMemoryWorkQueue(listOf(workConfiguration))
+
+  val workQueueManager = WorkQueueManager(
+    dynamicConfigService = mock(),
+    swabbieProperties = SwabbieProperties(),
+    queue = workQueue,
+    clock = defaultClock,
+    registry = NoopRegistry(),
+    cacheStatus = NoopCacheStatus()
+  )
+
+  // StatusChangeEvent(previous, current)
+  val upEvent = RemoteStatusChangedEvent(StatusChangeEvent(DOWN, UP))
+  val downEvent = RemoteStatusChangedEvent(StatusChangeEvent(UP, DOWN))
 
   @Test
   fun `should handle days according to schedule`() {
@@ -36,23 +71,21 @@ object WorkQueueManagerTest {
     val instant = dateTime.toInstant(ZoneOffset.of("-7"))
     val clock = Clock.fixed(instant, zoneId)
 
-    assert(LocalDate.now(clock).dayOfWeek == DayOfWeek.MONDAY)
+    expectThat(LocalDate.now(clock).dayOfWeek == DayOfWeek.MONDAY).isTrue()
 
     val schedule = Schedule()
     schedule.allowedDaysOfWeek = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
-    assert(WorkQueueManager.timeToWork(schedule, clock))
+    expectThat(WorkQueueManager.timeToWork(schedule, clock)).isTrue()
 
     schedule.allowedDaysOfWeek = listOf(DayOfWeek.TUESDAY)
-    assert(!WorkQueueManager.timeToWork(schedule, clock))
+    expectThat(WorkQueueManager.timeToWork(schedule, clock)).isFalse()
 
     // startTime > endTime
     schedule.startTime = "20:00"
     schedule.endTime = "07:00"
     schedule.allowedDaysOfWeek = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
 
-    Assertions.assertThrows(IllegalStateException::class.java, {
-      WorkQueueManager.timeToWork(schedule, clock)
-    }, "Scheduled startTime: ${schedule.startTime} cannot be after endTime: ${schedule.endTime}")
+    expectThrows<IllegalStateException> { WorkQueueManager.timeToWork(schedule, clock) }
   }
 
   @Test
@@ -62,7 +95,7 @@ object WorkQueueManagerTest {
     val instant = dateTime.toInstant(ZoneOffset.of("-7"))
     val clock = Clock.fixed(instant, zoneId)
 
-    assert(!WorkQueueManager.timeToWork(Schedule(), clock))
+    expectThat(WorkQueueManager.timeToWork(Schedule(), clock)).isFalse()
   }
 
   @Test
@@ -72,7 +105,7 @@ object WorkQueueManagerTest {
     val instant = dateTime.toInstant(ZoneOffset.UTC)
     val clock = Clock.fixed(instant, zoneId)
 
-    assert(WorkQueueManager.timeToWork(Schedule(), clock))
+    expectThat(WorkQueueManager.timeToWork(Schedule(), clock)).isTrue()
   }
 
   @Test
@@ -82,6 +115,37 @@ object WorkQueueManagerTest {
     val instant = dateTime.toInstant(ZoneOffset.UTC)
     val clock = Clock.fixed(instant, zoneId)
 
-    assert(!WorkQueueManager.timeToWork(Schedule(), clock))
+    expectThat(WorkQueueManager.timeToWork(Schedule(), clock)).isFalse()
+  }
+
+  @Test
+  fun `when down in discovery swabbie is disabled`() {
+    workQueueManager.onApplicationEvent(upEvent)
+    expect {
+      that(workQueueManager.isEnabled()).isTrue()
+    }
+
+    workQueueManager.onApplicationEvent(downEvent)
+    expect {
+      that(workQueueManager.isEnabled()).isFalse()
+    }
+  }
+
+  @Test
+  fun `when down in discovery queues are not filled`() {
+    workQueueManager.onApplicationEvent(downEvent)
+    workQueueManager.monitor()
+    expect {
+      that(workQueue.isEmpty()).isTrue()
+    }
+  }
+
+  @Test
+  fun `when up in discovery queues are filled`() {
+    workQueueManager.onApplicationEvent(upEvent)
+    workQueueManager.monitor()
+    expect {
+      that(workQueue.isEmpty()).isFalse()
+    }
   }
 }

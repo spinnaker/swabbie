@@ -18,13 +18,13 @@ package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.swabbie.LockingService
-import com.netflix.spinnaker.swabbie.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.test.InMemoryWorkQueue
+import com.netflix.spinnaker.swabbie.test.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.reset

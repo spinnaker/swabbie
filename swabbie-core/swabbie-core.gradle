@@ -15,19 +15,18 @@
  */
 
 dependencies {
-  compile "org.slf4j:jcl-over-slf4j"
-  compile "com.netflix.spinnaker.kork:kork-core"
-  compile "com.netflix.spinnaker.kork:kork-web"
-  compile "net.logstash.logback:logstash-logback-encoder"
-  compile "com.netflix.spinnaker.moniker:moniker"
-  compile "com.squareup.retrofit:retrofit"
+  implementation "org.slf4j:jcl-over-slf4j"
+  implementation "com.netflix.spinnaker.kork:kork-core"
+  implementation "com.netflix.spinnaker.kork:kork-web"
+  implementation "net.logstash.logback:logstash-logback-encoder"
+  implementation "com.netflix.spinnaker.moniker:moniker"
+  implementation "com.squareup.retrofit:retrofit"
+  implementation "com.fasterxml.jackson.core:jackson-annotations"
+  implementation "com.fasterxml.jackson.core:jackson-core"
+  implementation "com.fasterxml.jackson.core:jackson-databind"
+  implementation "com.squareup.retrofit:converter-jackson"
+  implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+  implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
 
-  compile "com.fasterxml.jackson.core:jackson-annotations"
-  compile "com.fasterxml.jackson.core:jackson-core"
-  compile "com.fasterxml.jackson.core:jackson-databind"
-  compile "com.squareup.retrofit:converter-jackson"
-  compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
-  compile "com.fasterxml.jackson.module:jackson-module-kotlin"
-
-  testCompile project(":swabbie-test")
+  testImplementation project(":swabbie-test")
 }

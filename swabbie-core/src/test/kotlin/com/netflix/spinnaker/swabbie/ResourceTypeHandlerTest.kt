@@ -28,16 +28,13 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
 import com.netflix.spinnaker.swabbie.model.Grouping
 import com.netflix.spinnaker.swabbie.model.GroupingType
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.EMAIL
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.NONE
@@ -45,9 +42,8 @@ import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
-import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
-import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.check
 import com.nhaarman.mockito_kotlin.doReturn
@@ -139,7 +135,7 @@ object ResourceTypeHandlerTest {
     defaultHandler.setCandidates(mutableListOf(defaultResource))
     defaultHandler.setRules(defaultRules)
 
-    defaultHandler.mark(workConfiguration = workConfiguration())
+    defaultHandler.mark(workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration())
 
     inOrder(resourceRepository, applicationEventPublisher) {
       verify(resourceRepository).upsert(any(), any())
@@ -165,7 +161,7 @@ object ResourceTypeHandlerTest {
 
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.mark(
-      workConfiguration = workConfiguration()
+      workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
     )
 
     verify(resourceRepository, times(2)).upsert(any(), any())
@@ -174,7 +170,7 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should delete a resource`() {
-    val configuration = workConfiguration()
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
     val candidates = mutableListOf(
       TestResource("1"),
       TestResource("2")
@@ -223,7 +219,7 @@ object ResourceTypeHandlerTest {
   @Test
   fun `should ignore resource using exclusion strategies`() {
     // configuration with a name exclusion strategy
-    val configuration = workConfiguration(exclusions = listOf(
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(exclusions = listOf(
       Exclusion()
         .withType(ExclusionType.Literal.toString())
         .withAttributes(
@@ -249,7 +245,7 @@ object ResourceTypeHandlerTest {
     val resource1 = TestResource("1", name = "allowed resource")
     val resource2 = TestResource("2", name = "not allowed resource")
     // configuration with an allow list exclusion strategy
-    val configuration = workConfiguration(exclusions = listOf(
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(exclusions = listOf(
       Exclusion()
         .withType(ExclusionType.Allowlist.toString())
         .withAttributes(
@@ -283,7 +279,7 @@ object ResourceTypeHandlerTest {
   fun `should ignore opted out resources during delete`() {
     val resource = TestResource(resourceId = "testResource", name = "testResourceName")
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val configuration = workConfiguration()
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("invalid resource 2", "rule 2")),
@@ -325,7 +321,7 @@ object ResourceTypeHandlerTest {
   fun `should ignore opted out resources during mark`() {
     val resource = TestResource(resourceId = "testResource", name = "testResourceName")
     val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-    val workConfiguration = workConfiguration()
+    val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
     val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("invalid resource 2", "rule 2")),
@@ -386,7 +382,7 @@ object ResourceTypeHandlerTest {
       grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
     )
 
-    val configuration = workConfiguration(
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(
       itemsProcessedBatchSize = 2,
       maxItemsProcessedPerCycle = 3
     )
@@ -457,7 +453,7 @@ object ResourceTypeHandlerTest {
       grouping = Grouping("my-package", GroupingType.PACKAGE_NAME)
     )
 
-    val configuration = workConfiguration(
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(
       itemsProcessedBatchSize = 2,
       maxItemsProcessedPerCycle = 3
     )
@@ -492,7 +488,7 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should forget resource if no longer violate a rule`() {
-    val configuration = workConfiguration()
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
     val markedResource = MarkedResource(
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
@@ -524,7 +520,7 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should forget resource if it is excluded after being marked`() {
-    val configuration = workConfiguration()
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
     val markedResource = MarkedResource(
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource", javaClass.simpleName)),
@@ -556,7 +552,7 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `delete time should equal now plus retention days`() {
-    val configuration = workConfiguration(retention = 2)
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(retention = 2)
     val plus2Days = Instant.parse("2018-11-28T09:30:00Z").toEpochMilli()
     defaultHandler.deletionTimestamp(configuration) shouldMatch equalTo(plus2Days)
   }
@@ -593,7 +589,7 @@ object ResourceTypeHandlerTest {
       createTs = clock.millis().minus(TimeUnit.DAYS.toMillis(10))
     )
 
-    val configuration = workConfiguration(
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(
       itemsProcessedBatchSize = 2,
       maxItemsProcessedPerCycle = 3
     )
@@ -657,7 +653,7 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should notify if required`() {
-    val configuration = workConfiguration(
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(
       notificationConfiguration = NotificationConfiguration(enabled = true, required = true)
     )
 
@@ -698,7 +694,7 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should not send notification if not required`() {
-    val configuration = workConfiguration(
+    val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(
       notificationConfiguration = NotificationConfiguration(enabled = true, required = false)
     )
 
@@ -736,34 +732,4 @@ object ResourceTypeHandlerTest {
     verify(notifier, times(0)).notify(any(), any(), any())
     verify(resourceRepository, times(1)).upsert(updatedMarkedResource)
   }
-
-  internal fun workConfiguration(
-    exclusions: List<Exclusion> = emptyList(),
-    dryRun: Boolean = false,
-    itemsProcessedBatchSize: Int = 1,
-    maxItemsProcessedPerCycle: Int = 10,
-    retention: Int = 14,
-    notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration()
-  ): WorkConfiguration = WorkConfiguration(
-    namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
-    account = SpinnakerAccount(
-      name = "test",
-      accountId = "id",
-      type = "type",
-      edda = "",
-      regions = emptyList(),
-      eddaEnabled = false,
-      environment = "test"
-    ),
-    location = "us-east-1",
-    cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
-    resourceType = TEST_RESOURCE_TYPE,
-    retention = retention,
-    exclusions = exclusions.toSet(),
-    dryRun = dryRun,
-    maxAge = 1,
-    itemsProcessedBatchSize = itemsProcessedBatchSize,
-    maxItemsProcessedPerCycle = maxItemsProcessedPerCycle,
-    notificationConfiguration = notificationConfiguration
-  )
 }

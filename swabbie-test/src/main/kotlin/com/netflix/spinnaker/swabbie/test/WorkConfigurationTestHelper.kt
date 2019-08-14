@@ -31,9 +31,10 @@ object WorkConfigurationTestHelper {
     itemsProcessedBatchSize: Int = 1,
     maxItemsProcessedPerCycle: Int = 10,
     retention: Int = 14,
-    notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration()
+    notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration(),
+    namespace: String = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE"
   ): WorkConfiguration = WorkConfiguration(
-    namespace = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE",
+    namespace = namespace,
     account = testAccount,
     location = "us-east-1",
     cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,

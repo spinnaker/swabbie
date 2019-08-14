@@ -20,22 +20,23 @@ import com.netflix.appinfo.InstanceInfo.InstanceStatus.DOWN
 import com.netflix.appinfo.InstanceInfo.InstanceStatus.UP
 import com.netflix.discovery.StatusChangeEvent
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.Schedule
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
+import com.netflix.spinnaker.kork.test.time.MutableClock
 import com.netflix.spinnaker.swabbie.test.InMemoryWorkQueue
 import com.netflix.spinnaker.swabbie.test.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
+import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.reset
+import com.nhaarman.mockito_kotlin.whenever
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import strikt.api.expect
 import strikt.api.expectThat
-import strikt.api.expectThrows
 import strikt.assertions.isFalse
 import strikt.assertions.isTrue
 import java.time.Clock
-import java.time.DayOfWeek
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Month
 import java.time.ZoneId
@@ -43,19 +44,15 @@ import java.time.ZoneOffset
 
 object WorkQueueManagerTest {
 
-  val zoneId = ZoneId.of("UTC")
-  val dateTime = LocalDateTime.of(2018, Month.SEPTEMBER, 18, 17, 0, 0) // tues at 10am PST, in UTC
-  val instant = dateTime.toInstant(ZoneOffset.UTC)
-  val defaultClock = Clock.fixed(instant, zoneId)
-
+  val dynamicConfigService: DynamicConfigService = mock()
   val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
   val workQueue = InMemoryWorkQueue(listOf(workConfiguration))
 
   val workQueueManager = WorkQueueManager(
-    dynamicConfigService = mock(),
+    dynamicConfigService = dynamicConfigService,
     swabbieProperties = SwabbieProperties(),
     queue = workQueue,
-    clock = defaultClock,
+    clock = timeToWorkClock(),
     registry = NoopRegistry(),
     cacheStatus = NoopCacheStatus()
   )
@@ -64,88 +61,50 @@ object WorkQueueManagerTest {
   val upEvent = RemoteStatusChangedEvent(StatusChangeEvent(DOWN, UP))
   val downEvent = RemoteStatusChangedEvent(StatusChangeEvent(UP, DOWN))
 
-  @Test
-  fun `should handle days according to schedule`() {
-    val zoneId = ZoneId.of("America/Los_Angeles")
-    val dateTime = LocalDateTime.of(2018, Month.SEPTEMBER, 17, 10, 0, 0) // a monday
-    val instant = dateTime.toInstant(ZoneOffset.of("-7"))
-    val clock = Clock.fixed(instant, zoneId)
-
-    expectThat(LocalDate.now(clock).dayOfWeek == DayOfWeek.MONDAY).isTrue()
-
-    val schedule = Schedule()
-    schedule.allowedDaysOfWeek = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
-    expectThat(WorkQueueManager.timeToWork(schedule, clock)).isTrue()
-
-    schedule.allowedDaysOfWeek = listOf(DayOfWeek.TUESDAY)
-    expectThat(WorkQueueManager.timeToWork(schedule, clock)).isFalse()
-
-    // startTime > endTime
-    schedule.startTime = "20:00"
-    schedule.endTime = "07:00"
-    schedule.allowedDaysOfWeek = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
-
-    expectThrows<IllegalStateException> { WorkQueueManager.timeToWork(schedule, clock) }
+  @BeforeEach
+  fun reset() {
+    workQueue.clear()
+    reset(dynamicConfigService)
   }
 
   @Test
-  fun `monday 8 am not work time for normal schedule`() {
-    val zoneId = ZoneId.of("America/Los_Angeles")
-    val dateTime = LocalDateTime.of(2018, Month.SEPTEMBER, 17, 16, 0, 0) // a monday
-    val instant = dateTime.toInstant(ZoneOffset.of("-7"))
-    val clock = Clock.fixed(instant, zoneId)
-
-    expectThat(WorkQueueManager.timeToWork(Schedule(), clock)).isFalse()
+  fun `when down queue should not be filled`() {
+    workQueueManager.onApplicationEvent(downEvent)
+    workQueueManager.monitor()
+    expectThat(workQueue.isEmpty()).isTrue()
   }
 
   @Test
-  fun `handle clock in UTC, work tues at 10am`() {
+  fun `when down queue should not be emptied`() {
+    workQueueManager.onApplicationEvent(downEvent)
+    workQueue.seed()
+    workQueueManager.monitor()
+    expectThat(workQueue.isEmpty()).isFalse()
+  }
+
+  @Test
+  fun `when up and enabled queue should be filled`() {
+    whenever(dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) doReturn false
+
+    workQueueManager.onApplicationEvent(upEvent)
+    workQueueManager.monitor()
+
+    expectThat(workQueue.isEmpty()).isFalse()
+  }
+
+  @Test
+  fun `when up and disabled queue should be emptied`() {
+    whenever(dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) doReturn true
+
+    workQueueManager.onApplicationEvent(upEvent)
+
+    expectThat(workQueue.isEmpty()).isTrue()
+  }
+
+  private fun timeToWorkClock(): Clock {
     val zoneId = ZoneId.of("UTC")
     val dateTime = LocalDateTime.of(2018, Month.SEPTEMBER, 18, 17, 0, 0) // tues at 10am PST, in UTC
     val instant = dateTime.toInstant(ZoneOffset.UTC)
-    val clock = Clock.fixed(instant, zoneId)
-
-    expectThat(WorkQueueManager.timeToWork(Schedule(), clock)).isTrue()
-  }
-
-  @Test
-  fun `handle clock in UTC, don't work tues at 8am`() {
-    val zoneId = ZoneId.of("UTC")
-    val dateTime = LocalDateTime.of(2018, Month.SEPTEMBER, 18, 15, 0, 0) // tues at 8am PST, in UTC
-    val instant = dateTime.toInstant(ZoneOffset.UTC)
-    val clock = Clock.fixed(instant, zoneId)
-
-    expectThat(WorkQueueManager.timeToWork(Schedule(), clock)).isFalse()
-  }
-
-  @Test
-  fun `when down in discovery swabbie is disabled`() {
-    workQueueManager.onApplicationEvent(upEvent)
-    expect {
-      that(workQueueManager.isEnabled()).isTrue()
-    }
-
-    workQueueManager.onApplicationEvent(downEvent)
-    expect {
-      that(workQueueManager.isEnabled()).isFalse()
-    }
-  }
-
-  @Test
-  fun `when down in discovery queues are not filled`() {
-    workQueueManager.onApplicationEvent(downEvent)
-    workQueueManager.monitor()
-    expect {
-      that(workQueue.isEmpty()).isTrue()
-    }
-  }
-
-  @Test
-  fun `when up in discovery queues are filled`() {
-    workQueueManager.onApplicationEvent(upEvent)
-    workQueueManager.monitor()
-    expect {
-      that(workQueue.isEmpty()).isFalse()
-    }
+    return MutableClock(instant, zoneId)
   }
 }

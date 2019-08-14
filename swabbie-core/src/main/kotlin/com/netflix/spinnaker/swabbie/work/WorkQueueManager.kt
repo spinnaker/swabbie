@@ -70,7 +70,6 @@ class WorkQueueManager(
   override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
       up.set(false)
-      queue.clear()
     }
 
   /**
@@ -79,10 +78,14 @@ class WorkQueueManager(
    */
   @Scheduled(fixedDelayString = "\${swabbie.queue.monitor-interval-ms:900000}")
   fun monitor() {
-    if (isEnabled()) {
-      queue.refillOnEmpty()
-    } else {
-      queue.clear()
+    if (!up.get()) {
+      // do nothing, we're down in discovery and we want active instances to control the queue
+      return
+    }
+
+    when (isEnabled()) {
+      true -> queue.refillOnEmpty()
+      false -> queue.clear()
     }
   }
 
@@ -91,11 +94,6 @@ class WorkQueueManager(
    *  schedule determines it is off hours.
    */
   internal fun isEnabled(): Boolean {
-    if (!up.get()) {
-      // swabbie is down in discovery and shouldn't be working
-      return false
-    }
-
     if (dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) {
       log.info("Swabbie schedule: disabled via property $SWABBIE_FLAG_PROPERY")
       return false

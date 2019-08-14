@@ -19,11 +19,11 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.nhaarman.mockito_kotlin.argWhere
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.reset
@@ -38,7 +38,7 @@ object ResourceTrackingManagerTest {
   private val registry = NoopRegistry()
 
   private var resource = TestResource("testResource")
-  private var configuration = workConfiguration()
+  private var configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
 
   private var subject = ResourceTrackingManager(
     resourceTrackingRepository = resourceTrackingRepository,

@@ -1,4 +1,5 @@
 /*
+ *
  * Copyright 2018 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
@@ -12,11 +13,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
-dependencies {
-  implementation project(":swabbie-core")
-  implementation project(":swabbie-retrofit")
-  implementation "com.netflix.spinnaker.moniker:moniker"
-  implementation "net.logstash.logback:logstash-logback-encoder"
+package com.netflix.spinnaker.swabbie.test
+
+import com.netflix.spinnaker.swabbie.CacheStatus
+
+class NoopCacheStatus : CacheStatus {
+  override fun cachesLoaded() = true
 }

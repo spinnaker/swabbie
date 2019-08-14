@@ -16,65 +16,38 @@
 
 package com.netflix.spinnaker.swabbie.work
 
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.DOWN
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.UP
+import com.netflix.discovery.StatusChangeEvent
 import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.LockingService
-import com.netflix.spinnaker.swabbie.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.test.InMemoryWorkQueue
+import com.netflix.spinnaker.swabbie.test.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.test.TestResource
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.reset
-import com.nhaarman.mockito_kotlin.whenever
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.never
+import com.nhaarman.mockito_kotlin.reset
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.isFalse
+import strikt.assertions.isTrue
 import java.time.Clock
 
 object WorkProcessorTest {
-  private val workConfiguration1 = WorkConfiguration(
-    namespace = "workConfiguration1",
-    account = SpinnakerAccount(
-      name = "test",
-      accountId = "id",
-      type = "type",
-      edda = "",
-      regions = emptyList(),
-      eddaEnabled = false,
-      environment = "test"
-    ),
-    location = "us-east-1",
-    cloudProvider = AWS,
-    resourceType = "testResourceType",
-    retention = 14,
-    exclusions = emptySet(),
-    maxAge = 1
-  )
+  private val workConfiguration1 = WorkConfigurationTestHelper
+    .generateWorkConfiguration(namespace = "workConfiguration1")
 
-  private val workConfiguration2 = WorkConfiguration(
-    namespace = "workConfiguration2",
-    account = SpinnakerAccount(
-      name = "test",
-      accountId = "id",
-      type = "type",
-      edda = "",
-      regions = emptyList(),
-      eddaEnabled = false,
-      environment = "test"
-    ),
-    location = "us-east-1",
-    cloudProvider = AWS,
-    resourceType = "testResourceType",
-    retention = 14,
-    exclusions = emptySet(),
-    maxAge = 1
-  )
+  private val workConfiguration2 = WorkConfigurationTestHelper
+    .generateWorkConfiguration(namespace = "workConfiguration2")
 
   private val workQueue = InMemoryWorkQueue(_seed = listOf(workConfiguration1, workConfiguration2))
   private val handler1 = mock<ResourceTypeHandler<TestResource>>()
@@ -89,10 +62,15 @@ object WorkProcessorTest {
     cacheStatus = NoopCacheStatus()
   )
 
+  // StatusChangeEvent(previous, current)
+  private val upEvent = RemoteStatusChangedEvent(StatusChangeEvent(DOWN, UP))
+  private val downEvent = RemoteStatusChangedEvent(StatusChangeEvent(UP, DOWN))
+
   @BeforeEach
   fun setup() {
     workQueue.clear()
     reset(handler1, handler2)
+    processor.onDiscoveryUpCallback(upEvent)
   }
 
   @Test
@@ -129,7 +107,7 @@ object WorkProcessorTest {
     verify(handler2).notify(workConfiguration2)
     verify(handler2).delete(workConfiguration2)
 
-    assert(workQueue.isEmpty())
+    expectThat(workQueue.isEmpty()).isTrue()
   }
 
   @Test
@@ -159,6 +137,15 @@ object WorkProcessorTest {
     verify(handler2, never()).notify(workConfiguration2)
     verify(handler2, never()).delete(workConfiguration2)
 
-    assert(workQueue.isEmpty())
+    expectThat(workQueue.isEmpty()).isTrue()
+  }
+
+  @Test
+  fun `should not process work when disabled`() {
+    processor.onDiscoveryDownCallback(downEvent)
+    workQueue.seed()
+    processor.process()
+
+    expectThat(workQueue.isEmpty()).isFalse()
   }
 }

@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.swabbie.ResourceTypeHandlerTest.workConfiguration
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
@@ -28,6 +27,7 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.argWhere
@@ -52,7 +52,7 @@ object ResourceStateManagerTest {
 
   private var resource = TestResource("testResource")
   private var imageResource = TestResource(resourceId = "testImageResource", resourceType = "image")
-  private var configuration = workConfiguration()
+  private var configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
   private val applicationUtils = ApplicationUtils(emptyList())
 
   private val markedResourceWithViolations = MarkedResource(

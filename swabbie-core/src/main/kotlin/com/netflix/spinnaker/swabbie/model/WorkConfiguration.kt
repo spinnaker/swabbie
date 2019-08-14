@@ -43,7 +43,7 @@ data class WorkConfiguration(
 ) {
   private val log = LoggerFactory.getLogger(javaClass)
 
-  fun toLog(): String = "$namespace/$account/$location/$cloudProvider/$resourceType"
+  fun toLog(): String = "$namespace/${account.accountId}/$location/$cloudProvider/$resourceType"
   fun toWorkItems(): List<WorkItem> {
     log.info("Actions $enabledActions enabled for ${toLog()}")
     return enabledActions.map {

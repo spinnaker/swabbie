@@ -26,6 +26,9 @@ dependencies {
   implementation "com.amazonaws:aws-java-sdk-sts"
   implementation "com.amazonaws:aws-java-sdk-elasticloadbalancing"
   implementation "com.netflix.frigga:frigga"
+  implementation "com.netflix.spinnaker.moniker:moniker"
+  implementation "net.logstash.logback:logstash-logback-encoder"
+  implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
 
   testImplementation project(":swabbie-test")
 }

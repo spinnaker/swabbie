@@ -1,12 +1,71 @@
 # Swabbie
 
-_**IMPORTANT:** This service is currently under development, and is actively being used for deleting images and snapshots of ebs volumes._
+_**IMPORTANT:** This service is currently under development, and is actively being used at Netflix for deleting images and snapshots of ebs volumes._
+
+_**NOTE:** If you're interested in contributing support for other providers or resource types, open an issue or join the Spinnaker Team slack and post in #swabbie._
 
 Swabbie automates the cleanup of unused resources such as EBS Volumes and Images.
 As a Janitor Monkey replacement, it can also be extended to clean up a variety of resource types.
-Swabbie applies a set of rules to mark cleanup candidates. Once marked, a resource is scheduled for deletion, and an owner is notified.
+Swabbie applies a set of rules to mark cleanup candidates. 
+Once marked, a resource is scheduled for deletion, and an owner is notified.
+Before being deleted the resource is checked again to make sure it still qualifies for deletion.
+If so, it is deleted.
+
+## Deep Dive
+
+For a more detailed understanding of how Swabbie works, visit [the internals doc](INTERNALS.md).
 
 ## Configuration
+
+There are lots of configuration options. 
+Configuration can be applied at the top level, at the provider level, or a the resource type level. 
+
+#### Top Level Config
+
+Top level config is located under the `swabbie` key.
+Examples of top level properties are:
+
+* `dryRun`
+* `work.intervalMs`
+* `queue.monitorIntervalMs`
+* `schedule`
+
+These map to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
+
+#### Provider Level Config  
+
+Provider level config options control specifics about the overall provider config.
+Some examples are:
+
+* `locations`
+* `maxItemsProcessedPerCycle`
+* `itemsProcessedBatchSize`
+* `exclusions`
+
+You can configure exclusions for the whole provider in this sections. 
+These exclusions add to exclusions defined for each resource type.
+
+These map to [CloudProviderConfiguration](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
+
+#### Resource Type Level Config  
+
+Resource type level config options are for behavior of the specific resource type.
+Some examples are:
+
+* `dryRun`
+* `maxAge`
+* `exclusions`
+* `notification`
+
+Any exclusions defined here apply for only the specific resource type and add to any exclusions defined at the provider level.
+
+These map to [ResourceTypeConfiguration](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
+
+### Example
+
+Here is an example of a configuration for Swabbie. 
+For current values and structure it is best to look at [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
+
 ```
 swabbie:
   providers:
@@ -70,77 +129,3 @@ swabbie:
 
 ```
 
-
-## Concepts
-#### Work Queue
-Swabbie uses a queue to keep track of work to be processed by resource handlers.
-Work items on the queue are derived from the application configuration and are initialized at start time.
-
-
-#### Resource Type Handler
-Handler's lifecycle: `Mark -> Notify -> Delete`.
-
-Responsibilities include:
-  - Retrieving upstream resources.
-  - Marking resources violating rules.
-  - Deleting a resource.
-
-#### Work, Work, Work...
-A `WorkItem` is single unit of work that is scoped to a configuration that defines its granularity.
-A `WorkItem` also defines the action to invoke by a handler.
-
-```
-data class WorkConfiguration(
-  val namespace: String, // ${cloudProvider:account.name:location:resourceType}
-  val account: Account,
-  val location: String, // A region in aws, depends on what cloudProvider
-  val cloudProvider: String,
-  val resourceType: String,
-  val retention: Int, // How many days swabbie will wait until deletion
-  val exclusions: List<Exclusion>,
-  val dryRun: Boolean = true,
-  val entityTaggingEnabled: Boolean = false, //Controls
-  val notificationConfiguration: NotificationConfiguration? = EmptyNotificationConfiguration(),
-  val maxAge: Int = 14 // resources newer than the maxAge in days will be excluded
-)
-```
-Work configuration is derived from the YAML configuration.
-
-#### Marking resources for deletions & Redis
-A Queue processor routinely checks the queue for work items to process. A redis lock manager is used for coordination to ensure that only one work item is processed at a time by a worker.
-
-
-```
-locking:
-  enabled: true
-  maximumLockDurationMillis: 360000
-  heartbeatRateMillis: 5000
-  leaseDurationMillis: 30000
-```
-
-Scheduling the cleanup of resources is done by keeping an index of visited resources in a `ZSET`, using the projected deletion time as the `score`.
-Getting elements from the `ZSET` from `-inf` to `now` will return all resources ready to be deleted.
-Getting elements from the `ZSET` from `0.0` to `+inf` will return all currently marked resources.
-
-
-#### Notifications
-When resources are marked for deletion, a notification is sent to the owner.
-Resource owners are resolved using resolution strategies. Default strategy is getting the email field on the resource's application.
-The deletion of a resource will be adjusted when the notification is sent, respecting the retention days for the resource type.
-
-#### Dry Run
-This will ensure swabbie runs in dryRun, meaning no writes, nor any destructive action of the data will occur
-```
-swabbie:
-  dryRun: true
-```
-It's also possible to turn on dryRun at a resource type level
-
-#### Exclusion Policies
-Resources can be excluded/opted out from consideration using exclusion policies.
-
-- `ResourceExclusionPolicy`: Excludes resources at runtime
-
-
-#### Allowlisting
-Allowlisting is part of the exclusion mechanism. When defined, only resources allowlisted will be considered, skipping everything else not allowed.

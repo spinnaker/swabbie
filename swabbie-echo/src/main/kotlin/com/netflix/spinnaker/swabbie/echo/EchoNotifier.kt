@@ -16,23 +16,78 @@
 
 package com.netflix.spinnaker.swabbie.echo
 
+import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationSeverity
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.lang.UnsupportedOperationException
 
 @Component
 class EchoNotifier(
-  private val echoService: EchoService
+  private val echoService: EchoService,
+  private val retrySupport: RetrySupport
 ) : Notifier {
-  override fun notify(recipient: String, additionalContext: Map<String, Any>, messageType: String) {
-    echoService.create(
-      EchoService.Notification(
-        notificationType = Notifier.NotificationType.valueOf(messageType),
-        to = recipient.split(","),
-        severity = Notifier.NotificationSeverity.HIGH,
-        source = EchoService.Notification.Source("swabbie"),
-        templateGroup = "swabbie",
-        additionalContext = additionalContext
-      )
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+  private val timeoutMillis: Long = 5000
+  private val maxAttempts: Int = 3
+
+  override fun notify(
+    envelope: Notifier.Envelope
+  ): NotificationResult {
+    val recipient = envelope.recipient
+    // Notifications are grouped by resource type, they all have a common notification setting.
+    val workConfiguration = envelope
+      .resources.map {
+        it.second
+      }.first()
+
+    val notificationConfig = workConfiguration.notificationConfiguration
+    notificationConfig.types.forEach { notificationType ->
+      when {
+        notificationType.equals(NotificationType.EMAIL.name, true) -> {
+          try {
+            retrySupport.retry({
+              echoService.create(
+                EchoService.Notification(
+                  notificationType = NotificationType.EMAIL,
+                  to = recipient.split(","),
+                  severity = NotificationSeverity.HIGH,
+                  source = EchoService.Notification.Source("swabbie"),
+                  templateGroup = "swabbie",
+                  additionalContext = notificationContext(recipient, envelope.resources, workConfiguration.resourceType)
+                )
+              )
+            }, maxAttempts, timeoutMillis, false)
+            return NotificationResult(recipient, NotificationType.EMAIL, success = true)
+          } catch (e: Exception) {
+            log.error("Failed to send notification", e)
+            return NotificationResult(recipient, NotificationType.EMAIL, success = false)
+          }
+        }
+      }
+    }
+
+    throw UnsupportedOperationException("Notification Type not supported in $workConfiguration")
+  }
+
+  private fun String.unCamelCase(): String =
+    split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()
+
+  private fun notificationContext(
+    recipient: String,
+    resources: List<Pair<MarkedResource, WorkConfiguration>>,
+    resourceType: String
+  ): Map<String, Any> {
+    return mapOf(
+      "resourceType" to resourceType.unCamelCase(), // TODO: Jeyrs - normalize resource type so we wont have to do this
+      "resourceOwner" to recipient,
+      "resources" to resources
     )
   }
 }

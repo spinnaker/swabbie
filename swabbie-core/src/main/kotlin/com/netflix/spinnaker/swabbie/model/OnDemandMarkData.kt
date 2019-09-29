@@ -9,8 +9,7 @@ data class OnDemandMarkData(
   var resourceOwner: String = "swabbie@spinnaker.io",
   var notificationInfo: NotificationInfo? = NotificationInfo(
     recipient = resourceOwner,
-    notificationType = Notifier.NotificationType.EMAIL.name,
-    notificationCount = 1
+    notificationType = Notifier.NotificationType.EMAIL.name
   ),
   var lastSeenInfo: LastSeenInfo? = null
 )

@@ -17,12 +17,11 @@
 package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
+import com.netflix.spinnaker.swabbie.discovery.DiscoveryAware
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkItem
 import org.slf4j.Logger
@@ -31,7 +30,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.util.concurrent.atomic.AtomicBoolean
 
 @Component
 @ConditionalOnExpression("\${swabbie.enabled:true}")
@@ -42,20 +40,9 @@ class WorkProcessor(
   private val workQueue: WorkQueue,
   private val lockingService: LockingService,
   private val cacheStatus: CacheStatus
-) : DiscoveryActivated {
+) : DiscoveryAware() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workId = registry.createId("swabbie.work")
-
-  private val up: AtomicBoolean = AtomicBoolean()
-
-  override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      up.set(true)
-    }
-  override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      up.set(false)
-    }
 
   /**
    * Takes work [WorkItem] off the [WorkQueue], acquires a lock and
@@ -63,7 +50,7 @@ class WorkProcessor(
    */
   @Scheduled(fixedDelayString = "\${swabbie.work.interval-ms:180000}")
   fun process() {
-    if (!up.get()) {
+    if (!isUp()) {
       // queue processors shouldn't work while they're down in discovery
       return
     }

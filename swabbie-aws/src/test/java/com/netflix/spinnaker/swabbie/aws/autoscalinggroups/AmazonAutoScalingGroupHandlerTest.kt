@@ -25,7 +25,6 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
@@ -44,6 +43,7 @@ import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskDetailResponse
@@ -87,11 +87,12 @@ object AmazonAutoScalingGroupHandlerTest {
   private val orcaService = mock<OrcaService>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val dynamicConfigService = mock<DynamicConfigService>()
+  private val notificationQueue = mock<NotificationQueue>()
 
   private val subject = AmazonAutoScalingGroupHandler(
     clock = clock,
     registry = NoopRegistry(),
-    notifiers = listOf(mock()),
+    notifier = mock(),
     rules = listOf(ZeroInstanceDisabledServerGroupRule()),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
@@ -102,13 +103,12 @@ object AmazonAutoScalingGroupHandlerTest {
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
-
-    retrySupport = RetrySupport(),
     aws = aws,
     orcaService = orcaService,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     swabbieProperties = SwabbieProperties().also { it.schedule.enabled = false },
-    dynamicConfigService = dynamicConfigService
+    dynamicConfigService = dynamicConfigService,
+    notificationQueue = notificationQueue
   )
 
   @BeforeEach

@@ -32,13 +32,14 @@ object WorkConfigurationTestHelper {
     maxItemsProcessedPerCycle: Int = 10,
     retention: Int = 14,
     notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration(),
+    resourceType: String = TEST_RESOURCE_TYPE,
     namespace: String = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE"
   ): WorkConfiguration = WorkConfiguration(
     namespace = namespace,
     account = testAccount,
     location = "us-east-1",
     cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
-    resourceType = TEST_RESOURCE_TYPE,
+    resourceType = resourceType,
     retention = retention,
     exclusions = exclusions.toSet(),
     dryRun = dryRun,

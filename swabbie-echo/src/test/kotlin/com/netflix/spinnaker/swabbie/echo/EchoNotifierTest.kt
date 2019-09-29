@@ -16,24 +16,49 @@
 
 package com.netflix.spinnaker.swabbie.echo
 
+import com.netflix.spinnaker.config.NotificationConfiguration
+import com.netflix.spinnaker.kork.core.RetrySupport
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.test.TestResource
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.verify
 import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.isEqualTo
 
 object EchoNotifierTest {
   private val echoService = mock<EchoService>()
-  private val subject = EchoNotifier(echoService)
+  private val subject = EchoNotifier(echoService, RetrySupport())
 
   @Test
   fun `should notify`() {
-    subject.notify(
+    val now = System.currentTimeMillis()
+    val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration(
+      notificationConfiguration = NotificationConfiguration(types = listOf(Notifier.NotificationType.EMAIL.name))
+    )
+
+    val markedResource = MarkedResource(
+      resource = TestResource(resourceId = "1"),
+      summaries = listOf(Summary("invalid resource", "rule x")),
+      namespace = workConfiguration.namespace,
+      markTs = now,
+      projectedDeletionStamp = now
+    )
+
+    val envelope = Notifier.Envelope(
       recipient = "yolo@netflix.com",
-      additionalContext = mapOf(),
-      messageType = Notifier.NotificationType.EMAIL.name
+      resources = listOf(Pair(markedResource, workConfiguration))
+    )
+
+    val result = subject.notify(
+      envelope
     )
 
     verify(echoService).create(any())
+    expectThat(result.success).isEqualTo(true)
   }
 }

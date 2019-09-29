@@ -22,7 +22,6 @@ import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.NotificationConfiguration
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
@@ -36,12 +35,13 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.EMAIL
-import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.NONE
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.test.InMemoryNotificationQueue
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.nhaarman.mockito_kotlin.any
@@ -60,6 +60,10 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
+import strikt.api.expectThat
+import strikt.assertions.isEqualTo
+import strikt.assertions.isNotNull
+import strikt.assertions.isNull
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -70,12 +74,12 @@ object ResourceTypeHandlerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val clock = Clock.fixed(Instant.parse("2018-11-26T09:30:00Z"), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
-  private val retrySupport = RetrySupport()
   private val ownerResolver = mock<ResourceOwnerResolver<TestResource>>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
   private val dynamicConfigService = mock<DynamicConfigService>()
   private val notifier = mock<Notifier>()
+  private var notificationQueue = InMemoryNotificationQueue()
 
   private val defaultRules = mutableListOf(TestRule(
     invalidOn = { defaultResource.resourceId == "testResource" },
@@ -102,11 +106,11 @@ object ResourceTypeHandlerTest {
     ownerResolver = ownerResolver,
     applicationEventPublisher = applicationEventPublisher,
     simulatedCandidates = mutableListOf(),
-    notifiers = listOf(notifier),
-    retrySupport = retrySupport,
+    notifier = notifier,
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
-    dynamicConfigService = dynamicConfigService
+    dynamicConfigService = dynamicConfigService,
+    notificationQueue = notificationQueue
   )
 
   @BeforeEach
@@ -131,7 +135,6 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should track a violating resource`() {
-    whenever(ownerResolver.resolve(defaultResource)) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.setCandidates(mutableListOf(defaultResource))
     defaultHandler.setRules(defaultRules)
 
@@ -159,7 +162,6 @@ object ResourceTypeHandlerTest {
       )
     }.toMutableList())
 
-    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.mark(
       workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
     )
@@ -207,8 +209,6 @@ object ResourceTypeHandlerTest {
           )
         )
       )
-
-    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
     defaultHandler.delete(workConfiguration = configuration)
 
@@ -503,7 +503,6 @@ object ResourceTypeHandlerTest {
     defaultHandler.setRules(alwaysValidRules)
     defaultHandler.setCandidates(mutableListOf(defaultResource))
 
-    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.mark(
       workConfiguration = configuration
     )
@@ -535,7 +534,6 @@ object ResourceTypeHandlerTest {
     defaultHandler.setRules(alwaysValidRules)
     defaultHandler.setCandidates(mutableListOf(defaultResource))
 
-    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.mark(
       workConfiguration = configuration
     )
@@ -652,84 +650,73 @@ object ResourceTypeHandlerTest {
   }
 
   @Test
-  fun `should notify if required`() {
+  fun `should schedule notification`() {
+    val now = clock.millis()
     val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(
-      notificationConfiguration = NotificationConfiguration(enabled = true, required = true)
+      notificationConfiguration = NotificationConfiguration(enabled = true)
     )
 
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))) doReturn
-      configuration.maxItemsProcessedPerCycle
-    whenever(ownerResolver.resolve(defaultResource)) doReturn "lucious-mayweather@netflix.com"
-    defaultHandler.setCandidates(mutableListOf(defaultResource))
-    defaultHandler.setRules(defaultRules)
-    whenever(resourceRepository.getMarkedResources()) doReturn listOf(
-      MarkedResource(
-        resource = defaultResource,
-        summaries = listOf(Summary("invalid resource random", "rule 5")),
-        namespace = configuration.namespace,
-        resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
-        markTs = clock.millis()
-      )
-    )
-
-    val updatedMarkedResource = MarkedResource(
+    val markedResource = MarkedResource(
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource random", "rule 5")),
       namespace = configuration.namespace,
-      resourceOwner = "test@netflix.com",
-      projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
-      notificationInfo = NotificationInfo(
-        recipient = "test@netflix.com",
-        notificationType = EMAIL.name,
-        notificationStamp = clock.millis()
-      ),
-      markTs = clock.millis()
+      projectedDeletionStamp = now.plus(TimeUnit.DAYS.toMillis(3)),
+      markTs = now
     )
 
+    whenever(
+      dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))
+    ) doReturn configuration.maxItemsProcessedPerCycle
+
+    whenever(
+      resourceRepository.getMarkedResources()
+    ) doReturn listOf(markedResource)
+
+    whenever(
+      notifier.notify(any())
+    ) doReturn NotificationResult(markedResource.resourceOwner, EMAIL, success = true)
+
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
+    defaultHandler.setRules(defaultRules)
+
     defaultHandler.notify(configuration)
-    verify(notifier, times(1)).notify(any(), any(), any())
-    verify(resourceRepository, times(1)).upsert(updatedMarkedResource)
   }
 
   @Test
-  fun `should not send notification if not required`() {
+  fun `should skip scheduling notifications`() {
+    val now = clock.millis()
     val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(
-      notificationConfiguration = NotificationConfiguration(enabled = true, required = false)
+      notificationConfiguration = NotificationConfiguration(enabled = false)
     )
 
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))) doReturn
-      configuration.maxItemsProcessedPerCycle
-    whenever(ownerResolver.resolve(defaultResource)) doReturn "lucious-mayweather@netflix.com"
-    defaultHandler.setCandidates(mutableListOf(defaultResource))
-    defaultHandler.setRules(defaultRules)
-    whenever(resourceRepository.getMarkedResources()) doReturn listOf(
-      MarkedResource(
-        resource = defaultResource,
-        summaries = listOf(Summary("invalid resource random", "rule 5")),
-        namespace = configuration.namespace,
-        resourceOwner = "test@netflix.com",
-        projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
-        markTs = clock.millis()
-      )
-    )
-
-    val updatedMarkedResource = MarkedResource(
+    val markedResource = MarkedResource(
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource random", "rule 5")),
       namespace = configuration.namespace,
-      resourceOwner = "test@netflix.com",
-      projectedDeletionStamp = clock.millis().plus(TimeUnit.DAYS.toMillis(3)),
-      notificationInfo = NotificationInfo(
-        recipient = "",
-        notificationType = NONE.name,
-        notificationStamp = clock.millis()
-      ),
-      markTs = clock.millis()
+      projectedDeletionStamp = now.plus(TimeUnit.DAYS.toMillis(3)),
+      markTs = now
     )
 
+    whenever(
+      dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))
+    ) doReturn configuration.maxItemsProcessedPerCycle
+
+    whenever(
+      resourceRepository.getMarkedResources()
+    ) doReturn listOf(markedResource)
+
+    defaultHandler.setCandidates(mutableListOf(defaultResource))
+    defaultHandler.setRules(defaultRules)
+
     defaultHandler.notify(configuration)
-    verify(notifier, times(0)).notify(any(), any(), any())
-    verify(resourceRepository, times(1)).upsert(updatedMarkedResource)
+
+    with(markedResource.notificationInfo) {
+      expectThat(this)
+        .isNotNull()
+        .get { notificationType }
+        .isEqualTo(Notifier.NotificationType.NONE.name)
+
+      expectThat(this!!.notificationStamp).isNull()
+    }
   }
 }

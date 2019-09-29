@@ -23,7 +23,7 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.CacheStatus
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
+import com.netflix.spinnaker.swabbie.discovery.DiscoveryAware
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -34,7 +34,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Serves as the producer of work for resource handlers, monitors and refills the work queue once all work is complete
@@ -48,11 +47,9 @@ class WorkQueueManager(
   private val clock: Clock,
   private val registry: Registry,
   private val cacheStatus: CacheStatus
-) : DiscoveryActivated {
+) : DiscoveryAware() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val queueId = registry.createId("swabbie.redis.queue")
-
-  private val up: AtomicBoolean = AtomicBoolean()
 
   init {
     queue.track()
@@ -60,16 +57,10 @@ class WorkQueueManager(
 
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
-      up.set(true)
       if (isEnabled()) {
         ensureLoadedCaches()
         queue.refillOnEmpty()
       }
-    }
-
-  override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      up.set(false)
     }
 
   /**
@@ -78,7 +69,7 @@ class WorkQueueManager(
    */
   @Scheduled(fixedDelayString = "\${swabbie.queue.monitor-interval-ms:900000}")
   fun monitor() {
-    if (!up.get()) {
+    if (!isUp()) {
       // do nothing, we're down in discovery and we want active instances to control the queue
       return
     }

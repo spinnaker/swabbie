@@ -22,21 +22,17 @@ import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
-import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
-import com.netflix.spinnaker.swabbie.events.formatted
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.AlwaysCleanRule
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
@@ -45,9 +41,9 @@ import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
+import com.netflix.spinnaker.swabbie.notifications.NotificationSender
 import com.netflix.spinnaker.swabbie.notifications.Notifier
-import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.EMAIL
-import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.NONE
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
@@ -63,6 +59,7 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.ChronoUnit.DAYS
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.min
 
 abstract class AbstractResourceTypeHandler<T : Resource>(
   private val registry: Registry,
@@ -72,18 +69,15 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private val resourceStateRepository: ResourceStateRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
   private val ownerResolver: OwnerResolver<T>,
-  private val notifiers: List<Notifier>,
+  private val notifier: Notifier,
   private val applicationEventPublisher: ApplicationEventPublisher,
-  private val retrySupport: RetrySupport,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val swabbieProperties: SwabbieProperties,
-  private val dynamicConfigService: DynamicConfigService
+  private val dynamicConfigService: DynamicConfigService,
+  private val notificationQueue: NotificationQueue
 ) : ResourceTypeHandler<T>, MetricsSupport(registry) {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   private val resourceOwnerField: String = "swabbieResourceOwner"
-
-  private val timeoutMillis: Long = 5000
-  private val maxAttempts: Int = 3
   private val numberOfCandidatesId: Id = registry.createId("swabbie.candidates.processed")
 
   /**
@@ -108,10 +102,50 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   }
 
   /**
-   * Notifies resource owners
+   * Notifies for everything in resourceRepository.getMarkedResources() that doesn't have notificationInfo
    */
   override fun notify(workConfiguration: WorkConfiguration) {
-    doNotify(workConfiguration)
+    if (workConfiguration.dryRun) {
+      log.info("Notification not enabled in dryRun for {}. Skipping...", workConfiguration.toLog())
+      return
+    }
+
+    val markedResources = workConfiguration.getMarkedResourcesToNotify()
+    if (markedResources.isEmpty()) {
+      log.info("Nothing to notify for {}. Skipping...", workConfiguration)
+      return
+    }
+
+    log.info("Processing ${markedResources.size} for notification in ${javaClass.simpleName}")
+    if (workConfiguration.notificationConfiguration.enabled) {
+      // Notifications are routinely batched and sent by [com.netflix.spinnaker.swabbie.notifications.NotificationSender]
+      notificationQueue.add(workConfiguration)
+    } else {
+      // Do not send notifications for these resources. They are updated with a new deletion timestamp to offset
+      // the time elapsed since they were marked.
+      markedResources
+        .filterExcludedAndOptedOut(workConfiguration)
+        .forEach { markedResource ->
+          markedResource
+            .withNotificationInfo()
+            .withAdditionalTimeForDeletion(
+              Instant.ofEpochMilli(markedResource.markTs!!).until(Instant.now(clock), ChronoUnit.MILLIS))
+            .also {
+              resourceRepository.upsert(markedResource)
+            }
+        }
+    }
+  }
+
+  /**
+   * Adds a new notification task to the [NotificationQueue]
+   * @see [com.netflix.spinnaker.swabbie.notifications.NotificationSender]
+   */
+  private fun NotificationQueue.add(workConfiguration: WorkConfiguration) {
+    add(NotificationSender.NotificationTask(
+      namespace = workConfiguration.namespace,
+      resourceType = workConfiguration.resourceType
+    ))
   }
 
   /**
@@ -473,13 +507,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     exclusionCounters[Action.DELETE] = AtomicInteger(0)
     val candidateCounter = AtomicInteger(0)
     val markedResources = mutableListOf<MarkedResource>()
+    if (workConfiguration.dryRun) {
+      log.info("Deletion not enabled in dryRun for {}. Skipping...", workConfiguration.toLog())
+      return
+    }
 
-    val currentMarkedResourcesToDelete = resourceRepository.getMarkedResourcesToDelete()
-      .filter {
-        it.notificationInfo != null && !workConfiguration.dryRun && it.namespace == workConfiguration.namespace
-      }
-      .sortedBy { it.resource.createTs }
-
+    val currentMarkedResourcesToDelete = workConfiguration.getMarkedResourcesToDelete()
     if (currentMarkedResourcesToDelete.isEmpty()) {
       log.info("Nothing to delete. Configuration: {}", workConfiguration.toLog())
       return
@@ -582,122 +615,46 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
 
   /**
-   * Notifies for everything in resourceRepository.getMarkedResources() that doesn't have notificationInfo
+   * @return Marked resources meeting the deletion criteria:
+   * - They are due for deletion
+   * - The have been notified on if notifications are enabled
    */
-  private fun doNotify(workConfiguration: WorkConfiguration) {
-    exclusionCounters[Action.NOTIFY] = AtomicInteger(0)
-    val candidateCounter = AtomicInteger(0)
-    // used to print out result of resources for which notifications were sent
-    val notifiedMarkedResource: MutableList<MarkedResource> = mutableListOf()
+  private fun WorkConfiguration.getMarkedResourcesToDelete(): List<MarkedResource> {
+    return resourceRepository.getMarkedResourcesToDelete()
+      .filter {
+        it.namespace == namespace && (!notificationConfiguration.enabled || it.notificationInfo != null)
+      }
+      .sortedBy { it.resource.createTs }
+  }
 
-    if (workConfiguration.dryRun || !workConfiguration.notificationConfiguration.enabled) {
-      log.info("Notification not enabled for {}. Skipping...", workConfiguration.toLog())
-      return
-    }
+  /**
+   * @return Marked resources to notify on
+   */
+  private fun WorkConfiguration.getMarkedResourcesToNotify(): List<MarkedResource> {
+    return resourceRepository.getMarkedResources()
+      .filter {
+        namespace == it.namespace && (it.notificationInfo == null)
+      }
+      .sortedBy { it.resource.createTs }
+  }
 
-    val markedResources = resourceRepository.getMarkedResources()
-      .filter { it.notificationInfo == null && workConfiguration.namespace == it.namespace }
-
+  /**
+   * Filters out excluded and opted out resources.
+   * Returns at most [WorkConfiguration.maxItemsProcessedPerCycle] resources
+   */
+  private fun List<MarkedResource>.filterExcludedAndOptedOut(
+    workConfiguration: WorkConfiguration
+  ): List<MarkedResource> {
     val optedOutResourceStates: List<ResourceState> = resourceStateRepository.getAll()
-      .filter { it.markedResource.namespace == workConfiguration.namespace && it.optedOut }
-
-    if (markedResources.isEmpty()) {
-      log.info("Nothing to notify for {}. Skipping...", workConfiguration.toLog())
-      return
-    }
-
-    log.info("Processing ${markedResources.size} for notification in ${javaClass.simpleName}")
-
-    val maxItemsToProcess = Math.min(markedResources.size, getMaxItemsProcessedPerCycle(workConfiguration))
-    val groupedResourcesToNotify = markedResources.subList(0, maxItemsToProcess)
+      .filter {
+        it.markedResource.namespace == workConfiguration.namespace && it.optedOut
+      }
+    val maxItemsToProcess = min(size, getMaxItemsProcessedPerCycle(workConfiguration))
+    return subList(0, maxItemsToProcess)
       .filter {
         @Suppress("UNCHECKED_CAST")
         !shouldExcludeResource(it.resource as T, workConfiguration, optedOutResourceStates, Action.NOTIFY)
       }
-      .groupBy { it.grouping?.value }
-
-    groupedResourcesToNotify.forEach { grouping, resources ->
-      Lists.partition(resources, workConfiguration.notificationConfiguration.itemsPerMessage)
-        .forEach { partition ->
-          try {
-            val owner = partition.first().resourceOwner
-            val sendNotification = workConfiguration.notificationConfiguration.required
-            if (sendNotification) {
-              // We may not want to send notifications for some resources because there would be too many.
-              // We only send notifications if it is required (defaults to true)
-              sendNotification(owner, workConfiguration, partition)
-            }
-            partition.forEach { resource ->
-              val offsetStampSinceMarked = ChronoUnit.MILLIS
-                .between(Instant.ofEpochMilli(resource.markTs!!), Instant.now(clock))
-
-              resource
-                .apply {
-                  projectedDeletionStamp += offsetStampSinceMarked
-                  notificationInfo = NotificationInfo(
-                    recipient = if (sendNotification) owner else "",
-                    notificationStamp = Instant.now(clock).toEpochMilli(),
-                    notificationType = if (sendNotification) EMAIL.name else NONE.name
-                  )
-                }.also {
-                  resourceRepository.upsert(it)
-                  applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
-                  candidateCounter.incrementAndGet()
-                }
-
-              notifiedMarkedResource.add(resource)
-            }
-            log.debug("Notification sent to {} for {} resources", owner, partition.size)
-          } catch (e: Exception) {
-            recordFailureForAction(Action.NOTIFY, workConfiguration, e)
-          }
-        }
-    }
-
-    printResult(
-      candidateCounter,
-      AtomicInteger(markedResources.size),
-      workConfiguration,
-      notifiedMarkedResource,
-      Action.NOTIFY
-    )
-  }
-
-  private fun sendNotification(
-    owner: String,
-    workConfiguration: WorkConfiguration,
-    resources: List<MarkedResource>
-  ) {
-    notifiers.forEach { notifier ->
-      workConfiguration.notificationConfiguration.types.forEach { notificationType ->
-        if (notificationType.equals(EMAIL.name, true)) {
-          // todo eb: remove once we can skip notifications for emails
-          val finalOwner = if (resources.first().resourceType.contains("image", ignoreCase = true)) {
-            workConfiguration.notificationConfiguration.defaultDestination
-          } else {
-            owner
-          }
-
-          val notificationContext = mapOf(
-            "resourceOwner" to finalOwner,
-            "application" to resources.first().resource.grouping?.value.orEmpty(), // todo eb: this prob shouldn't be called app
-            "resources" to resources.map { it.barebones() },
-            "configuration" to workConfiguration,
-            "resourceType" to workConfiguration.resourceType.formatted(),
-            "spinnakerLink" to workConfiguration.notificationConfiguration.resourceUrl,
-            "optOutLink" to workConfiguration.notificationConfiguration.optOutBaseUrl
-          )
-
-          retrySupport.retry({
-            notifier.notify(
-              recipient = finalOwner,
-              messageType = notificationType,
-              additionalContext = notificationContext
-            )
-          }, maxAttempts, timeoutMillis, true)
-        }
-      }
-    }
   }
 
   private val Int.days: Period

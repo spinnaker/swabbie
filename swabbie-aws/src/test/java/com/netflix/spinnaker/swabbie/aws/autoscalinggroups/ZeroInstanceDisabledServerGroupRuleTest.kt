@@ -16,11 +16,28 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 object ZeroInstanceDisabledServerGroupRuleTest {
+
+  @BeforeEach
+  fun setup() {
+    val asg = AmazonAutoScalingGroup(
+      autoScalingGroupName = "testapp-v001",
+      instances = listOf(),
+      loadBalancerNames = listOf(),
+      createdTime = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
+    ).apply {
+      set(IS_DISABLED, true)
+      set(HAS_INSTANCES, false)
+    }
+  }
+
   @Test
   fun `should not apply to non disabled server groups`() {
     val asg = AmazonAutoScalingGroup(
@@ -29,7 +46,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = System.currentTimeMillis()
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -40,11 +57,17 @@ object ZeroInstanceDisabledServerGroupRuleTest {
 
   @Test
   fun `should apply when server group is disabled with no instances`() {
+    val suspendedProcess = SuspendedProcess()
+    suspendedProcess.withProcessName("AddToLoadBalancer")
+    suspendedProcess.withSuspensionReason("User suspended at 2019-09-03T17:29:07Z")
     val asg = AmazonAutoScalingGroup(
       autoScalingGroupName = "testapp-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      suspendedProcesses = listOf(
+        suspendedProcess
+      ),
+      createdTime = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)
@@ -52,5 +75,21 @@ object ZeroInstanceDisabledServerGroupRuleTest {
 
     val result = ZeroInstanceDisabledServerGroupRule().apply(asg)
     Assertions.assertNotNull(result.summary)
+  }
+
+  @Test
+  fun `should not apply when server group has been disabled for less than maxage `() {
+    val asg = AmazonAutoScalingGroup(
+      autoScalingGroupName = "testapp-v001",
+      instances = listOf(),
+      loadBalancerNames = listOf(),
+      createdTime = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
+    ).apply {
+      set(IS_DISABLED, true)
+      set(HAS_INSTANCES, false)
+    }
+
+    val result = ZeroInstanceDisabledServerGroupRule().apply(asg)
+    Assertions.assertNull(result.summary)
   }
 }

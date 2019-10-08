@@ -21,23 +21,35 @@ import com.netflix.discovery.DiscoveryClient
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.time.LocalDateTime
 import java.util.Optional
 
 @Component
 class ZeroInstanceDisabledServerGroupRule : Rule<AmazonAutoScalingGroup> {
+
+  @Value("\${swabbie.resource.disabled.days.count:30}")
+  private val disabledDurationInDays: Long = 30
+
   override fun apply(resource: AmazonAutoScalingGroup): Result {
-    if (resource.details[IS_DISABLED] == null || resource.details[IS_DISABLED] == false) {
+    if (!resource.isOutOfLoadBalancer()) {
       return Result(null)
     }
 
     if (resource.details[HAS_INSTANCES] == null || resource.details[HAS_INSTANCES] == false) {
-      return Result(
-        Summary(
-          description = "Server Group ${resource.autoScalingGroupName} is disabled. No active instances.",
-          ruleName = javaClass.simpleName
+      val disabledTime = resource.disabledTime() ?: return Result(null)
+
+      // time elapsed since the resource was disabled time is greater than disabledDurationInDays
+      if (disabledTime.isBefore(LocalDateTime.now().minusDays(disabledDurationInDays))) {
+        return Result(
+          Summary(
+            description = "Server Group ${resource.autoScalingGroupName} has been disabled for more " +
+              "than $disabledDurationInDays days. No active instances.",
+            ruleName = javaClass.simpleName
+          )
         )
-      )
+      }
     }
 
     return Result(null)
@@ -48,11 +60,15 @@ class ZeroInstanceDisabledServerGroupRule : Rule<AmazonAutoScalingGroup> {
 class ZeroInstanceInDiscoveryDisabledServerGroupRule(
   private val discoveryClient: Optional<DiscoveryClient>
 ) : Rule<AmazonAutoScalingGroup> {
+
+  @Value("\${swabbie.resource.disabled.days.count:30}")
+  private val disabledDurationInDays: Long = 30
+
   override fun apply(resource: AmazonAutoScalingGroup): Result {
     if (resource.details[IS_DISABLED] == null || resource.details[IS_DISABLED] == false) {
       return Result(null)
     }
-
+    val disabledTime = resource.disabledTime() ?: return Result(null)
     if (discoveryClient.isPresent) {
       resource.instances?.all {
         discoveryClient.get()
@@ -60,11 +76,12 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
           .all {
             it.status == InstanceInfo.InstanceStatus.OUT_OF_SERVICE
           }
-      }?.let {
-        if (it) {
+      }?.let { outOfService ->
+        if (outOfService && disabledTime.isBefore(LocalDateTime.now().minusDays(disabledDurationInDays))) {
           return Result(
             Summary(
-              description = "Server Group ${resource.resourceId} is disabled. All instances out of Service Discovery.",
+              description = "Server Group ${resource.resourceId} has been disabled for more  " +
+                "than $disabledDurationInDays days. All instances out of Service Discovery.",
               ruleName = javaClass.simpleName
             )
           )

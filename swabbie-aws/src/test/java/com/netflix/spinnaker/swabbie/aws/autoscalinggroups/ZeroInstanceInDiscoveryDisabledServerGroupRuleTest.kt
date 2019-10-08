@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.discovery.DiscoveryClient
 import com.nhaarman.mockito_kotlin.any
@@ -24,10 +25,10 @@ import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import java.time.Instant
 import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
+
   @Test
   fun `should not apply to non disabled server groups`() {
     val asg = AmazonAutoScalingGroup(
@@ -36,7 +37,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = System.currentTimeMillis()
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -59,13 +60,19 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
     whenever(instanceInfo.status) doReturn
       InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 
+    val suspendedProcess = SuspendedProcess()
+    suspendedProcess.withProcessName("AddToLoadBalancer")
+    suspendedProcess.withSuspensionReason("User suspended at 2019-09-03T17:29:07Z")
     val asg = AmazonAutoScalingGroup(
       autoScalingGroupName = "testapp-v001",
       instances = listOf(
         mapOf("instanceId" to "i-01234")
       ),
+      suspendedProcesses = listOf(
+        suspendedProcess
+      ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = System.currentTimeMillis()
     ).apply {
       set(IS_DISABLED, true)
     }
@@ -101,7 +108,36 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234", "InstanceId" to "i-01235")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = System.currentTimeMillis()
+    ).apply {
+      set(IS_DISABLED, true)
+    }
+
+    val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
+      Optional.of(discoveryClient)
+    ).apply(asg)
+
+    Assertions.assertNull(result.summary)
+  }
+
+  @Test
+  fun `should not apply when server group disabled time is less than maxage `() {
+    val discoveryClient = mock<DiscoveryClient>()
+    val instanceInfo = mock<InstanceInfo>()
+
+    whenever(discoveryClient.getInstancesById(any())) doReturn
+      listOf(instanceInfo)
+
+    whenever(instanceInfo.status) doReturn
+      InstanceInfo.InstanceStatus.OUT_OF_SERVICE
+
+    val asg = AmazonAutoScalingGroup(
+      autoScalingGroupName = "testapp-v001",
+      instances = listOf(
+        mapOf("instanceId" to "i-01234")
+      ),
+      loadBalancerNames = listOf(),
+      createdTime = System.currentTimeMillis()
     ).apply {
       set(IS_DISABLED, true)
     }

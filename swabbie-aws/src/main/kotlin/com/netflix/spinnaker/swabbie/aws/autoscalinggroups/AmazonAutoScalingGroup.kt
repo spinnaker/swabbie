@@ -16,19 +16,22 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.fasterxml.jackson.annotation.JsonTypeName
+import com.netflix.spinnaker.swabbie.Dates
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.Instant
 
 @JsonTypeName("amazonAutoScalingGroup")
 data class AmazonAutoScalingGroup(
   val autoScalingGroupName: String,
   val instances: List<Map<String, Any>>?,
   val loadBalancerNames: List<String>?,
+  var suspendedProcesses: List<SuspendedProcess>? = null,
   private val createdTime: Long,
   override val resourceId: String = autoScalingGroupName,
   override val resourceType: String = SERVER_GROUP,
@@ -36,11 +39,42 @@ data class AmazonAutoScalingGroup(
   override val name: String = autoScalingGroupName,
   private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
+  private val REGEX = "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}).*".toRegex()
+
   override fun equals(other: Any?): Boolean {
     return super.equals(other)
   }
 
   override fun hashCode(): Int {
     return super.hashCode()
+  }
+
+  fun isOutOfLoadBalancer(): Boolean {
+    suspendedProcesses?.find {
+      it.processName == "AddToLoadBalancer"
+    }?.let {
+      return true
+    }
+
+    return false
+  }
+
+  fun suspensionReason(): String? {
+    suspendedProcesses?.find {
+      it.processName == "AddToLoadBalancer"
+    }?.let {
+      return it.suspensionReason
+    }
+
+    return null
+  }
+
+  fun disabledTime(): LocalDateTime? {
+    if (!isOutOfLoadBalancer()) {
+      return null
+    }
+
+    val timeSinceDisabled = REGEX.find(suspensionReason()!!)!!.groups.get(1)!!.value
+    return Dates.toLocalDateTime(timeSinceDisabled)
   }
 }

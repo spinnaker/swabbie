@@ -42,7 +42,7 @@ import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
-import com.netflix.spinnaker.swabbie.notifications.NotificationSender
+import com.netflix.spinnaker.swabbie.notifications.NotificationTask
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
@@ -142,7 +142,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
    * @see [com.netflix.spinnaker.swabbie.notifications.NotificationSender]
    */
   private fun NotificationQueue.add(workConfiguration: WorkConfiguration) {
-    add(NotificationSender.NotificationTask(
+    add(NotificationTask(
       namespace = workConfiguration.namespace,
       resourceType = workConfiguration.resourceType
     ))

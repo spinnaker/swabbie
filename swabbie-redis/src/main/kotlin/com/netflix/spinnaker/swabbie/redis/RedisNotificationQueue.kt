@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
-import com.netflix.spinnaker.swabbie.notifications.NotificationSender
+import com.netflix.spinnaker.swabbie.notifications.NotificationTask
 import org.springframework.stereotype.Component
 
 /**
@@ -34,7 +34,7 @@ class RedisNotificationQueue(
   private val NOTIFICATION_KEY = "{swabbie:notifications}"
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
 
-  override fun add(notificationTask: NotificationSender.NotificationTask) {
+  override fun add(notificationTask: NotificationTask) {
     redisClientDelegate.withCommandsClient { client ->
       client.sadd(NOTIFICATION_KEY, objectMapper.writeValueAsString(notificationTask))
     }
@@ -46,11 +46,11 @@ class RedisNotificationQueue(
     }.size
   }
 
-  override fun pop(): NotificationSender.NotificationTask? {
+  override fun pop(): NotificationTask? {
     redisClientDelegate.withCommandsClient<String?> { client ->
       client.spop(NOTIFICATION_KEY)
     }?.let {
-      return objectMapper.readValue(it, NotificationSender.NotificationTask::class.java)
+      return objectMapper.readValue(it, NotificationTask::class.java)
     }
 
     return null

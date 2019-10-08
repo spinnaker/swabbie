@@ -157,9 +157,4 @@ class NotificationSender(
       }
     }
   }
-
-  data class NotificationTask(
-    val resourceType: String,
-    val namespace: String
-  )
 }

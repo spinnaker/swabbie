@@ -16,11 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.notifications
 
-/**
- * A queue for storing notification tasks
- */
-interface NotificationQueue {
-  fun add(notificationTask: NotificationTask)
-  fun pop(): NotificationTask?
-  fun isEmpty(): Boolean
-}
+data class NotificationTask(
+  val resourceType: String,
+  val namespace: String
+)

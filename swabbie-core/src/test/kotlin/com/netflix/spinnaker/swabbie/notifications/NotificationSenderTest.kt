@@ -113,7 +113,7 @@ object NotificationSenderTest {
     val resources = listOf(resource1, resource2, resource3)
 
     notificationQueue.add(
-      NotificationSender.NotificationTask(
+      NotificationTask(
         resourceType = workConfiguration1.resourceType,
         namespace = workConfiguration1.namespace
       ))

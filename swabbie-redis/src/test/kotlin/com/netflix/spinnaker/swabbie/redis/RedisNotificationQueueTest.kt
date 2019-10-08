@@ -22,7 +22,7 @@ import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.swabbie.notifications.NotificationSender
+import com.netflix.spinnaker.swabbie.notifications.NotificationTask
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
@@ -67,12 +67,12 @@ object RedisNotificationQueueTest {
   @Test
   fun `should add`() {
     val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration(namespace = "ns1")
-    queue.add(NotificationSender.NotificationTask(
+    queue.add(NotificationTask(
       resourceType = "type1",
       namespace = workConfiguration.namespace
     ))
 
-    queue.add(NotificationSender.NotificationTask(
+    queue.add(NotificationTask(
       resourceType = "type2",
       namespace = workConfiguration.namespace
     ))
@@ -88,12 +88,12 @@ object RedisNotificationQueueTest {
     expectThat(queue.isEmpty()).isTrue()
 
     // should be a set
-    queue.add(NotificationSender.NotificationTask(
+    queue.add(NotificationTask(
       resourceType = "type1",
       namespace = workConfiguration.namespace
     ))
 
-    queue.add(NotificationSender.NotificationTask(
+    queue.add(NotificationTask(
       resourceType = "type1",
       namespace = workConfiguration.namespace
     ))

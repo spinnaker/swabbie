@@ -17,13 +17,13 @@
 package com.netflix.spinnaker.swabbie.test
 
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
-import com.netflix.spinnaker.swabbie.notifications.NotificationSender
+import com.netflix.spinnaker.swabbie.notifications.NotificationTask
 import java.util.concurrent.LinkedBlockingDeque
 
 // For local testing. Implemented as a mere list
 class InMemoryNotificationQueue : NotificationQueue {
-  private val _q = LinkedBlockingDeque<NotificationSender.NotificationTask>()
-  override fun pop(): NotificationSender.NotificationTask? {
+  private val _q = LinkedBlockingDeque<NotificationTask>()
+  override fun pop(): NotificationTask? {
     return _q.pop()
   }
 
@@ -31,7 +31,7 @@ class InMemoryNotificationQueue : NotificationQueue {
     return _q.isEmpty()
   }
 
-  override fun add(notificationTask: NotificationSender.NotificationTask) {
+  override fun add(notificationTask: NotificationTask) {
     _q.add(notificationTask)
   }
 }

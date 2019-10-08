@@ -673,7 +673,7 @@ object ResourceTypeHandlerTest {
     ) doReturn listOf(markedResource)
 
     whenever(
-      notifier.notify(any())
+      notifier.notify(any(), any(), any())
     ) doReturn NotificationResult(markedResource.resourceOwner, EMAIL, success = true)
 
     defaultHandler.setCandidates(mutableListOf(defaultResource))

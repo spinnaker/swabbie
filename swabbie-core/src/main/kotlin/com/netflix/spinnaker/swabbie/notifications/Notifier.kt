@@ -16,11 +16,14 @@
 
 package com.netflix.spinnaker.swabbie.notifications
 
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.config.NotificationConfiguration
 
 interface Notifier {
-  fun notify(envelope: Envelope): NotificationResult
+  fun notify(
+    recipient: String,
+    notificationContext: Map<String, Any>,
+    notificationConfiguration: NotificationConfiguration
+  ): NotificationResult
 
   enum class NotificationType {
     EMAIL,
@@ -36,10 +39,5 @@ interface Notifier {
     val recipient: String,
     val notificationType: NotificationType = NotificationType.NONE,
     val success: Boolean = false
-  )
-
-  data class Envelope(
-    val recipient: String,
-    val resources: List<Pair<MarkedResource, WorkConfiguration>>
   )
 }

@@ -21,6 +21,6 @@ package com.netflix.spinnaker.swabbie.notifications
  */
 interface NotificationQueue {
   fun add(notificationTask: NotificationTask)
-  fun pop(): NotificationTask?
+  fun popAll(): List<NotificationTask>
   fun isEmpty(): Boolean
 }

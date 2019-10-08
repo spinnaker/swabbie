@@ -17,14 +17,15 @@
 package com.netflix.spinnaker.swabbie.notifications
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
-import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -70,91 +71,126 @@ class NotificationSender(
     }
 
     lockingService.acquireLock(lockOptions) {
-      val resources = resourceTrackingRepository.getMarkedResources()
-        .filter {
-          it.notificationInfo == null
-        }
+      try {
+        val resources = resourceTrackingRepository.getMarkedResources()
+          .filter {
+            it.notificationInfo == null
+          }
 
-      groupRelatedResourcesThenNotify(resources)
+        val notificationTasks = notificationQueue.popAll()
+        for (task in notificationTasks) {
+          val resourceType = task.resourceType
+          val notificationConfiguration = getNotificationConfigurationForTypeOrNull(resourceType)
+          if (notificationConfiguration == null) {
+            log.warn("Resource Type {} not enabled.", resourceType)
+            continue
+          }
+
+          val resourcesByOwner = notificationResourcesByOwner(resources, resourceType)
+          resourcesByOwner.forEach { (owner, resourcesAndConfigs) ->
+            val result = notifyUser(owner, resourceType, resourcesAndConfigs, notificationConfiguration)
+            handleNotificationResult(result, resourcesAndConfigs)
+          }
+        }
+      } catch (e: Exception) {
+        log.error("Failed to process notifications", e)
+      }
     }
   }
 
-  /**
-   * @return Marked resources to notify on
-   */
-  private fun groupRelatedResourcesThenNotify(markedResources: List<MarkedResource>) {
+  private fun handleNotificationResult(
+    result: NotificationResult,
+    resourcesAndConfigs: List<Pair<MarkedResource, WorkConfiguration>>
+  ) {
+    if (!result.success) {
+      registry.counter(notificationsId.withTags("result", "failure")).increment()
+      return
+    }
+
+    registry.counter(notificationsId.withTags("result", "success")).increment()
+
     val now = Instant.now(clock)
-    val tasks = mutableListOf<NotificationTask>()
-    do {
-      val notificationTask: NotificationTask? = notificationQueue.pop()
-      if (notificationTask == null) {
-        log.debug("Nothing to notify. Skipping...")
-        return
-      }
+    val notificationInfo = NotificationInfo(
+      result.recipient,
+      result.notificationType.name,
+      now.toEpochMilli()
+    )
 
-      tasks.add(notificationTask)
-    } while (!notificationQueue.isEmpty())
-
-    tasks.forEach { task ->
-      val byResourceOwner = markedResources
-        .filter {
-          it.resourceType == task.resourceType
-        }.groupBy {
-          it.resourceOwner
-        }
-
-      byResourceOwner.forEach { (owner, list) ->
-        val resourcesAndConfigurations: List<Pair<MarkedResource, WorkConfiguration>> = list.toResourceAndConfigurationPairs()
-        val result = notifier.notify(
-          Notifier.Envelope(
-            recipient = owner,
-            resources = resourcesAndConfigurations
-          )
-        )
-
-        if (result.success) {
-          log.debug("Sent notification to {} for {}:{}",
-            owner, task.resourceType, markedResources.size)
-        }
-
-        resourcesAndConfigurations.forEach { (resource, workConfiguration) ->
-          if (result.success) {
-            // Update resource's notification info
-            resource
-              .withNotificationInfo(
-                NotificationInfo(result.recipient, result.notificationType.name, now.toEpochMilli())
-              )
-              .withAdditionalTimeForDeletion(
-                Instant.ofEpochMilli(resource.markTs!!).until(now, ChronoUnit.MILLIS)
-              ).also {
-                resourceTrackingRepository.upsert(it)
-                applicationEventPublisher.publishEvent(OwnerNotifiedEvent(it, workConfiguration))
-              }
-
-            registry.counter(notificationsId.withTags("result", "success")).increment()
-          } else {
-            // unmark this resource & let it go through the mark cycle later
-            registry.counter(notificationsId.withTags("result", "failure")).increment()
-            resourceTrackingRepository.remove(resource)
-            applicationEventPublisher.publishEvent(UnMarkResourceEvent(resource, workConfiguration))
+    resourcesAndConfigs
+      .forEach { (resource, workConfiguration) ->
+        val elapsedTimeSinceMarked = Instant.ofEpochMilli(resource.markTs!!).until(now, ChronoUnit.MILLIS)
+        resource
+          .withNotificationInfo(notificationInfo)
+          .withAdditionalTimeForDeletion(elapsedTimeSinceMarked)
+          .also {
+            resourceTrackingRepository.upsert(resource)
+            applicationEventPublisher.publishEvent(OwnerNotifiedEvent(resource, workConfiguration))
           }
-        }
       }
+  }
+
+  private fun notificationResourcesByOwner(resources: List<MarkedResource>, resourceType: String): Map<String, List<Pair<MarkedResource, WorkConfiguration>>> {
+    val resourcesByOwner = resources
+      .filterByResourceType(resourceType)
+      .toResourceAndConfigurationPairs()
+      .groupBy {
+        it.first.resourceOwner
+      }
+    return resourcesByOwner
+  }
+
+  private fun getNotificationConfigurationForTypeOrNull(resourceType: String): NotificationConfiguration? {
+    return workConfigurations.find {
+      it.resourceType == resourceType
+    }?.notificationConfiguration
+  }
+
+  private fun notifyUser(
+    owner: String,
+    resourceType: String,
+    resourcesAndConfigs: List<Pair<MarkedResource, WorkConfiguration>>,
+    notificationConfiguration: NotificationConfiguration
+  ): NotificationResult {
+    return notifier.notify(
+      recipient = owner,
+      notificationContext = notificationContext(owner, resourcesAndConfigs, resourceType),
+      notificationConfiguration = notificationConfiguration
+    )
+  }
+
+  private fun List<MarkedResource>.filterByResourceType(resourceType: String): List<MarkedResource> {
+    return filter {
+      it.resourceType == resourceType
     }
   }
 
   private fun List<MarkedResource>.toResourceAndConfigurationPairs(): List<Pair<MarkedResource, WorkConfiguration>> {
-    return mapNotNull { mr ->
+    return mapNotNull { resource ->
       val workConfiguration: WorkConfiguration? = workConfigurations.find {
-        it.namespace == mr.namespace
+        it.namespace == resource.namespace
       }
 
       if (workConfiguration == null) {
-        log.debug("Skipping ${mr.resourceId}. Reasons: ${mr.resourceType} currently disabled in the configuration.")
+        log.debug("Skipping ${resource.resourceId}. Reasons: ${resource.resourceType} currently disabled in the configuration.")
         null
       } else {
-        Pair(mr, workConfiguration)
+        Pair(resource, workConfiguration)
       }
     }
+  }
+
+  private fun String.unCamelCase(): String =
+    split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()
+
+  private fun notificationContext(
+    recipient: String,
+    resources: List<Pair<MarkedResource, WorkConfiguration>>,
+    resourceType: String
+  ): Map<String, Any> {
+    return mapOf(
+      "resourceType" to resourceType.unCamelCase(), // TODO: Jeyrs - normalize resource type so we wont have to do this
+      "resourceOwner" to recipient,
+      "resources" to resources
+    )
   }
 }

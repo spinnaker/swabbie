@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.redis
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
@@ -46,14 +47,12 @@ class RedisNotificationQueue(
     }.size
   }
 
-  override fun pop(): NotificationTask? {
-    redisClientDelegate.withCommandsClient<String?> { client ->
-      client.spop(NOTIFICATION_KEY)
-    }?.let {
-      return objectMapper.readValue(it, NotificationTask::class.java)
-    }
+  override fun popAll(): List<NotificationTask> {
+    val json = redisClientDelegate.withCommandsClient<Set<String>> { client ->
+      client.spop(NOTIFICATION_KEY, size().toLong())
+    } ?: return emptyList()
 
-    return null
+    return objectMapper.readValue(json.toString())
   }
 
   override fun isEmpty(): Boolean = size() == 0

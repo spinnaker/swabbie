@@ -36,7 +36,6 @@ import com.nhaarman.mockito_kotlin.verify
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.never
-import com.nhaarman.mockito_kotlin.argumentCaptor
 import com.nhaarman.mockito_kotlin.times
 
 import org.junit.jupiter.api.AfterEach
@@ -44,8 +43,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import strikt.api.expectThat
-import strikt.assertions.isEqualTo
-import strikt.assertions.isNotEmpty
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 import java.time.Clock
@@ -99,7 +96,7 @@ object NotificationSenderTest {
       createMarkedResource(workConfiguration = workConfiguration2, id = "3", owner = "test@netflix.com")
     )
 
-    verify(notifier, never()).notify(any())
+    verify(notifier, never()).notify(any(), any(), any())
     verify(applicationEventPublisher, never()).publishEvent(any<OwnerNotifiedEvent>())
   }
 
@@ -123,20 +120,12 @@ object NotificationSenderTest {
     ) doReturn resources
 
     whenever(
-      notifier.notify(any())
+      notifier.notify(any(), any(), any())
     ) doReturn Notifier.NotificationResult(owner1, Notifier.NotificationType.EMAIL, success = true)
 
     notificationService.sendNotifications()
 
-    argumentCaptor<Notifier.Envelope>().apply {
-      verify(notifier, times(1)).notify(capture())
-      val passedResources = firstValue.resources.map { it.first }
-      expectThat(passedResources)
-        .isNotEmpty()
-        .isEqualTo(
-          listOf(resource1, resource2)
-        )
-    }
+    verify(notifier, times(1)).notify(any(), any(), any())
 
     // Should publish events for resource1 and resource2 since they match the resource type
     verify(applicationEventPublisher, times(2)).publishEvent(any<OwnerNotifiedEvent>())

@@ -46,16 +46,14 @@ object EchoNotifierTest {
       summaries = listOf(Summary("invalid resource", "rule x")),
       namespace = workConfiguration.namespace,
       markTs = now,
-      projectedDeletionStamp = now
-    )
-
-    val envelope = Notifier.Envelope(
-      recipient = "yolo@netflix.com",
-      resources = listOf(Pair(markedResource, workConfiguration))
+      projectedDeletionStamp = now,
+      resourceOwner = "test@netflix.com"
     )
 
     val result = subject.notify(
-      envelope
+      recipient = markedResource.resourceOwner,
+      notificationContext = mapOf(),
+      notificationConfiguration = workConfiguration.notificationConfiguration
     )
 
     verify(echoService).create(any())

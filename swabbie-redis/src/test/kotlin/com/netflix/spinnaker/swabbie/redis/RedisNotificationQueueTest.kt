@@ -30,8 +30,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import redis.clients.jedis.JedisPool
 import strikt.api.expectThat
+import strikt.assertions.isEqualTo
 import strikt.assertions.isFalse
 import strikt.assertions.isTrue
+import strikt.assertions.size
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 object RedisNotificationQueueTest {
@@ -79,11 +81,7 @@ object RedisNotificationQueueTest {
 
     expectThat(queue.isEmpty()).isFalse()
 
-    queue.pop()
-
-    expectThat(queue.isEmpty()).isFalse()
-
-    queue.pop()
+    queue.popAll()
 
     expectThat(queue.isEmpty()).isTrue()
 
@@ -98,8 +96,6 @@ object RedisNotificationQueueTest {
       namespace = workConfiguration.namespace
     ))
 
-    queue.pop()
-
-    expectThat(queue.isEmpty()).isTrue()
+    expectThat(queue.popAll()).size.isEqualTo(1)
   }
 }

@@ -23,8 +23,13 @@ import java.util.concurrent.LinkedBlockingDeque
 // For local testing. Implemented as a mere list
 class InMemoryNotificationQueue : NotificationQueue {
   private val _q = LinkedBlockingDeque<NotificationTask>()
-  override fun pop(): NotificationTask? {
-    return _q.pop()
+  override fun popAll(): List<NotificationTask> {
+    val list = mutableListOf<NotificationTask>()
+    while (!_q.isEmpty()) {
+      list += _q.pop()
+    }
+
+    return list
   }
 
   override fun isEmpty(): Boolean {

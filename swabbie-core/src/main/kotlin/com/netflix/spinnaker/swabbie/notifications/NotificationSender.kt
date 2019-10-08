@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.notifications
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryAware
+import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.model.MarkedResource
@@ -50,7 +50,7 @@ class NotificationSender(
   private val notificationQueue: NotificationQueue,
   private val registry: Registry,
   private val workConfigurations: List<WorkConfiguration>
-) : DiscoveryAware() {
+) : DiscoveryActivated() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val notificationsId = registry.createId("swabbie.notifications")
 

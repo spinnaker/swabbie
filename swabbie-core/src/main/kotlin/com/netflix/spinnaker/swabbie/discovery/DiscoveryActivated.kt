@@ -4,15 +4,25 @@ import com.netflix.appinfo.InstanceInfo
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationListener
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A component that starts doing something when the instance is up in discovery
  * and stops doing that thing when it goes down.
  */
-interface DiscoveryActivated : ApplicationListener<RemoteStatusChangedEvent> {
+open class DiscoveryActivated : ApplicationListener<RemoteStatusChangedEvent> {
+  private val up = AtomicBoolean()
+  open fun onDiscoveryUpCallback(event: RemoteStatusChangedEvent) {
+    up.set(true)
+  }
 
-  val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
-  val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
+  open fun onDiscoveryDownCallback(event: RemoteStatusChangedEvent) {
+    up.set(false)
+  }
+
+  fun isUp(): Boolean {
+    return up.get()
+  }
 
   override fun onApplicationEvent(event: RemoteStatusChangedEvent) {
     if (event.source.status == InstanceInfo.InstanceStatus.UP) {

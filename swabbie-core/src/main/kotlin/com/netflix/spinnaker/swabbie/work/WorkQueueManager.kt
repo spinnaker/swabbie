@@ -23,7 +23,7 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.CacheStatus
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryAware
+import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -47,7 +47,7 @@ class WorkQueueManager(
   private val clock: Clock,
   private val registry: Registry,
   private val cacheStatus: CacheStatus
-) : DiscoveryAware() {
+) : DiscoveryActivated() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val queueId = registry.createId("swabbie.redis.queue")
 
@@ -55,13 +55,12 @@ class WorkQueueManager(
     queue.track()
   }
 
-  override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      if (isEnabled()) {
-        ensureLoadedCaches()
-        queue.refillOnEmpty()
-      }
+  override fun onDiscoveryUpCallback(event: RemoteStatusChangedEvent) {
+    if (isEnabled()) {
+      ensureLoadedCaches()
+      queue.refillOnEmpty()
     }
+  }
 
   /**
    * Monitors and refills the [WorkQueue] if empty.

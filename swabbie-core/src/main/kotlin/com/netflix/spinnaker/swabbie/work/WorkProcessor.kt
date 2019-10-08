@@ -21,7 +21,7 @@ import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryAware
+import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkItem
 import org.slf4j.Logger
@@ -40,7 +40,7 @@ class WorkProcessor(
   private val workQueue: WorkQueue,
   private val lockingService: LockingService,
   private val cacheStatus: CacheStatus
-) : DiscoveryAware() {
+) : DiscoveryActivated() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workId = registry.createId("swabbie.work")
 

@@ -19,13 +19,21 @@ package com.netflix.spinnaker.swabbie.test
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkItem
 import com.netflix.spinnaker.swabbie.work.WorkQueue
+import org.slf4j.LoggerFactory
 import java.util.concurrent.LinkedBlockingQueue
 
 // For testing purpose
 class InMemoryWorkQueue(
   private val _seed: List<WorkConfiguration> = emptyList()
 ) : WorkQueue {
+
+  private val log = LoggerFactory.getLogger(javaClass)
   private val _q = LinkedBlockingQueue<WorkItem>()
+
+  init {
+    log.info("Using ${javaClass.simpleName}")
+  }
+
   override fun seed() {
     _seed.map { it.toWorkItems() }.flatten().forEach {
       _q.put(it)

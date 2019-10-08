@@ -99,7 +99,8 @@ open class WorkConfigurator(
               entityTaggingEnabled = resourceTypeConfiguration.entityTaggingEnabled,
               maxAge = resourceTypeConfiguration.maxAge,
               maxItemsProcessedPerCycle = cloudProviderConfiguration.maxItemsProcessedPerCycle,
-              itemsProcessedBatchSize = cloudProviderConfiguration.itemsProcessedBatchSize
+              itemsProcessedBatchSize = cloudProviderConfiguration.itemsProcessedBatchSize,
+              enabledActions = resourceTypeConfiguration.enabledActions
             ).let { configuration ->
               configuration.takeIf {
                 !shouldExclude(account, it, exclusionPolicies, log)

@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.config
 
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.DayOfWeek
@@ -138,6 +139,7 @@ class Exclusion {
 
 class ResourceTypeConfiguration {
   var enabled: Boolean = false
+  var enabledActions: List<Action> = mutableListOf(Action.MARK, Action.NOTIFY, Action.DELETE)
   var dryRun: Boolean = true
   var retention: Int = 14
   var exclusions: MutableSet<Exclusion> = mutableSetOf()

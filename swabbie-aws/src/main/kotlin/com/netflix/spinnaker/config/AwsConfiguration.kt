@@ -19,21 +19,21 @@ package com.netflix.spinnaker.config
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.netflix.awsobjectmapper.AmazonObjectMapperConfigurer
 import com.netflix.spinnaker.kork.aws.bastion.BastionConfig
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.CachedViewProvider
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Vanilla
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
-import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesInMemoryCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationInMemoryCache
+import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
 import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
-import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesInMemoryCache
-import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
@@ -46,17 +46,18 @@ import java.time.Clock
 open class AwsConfiguration {
   private val defaultRegion = "us-west-2" // TODO: (Jeyrs) Make configurable
 
+  // AWS object mapper ensures edda and vanilla aws responses are the same
+  @Bean
+  open fun amazonObjectMapper(): ObjectMapper =
+    AmazonObjectMapperConfigurer.createConfigured().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+
   @Bean
   open fun imagesUsedByInstancesProvider(
     clock: Clock,
     workConfigurations: List<WorkConfiguration>,
     accountProvider: AccountProvider,
     aws: AWS
-  ): CachedViewProvider<AmazonImagesUsedByInstancesCache>? {
-    if (workConfigurations.none { it.resourceType == IMAGE }) {
-      return null
-    }
-
+  ): CachedViewProvider<AmazonImagesUsedByInstancesCache> {
     return ImagesUsedByInstancesProvider(clock, accountProvider, aws)
   }
 
@@ -66,16 +67,11 @@ open class AwsConfiguration {
     workConfigurations: List<WorkConfiguration>,
     accountProvider: AccountProvider,
     aws: AWS
-  ): CachedViewProvider<AmazonLaunchConfigurationCache>? {
-    if (workConfigurations.none { it.resourceType == IMAGE }) {
-      return null
-    }
-
+  ): CachedViewProvider<AmazonLaunchConfigurationCache> {
     return LaunchConfigurationCacheProvider(clock, workConfigurations, accountProvider, aws)
   }
 
   @Bean
-  @ConditionalOnBean(LaunchConfigurationCacheProvider::class)
   open fun launchConfigurationInMemoryCache(
     provider: CachedViewProvider<AmazonLaunchConfigurationCache>
   ): AmazonLaunchConfigurationInMemoryCache {
@@ -83,7 +79,6 @@ open class AwsConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean(ImagesUsedByInstancesProvider::class)
   open fun imagesUsedByInstancesInMemoryCache(
     provider: CachedViewProvider<AmazonImagesUsedByInstancesCache>
   ): AmazonImagesUsedByInstancesInMemoryCache {

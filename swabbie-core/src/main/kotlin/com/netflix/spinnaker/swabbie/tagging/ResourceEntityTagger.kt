@@ -60,10 +60,11 @@ class ResourceEntityTagger(
   }
 
   private fun tagMessage(markedResource: MarkedResource, workConfiguration: WorkConfiguration): String {
-    return markedResource.summaries
+    val summaries = markedResource.summaries
       .joinToString(", ") {
         it.description
-      }.also { summary -> return formatMessage(summary, markedResource, workConfiguration) }
+      }
+    return formatMessage(summaries, markedResource, workConfiguration)
   }
 
   private fun formatMessage(message: String, markedResource: MarkedResource, workConfiguration: WorkConfiguration): String {

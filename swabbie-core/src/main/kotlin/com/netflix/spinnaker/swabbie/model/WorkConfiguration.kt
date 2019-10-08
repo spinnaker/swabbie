@@ -19,9 +19,10 @@ package com.netflix.spinnaker.swabbie.model
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.swabbie.events.Action
+import org.slf4j.LoggerFactory
 
 /**
- * @param retention How many days swabbie will wait until starting the deletion process (soft delete, then delete)
+ * @param retention How many days swabbie will wait until starting the deletion process
  * @param maxAge resources newer than the maxAge in days will be excluded
  */
 data class WorkConfiguration(
@@ -37,12 +38,15 @@ data class WorkConfiguration(
   val notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration(),
   val maxAge: Int = 14,
   val maxItemsProcessedPerCycle: Int = 10,
-  val itemsProcessedBatchSize: Int = 5
+  val itemsProcessedBatchSize: Int = 5,
+  val enabledActions: List<Action> = listOf(Action.MARK, Action.NOTIFY, Action.DELETE)
 ) {
+  private val log = LoggerFactory.getLogger(javaClass)
 
-  fun toLog(): String = "$namespace/$account/$location/$cloudProvider/$resourceType"
+  fun toLog(): String = "$namespace/${account.accountId}/$location/$cloudProvider/$resourceType"
   fun toWorkItems(): List<WorkItem> {
-    return listOf(Action.MARK, Action.NOTIFY, Action.DELETE).map {
+    log.info("Actions $enabledActions enabled for ${toLog()}")
+    return enabledActions.map {
       WorkItem(id = "${it.name}:$namespace".toLowerCase(), workConfiguration = this, action = it)
     }
   }

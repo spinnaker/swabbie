@@ -34,6 +34,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Serves as the producer of work for resource handlers, monitors and refills the work queue once all work is complete
@@ -51,12 +52,15 @@ class WorkQueueManager(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val queueId = registry.createId("swabbie.redis.queue")
 
+  private val up: AtomicBoolean = AtomicBoolean()
+
   init {
     queue.track()
   }
 
   override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
+      up.set(true)
       if (isEnabled()) {
         ensureLoadedCaches()
         queue.refillOnEmpty()
@@ -65,26 +69,31 @@ class WorkQueueManager(
 
   override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
     get() = {
-      if (!isEnabled()) {
-        // should only empty the queue if disabled.
-        queue.clear()
-      }
+      up.set(false)
     }
 
   /**
    * Monitors and refills the [WorkQueue] if empty.
    * The queue is emptied if swabbie is disabled via a persisted property/config or outside the configured schedule
    */
-  @Scheduled(fixedDelayString = "\${swabbie.queue.monitorIntervalMs:900000}")
+  @Scheduled(fixedDelayString = "\${swabbie.queue.monitor-interval-ms:900000}")
   fun monitor() {
-    if (isEnabled()) {
-      queue.refillOnEmpty()
-    } else {
-      queue.clear()
+    if (!up.get()) {
+      // do nothing, we're down in discovery and we want active instances to control the queue
+      return
+    }
+
+    when (isEnabled()) {
+      true -> queue.refillOnEmpty()
+      false -> queue.clear()
     }
   }
 
-  private fun isEnabled(): Boolean {
+  /**
+   * Swabbie is considered disabled if it is out of service in discovery, disabled via fast property, or the
+   *  schedule determines it is off hours.
+   */
+  internal fun isEnabled(): Boolean {
     if (dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) {
       log.info("Swabbie schedule: disabled via property $SWABBIE_FLAG_PROPERY")
       return false
@@ -95,6 +104,7 @@ class WorkQueueManager(
       return false
     }
 
+    log.info("Swabbie schedule: time to work")
     return true
   }
 

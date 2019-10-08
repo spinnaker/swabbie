@@ -26,6 +26,9 @@ import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
 import retrofit.http.GET
 import retrofit.http.Path
 
+/**
+ * This is an interface to a single edda instance.
+ */
 interface EddaService {
   // security groups
   @GET("/api/v2/aws/securityGroups/{groupId}")

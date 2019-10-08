@@ -4,6 +4,7 @@ import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
@@ -11,6 +12,13 @@ class ControllerUtils(
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   private val workConfigurations: List<WorkConfiguration>
 ) {
+
+  private val log = LoggerFactory.getLogger(javaClass)
+
+  init {
+    log.info("Available resource type handlers are: $resourceTypeHandlers")
+  }
+
   fun findWorkConfiguration(namespace: SwabbieNamespace): WorkConfiguration {
     return workConfigurations.find { workConfiguration ->
       workConfiguration.account.name == namespace.accountName &&

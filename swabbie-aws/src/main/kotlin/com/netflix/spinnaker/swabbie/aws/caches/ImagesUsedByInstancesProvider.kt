@@ -33,11 +33,13 @@ class ImagesUsedByInstancesProvider(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   override fun load(): AmazonImagesUsedByInstancesCache {
     log.info("Loading cache for ${javaClass.simpleName}")
-    val refdAmisByRegion = mutableMapOf<String, Set<String>>()
+    val refdAmisByRegion = mutableMapOf<String, MutableSet<String>>()
     accountProvider.getAccounts()
       .filter { it.cloudProvider == "aws" && !it.regions.isNullOrEmpty() }
       .forEach { account ->
-        account.regions!!.filterNot { it.deprecated }.forEach { region ->
+        account.regions!!.forEach { region ->
+          // we need to read all the instances in every region, no matter if it's deprecated or not,
+          // because we need to see all the AMIs that are in use.
           log.info("Reading instances in {}/{}/{}", account.accountId, region.name, account.environment)
           val instances: List<AmazonInstance> = getInstances(
             Parameters(
@@ -51,7 +53,9 @@ class ImagesUsedByInstancesProvider(
             .map { it.imageId }
             .toSet()
 
-          refdAmisByRegion[region.name] = refdAmis.toSet()
+          val currentAmis = refdAmisByRegion.getOrDefault(region.name, mutableSetOf())
+          currentAmis.addAll(refdAmis)
+          refdAmisByRegion[region.name] = currentAmis
         }
       }
 

@@ -15,7 +15,8 @@
  */
 
 dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
-  compile "com.netflix.spinnaker.moniker:moniker"
+  implementation project(":swabbie-core")
+  implementation project(":swabbie-retrofit")
+  implementation "com.netflix.spinnaker.moniker:moniker"
+  implementation "net.logstash.logback:logstash-logback-encoder"
 }

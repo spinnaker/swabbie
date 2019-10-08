@@ -23,4 +23,5 @@ interface ResourceStateRepository {
   fun upsert(resourceState: ResourceState)
   fun getAll(): List<ResourceState>
   fun getByStatus(status: String): List<ResourceState>
+  fun remove(resourceId: String, namespace: String)
 }

@@ -15,13 +15,15 @@
  */
 
 dependencies {
-  compile project(":swabbie-core")
+  implementation project(":swabbie-core")
 
-  compile "redis.clients:jedis"
-  compile "com.netflix.spinnaker.kork:kork-jedis"
-  compile "com.netflix.spinnaker.kork:kork-dynomite"
-  compile "com.netflix.spinnaker.kork:kork-test"
+  implementation "redis.clients:jedis"
+  implementation "com.netflix.spinnaker.kork:kork-jedis"
+  implementation "com.netflix.spinnaker.kork:kork-dynomite"
+  implementation "com.netflix.spinnaker.kork:kork-test"
+  implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
 
-  testCompile "com.netflix.spinnaker.kork:kork-jedis-test"
-  testCompile project(":swabbie-test")
+  testImplementation "com.netflix.spinnaker.kork:kork-jedis-test"
+  testImplementation project(":swabbie-test")
+  testImplementation("io.strikt:strikt-core")
 }

@@ -269,7 +269,7 @@ object AmazonAutoScalingGroupHandlerTest {
           projectedDeletionStamp = fifteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "test@netflix.com",
-            notificationType = "Email",
+            notificationType = "email",
             notificationStamp = clock.millis()
           )
         )

@@ -73,7 +73,7 @@ class CloudProviderConfiguration {
  */
 open class NotificationConfiguration(
   var enabled: Boolean = false,
-  var types: List<String> = listOf("Email"),
+  var types: List<String> = listOf("email"),
   var optOutBaseUrl: String = "",
   var itemsPerMessage: Int = 10,
   var resourceUrl: String = "",

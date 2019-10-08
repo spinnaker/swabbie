@@ -192,7 +192,7 @@ object ResourceTypeHandlerTest {
           projectedDeletionStamp = fifteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
-            notificationType = "Email",
+            notificationType = "email",
             notificationStamp = clock.millis()
           )
         ),
@@ -204,7 +204,7 @@ object ResourceTypeHandlerTest {
           projectedDeletionStamp = fifteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "yolo@netflix.com",
-            notificationType = "Email",
+            notificationType = "email",
             notificationStamp = clock.millis()
           )
         )
@@ -288,7 +288,7 @@ object ResourceTypeHandlerTest {
       projectedDeletionStamp = fifteenDaysAgo,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
-        notificationType = "Email",
+        notificationType = "email",
         notificationStamp = clock.millis()
       )
     )
@@ -330,7 +330,7 @@ object ResourceTypeHandlerTest {
       projectedDeletionStamp = fifteenDaysAgo,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflix.com",
-        notificationType = "Email",
+        notificationType = "email",
         notificationStamp = clock.millis()
       )
     )

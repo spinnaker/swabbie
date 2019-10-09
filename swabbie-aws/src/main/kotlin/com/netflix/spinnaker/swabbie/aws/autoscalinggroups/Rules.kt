@@ -17,13 +17,17 @@
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.netflix.appinfo.InstanceInfo
+import com.netflix.appinfo.InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 import com.netflix.discovery.DiscoveryClient
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.time.Clock
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.util.Optional
 
 @Component
@@ -37,7 +41,7 @@ class ZeroInstanceDisabledServerGroupRule : Rule<AmazonAutoScalingGroup> {
       return Result(null)
     }
 
-    if (resource.details[HAS_INSTANCES] == null || resource.details[HAS_INSTANCES] == false) {
+    if (!resource.hasInstances()) {
       val disabledTime = resource.disabledTime() ?: return Result(null)
 
       // time elapsed since the resource was disabled time is greater than disabledDurationInDays
@@ -58,26 +62,23 @@ class ZeroInstanceDisabledServerGroupRule : Rule<AmazonAutoScalingGroup> {
 
 @Component
 class ZeroInstanceInDiscoveryDisabledServerGroupRule(
-  private val discoveryClient: Optional<DiscoveryClient>
+  private val discoveryClient: Optional<DiscoveryClient>,
+  private val clock: Clock
 ) : Rule<AmazonAutoScalingGroup> {
 
   @Value("\${swabbie.resource.disabled.days.count:30}")
   private val disabledDurationInDays: Long = 30
 
   override fun apply(resource: AmazonAutoScalingGroup): Result {
-    if (resource.details[IS_DISABLED] == null || resource.details[IS_DISABLED] == false) {
+    if (!resource.isDisabled()) {
       return Result(null)
     }
-    val disabledTime = resource.disabledTime() ?: return Result(null)
+
     if (discoveryClient.isPresent) {
       resource.instances?.all {
-        discoveryClient.get()
-          .getInstancesById(it["instanceId"] as String)
-          .all {
-            it.status == InstanceInfo.InstanceStatus.OUT_OF_SERVICE
-          }
+        discoveryClient.get().getInstancesById(it["instanceId"] as String).all(this::hasBeenDisabled)
       }?.let { outOfService ->
-        if (outOfService && disabledTime.isBefore(LocalDateTime.now().minusDays(disabledDurationInDays))) {
+        if (outOfService) {
           return Result(
             Summary(
               description = "Server Group ${resource.resourceId} has been disabled for more  " +
@@ -91,7 +92,19 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
 
     return Result(null)
   }
+
+  // Checks if the instance is out of service and that the time elapsed since its been disabled
+  // is greater than the threshold defined swabbie.resource.disabled.days.count:30
+  private fun hasBeenDisabled(instance: InstanceInfo): Boolean {
+    val disabledInDays = ChronoUnit.DAYS.between(
+      Instant.ofEpochMilli(instance.lastUpdatedTimestamp),
+      Instant.now(clock)
+    )
+
+    return instance.status == OUT_OF_SERVICE && disabledInDays > disabledDurationInDays
+  }
 }
 
+// TODO: aravindd : move these out of Rules
 const val HAS_INSTANCES = "hasInstances"
 const val IS_DISABLED = "isDisabled"

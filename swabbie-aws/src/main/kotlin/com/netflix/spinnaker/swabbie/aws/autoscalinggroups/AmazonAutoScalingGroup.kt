@@ -39,7 +39,7 @@ data class AmazonAutoScalingGroup(
   override val name: String = autoScalingGroupName,
   private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
-  private val REGEX = "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}).*".toRegex()
+  private val suspensionReasonDateRegex = "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})".toRegex()
 
   override fun equals(other: Any?): Boolean {
     return super.equals(other)
@@ -50,31 +50,35 @@ data class AmazonAutoScalingGroup(
   }
 
   fun isOutOfLoadBalancer(): Boolean {
-    suspendedProcesses?.find {
-      it.processName == "AddToLoadBalancer"
-    }?.let {
-      return true
-    }
-
-    return false
+    return getAddToLoadBalancerProcess() != null
   }
 
-  fun suspensionReason(): String? {
-    suspendedProcesses?.find {
+  private fun getAddToLoadBalancerProcess(): SuspendedProcess? {
+    return suspendedProcesses?.find {
       it.processName == "AddToLoadBalancer"
-    }?.let {
-      return it.suspensionReason
     }
-
-    return null
   }
 
+  private fun getLoadBalancerSuspensionReason(): String? {
+    return getAddToLoadBalancerProcess()?.suspensionReason
+  }
+
+  fun isDisabled(): Boolean {
+    return (details[IS_DISABLED] != null && details[IS_DISABLED] == true)
+  }
+
+  fun hasInstances(): Boolean {
+    return (details[HAS_INSTANCES] != null && details[HAS_INSTANCES] == true)
+  }
+
+  // TODO :aravindd refactor this method
   fun disabledTime(): LocalDateTime? {
     if (!isOutOfLoadBalancer()) {
       return null
     }
 
-    val timeSinceDisabled = REGEX.find(suspensionReason()!!)!!.groups.get(1)!!.value
-    return Dates.toLocalDateTime(timeSinceDisabled)
+    val suspensionReason = getLoadBalancerSuspensionReason()!!
+    val timeSinceDisabled = suspensionReasonDateRegex.find(suspensionReason)?.value
+    return timeSinceDisabled?.let { Dates.toLocalDateTime(timeSinceDisabled) }
   }
 }

@@ -25,9 +25,14 @@ import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
+
+  private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
 
   @Test
   fun `should not apply to non disabled server groups`() {
@@ -43,7 +48,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
     }
 
     val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
-      Optional.empty()
+      Optional.empty(), clock
     ).apply(asg)
 
     Assertions.assertNull(result.summary)
@@ -59,6 +64,8 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
 
     whenever(instanceInfo.status) doReturn
       InstanceInfo.InstanceStatus.OUT_OF_SERVICE
+
+    whenever(instanceInfo.lastUpdatedTimestamp) doReturn "147049205495".toLong()
 
     val suspendedProcess = SuspendedProcess()
     suspendedProcess.withProcessName("AddToLoadBalancer")
@@ -78,7 +85,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
     }
 
     val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
-      Optional.of(discoveryClient)
+      Optional.of(discoveryClient), clock
     ).apply(asg)
 
     Assertions.assertNotNull(result.summary)
@@ -114,14 +121,14 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
     }
 
     val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
-      Optional.of(discoveryClient)
+      Optional.of(discoveryClient), clock
     ).apply(asg)
 
     Assertions.assertNull(result.summary)
   }
 
   @Test
-  fun `should not apply when server group disabled time is less than maxage `() {
+  fun `should not apply when instance lastupdated time is less than threshold `() {
     val discoveryClient = mock<DiscoveryClient>()
     val instanceInfo = mock<InstanceInfo>()
 
@@ -130,6 +137,8 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
 
     whenever(instanceInfo.status) doReturn
       InstanceInfo.InstanceStatus.OUT_OF_SERVICE
+
+    whenever(instanceInfo.lastUpdatedTimestamp) doReturn "1570492054956".toLong()
 
     val asg = AmazonAutoScalingGroup(
       autoScalingGroupName = "testapp-v001",
@@ -143,7 +152,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
     }
 
     val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
-      Optional.of(discoveryClient)
+      Optional.of(discoveryClient), clock
     ).apply(asg)
 
     Assertions.assertNull(result.summary)

@@ -31,7 +31,9 @@ import java.time.temporal.ChronoUnit
 import java.util.Optional
 
 @Component
-class ZeroInstanceDisabledServerGroupRule : Rule<AmazonAutoScalingGroup> {
+class ZeroInstanceDisabledServerGroupRule(
+  private val clock: Clock
+) : Rule<AmazonAutoScalingGroup> {
 
   @Value("\${swabbie.resource.disabled.days.count:30}")
   private val disabledDurationInDays: Long = 30
@@ -45,7 +47,7 @@ class ZeroInstanceDisabledServerGroupRule : Rule<AmazonAutoScalingGroup> {
       val disabledTime = resource.disabledTime() ?: return Result(null)
 
       // time elapsed since the resource was disabled time is greater than disabledDurationInDays
-      if (disabledTime.isBefore(LocalDateTime.now().minusDays(disabledDurationInDays))) {
+      if (disabledTime.isBefore(LocalDateTime.now(clock).minusDays(disabledDurationInDays))) {
         return Result(
           Summary(
             description = "Server Group ${resource.autoScalingGroupName} has been disabled for more " +

@@ -27,12 +27,12 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
 
-  private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
+  private val clock = Clock.systemDefaultZone()
 
   @Test
   fun `should not apply to non disabled server groups`() {
@@ -58,6 +58,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
   fun `should apply when server group is disabled with all instances out of discovery`() {
     val discoveryClient = mock<DiscoveryClient>()
     val instanceInfo = mock<InstanceInfo>()
+    val instanceLastUpdatedTimestamp = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
 
     whenever(discoveryClient.getInstancesById(any())) doReturn
       listOf(instanceInfo)
@@ -65,11 +66,11 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
     whenever(instanceInfo.status) doReturn
       InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 
-    whenever(instanceInfo.lastUpdatedTimestamp) doReturn "147049205495".toLong()
+    whenever(instanceInfo.lastUpdatedTimestamp) doReturn instanceLastUpdatedTimestamp
 
     val suspendedProcess = SuspendedProcess()
-    suspendedProcess.withProcessName("AddToLoadBalancer")
-    suspendedProcess.withSuspensionReason("User suspended at 2019-09-03T17:29:07Z")
+      .withProcessName("AddToLoadBalancer")
+      .withSuspensionReason("User suspended at 2019-09-03T17:29:07Z")
     val asg = AmazonAutoScalingGroup(
       autoScalingGroupName = "testapp-v001",
       instances = listOf(
@@ -131,14 +132,14 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
   fun `should not apply when instance lastupdated time is less than threshold `() {
     val discoveryClient = mock<DiscoveryClient>()
     val instanceInfo = mock<InstanceInfo>()
-
+    val instanceLastUpdatedTimestamp = Instant.now().toEpochMilli()
     whenever(discoveryClient.getInstancesById(any())) doReturn
       listOf(instanceInfo)
 
     whenever(instanceInfo.status) doReturn
       InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 
-    whenever(instanceInfo.lastUpdatedTimestamp) doReturn "1570492054956".toLong()
+    whenever(instanceInfo.lastUpdatedTimestamp) doReturn instanceLastUpdatedTimestamp
 
     val asg = AmazonAutoScalingGroup(
       autoScalingGroupName = "testapp-v001",

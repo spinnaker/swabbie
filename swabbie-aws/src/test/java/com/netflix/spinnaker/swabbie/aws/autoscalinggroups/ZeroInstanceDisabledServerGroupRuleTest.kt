@@ -18,25 +18,14 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 object ZeroInstanceDisabledServerGroupRuleTest {
 
-  @BeforeEach
-  fun setup() {
-    val asg = AmazonAutoScalingGroup(
-      autoScalingGroupName = "testapp-v001",
-      instances = listOf(),
-      loadBalancerNames = listOf(),
-      createdTime = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
-    ).apply {
-      set(IS_DISABLED, true)
-      set(HAS_INSTANCES, false)
-    }
-  }
+  private val clock = Clock.systemUTC()
 
   @Test
   fun `should not apply to non disabled server groups`() {
@@ -51,7 +40,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       set(IS_DISABLED, false)
     }
 
-    val result = ZeroInstanceDisabledServerGroupRule().apply(asg)
+    val result = ZeroInstanceDisabledServerGroupRule(clock).apply(asg)
     Assertions.assertNull(result.summary)
   }
 
@@ -73,7 +62,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       set(HAS_INSTANCES, false)
     }
 
-    val result = ZeroInstanceDisabledServerGroupRule().apply(asg)
+    val result = ZeroInstanceDisabledServerGroupRule(clock).apply(asg)
     Assertions.assertNotNull(result.summary)
   }
 
@@ -89,7 +78,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       set(HAS_INSTANCES, false)
     }
 
-    val result = ZeroInstanceDisabledServerGroupRule().apply(asg)
+    val result = ZeroInstanceDisabledServerGroupRule(clock).apply(asg)
     Assertions.assertNull(result.summary)
   }
 }

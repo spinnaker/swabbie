@@ -78,7 +78,7 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
 
     if (discoveryClient.isPresent) {
       resource.instances?.all {
-        discoveryClient.get().getInstancesById(it["instanceId"] as String).all(this::hasBeenDisabled)
+        discoveryClient.get().getInstancesById(it["instanceId"] as String).all(this::hasBeenDisabledForThresholdDays)
       }?.let { outOfService ->
         if (outOfService) {
           return Result(
@@ -97,7 +97,7 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
 
   // Checks if the instance is out of service and that the time elapsed since its been disabled
   // is greater than the threshold defined swabbie.resource.disabled.days.count:30
-  private fun hasBeenDisabled(instance: InstanceInfo): Boolean {
+  private fun hasBeenDisabledForThresholdDays(instance: InstanceInfo): Boolean {
     val disabledInDays = ChronoUnit.DAYS.between(
       Instant.ofEpochMilli(instance.lastUpdatedTimestamp),
       Instant.now(clock)

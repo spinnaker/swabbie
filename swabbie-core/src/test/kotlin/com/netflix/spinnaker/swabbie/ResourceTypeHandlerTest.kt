@@ -64,6 +64,8 @@ import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
+import strikt.assertions.isFalse
+import strikt.assertions.isTrue
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -131,6 +133,7 @@ object ResourceTypeHandlerTest {
     defaultHandler.clearCandidates()
     defaultHandler.clearRules()
     defaultHandler.clearExclusionPolicies()
+    notificationQueue.popAll()
   }
 
   @Test
@@ -656,6 +659,8 @@ object ResourceTypeHandlerTest {
       notificationConfiguration = NotificationConfiguration(enabled = true)
     )
 
+    expectThat(notificationQueue.isEmpty()).isTrue()
+
     val markedResource = MarkedResource(
       resource = defaultResource,
       summaries = listOf(Summary("invalid resource random", "rule 5")),
@@ -680,6 +685,7 @@ object ResourceTypeHandlerTest {
     defaultHandler.setRules(defaultRules)
 
     defaultHandler.notify(configuration)
+    expectThat(notificationQueue.isEmpty()).isFalse()
   }
 
   @Test

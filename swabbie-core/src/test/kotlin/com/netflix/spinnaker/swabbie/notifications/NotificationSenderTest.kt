@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.notifications
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.discovery.StatusChangeEvent
 import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import strikt.api.expectThat
+import strikt.assertions.isNotEqualTo
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 import java.time.Clock
@@ -53,6 +55,7 @@ object NotificationSenderTest {
   private var notificationQueue = InMemoryNotificationQueue()
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
+  private val dynamicConfigService = mock<DynamicConfigService>()
 
   private val workConfiguration1 = WorkConfigurationTestHelper
     .generateWorkConfiguration(namespace = "ns1", resourceType = "type1")
@@ -67,13 +70,15 @@ object NotificationSenderTest {
     resourceTrackingRepository = resourceRepository,
     notificationQueue = notificationQueue,
     registry = NoopRegistry(),
-    workConfigurations = listOf(workConfiguration1, workConfiguration2)
+    workConfigurations = listOf(workConfiguration1, workConfiguration2),
+    dynamicConfigService = dynamicConfigService
   )
 
   private val now = clock.millis()
 
   @BeforeEach
   fun setup() {
+    whenever(dynamicConfigService.getConfig(any<Class<*>>(), any(), any())) doReturn 2
     notificationService
       .onDiscoveryUpCallback(
         RemoteStatusChangedEvent(StatusChangeEvent(InstanceInfo.InstanceStatus.DOWN, InstanceInfo.InstanceStatus.UP)))
@@ -84,6 +89,7 @@ object NotificationSenderTest {
     reset(
       notifier,
       resourceRepository,
+      dynamicConfigService,
       applicationEventPublisher
     )
   }
@@ -96,18 +102,42 @@ object NotificationSenderTest {
       createMarkedResource(workConfiguration = workConfiguration2, id = "3", owner = "test@netflix.com")
     )
 
+    notificationService.sendNotifications()
+
     verify(notifier, never()).notify(any(), any(), any())
     verify(applicationEventPublisher, never()).publishEvent(any<OwnerNotifiedEvent>())
   }
 
   @Test
-  fun `should notify`() {
+  fun `should not notify if resource type does not match`() {
+    val notResourceType = "notResourceType"
+    val resource = createMarkedResource(workConfiguration = workConfiguration1, id = "1", owner = "test@netflix.com")
+
+    expectThat(resource.resourceType).isNotEqualTo(notResourceType)
+    expectThat(resource.notificationInfo).isNull()
+
+    notificationQueue.add(
+      NotificationTask(
+        resourceType = notResourceType,
+        namespace = workConfiguration1.namespace
+      ))
+
+    whenever(
+      resourceRepository.getMarkedResources()
+    ) doReturn listOf(resource)
+
+    notificationService.sendNotifications()
+
+    expectThat(resource.notificationInfo).isNull()
+    verify(notifier, never()).notify(any(), any(), any())
+    verify(applicationEventPublisher, never()).publishEvent(any<OwnerNotifiedEvent>())
+  }
+
+  @Test
+  fun `should notify and update notification info`() {
     val owner1 = "test@netflix.com"
     val resource1 = createMarkedResource(workConfiguration = workConfiguration1, id = "1", owner = owner1)
     val resource2 = createMarkedResource(workConfiguration = workConfiguration1, id = "2", owner = owner1)
-    val resource3 = createMarkedResource(workConfiguration = workConfiguration2, id = "3", owner = owner1)
-
-    val resources = listOf(resource1, resource2, resource3)
 
     notificationQueue.add(
       NotificationTask(
@@ -117,7 +147,7 @@ object NotificationSenderTest {
 
     whenever(
       resourceRepository.getMarkedResources()
-    ) doReturn resources
+    ) doReturn listOf(resource1, resource2)
 
     whenever(
       notifier.notify(any(), any(), any())
@@ -126,21 +156,43 @@ object NotificationSenderTest {
     notificationService.sendNotifications()
 
     verify(notifier, times(1)).notify(any(), any(), any())
-
-    // Should publish events for resource1 and resource2 since they match the resource type
     verify(applicationEventPublisher, times(2)).publishEvent(any<OwnerNotifiedEvent>())
 
-    // Resources that have been notified on will have notification information including a non-null notification timestamp
     listOf(resource1, resource2).forEach {
       expectThat(it.notificationInfo)
         .isNotNull()
         .get { notificationStamp }
         .isNotNull()
-
-      // resource 3 was not notified on because its resource type is not included in the notification task queue
-      expectThat(resource3.notificationInfo)
-        .isNull()
     }
+  }
+
+  @Test
+  fun `should not post notification event if notification request fails`() {
+    val owner = "test@netflix.com"
+    val resource = createMarkedResource(workConfiguration = workConfiguration1, id = "1", owner = owner)
+
+    expectThat(resource.notificationInfo).isNull()
+
+    notificationQueue.add(
+      NotificationTask(
+        resourceType = workConfiguration1.resourceType,
+        namespace = workConfiguration1.namespace
+      ))
+
+    whenever(
+      resourceRepository.getMarkedResources()
+    ) doReturn listOf(resource)
+
+    whenever(
+      notifier.notify(any(), any(), any())
+    ) doReturn Notifier.NotificationResult(owner, Notifier.NotificationType.EMAIL, success = false)
+
+    notificationService.sendNotifications()
+
+    verify(notifier, times(1)).notify(any(), any(), any())
+    verify(applicationEventPublisher, never()).publishEvent(any<OwnerNotifiedEvent>())
+
+    expectThat(resource.notificationInfo).isNull()
   }
 
   private fun createMarkedResource(workConfiguration: WorkConfiguration, id: String, owner: String): MarkedResource {

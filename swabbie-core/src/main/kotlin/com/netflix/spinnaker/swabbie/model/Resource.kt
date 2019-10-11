@@ -120,6 +120,22 @@ interface Identifiable : Named {
   val resourceType: String
   val cloudProvider: String
   val grouping: Grouping?
+
+  /**
+   * Returns the opt-out url for this resource
+   * This is used for notifications
+   */
+  fun optOutUrl(workConfiguration: WorkConfiguration): String {
+    return "${workConfiguration.notificationConfiguration.optOutBaseUrl}/${workConfiguration.namespace}/$resourceId/optOut"
+  }
+
+  /**
+   * Returns a resource specific url
+   * This is used for notifications
+   */
+  fun resourceUrl(workConfiguration: WorkConfiguration): String {
+    return "${workConfiguration.notificationConfiguration.resourceUrl}/$resourceId"
+  }
 }
 
 data class Grouping(

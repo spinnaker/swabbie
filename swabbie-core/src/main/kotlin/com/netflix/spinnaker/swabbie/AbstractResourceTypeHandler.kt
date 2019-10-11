@@ -188,7 +188,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val resource = getCandidate(resourceId, "", workConfiguration)
       ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
 
-    var markedResource = MarkedResource(
+    val markedResource = MarkedResource(
       resource = resource,
       summaries = listOf(Summary("Resource marked via the api", AlwaysCleanRule::class.java.simpleName)),
       namespace = workConfiguration.namespace,
@@ -246,11 +246,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  private fun getMaxItemsProcessedPerCycle(workConfiguration: WorkConfiguration): Int {
-    val key = workConfiguration.namespace + ".max-items-processed-per-cycle"
-    return dynamicConfigService.getConfig(Int::class.java, key, workConfiguration.maxItemsProcessedPerCycle)
-  }
-
   private fun doMark(workConfiguration: WorkConfiguration) {
     // initialize counters
     exclusionCounters[Action.MARK] = AtomicInteger(0)
@@ -281,7 +276,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         .also { preProcessCandidates(it, workConfiguration) }
         .filter { !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK) }
 
-      val maxItemsToProcess = Math.min(preProcessedCandidates.size, getMaxItemsProcessedPerCycle(workConfiguration))
+      val maxItemsToProcess = min(preProcessedCandidates.size, workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService))
 
       for (candidate in preProcessedCandidates) {
         if (candidateCounter.get() >= maxItemsToProcess) {
@@ -451,7 +446,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     markedResources: List<MarkedResource>,
     action: Action
   ) {
-    val totalProcessed = Math.min(getMaxItemsProcessedPerCycle(workConfiguration), totalResourcesVisitedCounter.get())
+    val totalProcessed = min(workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService), totalResourcesVisitedCounter.get())
     PolledMeter.using(registry)
       .withId(numberOfCandidatesId)
       .withTag(BasicTag("resourceType", workConfiguration.resourceType))
@@ -549,7 +544,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       !shouldSkip
     }
 
-    val maxItemsToProcess = Math.min(confirmedResourcesToDelete.size, getMaxItemsProcessedPerCycle(workConfiguration))
+    val maxItemsToProcess = min(confirmedResourcesToDelete.size, workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService))
     confirmedResourcesToDelete.subList(0, maxItemsToProcess).let {
       partitionList(it, workConfiguration).forEach { partition ->
         if (!partition.isEmpty()) {
@@ -649,7 +644,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       .filter {
         it.markedResource.namespace == workConfiguration.namespace && it.optedOut
       }
-    val maxItemsToProcess = min(size, getMaxItemsProcessedPerCycle(workConfiguration))
+    val maxItemsToProcess = min(size, workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService))
     return subList(0, maxItemsToProcess)
       .filter {
         @Suppress("UNCHECKED_CAST")

@@ -17,9 +17,11 @@
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.fasterxml.jackson.annotation.JsonTypeName
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.Instant
@@ -36,6 +38,20 @@ data class AmazonAutoScalingGroup(
   override val name: String = autoScalingGroupName,
   private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
+
+  /**
+   * Example URL template from config:
+   * https://spinnaker/#/applications/{{application}}/clusters/serverGroupDetails/{{cloudProvider}}/{{env}}/{{region}}/{{resourceId}}
+   */
+  override fun resourceUrl(workConfiguration: WorkConfiguration): String {
+    return workConfiguration.notificationConfiguration.resourceUrl
+      .replace("{{application}}", FriggaReflectiveNamer().deriveMoniker(this).app)
+      .replace("{{cloudProvider}}", AWS)
+      .replace("{{env}}", workConfiguration.account.environment)
+      .replace("{{region}}", workConfiguration.location)
+      .replace("{{resourceId}}", resourceId)
+  }
+
   override fun equals(other: Any?): Boolean {
     return super.equals(other)
   }

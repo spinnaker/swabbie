@@ -31,7 +31,6 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
@@ -50,6 +49,7 @@ import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
@@ -114,11 +114,12 @@ object AmazonSnapshotHandlerTest {
   private val swabbieProperties = SwabbieProperties().apply {}
   private val applicationUtils = ApplicationUtils(emptyList())
   private val dynamicConfigService = mock<DynamicConfigService>()
+  private val notificationQueue = mock<NotificationQueue>()
 
   private val subject = AmazonSnapshotHandler(
     clock = clock,
     registry = NoopRegistry(),
-    notifiers = listOf(mock()),
+    notifier = mock(),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
@@ -128,7 +129,6 @@ object AmazonSnapshotHandlerTest {
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
-    retrySupport = RetrySupport(),
     dynamicConfigService = dynamicConfigService,
     rules = listOf(OrphanedSnapshotRule()),
     aws = aws,
@@ -137,7 +137,8 @@ object AmazonSnapshotHandlerTest {
     taskTrackingRepository = taskTrackingRepository,
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     usedResourceRepository = usedResourceRepository,
-    swabbieProperties = swabbieProperties
+    swabbieProperties = swabbieProperties,
+    notificationQueue = notificationQueue
   )
 
   @Test

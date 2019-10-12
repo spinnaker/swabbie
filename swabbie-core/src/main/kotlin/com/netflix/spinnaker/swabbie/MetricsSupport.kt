@@ -23,6 +23,7 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.util.concurrent.atomic.AtomicInteger
 
+// TODO: Jeyrs - refactor me I hate this!!!!
 open class MetricsSupport(
   private val registry: Registry
 ) {
@@ -51,10 +52,6 @@ open class MetricsSupport(
   protected val optOutCountId: Id = registry.createId("swabbie.resources.optOutCount")
   protected val orcaTaskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
   protected val totalMarkedId: Id = registry.createId("swabbie.resources.totalMarked")
-
-  protected val failedAgentId: Id = registry.createId("swabbie.agents.failed")
-  protected val failedDuringSchedule: Id = registry.createId("swabbie.scheduled.failed")
-  protected val lastRunAgeId: Id = registry.createId("swabbie.agents.run.age")
 
   protected fun recordMarkMetrics(
     markerTimerId: Long,

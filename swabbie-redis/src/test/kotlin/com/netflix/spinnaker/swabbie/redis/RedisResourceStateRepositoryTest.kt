@@ -65,7 +65,7 @@ object RedisResourceStateRepositoryTest {
     projectedDeletionStamp = 1,
     notificationInfo = NotificationInfo(
       recipient = "yolo@netflixcom",
-      notificationType = "Email",
+      notificationType = "email",
       notificationStamp = clock.instant().toEpochMilli()
     )
   )

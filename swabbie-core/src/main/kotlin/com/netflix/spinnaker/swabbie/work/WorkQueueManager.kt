@@ -34,7 +34,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Serves as the producer of work for resource handlers, monitors and refills the work queue once all work is complete
@@ -48,29 +47,20 @@ class WorkQueueManager(
   private val clock: Clock,
   private val registry: Registry,
   private val cacheStatus: CacheStatus
-) : DiscoveryActivated {
+) : DiscoveryActivated() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val queueId = registry.createId("swabbie.redis.queue")
-
-  private val up: AtomicBoolean = AtomicBoolean()
 
   init {
     queue.track()
   }
 
-  override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      up.set(true)
-      if (isEnabled()) {
-        ensureLoadedCaches()
-        queue.refillOnEmpty()
-      }
+  override fun onDiscoveryUpCallback(event: RemoteStatusChangedEvent) {
+    if (isEnabled()) {
+      ensureLoadedCaches()
+      queue.refillOnEmpty()
     }
-
-  override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      up.set(false)
-    }
+  }
 
   /**
    * Monitors and refills the [WorkQueue] if empty.
@@ -78,7 +68,7 @@ class WorkQueueManager(
    */
   @Scheduled(fixedDelayString = "\${swabbie.queue.monitor-interval-ms:900000}")
   fun monitor() {
-    if (!up.get()) {
+    if (!isUp()) {
       // do nothing, we're down in discovery and we want active instances to control the queue
       return
     }

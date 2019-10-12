@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.model
 
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.NotificationConfiguration
+import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import org.slf4j.LoggerFactory
 
@@ -57,6 +58,11 @@ data class WorkConfiguration(
 
   override fun hashCode(): Int {
     return namespace.hashCode()
+  }
+
+  fun getMaxItemsProcessedPerCycle(dynamicConfigService: DynamicConfigService): Int {
+    val key = "$namespace.max-items-processed-per-cycle"
+    return dynamicConfigService.getConfig(Int::class.java, key, maxItemsProcessedPerCycle)
   }
 }
 

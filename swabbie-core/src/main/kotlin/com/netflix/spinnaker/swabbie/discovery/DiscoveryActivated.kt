@@ -13,11 +13,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 open class DiscoveryActivated : ApplicationListener<RemoteStatusChangedEvent> {
   private val up = AtomicBoolean()
   open fun onDiscoveryUpCallback(event: RemoteStatusChangedEvent) {
-    up.set(true)
+    // override to get a hook on up event
   }
 
   open fun onDiscoveryDownCallback(event: RemoteStatusChangedEvent) {
-    up.set(false)
+    // override to get hook on down event
   }
 
   fun isUp(): Boolean {
@@ -27,9 +27,11 @@ open class DiscoveryActivated : ApplicationListener<RemoteStatusChangedEvent> {
   override fun onApplicationEvent(event: RemoteStatusChangedEvent) {
     if (event.source.status == InstanceInfo.InstanceStatus.UP) {
       log.info("Instance is {}... {} starting", event.source.status, javaClass.simpleName)
+      up.set(true)
       onDiscoveryUpCallback(event)
     } else if (event.source.previousStatus == InstanceInfo.InstanceStatus.UP) {
       log.info("Instance is {}... {} stopping", event.source.status, javaClass.simpleName)
+      up.set(false)
       onDiscoveryDownCallback(event)
     }
   }

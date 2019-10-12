@@ -70,7 +70,7 @@ object WorkProcessorTest {
   fun setup() {
     workQueue.clear()
     reset(handler1, handler2)
-    processor.onDiscoveryUpCallback(upEvent)
+    processor.onApplicationEvent(upEvent)
   }
 
   @Test
@@ -142,7 +142,7 @@ object WorkProcessorTest {
 
   @Test
   fun `should not process work when disabled`() {
-    processor.onDiscoveryDownCallback(downEvent)
+    processor.onApplicationEvent(downEvent)
     workQueue.seed()
     processor.process()
 

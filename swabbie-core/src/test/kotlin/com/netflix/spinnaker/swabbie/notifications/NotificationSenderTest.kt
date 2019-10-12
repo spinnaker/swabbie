@@ -80,7 +80,7 @@ object NotificationSenderTest {
   fun setup() {
     whenever(dynamicConfigService.getConfig(any<Class<*>>(), any(), any())) doReturn 2
     notificationService
-      .onDiscoveryUpCallback(
+      .onApplicationEvent(
         RemoteStatusChangedEvent(StatusChangeEvent(InstanceInfo.InstanceStatus.DOWN, InstanceInfo.InstanceStatus.UP)))
   }
 

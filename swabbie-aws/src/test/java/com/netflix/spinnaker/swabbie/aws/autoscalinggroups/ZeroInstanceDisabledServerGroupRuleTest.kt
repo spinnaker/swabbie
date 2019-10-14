@@ -36,6 +36,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       ),
       loadBalancerNames = listOf(),
       createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -57,6 +58,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
         suspendedProcess
       ),
       createdTime = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
+
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)
@@ -73,6 +75,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       instances = listOf(),
       loadBalancerNames = listOf(),
       createdTime = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
+
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)

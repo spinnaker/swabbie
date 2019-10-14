@@ -43,6 +43,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
       ),
       loadBalancerNames = listOf(),
       createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -81,6 +82,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
       ),
       loadBalancerNames = listOf(),
       createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, true)
     }
@@ -116,7 +118,9 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234", "InstanceId" to "i-01235")
       ),
       loadBalancerNames = listOf(),
+
       createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, true)
     }
@@ -132,7 +136,9 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
   fun `should not apply when instance lastupdated time is less than threshold `() {
     val discoveryClient = mock<DiscoveryClient>()
     val instanceInfo = mock<InstanceInfo>()
+
     val instanceLastUpdatedTimestamp = Instant.now(clock).toEpochMilli()
+
     whenever(discoveryClient.getInstancesById(any())) doReturn
       listOf(instanceInfo)
 
@@ -148,6 +154,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
       ),
       loadBalancerNames = listOf(),
       createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, true)
     }

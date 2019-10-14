@@ -32,7 +32,7 @@ import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
 
-  private val clock = Clock.systemDefaultZone()
+  private val clock = Clock.systemUTC()
 
   @Test
   fun `should not apply to non disabled server groups`() {
@@ -42,7 +42,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = System.currentTimeMillis()
+      createdTime = clock.millis()
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -58,7 +58,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
   fun `should apply when server group is disabled with all instances out of discovery`() {
     val discoveryClient = mock<DiscoveryClient>()
     val instanceInfo = mock<InstanceInfo>()
-    val instanceLastUpdatedTimestamp = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
+    val instanceLastUpdatedTimestamp = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
 
     whenever(discoveryClient.getInstancesById(any())) doReturn
       listOf(instanceInfo)
@@ -80,7 +80,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         suspendedProcess
       ),
       loadBalancerNames = listOf(),
-      createdTime = System.currentTimeMillis()
+      createdTime = clock.millis()
     ).apply {
       set(IS_DISABLED, true)
     }
@@ -116,7 +116,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234", "InstanceId" to "i-01235")
       ),
       loadBalancerNames = listOf(),
-      createdTime = System.currentTimeMillis()
+      createdTime = clock.millis()
     ).apply {
       set(IS_DISABLED, true)
     }
@@ -132,7 +132,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
   fun `should not apply when instance lastupdated time is less than threshold `() {
     val discoveryClient = mock<DiscoveryClient>()
     val instanceInfo = mock<InstanceInfo>()
-    val instanceLastUpdatedTimestamp = Instant.now().toEpochMilli()
+    val instanceLastUpdatedTimestamp = Instant.now(clock).toEpochMilli()
     whenever(discoveryClient.getInstancesById(any())) doReturn
       listOf(instanceInfo)
 
@@ -147,7 +147,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = System.currentTimeMillis()
+      createdTime = clock.millis()
     ).apply {
       set(IS_DISABLED, true)
     }

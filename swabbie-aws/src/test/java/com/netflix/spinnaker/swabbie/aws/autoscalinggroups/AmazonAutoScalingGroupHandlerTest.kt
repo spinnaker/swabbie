@@ -71,6 +71,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Optional
 
@@ -82,7 +83,7 @@ object AmazonAutoScalingGroupHandlerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
-  private val clock = Clock.systemUTC()
+  private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val orcaService = mock<OrcaService>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
@@ -165,7 +166,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        createdTime = System.currentTimeMillis()
+        createdTime = clock.millis()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
@@ -173,7 +174,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-00000")
         ),
         loadBalancerNames = listOf(),
-        createdTime = System.currentTimeMillis()
+        createdTime = clock.millis()
       )
     )
 
@@ -184,7 +185,7 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val twoDaysAgo = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
+    val twoDaysAgo = Instant.now(clock).minus(2, ChronoUnit.DAYS).toEpochMilli()
 
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     val suspendedProcess = SuspendedProcess()
@@ -252,7 +253,7 @@ object AmazonAutoScalingGroupHandlerTest {
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<MarkResourceEvent> { event ->
         Assertions.assertTrue(event.markedResource.resourceId == "app-v001")
-        Assertions.assertEquals(event.markedResource.projectedDeletionStamp.inDays(), 1)
+        Assertions.assertEquals(event.markedResource.projectedDeletionStamp.inDays(), 2)
       }
     )
 
@@ -273,7 +274,7 @@ object AmazonAutoScalingGroupHandlerTest {
       suspendedProcesses = listOf(
         suspendedProcess
       ),
-      createdTime = Instant.now().minus(3, ChronoUnit.DAYS).toEpochMilli()
+      createdTime = Instant.now(clock).minus(3, ChronoUnit.DAYS).toEpochMilli()
     ).apply {
       set("suspendedProcesses", listOf(
         mapOf("processName" to "AddToLoadBalancer")

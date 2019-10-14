@@ -35,7 +35,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = System.currentTimeMillis()
+      createdTime = clock.millis()
     ).apply {
       set(IS_DISABLED, false)
     }
@@ -56,7 +56,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       suspendedProcesses = listOf(
         suspendedProcess
       ),
-      createdTime = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
+      createdTime = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)
@@ -72,7 +72,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       autoScalingGroupName = "testapp-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().minus(35, ChronoUnit.DAYS).toEpochMilli()
+      createdTime = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
     ).apply {
       set(IS_DISABLED, true)
       set(HAS_INSTANCES, false)

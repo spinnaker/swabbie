@@ -22,6 +22,7 @@ import com.netflix.spinnaker.swabbie.Dates
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import java.lang.Exception
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -72,12 +73,15 @@ data class AmazonAutoScalingGroup(
   }
 
   // TODO :aravindd refactor this method
+  // Disabled time is here is provided by AWS
   fun disabledTime(): LocalDateTime? {
     if (!isOutOfLoadBalancer()) {
       return null
     }
-
-    val suspensionReason = getLoadBalancerSuspensionReason()!!
+    val suspensionReason = getLoadBalancerSuspensionReason()
+    if (suspensionReason.isNullOrEmpty()) {
+      throw Exception("Failed to find the suspension reason ")
+    }
     val timeSinceDisabled = suspensionReasonDateRegex.find(suspensionReason)?.value
     return timeSinceDisabled?.let { Dates.toLocalDateTime(timeSinceDisabled) }
   }

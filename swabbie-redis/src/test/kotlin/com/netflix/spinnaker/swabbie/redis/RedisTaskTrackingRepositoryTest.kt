@@ -87,7 +87,7 @@ object RedisTaskTrackingRepositoryTest {
     projectedDeletionStamp = 0,
     notificationInfo = NotificationInfo(
       recipient = "yolo@netflixcom",
-      notificationType = "Email",
+      notificationType = "email",
       notificationStamp = threeDaysAgo
     )
   )

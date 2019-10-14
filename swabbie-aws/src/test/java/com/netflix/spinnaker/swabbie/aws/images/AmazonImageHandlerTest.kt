@@ -24,7 +24,6 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
@@ -49,6 +48,7 @@ import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
 import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
@@ -102,11 +102,12 @@ object AmazonImageHandlerTest {
   private val imagesUsedByinstancesCache = mock<InMemorySingletonCache<AmazonImagesUsedByInstancesCache>>()
   private val applicationUtils = ApplicationUtils(emptyList())
   private val dynamicConfigService = mock<DynamicConfigService>()
+  private val notificationQueue = mock<NotificationQueue>()
 
   private val subject = AmazonImageHandler(
     clock = clock,
     registry = NoopRegistry(),
-    notifiers = listOf(mock()),
+    notifier = mock(),
     rules = listOf(OrphanedImageRule()),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
@@ -116,7 +117,6 @@ object AmazonImageHandlerTest {
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
-    retrySupport = RetrySupport(),
     aws = aws,
     orcaService = orcaService,
     taskTrackingRepository = taskTrackingRepository,
@@ -126,7 +126,8 @@ object AmazonImageHandlerTest {
     imagesUsedByinstancesCache = imagesUsedByinstancesCache,
     applicationUtils = applicationUtils,
     dynamicConfigService = dynamicConfigService,
-    usedResourceRepository = usedSnapshotRepository
+    usedResourceRepository = usedSnapshotRepository,
+    notificationQueue = notificationQueue
   )
 
   @BeforeEach
@@ -435,7 +436,7 @@ object AmazonImageHandlerTest {
           projectedDeletionStamp = fifteenDaysAgo,
           notificationInfo = NotificationInfo(
             recipient = "test@netflix.com",
-            notificationType = "Email",
+            notificationType = "email",
             notificationStamp = fifteenDaysAgo
           )
         )

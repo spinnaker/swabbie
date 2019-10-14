@@ -16,22 +16,62 @@
 
 package com.netflix.spinnaker.swabbie.echo
 
+import com.netflix.spinnaker.config.NotificationConfiguration
+import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationSeverity
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.lang.UnsupportedOperationException
 
 @Component
 class EchoNotifier(
-  private val echoService: EchoService
+  private val echoService: EchoService,
+  private val retrySupport: RetrySupport
 ) : Notifier {
-  override fun notify(recipient: String, additionalContext: Map<String, Any>, messageType: String) {
+  private val log: Logger = LoggerFactory.getLogger(javaClass)
+  private val timeoutMillis: Long = 5000
+  private val maxAttempts: Int = 3
+
+  override fun notify(
+    recipient: String,
+    notificationContext: Map<String, Any>,
+    notificationConfiguration: NotificationConfiguration
+  ): NotificationResult {
+    notificationConfiguration
+      .types
+      .forEach { notificationType ->
+        when {
+          notificationType.equals(NotificationType.EMAIL.name, true) -> {
+            try {
+              retrySupport.retry({
+                sendEmail(recipient, notificationContext)
+              }, maxAttempts, timeoutMillis, false)
+
+              return NotificationResult(recipient, NotificationType.EMAIL, success = true)
+            } catch (e: Exception) {
+              log.error("Failed to send notification", e)
+              return NotificationResult(recipient, NotificationType.EMAIL, success = false)
+            }
+          }
+        }
+    }
+
+    throw UnsupportedOperationException("Notification Type not supported in $notificationConfiguration")
+  }
+
+  private fun sendEmail(recipient: String, notificationContext: Map<String, Any>) {
     echoService.create(
       EchoService.Notification(
-        notificationType = Notifier.NotificationType.valueOf(messageType),
+        notificationType = NotificationType.EMAIL,
         to = recipient.split(","),
-        severity = Notifier.NotificationSeverity.HIGH,
+        severity = NotificationSeverity.HIGH,
         source = EchoService.Notification.Source("swabbie"),
         templateGroup = "swabbie",
-        additionalContext = additionalContext
+        additionalContext = notificationContext
       )
     )
   }

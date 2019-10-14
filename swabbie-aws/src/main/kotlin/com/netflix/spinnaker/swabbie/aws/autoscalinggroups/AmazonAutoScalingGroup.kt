@@ -24,6 +24,11 @@ import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import java.lang.Exception
 import java.time.Instant
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -41,6 +46,19 @@ data class AmazonAutoScalingGroup(
   private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
   private val suspensionReasonDateRegex = "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})".toRegex()
+
+  /**
+   * Example URL template from config:
+   * https://spinnaker/#/applications/{{application}}/clusters/serverGroupDetails/{{cloudProvider}}/{{env}}/{{region}}/{{resourceId}}
+   */
+  override fun resourceUrl(workConfiguration: WorkConfiguration): String {
+    return workConfiguration.notificationConfiguration.resourceUrl
+      .replace("{{application}}", FriggaReflectiveNamer().deriveMoniker(this).app)
+      .replace("{{cloudProvider}}", AWS)
+      .replace("{{env}}", workConfiguration.account.environment)
+      .replace("{{region}}", workConfiguration.location)
+      .replace("{{resourceId}}", resourceId)
+  }
 
   override fun equals(other: Any?): Boolean {
     return super.equals(other)

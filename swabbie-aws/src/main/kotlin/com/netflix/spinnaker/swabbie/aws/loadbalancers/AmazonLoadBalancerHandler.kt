@@ -18,7 +18,6 @@ package com.netflix.spinnaker.swabbie.aws.loadbalancers
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
 import com.netflix.spinnaker.swabbie.aws.Parameters
@@ -30,6 +29,7 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -48,13 +48,12 @@ import java.time.Clock
 class AmazonLoadBalancerHandler(
   registry: Registry,
   clock: Clock,
-  notifiers: List<Notifier>,
+  notifier: Notifier,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceStateRepository: ResourceStateRepository,
   resourceOwnerResolver: ResourceOwnerResolver<AmazonElasticLoadBalancer>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  retrySupport: RetrySupport,
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonElasticLoadBalancer>>,
@@ -62,7 +61,8 @@ class AmazonLoadBalancerHandler(
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
-  private val applicationUtils: ApplicationUtils
+  private val applicationUtils: ApplicationUtils,
+  notificationQueue: NotificationQueue
 ) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(
   registry,
   clock,
@@ -71,12 +71,12 @@ class AmazonLoadBalancerHandler(
   resourceStateRepository,
   exclusionPolicies,
   resourceOwnerResolver,
-  notifiers,
+  notifier,
   applicationEventPublisher,
-  retrySupport,
   resourceUseTrackingRepository,
   swabbieProperties,
-  dynamicConfigService
+  dynamicConfigService,
+  notificationQueue
 ) {
   override fun deleteResources(
     markedResources: List<MarkedResource>,

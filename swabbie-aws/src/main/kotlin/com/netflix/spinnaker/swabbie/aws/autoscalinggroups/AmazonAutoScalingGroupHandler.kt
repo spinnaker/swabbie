@@ -18,7 +18,6 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
@@ -32,6 +31,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -50,20 +50,20 @@ import kotlin.system.measureTimeMillis
 class AmazonAutoScalingGroupHandler(
   registry: Registry,
   clock: Clock,
-  notifiers: List<Notifier>,
+  notifier: Notifier,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceStateRepository: ResourceStateRepository,
   resourceOwnerResolver: ResourceOwnerResolver<AmazonAutoScalingGroup>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  retrySupport: RetrySupport,
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonAutoScalingGroup>>,
   private val aws: AWS,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
-  private val resourceUseTrackingRepository: ResourceUseTrackingRepository
+  private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
+  notificationQueue: NotificationQueue
 ) : AbstractResourceTypeHandler<AmazonAutoScalingGroup>(
   registry,
   clock,
@@ -72,12 +72,12 @@ class AmazonAutoScalingGroupHandler(
   resourceStateRepository,
   exclusionPolicies,
   resourceOwnerResolver,
-  notifiers,
+  notifier,
   applicationEventPublisher,
-  retrySupport,
   resourceUseTrackingRepository,
   swabbieProperties,
-  dynamicConfigService
+  dynamicConfigService,
+  notificationQueue
 ) {
 
   override fun deleteResources(

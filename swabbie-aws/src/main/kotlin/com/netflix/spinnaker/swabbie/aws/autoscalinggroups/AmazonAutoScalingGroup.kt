@@ -25,9 +25,6 @@ import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import java.lang.Exception
 import java.time.Instant
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
-import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.time.LocalDateTime
 import java.time.ZoneId

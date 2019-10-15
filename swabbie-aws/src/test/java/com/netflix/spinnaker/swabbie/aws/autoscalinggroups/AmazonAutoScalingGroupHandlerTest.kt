@@ -71,6 +71,7 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Optional
 
@@ -82,7 +83,7 @@ object AmazonAutoScalingGroupHandlerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
-  private val clock = Clock.systemUTC()
+  private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val orcaService = mock<OrcaService>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
@@ -252,7 +253,7 @@ object AmazonAutoScalingGroupHandlerTest {
     verify(applicationEventPublisher, times(1)).publishEvent(
       check<MarkResourceEvent> { event ->
         Assertions.assertTrue(event.markedResource.resourceId == "app-v001")
-        Assertions.assertEquals(event.markedResource.projectedDeletionStamp.inDays(), 1)
+        Assertions.assertEquals(event.markedResource.projectedDeletionStamp.inDays(), 2)
       }
     )
 

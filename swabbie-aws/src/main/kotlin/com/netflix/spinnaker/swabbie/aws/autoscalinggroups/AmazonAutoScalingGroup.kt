@@ -65,8 +65,8 @@ data class AmazonAutoScalingGroup(
     return super.hashCode()
   }
 
-  fun isOutOfLoadBalancer(): Boolean {
-    return getAddToLoadBalancerProcess() != null
+  fun isInLoadBalancer(): Boolean {
+    return getAddToLoadBalancerProcess() == null
   }
 
   private fun getAddToLoadBalancerProcess(): SuspendedProcess? {
@@ -90,7 +90,7 @@ data class AmazonAutoScalingGroup(
   // TODO :aravindd refactor this method
   // Disabled time is here is provided by AWS
   fun disabledTime(): LocalDateTime? {
-    if (!isOutOfLoadBalancer()) {
+    if (isInLoadBalancer()) {
       return null
     }
     val suspensionReason = getLoadBalancerSuspensionReason()

@@ -27,12 +27,13 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
 
-  private val clock = Clock.systemUTC()
+  private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)
 
   @Test
   fun `should not apply to non disabled server groups`() {

@@ -39,7 +39,7 @@ class ZeroInstanceDisabledServerGroupRule(
   private val disabledDurationInDays: Long = 30
 
   override fun apply(resource: AmazonAutoScalingGroup): Result {
-    if (!resource.isOutOfLoadBalancer()) {
+    if (resource.isInLoadBalancer()) {
       return Result(null)
     }
 

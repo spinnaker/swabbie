@@ -31,7 +31,7 @@ class TemporalTags {
       "w" to ChronoUnit.WEEKS
     )
 
-    fun toTemporalPair(tag: BasicTag): Pair<Long, ChronoUnit?>? {
+    fun toTemporalPair(tag: BasicTag): Pair<Long, ChronoUnit?> {
       val tagValue = tag.value.toString()
       val unit = tagValue.last().toString()
       val amount = tagValue.replace(unit, "").toLong()

@@ -102,7 +102,7 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
       return false
     }
 
-    val (amount, unit) = TemporalTags.toTemporalPair(temporalTag)!!
+    val (amount, unit) = TemporalTags.toTemporalPair(temporalTag)
     val ttl = Duration.of(amount, unit).toDays()
     val resourceAge = Duration.between(Instant.ofEpochMilli(createTs), Instant.now(clock))
     return resourceAge.toDays() > ttl

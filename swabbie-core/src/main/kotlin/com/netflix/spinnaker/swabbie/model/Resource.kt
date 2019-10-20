@@ -93,18 +93,18 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
 
   fun getTagValue(key: String): Any? = tags()?.find { it.key == key }?.value
 
-  fun expired(): Boolean {
-    return tags()?.any { expired(it) } ?: false
+  fun expired(clock: Clock): Boolean {
+    return tags()?.any { expired(it, clock) } ?: false
   }
 
-  fun expired(temporalTag: BasicTag): Boolean {
+  fun expired(temporalTag: BasicTag, clock: Clock): Boolean {
     if (temporalTag.value == "never" || !TemporalTags.isTemporal(temporalTag)) {
       return false
     }
 
     val (amount, unit) = TemporalTags.toTemporalPair(temporalTag)!!
     val ttl = Duration.of(amount, unit).toDays()
-    val resourceAge = Duration.between(Instant.ofEpochMilli(createTs), Instant.now())
+    val resourceAge = Duration.between(Instant.ofEpochMilli(createTs), Instant.now(clock))
     return resourceAge.toDays() > ttl
   }
 }

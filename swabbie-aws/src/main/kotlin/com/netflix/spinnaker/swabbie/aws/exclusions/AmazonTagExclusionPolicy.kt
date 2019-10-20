@@ -22,9 +22,12 @@ import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import org.springframework.stereotype.Component
+import java.time.Clock
 
 @Component
-class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
+class AmazonTagExclusionPolicy(
+  val clock: Clock
+) : ResourceExclusionPolicy {
   override fun getType(): ExclusionType = ExclusionType.Tag
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     if (excludable !is AmazonResource || excludable.tags().isNullOrEmpty()) {
@@ -32,8 +35,8 @@ class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
     }
 
     val tags = excludable.tags()!!
-    if (excludable.expired()) {
-      val temporalTag = tags.find { excludable.expired(it) }!!
+    if (excludable.expired(clock)) {
+      val temporalTag = tags.find { excludable.expired(it, clock) }!!
       return patternMatchMessage(temporalTag.key, setOf(temporalTag.value as String))
     }
 

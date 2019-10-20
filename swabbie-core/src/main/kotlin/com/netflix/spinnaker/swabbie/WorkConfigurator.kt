@@ -100,8 +100,7 @@ open class WorkConfigurator(
               maxAge = resourceTypeConfiguration.maxAge,
               maxItemsProcessedPerCycle = cloudProviderConfiguration.maxItemsProcessedPerCycle,
               itemsProcessedBatchSize = cloudProviderConfiguration.itemsProcessedBatchSize,
-              enabledActions = resourceTypeConfiguration.enabledActions,
-              rule = resourceTypeConfiguration.rule
+              enabledActions = resourceTypeConfiguration.enabledActions
             ).let { configuration ->
               configuration.takeIf {
                 !shouldExclude(account, it, exclusionPolicies, log)

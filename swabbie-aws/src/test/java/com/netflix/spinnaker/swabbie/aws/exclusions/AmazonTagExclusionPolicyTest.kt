@@ -22,11 +22,23 @@ import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
+import com.netflix.spinnaker.kork.test.time.MutableClock
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
 
 object AmazonTagExclusionPolicyTest {
+  private val clock = MutableClock()
+
+  @BeforeEach
+  fun setup() {
+    clock.instant(Instant.now())
+  }
+
+  private val subject = AmazonTagExclusionPolicy(clock)
   @Test
   fun `should exclude a resource with exclusion tag`() {
     val exclusions = listOf(
@@ -60,7 +72,7 @@ object AmazonTagExclusionPolicyTest {
         ))
 
     resources.filter {
-      AmazonTagExclusionPolicy().apply(it, exclusions) == null
+      subject.apply(it, exclusions) == null
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(1)
       filteredResources.first().resourceId shouldMatch equalTo("2")
@@ -69,27 +81,30 @@ object AmazonTagExclusionPolicyTest {
 
   @Test
   fun `should exclude a resource based on temporal tags`() {
-    val tenDays = 10L
+    val now = LocalDateTime.now(clock)
     val resources = listOf(
       AwsTestResource(
         id = "1",
-        creationDate = LocalDateTime.now().minusDays(tenDays).toString()
+        creationDate = now.toString()
       ).withDetail(
         name = "tags",
         value = listOf(
-          mapOf("expiration_time" to "${tenDays}d")
+          mapOf("expiration_time" to "10d")
         )),
       AwsTestResource(
         id = "2",
-        creationDate = LocalDateTime.now().minusDays(tenDays).toString()
+        creationDate = now.toString()
       ).withDetail(
         name = "tags",
         value = listOf(
-          mapOf("expiration_time" to "${tenDays - 1}d")
+          mapOf("expiration_time" to "9d")
         )
       ))
+
+    clock.incrementBy(Duration.ofDays(10))
+
     resources.filter {
-      AmazonTagExclusionPolicy().apply(it, emptyList()) == null
+      subject.apply(it, emptyList()) == null
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(1)
       filteredResources.first().resourceId shouldMatch equalTo("1")

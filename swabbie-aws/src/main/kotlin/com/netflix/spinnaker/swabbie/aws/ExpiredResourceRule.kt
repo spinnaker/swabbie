@@ -26,13 +26,13 @@ import java.time.Clock
 /**
  * This rule applies if this amazon resource has expired.
  * A resource is expired if it's tagged with the following keys: ("expiration_time", "expires", "ttl")
- * Acceptable tag value: a number followed by a prefix such as d (days), w (weeks), m (month), y (year)
+ * Acceptable tag value: a number followed by a suffix such as d (days), w (weeks), m (month), y (year)
  * @see com.netflix.spinnaker.swabbie.tagging.TemporalTags.supportedTemporalTagValues
  */
 
 @Component
 class ExpiredResourceRule<T : AmazonResource>(
-  val clock: Clock
+  private val clock: Clock
 ) : Rule<T> {
   override fun apply(resource: T): Result {
     if (resource.expired(clock)) {

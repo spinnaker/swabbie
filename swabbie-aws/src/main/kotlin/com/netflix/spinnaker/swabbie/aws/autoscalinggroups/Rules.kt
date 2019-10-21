@@ -83,7 +83,7 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
         if (outOfService) {
           return Result(
             Summary(
-              description = "Server Group ${resource.resourceId} has been disabled for more  " +
+              description = "Server Group ${resource.resourceId} has been disabled for more " +
                 "than $disabledDurationInDays days. All instances out of Service Discovery.",
               ruleName = javaClass.simpleName
             )

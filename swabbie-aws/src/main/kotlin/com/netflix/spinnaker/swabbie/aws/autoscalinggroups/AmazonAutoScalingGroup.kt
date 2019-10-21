@@ -16,21 +16,25 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.fasterxml.jackson.annotation.JsonTypeName
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
+import com.netflix.spinnaker.swabbie.Dates
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import java.lang.Exception
+import java.time.Instant
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.Instant
 
 @JsonTypeName("amazonAutoScalingGroup")
 data class AmazonAutoScalingGroup(
   val autoScalingGroupName: String,
   val instances: List<Map<String, Any>>?,
   val loadBalancerNames: List<String>?,
+  var suspendedProcesses: List<SuspendedProcess>? = null,
   private val createdTime: Long,
   override val resourceId: String = autoScalingGroupName,
   override val resourceType: String = SERVER_GROUP,
@@ -38,6 +42,7 @@ data class AmazonAutoScalingGroup(
   override val name: String = autoScalingGroupName,
   private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
+  private val suspensionReasonDateRegex = "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})".toRegex()
 
   /**
    * Example URL template from config:
@@ -58,5 +63,41 @@ data class AmazonAutoScalingGroup(
 
   override fun hashCode(): Int {
     return super.hashCode()
+  }
+
+  fun isInLoadBalancer(): Boolean {
+    return getAddToLoadBalancerProcess() == null
+  }
+
+  private fun getAddToLoadBalancerProcess(): SuspendedProcess? {
+    return suspendedProcesses?.find {
+      it.processName == "AddToLoadBalancer"
+    }
+  }
+
+  private fun getLoadBalancerSuspensionReason(): String? {
+    return getAddToLoadBalancerProcess()?.suspensionReason
+  }
+
+  fun isDisabled(): Boolean {
+    return (details[IS_DISABLED] != null && details[IS_DISABLED] == true)
+  }
+
+  fun hasInstances(): Boolean {
+    return (details[HAS_INSTANCES] != null && details[HAS_INSTANCES] == true)
+  }
+
+  // TODO :aravindd refactor this method
+  // Disabled time is here is provided by AWS
+  fun disabledTime(): LocalDateTime? {
+    if (isInLoadBalancer()) {
+      return null
+    }
+    val suspensionReason = getLoadBalancerSuspensionReason()
+    if (suspensionReason.isNullOrEmpty()) {
+      throw Exception("Failed to find the suspension reason ")
+    }
+    val timeSinceDisabled = suspensionReasonDateRegex.find(suspensionReason)?.value
+    return timeSinceDisabled?.let { Dates.toLocalDateTime(timeSinceDisabled) }
   }
 }

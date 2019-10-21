@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.discovery.DiscoveryClient
 import com.nhaarman.mockito_kotlin.any
@@ -24,10 +25,16 @@ import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.Optional
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
+
+  private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)
+
   @Test
   fun `should not apply to non disabled server groups`() {
     val asg = AmazonAutoScalingGroup(
@@ -36,13 +43,14 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, false)
     }
 
     val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
-      Optional.empty()
+      Optional.empty(), clock
     ).apply(asg)
 
     Assertions.assertNull(result.summary)
@@ -52,6 +60,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
   fun `should apply when server group is disabled with all instances out of discovery`() {
     val discoveryClient = mock<DiscoveryClient>()
     val instanceInfo = mock<InstanceInfo>()
+    val instanceLastUpdatedTimestamp = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
 
     whenever(discoveryClient.getInstancesById(any())) doReturn
       listOf(instanceInfo)
@@ -59,19 +68,28 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
     whenever(instanceInfo.status) doReturn
       InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 
+    whenever(instanceInfo.lastUpdatedTimestamp) doReturn instanceLastUpdatedTimestamp
+
+    val suspendedProcess = SuspendedProcess()
+      .withProcessName("AddToLoadBalancer")
+      .withSuspensionReason("User suspended at 2019-09-03T17:29:07Z")
     val asg = AmazonAutoScalingGroup(
       autoScalingGroupName = "testapp-v001",
       instances = listOf(
         mapOf("instanceId" to "i-01234")
       ),
+      suspendedProcesses = listOf(
+        suspendedProcess
+      ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+      createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, true)
     }
 
     val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
-      Optional.of(discoveryClient)
+      Optional.of(discoveryClient), clock
     ).apply(asg)
 
     Assertions.assertNotNull(result.summary)
@@ -101,13 +119,49 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
         mapOf("instanceId" to "i-01234", "InstanceId" to "i-01235")
       ),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().toEpochMilli()
+
+      createdTime = clock.millis()
+
     ).apply {
       set(IS_DISABLED, true)
     }
 
     val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
-      Optional.of(discoveryClient)
+      Optional.of(discoveryClient), clock
+    ).apply(asg)
+
+    Assertions.assertNull(result.summary)
+  }
+
+  @Test
+  fun `should not apply when instance lastupdated time is less than threshold `() {
+    val discoveryClient = mock<DiscoveryClient>()
+    val instanceInfo = mock<InstanceInfo>()
+
+    val instanceLastUpdatedTimestamp = Instant.now(clock).toEpochMilli()
+
+    whenever(discoveryClient.getInstancesById(any())) doReturn
+      listOf(instanceInfo)
+
+    whenever(instanceInfo.status) doReturn
+      InstanceInfo.InstanceStatus.OUT_OF_SERVICE
+
+    whenever(instanceInfo.lastUpdatedTimestamp) doReturn instanceLastUpdatedTimestamp
+
+    val asg = AmazonAutoScalingGroup(
+      autoScalingGroupName = "testapp-v001",
+      instances = listOf(
+        mapOf("instanceId" to "i-01234")
+      ),
+      loadBalancerNames = listOf(),
+      createdTime = clock.millis()
+
+    ).apply {
+      set(IS_DISABLED, true)
+    }
+
+    val result = ZeroInstanceInDiscoveryDisabledServerGroupRule(
+      Optional.of(discoveryClient), clock
     ).apply(asg)
 
     Assertions.assertNull(result.summary)

@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
@@ -28,10 +29,10 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
@@ -67,10 +68,10 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
-import java.time.Instant
 import java.time.Clock
-import java.time.ZoneOffset
 import java.time.Duration
+import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Optional
 
@@ -82,7 +83,7 @@ object AmazonAutoScalingGroupHandlerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
   private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
-  private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
+  private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val orcaService = mock<OrcaService>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
@@ -92,8 +93,8 @@ object AmazonAutoScalingGroupHandlerTest {
   private val subject = AmazonAutoScalingGroupHandler(
     clock = clock,
     registry = NoopRegistry(),
+    rules = listOf(ZeroInstanceDisabledServerGroupRule(clock)),
     notifier = mock(),
-    rules = listOf(ZeroInstanceDisabledServerGroupRule()),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
     taskTrackingRepository = taskTrackingRepository,
@@ -165,7 +166,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-01234")
         ),
         loadBalancerNames = listOf(),
-        createdTime = System.currentTimeMillis()
+        createdTime = clock.millis()
       ),
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
@@ -173,7 +174,7 @@ object AmazonAutoScalingGroupHandlerTest {
           mapOf("instanceId" to "i-00000")
         ),
         loadBalancerNames = listOf(),
-        createdTime = System.currentTimeMillis()
+        createdTime = clock.millis()
       )
     )
 
@@ -184,26 +185,41 @@ object AmazonAutoScalingGroupHandlerTest {
 
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val twoDaysAgo = clock.instant().minus(2, ChronoUnit.DAYS)
+    val twoDaysAgo = Instant.now(clock).minus(2, ChronoUnit.DAYS).toEpochMilli()
 
     val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
+    val suspendedProcess = SuspendedProcess()
+    suspendedProcess.withProcessName("AddToLoadBalancer")
+    suspendedProcess.withSuspensionReason("User suspended at 2019-09-03T17:29:07Z")
     whenever(aws.getServerGroups(params)) doReturn listOf(
       AmazonAutoScalingGroup(
         autoScalingGroupName = "testapp-v001",
         instances = listOf(
           mapOf("instanceId" to "i-01234")
         ),
+        suspendedProcesses = listOf(
+          suspendedProcess
+        ),
         loadBalancerNames = listOf(),
-        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
-      ),
+        createdTime = twoDaysAgo
+      ).apply {
+        set("suspendedProcesses", listOf(
+          mapOf("processName" to "AddToLoadBalancer"),
+          mapOf("suspensionReason" to "User suspended at 2019-09-03T17:29:07Z")
+        ))
+      },
       AmazonAutoScalingGroup(
         autoScalingGroupName = "app-v001",
         instances = listOf(),
         loadBalancerNames = listOf(),
-        createdTime = Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli()
+        suspendedProcesses = listOf(
+          suspendedProcess
+        ),
+        createdTime = twoDaysAgo
       ).apply {
         set("suspendedProcesses", listOf(
-          mapOf("processName" to "AddToLoadBalancer")
+          mapOf("processName" to "AddToLoadBalancer"),
+          mapOf("suspensionReason" to "User suspended at 2019-08-03T17:29:07Z")
         ))
       }
     )
@@ -225,7 +241,7 @@ object AmazonAutoScalingGroupHandlerTest {
       )
     )
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-        workConfiguration.maxItemsProcessedPerCycle
+      workConfiguration.maxItemsProcessedPerCycle
 
     subject.getCandidates(getWorkConfiguration()).let { serverGroups ->
       serverGroups!!.size shouldMatch equalTo(2)
@@ -248,11 +264,18 @@ object AmazonAutoScalingGroupHandlerTest {
   fun `should delete server groups`() {
     val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
     val workConfiguration = getWorkConfiguration(maxAgeDays = 1)
+    val suspendedProcess = SuspendedProcess()
+    suspendedProcess.withProcessName("AddToLoadBalancer")
+    suspendedProcess.withSuspensionReason("User suspended at 2019-08-03T17:29:07Z")
     val serverGroup = AmazonAutoScalingGroup(
       autoScalingGroupName = "app-v001",
       instances = listOf(),
       loadBalancerNames = listOf(),
-      createdTime = Instant.now().minus(3, ChronoUnit.DAYS).toEpochMilli()
+      suspendedProcesses = listOf(
+        suspendedProcess
+      ),
+      createdTime = Instant.now(clock).minus(3, ChronoUnit.DAYS).toEpochMilli()
+
     ).apply {
       set("suspendedProcesses", listOf(
         mapOf("processName" to "AddToLoadBalancer")
@@ -288,8 +311,7 @@ object AmazonAutoScalingGroupHandlerTest {
         name = "delete blah"
       )
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-        workConfiguration.maxItemsProcessedPerCycle
-
+      workConfiguration.maxItemsProcessedPerCycle
     subject.delete(workConfiguration)
 
     verify(orcaService, times(1)).orchestrate(any())

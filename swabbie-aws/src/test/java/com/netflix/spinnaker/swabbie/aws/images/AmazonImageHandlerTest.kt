@@ -113,7 +113,7 @@ object AmazonImageHandlerTest {
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
-      AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
+      AllowListExclusionPolicy()
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,

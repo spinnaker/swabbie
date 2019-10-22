@@ -23,7 +23,9 @@ import com.netflix.spinnaker.swabbie.model.Resource
 import org.springframework.stereotype.Component
 
 @Component
-class NaiveExclusionPolicy : ResourceExclusionPolicy {
+class NaiveExclusionPolicy(
+  override val propertyResolvers: List<PropertyResolver>? = null
+) : ResourceExclusionPolicy {
   override fun getType(): ExclusionType = ExclusionType.Naive
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     if (excludable is Resource) {

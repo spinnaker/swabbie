@@ -261,7 +261,7 @@ object ResourceTypeHandlerTest {
     ))
     defaultHandler.setRules(alwaysInvalidRules)
     defaultHandler.setCandidates(mutableListOf(resource1, resource2))
-    defaultHandler.setExclusionPolicies(mutableListOf(AllowListExclusionPolicy(mock(), mock())))
+    defaultHandler.setExclusionPolicies(mutableListOf(AllowListExclusionPolicy()))
 
     whenever(ownerResolver.resolve(resource1)) doReturn "lucious-mayweather@netflix.com, quincy-polaroid@netflix.com"
     whenever(ownerResolver.resolve(resource2)) doReturn "blah" // excluded because not in allowed list

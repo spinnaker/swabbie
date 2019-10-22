@@ -124,7 +124,7 @@ object AmazonSnapshotHandlerTest {
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
-      AllowListExclusionPolicy(front50ApplicationCache, accountProvider),
+      AllowListExclusionPolicy(),
       NaiveExclusionPolicy()
     ),
     resourceOwnerResolver = resourceOwnerResolver,

@@ -20,11 +20,14 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
+import com.netflix.spinnaker.swabbie.exclusions.PropertyResolver
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import org.springframework.stereotype.Component
 
 @Component
-class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
+class AmazonTagExclusionPolicy(
+  override val propertyResolvers: List<PropertyResolver>? = null
+) : ResourceExclusionPolicy {
   private val tagsField = "tags"
   override fun getType(): ExclusionType = ExclusionType.Tag
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {

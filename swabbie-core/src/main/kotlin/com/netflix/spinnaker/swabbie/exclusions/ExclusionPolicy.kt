@@ -29,6 +29,8 @@ interface ExclusionPolicy {
   val log: Logger
     get() = LoggerFactory.getLogger(javaClass)
 
+  val propertyResolvers: List<PropertyResolver>?
+
   /**
    * Returns a reason if this policy applies, null otherwise.
    */
@@ -69,7 +71,7 @@ interface ExclusionPolicy {
 
     // match on property name
     kv.keys.forEach { key ->
-      findProperty(excludable, key, kv.getValue(key))?.let {
+      findProperty(excludable, key, kv)?.let {
         return patternMatchMessage(key, setOf(it))
       }
     }
@@ -77,10 +79,10 @@ interface ExclusionPolicy {
     return null
   }
 
-  fun findProperty(excludable: Excludable, key: String, values: List<String>): String? {
+  fun findProperty(excludable: Excludable, key: String, source: Map<String, List<String>>): String? {
     try {
       val fieldValue = getProperty(excludable, key) as? String
-      if (propertyMatches(values, fieldValue)) {
+      if (propertyMatches(ensureExpandedProperties(key, source), fieldValue)) {
         return fieldValue
       }
     } catch (e: IllegalArgumentException) {
@@ -88,6 +90,30 @@ interface ExclusionPolicy {
     }
 
     return null
+  }
+
+  private fun ensureExpandedProperties(key: String, source: Map<String, List<String>>): List<String> {
+    if (propertyResolvers == null || propertyResolvers!!.isEmpty()) {
+      return source.getValue(key)
+    }
+
+    val result = mutableSetOf<String>()
+    source.forEach { (key, values) ->
+      values.forEach {
+        result.addAll(
+          resolveProperty(key, it)
+        )
+      }
+    }
+
+    return result.toList()
+  }
+
+  fun resolveProperty(key: String, default: String): List<String> {
+    val defaultValue = listOf(default)
+    return propertyResolvers?.flatMap {
+      it.resolve(key, default) ?: defaultValue
+    } ?: defaultValue
   }
 
   fun <R : Any?> getProperty(instance: Any, propertyName: String): R {

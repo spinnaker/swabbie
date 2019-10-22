@@ -100,7 +100,7 @@ object AmazonAutoScalingGroupHandlerTest {
     taskTrackingRepository = taskTrackingRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
-      AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
+      AllowListExclusionPolicy()
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,

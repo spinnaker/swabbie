@@ -20,6 +20,7 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
+import com.netflix.spinnaker.swabbie.exclusions.PropertyResolver
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.Grouping
@@ -35,7 +36,8 @@ import org.springframework.stereotype.Component
  */
 @Component
 class Front50ApplicationExclusionPolicy(
-  private val front50ApplicationCache: InMemoryCache<Application>
+  private val front50ApplicationCache: InMemoryCache<Application>,
+  override val propertyResolvers: List<PropertyResolver>? = null
 ) : ResourceExclusionPolicy {
 
   private fun findApplication(excludable: Excludable, names: Set<String>): Excludable? {

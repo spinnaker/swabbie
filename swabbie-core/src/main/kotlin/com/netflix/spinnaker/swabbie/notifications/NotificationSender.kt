@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.notifications
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.lock.LockManager
@@ -60,6 +61,10 @@ class NotificationSender(
   private val lockOptions = LockManager.LockOptions()
     .withLockName(lockingService.ownerName)
     .withMaximumLockDuration(lockingService.swabbieMaxLockDuration)
+
+  init {
+    notificationQueue.track()
+  }
 
   /**
    * Periodically sends notifications to resolved resource owners
@@ -207,6 +212,12 @@ class NotificationSender(
       "resources" to resources,
       "slackChannelLink" to "#spinnaker"
     )
+  }
+
+  private fun NotificationQueue.track() {
+    PolledMeter.using(registry)
+      .withName("swabbie.redis.notificationQueueSize")
+      .monitorValue(size())
   }
 
   private data class NotificationResourceData(

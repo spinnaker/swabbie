@@ -41,7 +41,7 @@ class RedisNotificationQueue(
     }
   }
 
-  private fun size(): Int {
+  override fun size(): Int {
     return redisClientDelegate.withCommandsClient<Set<String>> { client ->
       client.smembers(NOTIFICATION_KEY)
     }.size

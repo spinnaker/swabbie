@@ -23,4 +23,5 @@ interface NotificationQueue {
   fun add(notificationTask: NotificationTask)
   fun popAll(): List<NotificationTask>
   fun isEmpty(): Boolean
+  fun size(): Int
 }

@@ -39,4 +39,8 @@ class InMemoryNotificationQueue : NotificationQueue {
   override fun add(notificationTask: NotificationTask) {
     _q.add(notificationTask)
   }
+
+  override fun size(): Int {
+    return _q.size
+  }
 }

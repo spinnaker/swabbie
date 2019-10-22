@@ -18,13 +18,12 @@
 
 package com.netflix.spinnaker.swabbie.orca
 
+import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
-import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
@@ -52,29 +51,29 @@ import javax.annotation.PreDestroy
 class OrcaTaskMonitoringAgent(
   private val clock: Clock,
   val registry: Registry,
-  private val swabbieProperties: SwabbieProperties,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val orcaService: OrcaService,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val retrySupport: RetrySupport,
   private val lockingService: Optional<LockingService>
-) : DiscoveryActivated, MetricsSupport(registry) {
+) : DiscoveryActivated() {
 
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val executorService = Executors.newSingleThreadScheduledExecutor()
+  private val lastRunAgeId: Id = registry.createId("swabbie.agents.run.age")
 
   private val timeoutMillis: Long = 5000
   private val maxAttempts: Int = 3
 
-  override val onDiscoveryUpCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = {
-      executorService.scheduleWithFixedDelay({
-        withLocking(javaClass.simpleName) { monitorOrcaTasks() }
-      }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
-    }
+  override fun onDiscoveryUpCallback(event: RemoteStatusChangedEvent) {
+    executorService.scheduleWithFixedDelay({
+      withLocking(javaClass.simpleName) { monitorOrcaTasks() }
+    }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
+  }
 
-  override val onDiscoveryDownCallback: (event: RemoteStatusChangedEvent) -> Unit
-    get() = { stop() }
+  override fun onDiscoveryDownCallback(event: RemoteStatusChangedEvent) {
+    stop()
+  }
 
   @PostConstruct
   private fun init() {

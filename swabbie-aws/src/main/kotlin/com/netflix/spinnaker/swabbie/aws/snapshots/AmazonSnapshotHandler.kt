@@ -20,7 +20,6 @@ package com.netflix.spinnaker.swabbie.aws.snapshots
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
 import com.netflix.spinnaker.swabbie.aws.Parameters
@@ -34,6 +33,7 @@ import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -55,13 +55,12 @@ import java.time.Clock
 class AmazonSnapshotHandler(
   registry: Registry,
   clock: Clock,
-  notifiers: List<Notifier>,
+  notifier: Notifier,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceStateRepository: ResourceStateRepository,
   resourceOwnerResolver: ResourceOwnerResolver<AmazonSnapshot>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  retrySupport: RetrySupport,
   dynamicConfigService: DynamicConfigService,
   private val rules: List<Rule<AmazonSnapshot>>,
   private val aws: AWS,
@@ -70,7 +69,8 @@ class AmazonSnapshotHandler(
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val usedResourceRepository: UsedResourceRepository,
-  private val swabbieProperties: SwabbieProperties
+  private val swabbieProperties: SwabbieProperties,
+  notificationQueue: NotificationQueue
 ) : AbstractResourceTypeHandler<AmazonSnapshot>(
   registry,
   clock,
@@ -79,12 +79,12 @@ class AmazonSnapshotHandler(
   resourceStateRepository,
   exclusionPolicies,
   resourceOwnerResolver,
-  notifiers,
+  notifier,
   applicationEventPublisher,
-  retrySupport,
   resourceUseTrackingRepository,
   swabbieProperties,
-  dynamicConfigService
+  dynamicConfigService,
+  notificationQueue
 ) {
 
   @Value("\${swabbie.clean.jitter-interval:600}")

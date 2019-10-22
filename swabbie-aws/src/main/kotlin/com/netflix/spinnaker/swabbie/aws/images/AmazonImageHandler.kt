@@ -18,7 +18,6 @@ package com.netflix.spinnaker.swabbie.aws.images
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
 import com.netflix.spinnaker.swabbie.InMemorySingletonCache
@@ -38,6 +37,7 @@ import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -62,13 +62,12 @@ import kotlin.system.measureTimeMillis
 class AmazonImageHandler(
   registry: Registry,
   clock: Clock,
-  notifiers: List<Notifier>,
+  notifier: Notifier,
   resourceTrackingRepository: ResourceTrackingRepository,
   resourceStateRepository: ResourceStateRepository,
   resourceOwnerResolver: ResourceOwnerResolver<AmazonImage>,
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
-  retrySupport: RetrySupport,
   dynamicConfigService: DynamicConfigService,
   private val launchConfigurationCache: InMemorySingletonCache<AmazonLaunchConfigurationCache>,
   private val imagesUsedByinstancesCache: InMemorySingletonCache<AmazonImagesUsedByInstancesCache>,
@@ -79,7 +78,8 @@ class AmazonImageHandler(
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val usedResourceRepository: UsedResourceRepository,
-  private val swabbieProperties: SwabbieProperties
+  private val swabbieProperties: SwabbieProperties,
+  notificationQueue: NotificationQueue
 ) : AbstractResourceTypeHandler<AmazonImage>(
   registry,
   clock,
@@ -88,12 +88,12 @@ class AmazonImageHandler(
   resourceStateRepository,
   exclusionPolicies,
   resourceOwnerResolver,
-  notifiers,
+  notifier,
   applicationEventPublisher,
-  retrySupport,
   resourceUseTrackingRepository,
   swabbieProperties,
-  dynamicConfigService
+  dynamicConfigService,
+  notificationQueue
 ) {
 
   @Value("\${swabbie.clean.jitter-interval:600}")

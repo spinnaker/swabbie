@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
+import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -119,6 +120,22 @@ interface Identifiable : Named {
   val resourceType: String
   val cloudProvider: String
   val grouping: Grouping?
+
+  /**
+   * Returns the opt-out url for this resource
+   * This is used for notifications
+   */
+  fun optOutUrl(workConfiguration: WorkConfiguration): String {
+    return "${workConfiguration.notificationConfiguration.optOutBaseUrl}/${workConfiguration.namespace}/$resourceId/optOut"
+  }
+
+  /**
+   * Returns a resource specific url
+   * This is used for notifications
+   */
+  fun resourceUrl(workConfiguration: WorkConfiguration): String {
+    return "${workConfiguration.notificationConfiguration.resourceUrl}/$resourceId"
+  }
 }
 
 data class Grouping(
@@ -197,6 +214,20 @@ data class MarkedResource(
   fun uniqueId(): String {
     return "$namespace:$resourceId"
   }
+
+  fun withNotificationInfo(
+    info: NotificationInfo = NotificationInfo(notificationType = Notifier.NotificationType.NONE.name)
+  ): MarkedResource {
+    return apply {
+      notificationInfo = info
+    }
+  }
+
+  fun withAdditionalTimeForDeletion(timestampToAdd: Long): MarkedResource {
+    return apply {
+      projectedDeletionStamp += timestampToAdd
+    }
+  }
 }
 
 data class SlimMarkedResource(
@@ -228,8 +259,7 @@ data class BarebonesMarkedResource(
 data class NotificationInfo(
   val recipient: String? = null,
   val notificationType: String? = null,
-  val notificationStamp: Long? = null,
-  var notificationCount: Int = 0
+  val notificationStamp: Long? = null
 )
 
 data class ResourceState(

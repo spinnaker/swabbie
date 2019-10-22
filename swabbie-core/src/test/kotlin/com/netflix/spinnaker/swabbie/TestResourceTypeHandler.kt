@@ -21,7 +21,6 @@ package com.netflix.spinnaker.swabbie
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.SwabbieProperties
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
@@ -32,6 +31,7 @@ import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
@@ -52,14 +52,14 @@ class TestResourceTypeHandler(
   ownerResolver: OwnerResolver<TestResource>,
   applicationEventPublisher: ApplicationEventPublisher,
   private val exclusionPolicies: MutableList<ResourceExclusionPolicy> = mutableListOf(),
-  notifiers: List<Notifier>,
+  notifier: Notifier,
   private val rules: MutableList<TestRule> = mutableListOf(),
   private var simulatedCandidates: MutableList<TestResource> = mutableListOf(),
   registry: Registry = NoopRegistry(),
-  retrySupport: RetrySupport,
   private val taskTrackingRepository: TaskTrackingRepository,
   resourceUseTrackingRepository: ResourceUseTrackingRepository,
-  dynamicConfigService: DynamicConfigService
+  dynamicConfigService: DynamicConfigService,
+  notificationQueue: NotificationQueue
 ) : AbstractResourceTypeHandler<TestResource>(
   registry,
   clock,
@@ -68,12 +68,12 @@ class TestResourceTypeHandler(
   resourceStateRepository,
   exclusionPolicies,
   ownerResolver,
-  notifiers,
+  notifier,
   applicationEventPublisher,
-  retrySupport,
   resourceUseTrackingRepository,
   SwabbieProperties(),
-  dynamicConfigService
+  dynamicConfigService,
+  notificationQueue
 ) {
 
   fun setCandidates(candidates: MutableList<TestResource>) {

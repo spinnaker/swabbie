@@ -69,25 +69,11 @@ class CloudProviderConfiguration {
 }
 
 /**
- * Notifications have both an [enabled] and a [required] configuration.
- *  [enabled] is whether or not the notification agent runs for this configuration.
- *  [required] is whether or not a resource must be notified before it can be deleted.
- *
- * If [enabled] is true and [required] is true then notifications will be sent to the owner.
- *
- * If [enabled] is true and [required] is false a resource will be marked as 'notification not needed'
- *  and will be able to be deleted. No notifications will be sent.
- *
- * If [enabled] is false then the notification agent will not run for this configuration
- *  and resources of this type won't be able to be deleted.
- *
- *  TODO EB: Remove the hard dependency on notifications for all resources.
- *   Instead, make this configurable in a logical and flexible way.
+ *  [enabled] on/off flag for notifications
  */
 open class NotificationConfiguration(
   var enabled: Boolean = false,
-  var required: Boolean = true,
-  var types: MutableList<String> = mutableListOf("Email"),
+  var types: List<String> = listOf("email"),
   var optOutBaseUrl: String = "",
   var itemsPerMessage: Int = 10,
   var resourceUrl: String = "",

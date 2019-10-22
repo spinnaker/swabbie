@@ -72,7 +72,7 @@ object RedisResourceTrackingRepositoryTest {
     projectedDeletionStamp = 1,
     notificationInfo = NotificationInfo(
       recipient = "yolo@netflixcom",
-      notificationType = "Email",
+      notificationType = "email",
       notificationStamp = clock.instant().toEpochMilli()
     )
   )
@@ -117,7 +117,7 @@ object RedisResourceTrackingRepositoryTest {
       projectedDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
-        notificationType = "Email",
+        notificationType = "email",
         notificationStamp = clock.instant().toEpochMilli()
       )
     )
@@ -163,7 +163,7 @@ object RedisResourceTrackingRepositoryTest {
         projectedDeletionStamp = 0,
         notificationInfo = NotificationInfo(
           recipient = "yolo@netflixcom",
-          notificationType = "Email",
+          notificationType = "email",
           notificationStamp = clock.instant().toEpochMilli()
         )
       ),
@@ -220,7 +220,7 @@ object RedisResourceTrackingRepositoryTest {
       projectedDeletionStamp = 0,
       notificationInfo = NotificationInfo(
         recipient = "yolo@netflixcom",
-        notificationType = "Email",
+        notificationType = "email",
         notificationStamp = clock.instant().toEpochMilli()
       )
     )

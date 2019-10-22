@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Netflix, Inc.
+ * Copyright 2019 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.notifications
 
-import com.netflix.spinnaker.config.NotificationConfiguration
-
-interface Notifier {
-  fun notify(
-    recipient: String,
-    notificationContext: Map<String, Any>,
-    notificationConfiguration: NotificationConfiguration
-  ): NotificationResult
-
-  enum class NotificationType {
-    EMAIL,
-    NONE
-  }
-
-  enum class NotificationSeverity {
-    NORMAL,
-    HIGH
-  }
-
-  data class NotificationResult(
-    val recipient: String,
-    val notificationType: NotificationType = NotificationType.NONE,
-    val success: Boolean = false
-  )
-}
+data class NotificationTask(
+  val resourceType: String,
+  val namespace: String
+)

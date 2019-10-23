@@ -21,6 +21,7 @@ import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.BasicTag
 import org.springframework.stereotype.Component
 import java.time.Clock
 
@@ -35,9 +36,12 @@ class AmazonTagExclusionPolicy(
     }
 
     val tags = excludable.tags()!!
-    if (excludable.expired(clock)) {
-      val temporalTag = tags.find { excludable.expired(it, clock) }!!
-      return patternMatchMessage(temporalTag.key, setOf(temporalTag.value as String))
+    // Exclude this resource if it's tagged with a ttl but has not yet expired
+    val temporalTags = tags.filter(BasicTag::isTemporal)
+    if (temporalTags.isNotEmpty() && !excludable.expired(clock)) {
+      val keysAsString = temporalTags.map { it.key }.joinToString { "," }
+      val valuesAsString = temporalTags.map { it.value }.toString()
+      return patternMatchMessage(keysAsString, setOf(valuesAsString))
     }
 
     val configuredKeysAndTargetValues = keysAndValues(exclusions, ExclusionType.Tag)

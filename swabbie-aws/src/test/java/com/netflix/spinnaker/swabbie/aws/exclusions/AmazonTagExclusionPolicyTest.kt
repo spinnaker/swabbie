@@ -107,7 +107,7 @@ object AmazonTagExclusionPolicyTest {
       subject.apply(it, emptyList()) == null
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(1)
-      filteredResources.first().resourceId shouldMatch equalTo("1")
+      filteredResources.first().resourceId shouldMatch equalTo("2")
     }
   }
 }

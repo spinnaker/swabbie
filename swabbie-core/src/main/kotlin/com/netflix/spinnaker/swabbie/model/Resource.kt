@@ -112,7 +112,13 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
 data class BasicTag(
   val key: String,
   val value: Any?
-)
+) {
+  fun isTemporal(): Boolean {
+    return key in TemporalTags.temporalTags && TemporalTags.supportedTemporalTagValues.any {
+      (value as String).matches((it).toRegex())
+    }
+  }
+}
 
 /**
  * The details field will include all non strongly typed fields of the Resource

@@ -41,11 +41,5 @@ class TemporalTags {
 
       return Pair(amount, supportedTemporalUnits[unit])
     }
-
-    fun isTemporal(tag: BasicTag): Boolean {
-      return tag.key in temporalTags && supportedTemporalTagValues.any {
-        (tag.value as String).matches((it).toRegex())
-      }
-    }
   }
 }

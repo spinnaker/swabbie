@@ -98,7 +98,7 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
   }
 
   fun expired(temporalTag: BasicTag, clock: Clock): Boolean {
-    if (temporalTag.value == "never" || !TemporalTags.isTemporal(temporalTag)) {
+    if (temporalTag.value == "never" || !temporalTag.isTemporal()) {
       return false
     }
 

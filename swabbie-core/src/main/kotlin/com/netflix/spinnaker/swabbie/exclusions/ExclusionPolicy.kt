@@ -82,7 +82,8 @@ interface ExclusionPolicy {
   fun findProperty(excludable: Excludable, key: String, source: Map<String, List<String>>): String? {
     try {
       val fieldValue = getProperty(excludable, key) as? String
-      if (propertyMatches(ensureExpandedProperties(key, source), fieldValue)) {
+      val valuesToMatch = ensureExpandedProperties(key, source).toList()
+      if (propertyMatches(valuesToMatch, fieldValue)) {
         return fieldValue
       }
     } catch (e: IllegalArgumentException) {
@@ -92,28 +93,21 @@ interface ExclusionPolicy {
     return null
   }
 
-  private fun ensureExpandedProperties(key: String, source: Map<String, List<String>>): List<String> {
+  private fun ensureExpandedProperties(key: String, source: Map<String, List<String>>): Set<String> {
     if (propertyResolvers == null || propertyResolvers!!.isEmpty()) {
-      return source.getValue(key)
+      return source.getValue(key).toSet()
     }
 
-    val result = mutableSetOf<String>()
-    source.forEach { (key, values) ->
-      values.forEach {
-        result.addAll(
-          resolveProperty(key, it)
-        )
-      }
-    }
-
-    return result.toList()
+    val values = source.filter { it.key == key }.values.flatten()
+    return values.map { v ->
+      resolveProperty(v) ?: listOf(v)
+    }.flatten().toSet()
   }
 
-  fun resolveProperty(key: String, default: String): List<String> {
-    val defaultValue = listOf(default)
-    return propertyResolvers?.flatMap {
-      it.resolve(key, default) ?: defaultValue
-    } ?: defaultValue
+  fun resolveProperty(property: String): List<String>? {
+    return propertyResolvers?.mapNotNull {
+      it.resolve(property)
+    }?.flatten()
   }
 
   fun <R : Any?> getProperty(instance: Any, propertyName: String): R {

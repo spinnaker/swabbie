@@ -18,8 +18,7 @@ package com.netflix.spinnaker.swabbie.exclusions
 
 interface PropertyResolver {
   /**
-   * Attempts to resolve the value for key
-   * Returns a list of all matching values if found otherwise return the default value
+   * Returns one or more values matching this property
    */
-  fun resolve(key: String, defaultValue: String): List<String>?
+  fun resolve(property: String): List<String>?
 }

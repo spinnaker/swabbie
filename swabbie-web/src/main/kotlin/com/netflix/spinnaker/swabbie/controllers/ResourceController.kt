@@ -24,6 +24,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResourceInterface
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
+import com.netflix.spinnaker.swabbie.notifications.NotificationSender
 import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
@@ -41,7 +42,8 @@ class ResourceController(
   private val resourceStateRepository: ResourceStateRepository,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val applicationEventPublisher: ApplicationEventPublisher,
-  private val controllerUtils: ControllerUtils
+  private val controllerUtils: ControllerUtils,
+  private val notificationSender: NotificationSender
 ) {
 
   private val log = LoggerFactory.getLogger(javaClass)
@@ -187,5 +189,13 @@ class ResourceController(
     val handler = controllerUtils.findHandler(newWorkConfiguration)
 
     return handler.evaluateCandidate(resourceId, resourceId, newWorkConfiguration)
+  }
+
+  /**
+   * This will trigger notification on all resources in the notification queue
+   */
+  @RequestMapping(value = ["/notify"], method = [RequestMethod.GET])
+  fun triggerNotify() {
+    notificationSender.sendNotifications()
   }
 }

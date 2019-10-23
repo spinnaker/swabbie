@@ -153,7 +153,7 @@ class NotificationSender(
       }
   }
 
-  private fun notifyUser(
+  fun notifyUser(
     owner: String,
     resourceType: String,
     data: List<NotificationResourceData>,
@@ -220,7 +220,7 @@ class NotificationSender(
       .monitorValue(size())
   }
 
-  private data class NotificationResourceData(
+  data class NotificationResourceData(
     val resourceType: String,
     val resourceUrl: String,
     val account: String,

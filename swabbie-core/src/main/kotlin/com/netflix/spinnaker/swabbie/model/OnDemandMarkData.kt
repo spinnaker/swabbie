@@ -11,5 +11,6 @@ data class OnDemandMarkData(
     recipient = resourceOwner,
     notificationType = Notifier.NotificationType.EMAIL.name
   ),
-  var lastSeenInfo: LastSeenInfo? = null
+  var lastSeenInfo: LastSeenInfo? = null,
+  val resourceId: String? = null
 )

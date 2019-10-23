@@ -21,13 +21,12 @@ package com.netflix.spinnaker.swabbie.controllers
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.NotifyResource
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
-import com.netflix.spinnaker.swabbie.model.OnDemandNotifyResourceData
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationSender
+import com.netflix.spinnaker.swabbie.test.TestResource
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
@@ -100,11 +99,11 @@ class TestingController(
   fun notify(
     @PathVariable resourceId: String,
     @PathVariable namespace: String,
-    @RequestBody resource: OnDemandNotifyResourceData
+    @RequestBody resource: OnDemandMarkData
   ) {
     val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
     val markedResource = createMarkedResource(workConfiguration,
-      resource.resourceId,
+      resource.resourceId!!,
       resource.resourceOwner,
       resource.projectedDeletionStamp,
       resource.markTs)
@@ -132,6 +131,7 @@ class TestingController(
     } ?: throw NotFoundException("No configuration found for $namespace")
   }
 
+  // Helper method to create a marked resource
   private fun createMarkedResource(
     workConfiguration: WorkConfiguration,
     id: String,
@@ -140,7 +140,7 @@ class TestingController(
     markTs: Long?
   ): MarkedResource {
     return MarkedResource(
-      resource = NotifyResource(resourceId = id,
+      resource = TestResource(resourceId = id,
         name = id,
         resourceType = workConfiguration.resourceType,
         cloudProvider = workConfiguration.cloudProvider

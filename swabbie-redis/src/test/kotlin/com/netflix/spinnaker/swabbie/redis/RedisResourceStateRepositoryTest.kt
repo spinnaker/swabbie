@@ -21,6 +21,7 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
@@ -95,6 +96,7 @@ object RedisResourceStateRepositoryTest {
     RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))),
     objectMapper,
     clock,
+    NoopRegistry(),
     deletedRetentionDays,
     maxDeleted
   )

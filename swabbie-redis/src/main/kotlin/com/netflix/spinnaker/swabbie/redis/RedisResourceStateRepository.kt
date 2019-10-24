@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
@@ -36,6 +37,7 @@ class RedisResourceStateRepository(
   redisClientSelector: RedisClientSelector,
   private val objectMapper: ObjectMapper,
   private val clock: Clock,
+  private val registry: Registry,
   @Value("\${swabbie.state.deleted-retention-days:30}") private val deletedRetentionDays: Long,
   @Value("\${swabbie.state.max-cleaned:500}") private val maxCleaned: Int
 ) : ResourceStateRepository {
@@ -82,12 +84,13 @@ class RedisResourceStateRepository(
         } else {
           val state = mutableSetOf<ResourceState>()
           set.chunked(REDIS_CHUNK_SIZE).forEach { subset ->
-            val partialState = this.withCommandsClient<Set<String>> { client ->
+            this.withCommandsClient<Set<String>> { client ->
               client.hmget(SINGLE_STATE_KEY, *subset.map { it }.toTypedArray()).toSet()
-            }.mapNotNull { json ->
+            }?.mapNotNull { json ->
               readState(json)
+            }?.let {
+              state.addAll(it)
             }
-            state.addAll(partialState)
           }
           state.toList()
         }
@@ -133,6 +136,7 @@ class RedisResourceStateRepository(
     try {
       resourceState = objectMapper.readValue(state)
     } catch (e: Exception) {
+      registry.counter(registry.createId("redis.resourceState.errors")).increment()
       log.error("Exception reading marked resource $state in ${javaClass.simpleName}: ", e)
     }
     return resourceState

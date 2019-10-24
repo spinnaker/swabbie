@@ -20,6 +20,7 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
@@ -40,6 +41,7 @@ class RedisResourceUseTrackingRepository(
   redisClientSelector: RedisClientSelector,
   private val objectMapper: ObjectMapper,
   private val clock: Clock,
+  private val registry: Registry,
   swabbieProperties: SwabbieProperties
 ) : ResourceUseTrackingRepository {
 
@@ -154,6 +156,7 @@ class RedisResourceUseTrackingRepository(
     try {
       info = objectMapper.readValue(value)
     } catch (e: Exception) {
+      registry.counter(registry.createId("redis.resourceUseTracking.errors")).increment()
       log.error("Exception reading last seen info $value in ${javaClass.simpleName}: ", e)
     }
     return info

@@ -52,6 +52,7 @@ class RedisResourceUseTrackingRepository(
   private val outOfUseThresholdDays = swabbieProperties.outOfUseThresholdDays
 
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+  private val redisErrorCounter = registry.counter(registry.createId("redis.resourceUseTracking.errors"))
 
   init {
     log.info("Using ${javaClass.simpleName}")
@@ -156,7 +157,7 @@ class RedisResourceUseTrackingRepository(
     try {
       info = objectMapper.readValue(value)
     } catch (e: Exception) {
-      registry.counter(registry.createId("redis.resourceUseTracking.errors")).increment()
+      redisErrorCounter.increment()
       log.error("Exception reading last seen info $value in ${javaClass.simpleName}: ", e)
     }
     return info

@@ -47,6 +47,7 @@ class RedisResourceTrackingRepository(
 
   private val log = LoggerFactory.getLogger(javaClass)
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
+  private val redisErrorCounter = registry.counter(registry.createId("redis.resourceTracking.errors"))
 
   init {
     log.info("Using ${javaClass.simpleName}")
@@ -174,7 +175,7 @@ class RedisResourceTrackingRepository(
         try {
           deleteInfo = objectMapper.readValue(json)
         } catch (e: Exception) {
-          registry.counter(registry.createId("redis.resourceTracking.errors")).increment()
+          redisErrorCounter.increment()
           log.error("Exception reading delete info $json in ${javaClass.simpleName}: ", e)
         }
         deleteInfo
@@ -190,7 +191,7 @@ class RedisResourceTrackingRepository(
     try {
       markedResource = objectMapper.readValue(resource)
     } catch (e: Exception) {
-      registry.counter(registry.createId("redis.resourceTracking.errors")).increment()
+      redisErrorCounter.increment()
       log.error("Exception when reading marked resource $resource in ${javaClass.simpleName}: ", e)
     }
     return markedResource

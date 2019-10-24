@@ -44,6 +44,7 @@ class RedisResourceStateRepository(
 
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
   private val log = LoggerFactory.getLogger(javaClass)
+  private val redisErrorCounter = registry.counter(registry.createId("redis.resourceState.errors"))
 
   init {
     log.info("Using ${javaClass.simpleName}")
@@ -136,7 +137,7 @@ class RedisResourceStateRepository(
     try {
       resourceState = objectMapper.readValue(state)
     } catch (e: Exception) {
-      registry.counter(registry.createId("redis.resourceState.errors")).increment()
+      redisErrorCounter.increment()
       log.error("Exception reading marked resource $state in ${javaClass.simpleName}: ", e)
     }
     return resourceState

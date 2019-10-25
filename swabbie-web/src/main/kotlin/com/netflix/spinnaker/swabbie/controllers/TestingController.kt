@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.RestController
+import java.time.Clock
 
 /**
  * This controller is for testing resources by on demand marking and deleting them.
@@ -52,7 +53,8 @@ import org.springframework.web.bind.annotation.RestController
 class TestingController(
   private val workConfigurations: List<WorkConfiguration>,
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
-  private val notificationSender: NotificationSender
+  private val notificationSender: NotificationSender,
+  private val clock: Clock
 ) {
 
   /**
@@ -113,7 +115,8 @@ class TestingController(
       account = workConfiguration.account.name!!,
       location = workConfiguration.location,
       optOutUrl = markedResource.optOutUrl(workConfiguration),
-      resource = markedResource
+      resource = markedResource,
+      deletionDate = markedResource.deletionDate(clock).toString()
     )
     notificationSender.notifyUser(
       markedResource.resourceOwner,

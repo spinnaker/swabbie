@@ -21,7 +21,6 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
@@ -101,7 +100,7 @@ object ResourceStateManagerTest {
       markedResource = markedResourceWithViolations,
       workConfiguration = configuration,
       description = "${event.markedResource.typeAndName()} scheduled to be cleaned up on " +
-        "${event.markedResource.humanReadableDeletionTime(clock)}")
+        "${event.markedResource.deletionDate(clock)}")
 
     verify(resourceStateRepository).upsert(
       argWhere {

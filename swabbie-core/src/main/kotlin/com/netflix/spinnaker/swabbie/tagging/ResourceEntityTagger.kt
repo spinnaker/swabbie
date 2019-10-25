@@ -19,7 +19,6 @@ package com.netflix.spinnaker.swabbie.tagging
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -68,14 +67,12 @@ class ResourceEntityTagger(
   }
 
   private fun formatMessage(message: String, markedResource: MarkedResource, workConfiguration: WorkConfiguration): String {
-    val time = markedResource.humanReadableDeletionTime(clock)
+    val time = markedResource.deletionDate(clock)
     val docLink: String = documentationLink(workConfiguration)
-    val resourceId = markedResource.resource.resourceId
-    val namespace = markedResource.namespace
     return "Scheduled to be cleaned up on $time<br /> \n " +
     "* $message <br /> \n" +
       "* Click <a href='" +
-      "${workConfiguration.notificationConfiguration.optOutBaseUrl}/$namespace/$resourceId/optOut' target='_blank'>here</a> to opt out. \n" +
+      "${markedResource.optOutUrl(workConfiguration)}' target='_blank'>here</a> to opt out. \n" +
       docLink
   }
 

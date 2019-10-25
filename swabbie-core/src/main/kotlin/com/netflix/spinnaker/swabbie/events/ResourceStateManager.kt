@@ -24,7 +24,6 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import com.netflix.spinnaker.swabbie.model.humanReadableDeletionTime
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
@@ -63,7 +62,7 @@ class ResourceStateManager(
       is MarkResourceEvent -> {
         id = markCountId
         msg = "${event.markedResource.typeAndName()} scheduled to be cleaned up on " +
-          "${event.markedResource.humanReadableDeletionTime(clock)}"
+          "${event.markedResource.deletionDate(clock)}"
       }
 
       is UnMarkResourceEvent -> {

@@ -211,41 +211,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     deleteResources(listOf(markedResource), workConfiguration)
   }
 
-  /**
-   * @param validMarkedResources: a list of resources that were just marked in the account/location defined in
-   *  the work configuration
-   * @param workConfiguration: defines the account/location to work with
-   *
-   * Fetches already marked resources, filters by work configuration namespace, and un-marks any resource whos id
-   * is not present in validMarkedResources, up to the configured limit of the number to process.
-   */
-  private fun unmarkResources(
-    validMarkedResources: Set<String>,
-    workConfiguration: WorkConfiguration
-  ) {
-    val markedResourcesInNamespace = resourceRepository
-      .getMarkedResources()
-      .filter { it.namespace == workConfiguration.namespace }
-    log.info("Checking for resources to unmark: " +
-      "fetched ${markedResourcesInNamespace.size} marked resources from the database in ${workConfiguration.namespace}," +
-      " ${validMarkedResources.size} resources were qualified to be marked this cycle.")
-    if (validMarkedResources.size < markedResourcesInNamespace.size / 2) {
-      log.warn("Number of resources qualified for marking is less than half the number in the database.")
-    }
-
-    var count = 0
-    for (resource in markedResourcesInNamespace) {
-      if (!validMarkedResources.contains(resource.resourceId)) {
-        ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies to be deleted. Details: ${resource.resource.details}")
-        count += 1
-        if (count >= swabbieProperties.maxUnmarkedPerCycle) {
-          log.warn("Unmarked ${swabbieProperties.maxUnmarkedPerCycle} resources (max allowed) in $javaClass. Aborting.")
-          return
-        }
-      }
-    }
-  }
-
   private fun doMark(workConfiguration: WorkConfiguration) {
     // initialize counters
     exclusionCounters[Action.MARK] = AtomicInteger(0)
@@ -254,8 +219,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val violationCounter = AtomicInteger(0)
     val totalResourcesVisitedCounter = AtomicInteger(0)
     val markedResources = mutableListOf<MarkedResource>()
-    val validMarkedIds = mutableSetOf<String>()
-
     try {
       log.info("${javaClass.simpleName} running. Configuration: {}", workConfiguration.namespace)
       val candidates: List<T>? = getCandidates(workConfiguration)
@@ -313,25 +276,16 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               candidateCounter.incrementAndGet()
               violationCounter.addAndGet(violations.size)
               markedResources.add(newMarkedResource)
-              validMarkedIds.add(newMarkedResource.resourceId)
             }
             else -> {
               // already marked, skipping.
               log.debug("Already marked resource " + alreadyMarkedCandidate.resourceId + " ...skipping")
-              validMarkedIds.add(alreadyMarkedCandidate.resourceId)
             }
           }
         } catch (e: Exception) {
           log.error("Failed while invoking ${javaClass.simpleName}", e)
           recordFailureForAction(Action.MARK, workConfiguration, e)
         }
-      }
-
-      try {
-        unmarkResources(validMarkedIds, workConfiguration)
-      } catch (e: Exception) {
-        log.error("Failed to unmark resources {}", validMarkedIds, e)
-        recordFailureForAction(Action.UNMARK, workConfiguration, e)
       }
 
       printResult(candidateCounter, totalResourcesVisitedCounter, workConfiguration, markedResources, Action.MARK)

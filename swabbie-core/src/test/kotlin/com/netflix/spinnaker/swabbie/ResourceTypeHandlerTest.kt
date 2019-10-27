@@ -47,7 +47,6 @@ import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.check
 import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.eq
 import com.nhaarman.mockito_kotlin.inOrder
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.never
@@ -118,6 +117,7 @@ object ResourceTypeHandlerTest {
   @BeforeEach
   fun setup() {
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
+    whenever(dynamicConfigService.getConfig(any<Class<*>>(), any(), any())) doReturn 10
   }
 
   @AfterEach
@@ -234,7 +234,6 @@ object ResourceTypeHandlerTest {
         )
     ))
 
-    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     defaultHandler.setRules(alwaysInvalidRules)
 
     defaultHandler.mark(workConfiguration = configuration)
@@ -350,10 +349,6 @@ object ResourceTypeHandlerTest {
           markedResource = markedResource
         )
       )
-
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
-    whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
 
     defaultHandler.setRules(alwaysInvalidRules)
 
@@ -531,7 +526,6 @@ object ResourceTypeHandlerTest {
     )
 
     whenever(resourceRepository.getMarkedResources())
-      .thenReturn(emptyList())
       .thenReturn(listOf(markedResource))
 
     defaultHandler.setRules(alwaysValidRules)
@@ -670,10 +664,6 @@ object ResourceTypeHandlerTest {
     )
 
     whenever(
-      dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))
-    ) doReturn configuration.maxItemsProcessedPerCycle
-
-    whenever(
       resourceRepository.getMarkedResources()
     ) doReturn listOf(markedResource)
 
@@ -702,10 +692,6 @@ object ResourceTypeHandlerTest {
       projectedDeletionStamp = now.plus(TimeUnit.DAYS.toMillis(3)),
       markTs = now
     )
-
-    whenever(
-      dynamicConfigService.getConfig(any(), any(), eq(configuration.maxItemsProcessedPerCycle))
-    ) doReturn configuration.maxItemsProcessedPerCycle
 
     whenever(
       resourceRepository.getMarkedResources()

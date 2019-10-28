@@ -55,7 +55,7 @@ class RedisResourceTrackingRepository(
   }
 
   override fun find(resourceId: String, namespace: String): MarkedResource? {
-    val key = "$namespace:$resourceId"
+    val key = "$namespace:$resourceId".toLowerCase()
     return redisClientDelegate.withCommandsClient<String> { client ->
         client.hget(SINGLE_RESOURCES_KEY, key)
       }?.let { readMarkedResource(it) }

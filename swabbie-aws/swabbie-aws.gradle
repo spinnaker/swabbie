@@ -31,4 +31,5 @@ dependencies {
   implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
 
   testImplementation project(":swabbie-test")
+  testImplementation "com.netflix.spinnaker.kork:kork-test"
 }

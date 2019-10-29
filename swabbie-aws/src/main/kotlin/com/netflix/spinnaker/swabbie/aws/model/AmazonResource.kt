@@ -33,7 +33,7 @@ abstract class AmazonResource(
     get() {
       if (resourceType.contains("image", ignoreCase = true) || resourceType.contains("snapshot", ignoreCase = true)) {
           // Images and snapshots have only packageName, not app, to group by
-          getTagValue("appversion")?.let { AppVersion.parseName(it)?.packageName }?.let { packageName ->
+          getTagValue("appversion")?.let { AppVersion.parseName(it as String)?.packageName }?.let { packageName ->
             return Grouping(packageName, GroupingType.PACKAGE_NAME)
           }
           return null

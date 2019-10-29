@@ -235,6 +235,12 @@ data class MarkedResource(
     )
   }
 
+  fun deletionDate(clock: Clock): LocalDate {
+    return Instant.ofEpochMilli(projectedDeletionStamp)
+      .atZone(clock.zone)
+      .toLocalDate()
+  }
+
   fun uniqueId(): String {
     return "$namespace:$resourceId"
   }
@@ -306,11 +312,3 @@ data class ResourceEvaluation(
   val wouldMarkReason: String,
   val summaries: List<Summary>
 )
-
-fun MarkedResource.humanReadableDeletionTime(clock: Clock): LocalDate {
-  this.projectedDeletionStamp.let {
-    return Instant.ofEpochMilli(it)
-      .atZone(clock.zone)
-      .toLocalDate()
-  }
-}

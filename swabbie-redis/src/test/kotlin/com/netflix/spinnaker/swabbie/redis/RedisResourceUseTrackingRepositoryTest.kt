@@ -21,6 +21,7 @@ package com.netflix.spinnaker.swabbie.redis
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
@@ -54,6 +55,7 @@ object RedisResourceUseTrackingRepositoryTest {
     RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))),
     objectMapper,
     clock,
+    NoopRegistry(),
     SwabbieProperties().apply { outOfUseThresholdDays = 3 }
   )
 

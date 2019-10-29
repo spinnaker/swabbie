@@ -153,7 +153,7 @@ class NotificationSender(
       }
   }
 
-  private fun notifyUser(
+  fun notifyUser(
     owner: String,
     resourceType: String,
     data: List<NotificationResourceData>,
@@ -181,7 +181,8 @@ class NotificationSender(
         account = config.account.name!!,
         location = config.location,
         optOutUrl = it.resource.optOutUrl(config),
-        resource = it
+        resource = it,
+        deletionDate = it.deletionDate(clock).toString()
       )
     }
   }
@@ -220,12 +221,13 @@ class NotificationSender(
       .monitorValue(size())
   }
 
-  private data class NotificationResourceData(
+  data class NotificationResourceData(
     val resourceType: String,
     val resourceUrl: String,
     val account: String,
     val location: String,
     val optOutUrl: String,
-    val resource: MarkedResource
+    val resource: MarkedResource,
+    val deletionDate: String
   )
 }

@@ -37,4 +37,5 @@ dependencies {
   compile project(":swabbie-echo")
   compile project(":swabbie-front50")
   compile project(":swabbie-redis")
+  compile project(":swabbie-test")
 }

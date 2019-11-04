@@ -50,6 +50,11 @@ object AmazonTagExclusionPolicyTest {
               .withKey("expiration_time")
               .withValue(
                 listOf("never")
+              ),
+            Attribute()
+              .withKey("excludeMe")
+              .withValue(
+                listOf(true)
               )
           )
         )
@@ -69,7 +74,14 @@ object AmazonTagExclusionPolicyTest {
           value = listOf(
             mapOf("key" to "value")
           )
-        ))
+        ),
+      AwsTestResource(id = "3")
+        .withDetail(
+          name = "tags",
+          value = listOf(
+            mapOf("excludeMe" to true)
+          )
+      ))
 
     resources.filter {
       subject.apply(it, exclusions) == null

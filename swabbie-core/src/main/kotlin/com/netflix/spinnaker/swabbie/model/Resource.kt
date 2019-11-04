@@ -115,7 +115,7 @@ data class BasicTag(
 ) {
   fun isTemporal(): Boolean {
     return key in TemporalTags.temporalTags && TemporalTags.supportedTemporalTagValues.any {
-      (value as String).matches((it).toRegex())
+      (value as? String)?.matches((it).toRegex()) ?: false
     }
   }
 }

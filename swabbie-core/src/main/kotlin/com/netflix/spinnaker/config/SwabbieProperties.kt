@@ -137,7 +137,7 @@ class ResourceTypeConfiguration {
 
 class Attribute {
   var key: String = ""
-  var value: List<String> = mutableListOf()
+  var value: List<Any> = mutableListOf()
   override fun toString(): String {
     return "Attribute(key='$key', value=$value)"
   }
@@ -147,7 +147,7 @@ class Attribute {
       key = k
     }
 
-  fun withValue(v: List<String>): Attribute =
+  fun withValue(v: List<Any>): Attribute =
     this.apply {
       value = v
     }

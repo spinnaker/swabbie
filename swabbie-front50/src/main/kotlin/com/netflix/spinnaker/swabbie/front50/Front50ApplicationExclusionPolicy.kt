@@ -55,8 +55,8 @@ class Front50ApplicationExclusionPolicy(
 
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
     val kv = keysAndValues(exclusions, ExclusionType.Allowlist)
-    val names = kv.values.flatten().toSet()
-    val application = findApplication(excludable, names)
+    val names: List<String> = kv.values.flatten().map { it.toString() }
+    val application = findApplication(excludable, names.toSet())
 
     if (application != null) {
       return byPropertyMatchingResult(exclusions, application)

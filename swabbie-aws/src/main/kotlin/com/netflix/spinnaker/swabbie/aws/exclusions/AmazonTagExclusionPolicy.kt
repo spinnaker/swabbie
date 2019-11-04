@@ -47,8 +47,8 @@ class AmazonTagExclusionPolicy(
     val configuredKeysAndTargetValues = keysAndValues(exclusions, ExclusionType.Tag)
     tags.forEach { tag ->
       val target = configuredKeysAndTargetValues[tag.key] ?: emptyList()
-      if (target.contains(tag.value as String)) {
-        return patternMatchMessage(tag.key, setOf(tag.value as String))
+      if (tag.value in target) {
+        return patternMatchMessage(tag.key, setOf(tag.value.toString()))
       }
     }
 

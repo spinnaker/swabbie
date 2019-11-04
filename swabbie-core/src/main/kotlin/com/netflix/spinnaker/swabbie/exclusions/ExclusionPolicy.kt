@@ -44,7 +44,7 @@ interface ExclusionPolicy {
     return "$value doesn't match pattern. Matched: ${patterns.joinToString(",")}"
   }
 
-  fun wildcardMatchMessage(value: String, patterns: Set<String> = emptySet()): String {
+  fun wildcardMatchMessage(value: String, patterns: Set<Any> = emptySet()): String {
     return "$value matches wildcard excluding $value. Matched: ${patterns.joinToString(",")}"
   }
 
@@ -60,7 +60,7 @@ interface ExclusionPolicy {
     excludable: Excludable,
     exclusionType: ExclusionType = getType()
   ): String? {
-    val kv: Map<String, List<String>> = keysAndValues(exclusions, exclusionType)
+    val kv: Map<String, List<Any>> = keysAndValues(exclusions, exclusionType)
     val exclusionValues = kv.values.toSet().flatten()
 
     if (exclusionValues.size == 1 && exclusionValues[0] == "\\*") {
@@ -77,7 +77,7 @@ interface ExclusionPolicy {
     return null
   }
 
-  fun findProperty(excludable: Excludable, key: String, values: List<String>): String? {
+  fun findProperty(excludable: Excludable, key: String, values: List<Any>): String? {
     try {
       val fieldValue = getProperty(excludable, key) as? String
       if (propertyMatches(values, fieldValue)) {
@@ -113,8 +113,8 @@ interface ExclusionPolicy {
    * For each exclusion that matches the type we're considering,
    * transform all information into a key,values that make up this policy
    */
-  fun keysAndValues(exclusions: List<Exclusion>, type: ExclusionType): Map<String, List<String>> {
-    val map = mutableMapOf<String, List<String>>()
+  fun keysAndValues(exclusions: List<Exclusion>, type: ExclusionType): Map<String, List<Any>> {
+    val map = mutableMapOf<String, List<Any>>()
     exclusions.filter {
       it.type.equals(type.name, true)
     }.forEach {
@@ -126,14 +126,14 @@ interface ExclusionPolicy {
     return map
   }
 
-  private fun propertyMatches(values: List<String>, fieldValue: String?): Boolean {
+  private fun propertyMatches(values: List<Any>, fieldValue: String?): Boolean {
     if (fieldValue == null) {
       return false
     }
     val splitFieldValue = fieldValue.split(",").map { it.trim() }
 
     return values.contains(fieldValue) ||
-      values.any { fieldValue.matchPattern(it) || splitFieldValue.contains(it) }
+      values.any { it is String && fieldValue.matchPattern(it) || splitFieldValue.contains(it) }
   }
 }
 

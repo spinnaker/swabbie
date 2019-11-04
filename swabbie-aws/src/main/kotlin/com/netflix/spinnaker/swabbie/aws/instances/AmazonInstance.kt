@@ -28,7 +28,6 @@ import java.time.ZoneId
 data class AmazonInstance(
   val instanceId: String,
   val imageId: String,
-  val tags: List<Map<String, String>>,
   private val launchTime: Long,
   override val resourceId: String = instanceId,
   override val resourceType: String = INSTANCE,
@@ -38,9 +37,7 @@ data class AmazonInstance(
     LocalDateTime.ofInstant(Instant.ofEpochMilli(launchTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
   fun getAutoscalingGroup(): String? {
-    return tags
-      .find { it.containsKey("aws:autoscaling:groupName") }
-      ?.get("aws:autoscaling:groupName")
+    return tags()?.find { it.key == "aws:autoscaling:groupName" }?.value as String
   }
 
   override fun equals(other: Any?): Boolean {

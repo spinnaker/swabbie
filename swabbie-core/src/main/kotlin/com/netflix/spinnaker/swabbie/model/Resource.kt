@@ -23,9 +23,11 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
+import com.netflix.spinnaker.swabbie.tagging.TemporalTags
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
@@ -81,18 +83,40 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
     return details.toString()
   }
 
-  fun getTagValue(key: String): String? {
-    try {
-      val tags = this.details["tags"] as List<Map<String, String>>
-      tags.forEach { tag ->
-        if (tag.containsKey(key)) {
-          return tag.getValue(key)
-        }
+  fun tags(): List<BasicTag>? {
+    return (details["tags"] as? List<Map<String, String>>)?.flatMap {
+      it.entries.map { tag ->
+        BasicTag(tag.key, tag.value)
       }
-    } catch (e: ClassCastException) {
-      log.warn("Resource {} does not have normal tag format: {}", this.toLog(), this.details["tags"])
     }
-    return null
+  }
+
+  fun getTagValue(key: String): Any? = tags()?.find { it.key == key }?.value
+
+  fun expired(clock: Clock): Boolean {
+    return tags()?.any { expired(it, clock) } ?: false
+  }
+
+  fun expired(temporalTag: BasicTag, clock: Clock): Boolean {
+    if (temporalTag.value == "never" || !temporalTag.isTemporal()) {
+      return false
+    }
+
+    val (amount, unit) = TemporalTags.toTemporalPair(temporalTag)
+    val ttl = Duration.of(amount, unit).toDays()
+    val resourceAge = Duration.between(Instant.ofEpochMilli(createTs), Instant.now(clock))
+    return resourceAge.toDays() > ttl
+  }
+}
+
+data class BasicTag(
+  val key: String,
+  val value: Any?
+) {
+  fun isTemporal(): Boolean {
+    return key in TemporalTags.temporalTags && TemporalTags.supportedTemporalTagValues.any {
+      (value as String).matches((it).toRegex())
+    }
   }
 }
 
@@ -211,6 +235,12 @@ data class MarkedResource(
     )
   }
 
+  fun deletionDate(clock: Clock): LocalDate {
+    return Instant.ofEpochMilli(projectedDeletionStamp)
+      .atZone(clock.zone)
+      .toLocalDate()
+  }
+
   fun uniqueId(): String {
     return "$namespace:$resourceId"
   }
@@ -282,11 +312,3 @@ data class ResourceEvaluation(
   val wouldMarkReason: String,
   val summaries: List<Summary>
 )
-
-fun MarkedResource.humanReadableDeletionTime(clock: Clock): LocalDate {
-  this.projectedDeletionStamp.let {
-    return Instant.ofEpochMilli(it)
-      .atZone(clock.zone)
-      .toLocalDate()
-  }
-}

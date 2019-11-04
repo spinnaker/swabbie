@@ -181,7 +181,8 @@ class NotificationSender(
         account = config.account.name!!,
         location = config.location,
         optOutUrl = it.resource.optOutUrl(config),
-        resource = it
+        resource = it,
+        deletionDate = it.deletionDate(clock).toString()
       )
     }
   }
@@ -226,6 +227,7 @@ class NotificationSender(
     val account: String,
     val location: String,
     val optOutUrl: String,
-    val resource: MarkedResource
+    val resource: MarkedResource,
+    val deletionDate: String
   )
 }

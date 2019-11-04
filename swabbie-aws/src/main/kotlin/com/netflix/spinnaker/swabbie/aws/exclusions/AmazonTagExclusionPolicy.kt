@@ -21,50 +21,35 @@ import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.BasicTag
 import org.springframework.stereotype.Component
+import java.time.Clock
 
 @Component
-class AmazonTagExclusionPolicy : ResourceExclusionPolicy {
-  private val tagsField = "tags"
+class AmazonTagExclusionPolicy(
+  val clock: Clock
+) : ResourceExclusionPolicy {
   override fun getType(): ExclusionType = ExclusionType.Tag
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
-    if (excludable is AmazonResource) {
-      keysAndValues(exclusions, ExclusionType.Tag)
-        .let { excludingTags ->
-          if (tagsField in excludable.details) {
-            (excludable.details[tagsField] as List<Map<*, *>>).map { tag ->
-              tag.keys.find { key ->
-                excludingTags[key] != null
-              }?.let { key ->
-                if (key in TemporalTagExclusionSupplier.temporalTags) {
-                  excludingTags[key]!!.map { target ->
-                    TemporalTagExclusionSupplier
-                      .computeAndCompareAge(
-                        excludable = excludable,
-                        tagValue = tag[key] as String,
-                        target = target
-                      ).let {
-                        when {
-                          it.age == Age.OLDER || it.age == Age.INFINITE ->
-                            return patternMatchMessage(tag[key] as String, excludingTags[key]!!.toSet())
-                          it.age == Age.YOUNGER ->
-                            return null
-                          else -> {
-                            // no need to check age here.
-                            log.debug("Resource age comparison with {}. Result: {}", excludable.createTs, it)
-                          }
-                        }
-                    }
-                  }
-                }
+    if (excludable !is AmazonResource || excludable.tags().isNullOrEmpty()) {
+      return null
+    }
 
-                if (excludingTags[key]!!.contains(tag[key] as? String)) {
-                  return patternMatchMessage(tag[key] as String, excludingTags[key]!!.toSet())
-                }
-              }
-            }
-          }
-        }
+    val tags = excludable.tags()!!
+    // Exclude this resource if it's tagged with a ttl but has not yet expired
+    val temporalTags = tags.filter(BasicTag::isTemporal)
+    if (temporalTags.isNotEmpty() && !excludable.expired(clock)) {
+      val keysAsString = temporalTags.map { it.key }.joinToString { "," }
+      val valuesAsString = temporalTags.map { it.value }.toString()
+      return patternMatchMessage(keysAsString, setOf(valuesAsString))
+    }
+
+    val configuredKeysAndTargetValues = keysAndValues(exclusions, ExclusionType.Tag)
+    tags.forEach { tag ->
+      val target = configuredKeysAndTargetValues[tag.key] ?: emptyList()
+      if (target.contains(tag.value as String)) {
+        return patternMatchMessage(tag.key, setOf(tag.value as String))
+      }
     }
 
     return null

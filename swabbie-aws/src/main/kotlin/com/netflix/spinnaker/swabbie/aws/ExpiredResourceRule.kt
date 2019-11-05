@@ -38,7 +38,7 @@ class ExpiredResourceRule<T : AmazonResource>(
     if (resource.expired(clock)) {
       return Result(
         Summary(
-          description = "$${resource.resourceId} has expired. tags: ${resource.tags()}",
+          description = "${resource.resourceId} has expired.",
           ruleName = javaClass.simpleName
         )
       )

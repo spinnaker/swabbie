@@ -84,7 +84,7 @@ abstract class Resource : Excludable, Timestamped, HasDetails() {
   }
 
   fun tags(): List<BasicTag>? {
-    return (details["tags"] as? List<Map<String, String>>)?.flatMap {
+    return (details["tags"] as? List<Map<String, Any?>>)?.flatMap {
       it.entries.map { tag ->
         BasicTag(tag.key, tag.value)
       }

@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie.notifications
 
 import com.netflix.spectator.api.Registry
-import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.lock.LockManager
@@ -62,16 +61,12 @@ class NotificationSender(
     .withLockName(lockingService.ownerName)
     .withMaximumLockDuration(lockingService.swabbieMaxLockDuration)
 
-  init {
-    notificationQueue.track()
-  }
-
   /**
    * Periodically sends notifications to resolved resource owners
    * The frequency of this scheduled action is cron based and configurable
    * Defaults to every day at 9am.
    */
-  @Scheduled(cron = "\${swabbie.notification.cron.schedule:0 0 9 1/1 * ?}")
+  @Scheduled(cron = "\${swabbie.notification.cron.schedule:0 0/5 * * * ?}")
   fun sendNotifications() {
     if (!isUp()) {
       return
@@ -213,12 +208,6 @@ class NotificationSender(
       "resources" to resources,
       "slackChannelLink" to "#spinnaker"
     )
-  }
-
-  private fun NotificationQueue.track() {
-    PolledMeter.using(registry)
-      .withName("swabbie.redis.notificationQueueSize")
-      .monitorValue(size())
   }
 
   data class NotificationResourceData(

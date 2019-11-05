@@ -15,6 +15,7 @@
  */
 package com.netflix.spinnaker.swabbie.redis
 
+import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
@@ -71,6 +72,7 @@ object RedisWorkQueueTest {
 
   private val queue = RedisWorkQueue(
     redisClientSelector = RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool))),
+    registry = NoopRegistry(),
     _seed = listOf(workConfiguration1, workConfiguration2)
   )
 

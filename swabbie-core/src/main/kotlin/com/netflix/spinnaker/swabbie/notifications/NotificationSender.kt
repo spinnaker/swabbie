@@ -66,7 +66,7 @@ class NotificationSender(
    * The frequency of this scheduled action is cron based and configurable
    * Defaults to every day at 9am.
    */
-  @Scheduled(cron = "\${swabbie.notification.cron.schedule:*/5 * * * *}")
+  @Scheduled(cron = "\${swabbie.notification.cron.schedule:0 0/5 * * * ?}")
   fun sendNotifications() {
     if (!isUp()) {
       return

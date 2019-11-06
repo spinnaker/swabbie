@@ -25,10 +25,7 @@ import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
-import com.netflix.spinnaker.swabbie.events.Action
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.OrcaTaskFailureEvent
-import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.slf4j.Logger
@@ -136,7 +133,6 @@ class OrcaTaskMonitoringAgent(
                 kv("taskId", taskId),
                 taskInfo
               )
-              publishEvent(taskInfo)
               taskTrackingRepository.setSucceeded(taskId)
             }
             response.status.isFailure() -> {
@@ -172,23 +168,6 @@ class OrcaTaskMonitoringAgent(
 
   private fun clean() {
     taskTrackingRepository.cleanUpFinishedTasks(daysToKeepTasks)
-  }
-
-  private fun publishEvent(taskInfo: TaskCompleteEventInfo) {
-    when (taskInfo.action) {
-      Action.DELETE -> {
-        taskInfo.markedResources
-          .forEach { markedResource ->
-            applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, taskInfo.workConfiguration))
-          }
-      }
-      Action.OPTOUT -> {
-        // no action needs to be taken because the status was already updated
-      }
-      else -> {
-        TODO("Not implemented: event publishing not implemented for action ${taskInfo.action}")
-      }
-    }
   }
 
   @Value("\${swabbie.agents.orca-task-monitor.interval-seconds:60}")

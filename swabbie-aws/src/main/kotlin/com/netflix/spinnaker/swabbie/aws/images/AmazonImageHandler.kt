@@ -35,6 +35,7 @@ import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
 import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
@@ -315,13 +316,43 @@ class AmazonImageHandler(
 
     return aws.getImage(params)
   }
-}
 
-// TODO: specific to netflix pattern. make generic
-private fun isAncestor(images: Map<String, String>, image: AmazonImage): Boolean {
-  return images.containsKey("ancestor_id=${image.imageId}") || images.containsKey("ancestor_name=${image.name}")
-}
+  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration): ResourceState {
+    return super.optOut(resourceId, workConfiguration)
+      .also {
+        tagImage(it.markedResource, workConfiguration)
+      }
+  }
 
-private fun AmazonImage.matches(image: AmazonImage): Boolean {
-  return name == image.name || imageId == image.imageId
+  private fun tagImage(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+    val tagImageTask = orcaService.orchestrate(
+      OrchestrationRequest(
+        application = applicationUtils.determineApp(markedResource.resource),
+        description = "Opting ${markedResource.resourceId} out of deletion.",
+        job = listOf(
+          OrcaJob(
+            type = "upsertImageTags",
+            context = mutableMapOf(
+              "imageNames" to setOf(markedResource.resourceId),
+              "regions" to setOf(workConfiguration.location),
+              "tags" to mapOf("expiration_time" to "never"),
+              "cloudProvider" to workConfiguration.cloudProvider,
+              "cloudProviderType" to workConfiguration.cloudProvider,
+              "credentials" to workConfiguration.account.name
+            )
+          )
+        )
+      )
+    )
+
+    taskTrackingRepository.add(
+      tagImageTask.taskId(),
+      TaskCompleteEventInfo(
+        action = Action.OPTOUT,
+        markedResources = listOf(markedResource),
+        workConfiguration = workConfiguration,
+        submittedTimeMillis = clock.instant().toEpochMilli()
+      )
+    )
+  }
 }

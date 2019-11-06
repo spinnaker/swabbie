@@ -25,8 +25,6 @@ import com.netflix.spinnaker.swabbie.tagging.SWABBIE_ENTITY_TAG_NAME
 import com.netflix.spinnaker.swabbie.tagging.TagRequest
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.tagging.UpsertEntityTagsRequest
-import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
-import com.netflix.spinnaker.swabbie.tagging.UpsertServerGroupTagsRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -76,53 +74,6 @@ class OrcaTaggingService(
           )
         )
       }
-    }
-  }
-
-  override fun upsertImageTag(tagRequest: UpsertImageTagsRequest): String {
-    return AuthenticatedRequest.allowAnonymous {
-      orcaService.orchestrate(
-        OrchestrationRequest(
-          application = tagRequest.application,
-          description = tagRequest.description,
-          job = listOf(
-            OrcaJob(
-              type = tagRequest.type,
-              context = mutableMapOf(
-                "imageNames" to tagRequest.imageNames,
-                "regions" to tagRequest.regions,
-                "tags" to tagRequest.tags,
-                "cloudProvider" to tagRequest.cloudProvider,
-                "cloudProviderType" to tagRequest.cloudProviderType
-              )
-            )
-          )
-        )
-      ).taskId()
-    }
-  }
-
-  override fun upsertAsgTag(tagRequest: UpsertServerGroupTagsRequest): String {
-    return AuthenticatedRequest.allowAnonymous {
-      orcaService.orchestrate(
-        OrchestrationRequest(
-          application = tagRequest.application,
-          description = tagRequest.description,
-          job = listOf(
-            OrcaJob(
-              type = tagRequest.type,
-              context = mutableMapOf(
-                "serverGroupName" to tagRequest.serverGroupName,
-                "regions" to tagRequest.regions,
-                "tags" to tagRequest.tags,
-                "cloudProvider" to tagRequest.cloudProvider,
-                "cloudProviderType" to tagRequest.cloudProviderType,
-                "credentials" to tagRequest.credentials
-              )
-            )
-          )
-        )
-      ).taskId()
     }
   }
 }

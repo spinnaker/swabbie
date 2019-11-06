@@ -53,6 +53,7 @@ import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.check
 import com.nhaarman.mockito_kotlin.doReturn
@@ -109,7 +110,8 @@ object AmazonAutoScalingGroupHandlerTest {
     resourceUseTrackingRepository = resourceUseTrackingRepository,
     swabbieProperties = SwabbieProperties().also { it.schedule.enabled = false },
     dynamicConfigService = dynamicConfigService,
-    notificationQueue = notificationQueue
+    notificationQueue = notificationQueue,
+    applicationUtils = ApplicationUtils(emptyList())
   )
 
   @BeforeEach

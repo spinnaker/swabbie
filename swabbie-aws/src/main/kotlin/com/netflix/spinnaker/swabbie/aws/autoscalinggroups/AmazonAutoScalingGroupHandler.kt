@@ -31,6 +31,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
@@ -41,6 +42,7 @@ import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -61,6 +63,7 @@ class AmazonAutoScalingGroupHandler(
   private val rules: List<Rule<AmazonAutoScalingGroup>>,
   private val aws: AWS,
   private val orcaService: OrcaService,
+  private val applicationUtils: ApplicationUtils,
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   notificationQueue: NotificationQueue
@@ -115,10 +118,9 @@ class AmazonAutoScalingGroupHandler(
     }
   }
 
-  override fun handles(workConfiguration: WorkConfiguration):
-    Boolean = workConfiguration.resourceType == SERVER_GROUP &&
-    workConfiguration.cloudProvider == AWS &&
-    !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration): Boolean {
+    return workConfiguration.resourceType == SERVER_GROUP && workConfiguration.cloudProvider == AWS && rules.isNotEmpty()
+  }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonAutoScalingGroup>? {
     val params = Parameters(
@@ -152,20 +154,7 @@ class AmazonAutoScalingGroupHandler(
     if (serverGroups == null || serverGroups.isEmpty()) {
       return
     }
-    val elapsedTimeMillis = measureTimeMillis {
-      serverGroups.forEach { serverGroup ->
-        if (HAS_INSTANCES !in serverGroup.details) {
-          serverGroup.set(HAS_INSTANCES, serverGroup.instances != null && !serverGroup.instances.isEmpty())
-        }
-
-        (serverGroup.details["suspendedProcesses"] as? List<Map<String, Any>>)?.find {
-          it["processName"] == "AddToLoadBalancer"
-        }?.let {
-          serverGroup.set(IS_DISABLED, true)
-        }
-      }
-    }
-
+    val elapsedTimeMillis = measureTimeMillis {} // check references here. Empty body because all references are present.
     log.info("Completed checking references for {} server groups in ${elapsedTimeMillis}ms. Params: {}",
       serverGroups.size, params)
   }
@@ -183,5 +172,44 @@ class AmazonAutoScalingGroupHandler(
     )
 
     return aws.getServerGroup(params)
+  }
+
+  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration): ResourceState {
+    return super.optOut(resourceId, workConfiguration)
+      .also {
+        tagServerGroup(it.markedResource, workConfiguration)
+      }
+  }
+
+  private fun tagServerGroup(markedResource: MarkedResource, workConfiguration: WorkConfiguration) {
+    val tagServerGroupTask = orcaService.orchestrate(
+      OrchestrationRequest(
+        application = applicationUtils.determineApp(markedResource.resource),
+        description = "Opting ${markedResource.resourceId} out of deletion.",
+        job = listOf(
+          OrcaJob(
+            type = "upsertServerGroupTags",
+            context = mutableMapOf(
+              "serverGroupName" to markedResource.name,
+              "regions" to setOf(workConfiguration.location),
+              "tags" to mapOf("expiration_time" to "never"),
+              "cloudProvider" to workConfiguration.cloudProvider,
+              "cloudProviderType" to workConfiguration.cloudProvider,
+              "credentials" to workConfiguration.account.name
+            )
+          )
+        )
+      )
+    )
+
+    taskTrackingRepository.add(
+      tagServerGroupTask.taskId(),
+      TaskCompleteEventInfo(
+        action = Action.OPTOUT,
+        markedResources = listOf(markedResource),
+        workConfiguration = workConfiguration,
+        submittedTimeMillis = clock.instant().toEpochMilli()
+      )
+    )
   }
 }

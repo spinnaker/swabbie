@@ -79,14 +79,6 @@ data class AmazonAutoScalingGroup(
     return getAddToLoadBalancerProcess()?.suspensionReason
   }
 
-  fun isDisabled(): Boolean {
-    return (details[IS_DISABLED] != null && details[IS_DISABLED] == true)
-  }
-
-  fun hasInstances(): Boolean {
-    return (details[HAS_INSTANCES] != null && details[HAS_INSTANCES] == true)
-  }
-
   // TODO :aravindd refactor this method
   // Disabled time is here is provided by AWS
   fun disabledTime(): LocalDateTime? {

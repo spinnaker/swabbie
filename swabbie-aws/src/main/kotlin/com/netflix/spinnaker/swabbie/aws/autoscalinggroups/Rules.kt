@@ -43,7 +43,7 @@ class ZeroInstanceDisabledServerGroupRule(
       return Result(null)
     }
 
-    if (!resource.hasInstances()) {
+    if (resource.instances.isNullOrEmpty()) {
       val disabledTime = resource.disabledTime() ?: return Result(null)
 
       // time elapsed since the resource was disabled time is greater than disabledDurationInDays
@@ -72,7 +72,7 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
   private val disabledDurationInDays: Long = 30
 
   override fun apply(resource: AmazonAutoScalingGroup): Result {
-    if (!resource.isDisabled()) {
+    if (resource.isInLoadBalancer()) {
       return Result(null)
     }
 
@@ -106,7 +106,3 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
     return instance.status == OUT_OF_SERVICE && disabledInDays > disabledDurationInDays
   }
 }
-
-// TODO: aravindd : move these out of Rules
-const val HAS_INSTANCES = "hasInstances"
-const val IS_DISABLED = "isDisabled"

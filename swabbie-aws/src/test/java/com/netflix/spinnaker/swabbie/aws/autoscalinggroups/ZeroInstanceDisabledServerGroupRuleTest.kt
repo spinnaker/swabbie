@@ -35,12 +35,9 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       instances = listOf(
         mapOf("instanceId" to "i-01234")
       ),
-      loadBalancerNames = listOf(),
+      loadBalancerNames = listOf("lb1"),
       createdTime = clock.millis()
-
-    ).apply {
-      set(IS_DISABLED, false)
-    }
+    )
 
     val result = ZeroInstanceDisabledServerGroupRule(clock).apply(asg)
     Assertions.assertNull(result.summary)
@@ -59,11 +56,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
         suspendedProcess
       ),
       createdTime = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
-
-    ).apply {
-      set(IS_DISABLED, true)
-      set(HAS_INSTANCES, false)
-    }
+    )
 
     val result = ZeroInstanceDisabledServerGroupRule(clock).apply(asg)
     Assertions.assertNotNull(result.summary)
@@ -76,11 +69,7 @@ object ZeroInstanceDisabledServerGroupRuleTest {
       instances = listOf(),
       loadBalancerNames = listOf(),
       createdTime = Instant.now(clock).minus(35, ChronoUnit.DAYS).toEpochMilli()
-
-    ).apply {
-      set(IS_DISABLED, true)
-      set(HAS_INSTANCES, false)
-    }
+    )
 
     val result = ZeroInstanceDisabledServerGroupRule(clock).apply(asg)
     Assertions.assertNull(result.summary)

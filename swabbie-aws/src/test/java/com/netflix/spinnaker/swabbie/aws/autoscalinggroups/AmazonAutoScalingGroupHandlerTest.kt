@@ -33,6 +33,7 @@ import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
+import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
@@ -259,7 +260,8 @@ object AmazonAutoScalingGroupHandlerTest {
       }
     )
 
-    verify(resourceRepository, times(1)).upsert(any<MarkedResource>(), any<Long>())
+    verify(resourceRepository, times(1)).upsert(any(), any())
+    verify(applicationEventPublisher, times(1)).publishEvent(any<MarkResourceEvent>())
   }
 
   @Test
@@ -319,6 +321,7 @@ object AmazonAutoScalingGroupHandlerTest {
     verify(orcaService, times(1)).orchestrate(any())
 
     verify(taskTrackingRepository, times(1)).add(any(), any())
+    verify(applicationEventPublisher, times(1)).publishEvent(any<DeleteResourceEvent>())
   }
 
   private fun Long.inDays(): Int =

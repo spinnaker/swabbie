@@ -23,9 +23,9 @@ import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
+import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 import java.time.Clock
 import java.time.Instant
@@ -52,7 +52,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
       Optional.empty(), clock
     ).apply(asg)
 
-    Assertions.assertNull(result.summary)
+    expectThat(result.summary).isNull()
   }
 
   @Test
@@ -86,7 +86,7 @@ object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
       Optional.of(discoveryClient), clock
     ).apply(asg)
 
-    Assertions.assertNotNull(result.summary)
+    expectThat(result.summary).isNotNull()
   }
 
   @Test

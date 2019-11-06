@@ -22,11 +22,14 @@ import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -46,6 +49,7 @@ import java.time.temporal.ChronoUnit
 class NotificationSender(
   private val lockingService: LockingService,
   private val resourceTrackingRepository: ResourceTrackingRepository,
+  private val resourceStateRepository: ResourceStateRepository,
   private val notifier: Notifier,
   private val clock: Clock,
   private val applicationEventPublisher: ApplicationEventPublisher,
@@ -74,11 +78,7 @@ class NotificationSender(
 
     lockingService.acquireLock(lockOptions) {
       try {
-        val resources = resourceTrackingRepository.getMarkedResources()
-          .filter {
-            it.notificationInfo == null
-          }
-
+        val resources = getResourcesToNotify()
         val notificationTasks = notificationQueue.popAll()
         for (task in notificationTasks) {
           val resourceType = task.resourceType
@@ -127,6 +127,19 @@ class NotificationSender(
         log.error("Failed to process notifications", e)
       }
     }
+  }
+
+  private fun getResourcesToNotify(): List<MarkedResource> {
+    // Don't include resources that are opted out, deleted or already notified
+    val resourceStates: List<ResourceState> = resourceStateRepository.getAll()
+      .filter { state ->
+        state.optedOut || state.deleted || state.statuses.any { it.name == Action.NOTIFY.name }
+      }
+
+    return resourceTrackingRepository.getMarkedResources()
+      .filter { m ->
+        m.notificationInfo == null && resourceStates.none { it.markedResource == m }
+      }
   }
 
   private fun updateNotificationInfoAndPublishEvent(

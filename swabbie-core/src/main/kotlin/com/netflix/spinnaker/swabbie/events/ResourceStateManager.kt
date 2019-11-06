@@ -22,17 +22,9 @@ import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
-import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
-import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
-import com.netflix.spinnaker.swabbie.tagging.TaggingService
-import com.netflix.spinnaker.swabbie.tagging.UpsertImageTagsRequest
-import com.netflix.spinnaker.swabbie.tagging.UpsertServerGroupTagsRequest
-import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
-import net.logstash.logback.argument.StructuredArguments
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
@@ -44,94 +36,67 @@ class ResourceStateManager(
   private val resourceStateRepository: ResourceStateRepository,
   private val clock: Clock,
   private val registry: Registry,
-  @Autowired(required = false) private val resourceTagger: ResourceTagger?,
-  private val taggingService: TaggingService,
-  private val taskTrackingRepository: TaskTrackingRepository,
-  private val applicationUtils: ApplicationUtils
+  @Autowired(required = false) private val resourceTagger: ResourceTagger?
 ) : MetricsSupport(registry) {
-
   private val log = LoggerFactory.getLogger(javaClass)
 
   @EventListener
   fun handleEvents(event: Event) {
-    var id: Id? = null
-    var msg: String? = null
-    var removeTag = false
+    val workConfiguration = event.workConfiguration
+    val markedResource = event.markedResource
+    val normalizedName = markedResource.typeAndName()
+    val deletionDate = markedResource.deletionDate(clock)
+    val notifiedOwner = markedResource.notificationInfo?.recipient
 
     when (event) {
       is MarkResourceEvent -> {
-        id = markCountId
-        msg = "${event.markedResource.typeAndName()} scheduled to be cleaned up on " +
-          "${event.markedResource.deletionDate(clock)}"
+        registry.counter(markCountId.withTags(workConfiguration))
+        resourceTagger?.tag(
+          markedResource,
+          workConfiguration,
+          description = "$normalizedName is scheduled to be deleted on $deletionDate")
       }
 
       is UnMarkResourceEvent -> {
-        id = unMarkCountId
-        removeTag = true
-        msg = "${event.markedResource.typeAndName()}. No longer a cleanup candidate"
+        registry.counter(unMarkCountId.withTags(workConfiguration))
+        resourceTagger?.unTag(
+          markedResource,
+          workConfiguration,
+          description = "$normalizedName is no longer a cleanup candidate")
       }
 
       is OwnerNotifiedEvent -> {
-        id = notifyCountId
-        removeTag = false
-        msg = "Notified ${event.markedResource.notificationInfo?.recipient} about soon to be cleaned up " +
-          event.markedResource.typeAndName()
+        registry.counter(notifyCountId.withTags(workConfiguration))
+        resourceTagger?.tag(
+          markedResource,
+          workConfiguration,
+          description = "Notified $notifiedOwner about soon to be deleted $normalizedName")
       }
 
       is OptOutResourceEvent -> {
-        id = optOutCountId
-        removeTag = true
-        msg = "${event.markedResource.typeAndName()}. Opted Out"
+        registry.counter(optOutCountId.withTags(workConfiguration))
+        resourceTagger?.unTag(
+          markedResource,
+          workConfiguration,
+          description = "$normalizedName is opted out of deletion")
       }
 
       is DeleteResourceEvent -> {
-        id = deleteCountId
-        removeTag = true
-        msg = "Removing tag for now deleted ${event.markedResource.typeAndName()}"
+        registry.counter(deleteCountId.withTags(workConfiguration))
+        resourceTagger?.unTag(
+          markedResource,
+          workConfiguration,
+          description = "Removing tag for now deleted $normalizedName")
       }
 
       is OrcaTaskFailureEvent -> {
-        id = orcaTaskFailureId
-        removeTag = false
-        msg = generateFailureMessage(event)
-        // todo eb: do we want this tagged here?
+        registry.counter(orcaTaskFailureId.withTags(workConfiguration))
       }
 
       else -> log.warn("Unknown event type: ${event.javaClass.simpleName}")
     }
 
     updateState(event)
-    id?.let {
-      registry.counter(
-        it.withTags(
-          "configuration", event.workConfiguration.namespace,
-          "resourceType", event.workConfiguration.resourceType
-        )
-      ).increment()
-    }
-
-    if (resourceTagger != null && msg != null) {
-      tag(resourceTagger, event, msg, removeTag)
-    }
-  }
-
-  fun generateFailureMessage(event: Event) =
-    "Task failure for action ${event.action} on resource ${event.markedResource.typeAndName()}"
-
-  private fun tag(tagger: ResourceTagger, event: Event, msg: String, remove: Boolean = false) {
-    if (!remove) {
-      tagger.tag(
-        markedResource = event.markedResource,
-        workConfiguration = event.workConfiguration,
-        description = msg
-      )
-    } else {
-      tagger.unTag(
-        markedResource = event.markedResource,
-        workConfiguration = event.workConfiguration,
-        description = msg
-      )
-    }
   }
 
   private fun updateState(event: Event) {
@@ -158,68 +123,17 @@ class ResourceStateManager(
     ))
 
     resourceStateRepository.upsert(newState)
+  }
 
-    if (event is OptOutResourceEvent) {
-      tagResource(event.markedResource, event.workConfiguration)
+  private fun Id.withTags(workConfiguration: WorkConfiguration): Id {
+    return apply {
+      withTags(
+        "configuration", workConfiguration.namespace,
+        "resourceType", workConfiguration.resourceType,
+        "location", workConfiguration.location,
+        "account", workConfiguration.account.name
+      )
     }
-  }
-
-  // todo eb: pull to another kind of ResourceTagger?
-  // todo aravind : handle snapshots tagging
-  private fun tagResource(
-    resource: MarkedResource,
-    workConfiguration: WorkConfiguration
-  ) {
-    log.debug("Tagging resource ${resource.uniqueId()} with \"expiration_time\":\"never\"")
-    val taskId = when (resource.resourceType) {
-        "serverGroup" -> tagAsg(resource, workConfiguration)
-        "image" -> tagImage(resource)
-        else -> {
-          log.error("Cannot tag resource type ${resource.resourceType} with an infrastructure tag ")
-          null
-        }
-      }
-    if (taskId != null) {
-      taskTrackingRepository.add(
-        taskId,
-        TaskCompleteEventInfo(
-          action = Action.OPTOUT,
-          markedResources = listOf(resource),
-          workConfiguration = workConfiguration,
-          submittedTimeMillis = clock.instant().toEpochMilli()
-        )
-      )
-      log.debug("Tagging resource ${resource.uniqueId()} in {}", StructuredArguments.kv("taskId", taskId))
-    }
-  }
-
-  private fun tagAsg(resource: MarkedResource, workConfiguration: WorkConfiguration): String {
-    return taggingService.upsertAsgTag(
-      UpsertServerGroupTagsRequest(
-        serverGroupName = resource.resourceId,
-        regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
-        tags = mapOf("expiration_time" to "never"),
-        cloudProvider = "aws",
-        cloudProviderType = "aws",
-        credentials = workConfiguration.account.name.toString(),
-        application = applicationUtils.determineApp(resource.resource),
-        description = "Setting `expiration_time` to `never` for serverGroup ${resource.uniqueId()}"
-      )
-    )
-  }
-
-  private fun tagImage(resource: MarkedResource): String {
-    return taggingService.upsertImageTag(
-      UpsertImageTagsRequest(
-        imageNames = setOf(resource.name ?: resource.resourceId),
-        regions = setOf(SwabbieNamespace.namespaceParser(resource.namespace).region),
-        tags = mapOf("expiration_time" to "never"),
-        cloudProvider = "aws",
-        cloudProviderType = "aws",
-        application = applicationUtils.determineApp(resource.resource),
-        description = "Setting `expiration_time` to `never` for image ${resource.uniqueId()}"
-      )
-    )
   }
 }
 
@@ -234,6 +148,3 @@ internal fun MarkedResource.typeAndName(): String {
       .joinToString(" ") + ": $suffix"
   }
 }
-
-internal fun String.formatted(): String =
-  this.split("(?=[A-Z])".toRegex()).joinToString(" ").toLowerCase()

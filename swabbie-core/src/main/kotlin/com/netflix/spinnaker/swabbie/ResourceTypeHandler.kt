@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
+import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
@@ -38,7 +39,7 @@ interface ResourceTypeHandler<T : Resource> {
    * Fetches a single resource.
    * Decorate metadata that can be used in a [Rule]
    */
-  fun getCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): T?
+  fun getCandidate(resourceId: String, resourceName: String = resourceId, workConfiguration: WorkConfiguration): T?
 
   /**
    * Marks a single marked resource matching the granularity of [WorkConfiguration].
@@ -58,7 +59,7 @@ interface ResourceTypeHandler<T : Resource> {
   /**
    * Opts a resource out whether or not it has been marked.
    */
-  fun optOut(resourceId: String, workConfiguration: WorkConfiguration)
+  fun optOut(resourceId: String, workConfiguration: WorkConfiguration): ResourceState
 
   /**
    * Used to check references and augment candidates for further processing

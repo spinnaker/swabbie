@@ -149,39 +149,43 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   }
 
   /**
-   * This find the resource, and then opts it out even if it was not marked.
+   * This finds the resource, and then opts it out even if it was not marked.
    * This function is used when a caller makes an opt out request through the controller
    *  and the resource has not already been marked.
    */
-  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration) {
-    val resource = getCandidate(resourceId, "", workConfiguration)
-      ?: return
-    log.info("Opting out resource $resourceId in namespace ${workConfiguration.namespace}")
-    val resourceWithOwner = listOf(resource).withResolvedOwners(workConfiguration).first()
-    val newMarkedResource = MarkedResource(
-      resource = resourceWithOwner,
-      summaries = emptyList(),
-      namespace = workConfiguration.namespace,
-      resourceOwner = resourceWithOwner.details[resourceOwnerField] as String,
-      projectedDeletionStamp = deletionTimestamp(workConfiguration),
-      lastSeenInfo = resourceUseTrackingRepository.getLastSeenInfo(resourceWithOwner.resourceId)
-    )
+  override fun optOut(resourceId: String, workConfiguration: WorkConfiguration): ResourceState {
+    val resource = getCandidate(
+      resourceId = resourceId,
+      workConfiguration = workConfiguration
+    ) ?: throw NotFoundException()
+
+    val markedResource = resourceRepository.find(resourceId, workConfiguration.namespace)
+      ?: MarkedResource(
+        resource = resource,
+        summaries = emptyList(),
+        namespace = workConfiguration.namespace,
+        projectedDeletionStamp = -1L
+      )
 
     val status = Status(Action.OPTOUT.name, clock.instant().toEpochMilli())
-    val state = ResourceState(
-      markedResource = newMarkedResource,
-      deleted = false,
-      optedOut = true,
-      statuses = mutableListOf(status),
-      currentStatus = status
-    )
+    val optOutState = resourceStateRepository.get(resource.resourceId, workConfiguration.namespace)
+      ?: ResourceState(
+        markedResource = markedResource,
+        deleted = false,
+        optedOut = true,
+        statuses = mutableListOf(status),
+        currentStatus = status
+      )
 
-    // opt out here to ensure there is never a time when this resource is not opted out.
-    resourceStateRepository.upsert(state)
-    resourceRepository.upsert(newMarkedResource)
-
-    // this will trigger the actual opt out action
-    applicationEventPublisher.publishEvent(OptOutResourceEvent(newMarkedResource, workConfiguration))
+    log.info("Opting out resource ${markedResource.resourceId} in namespace ${workConfiguration.namespace}")
+    ensureResourceUnmarked(markedResource, workConfiguration, "Opted Out")
+    applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, workConfiguration))
+    return optOutState.copy(
+      currentStatus = status,
+      statuses = setOf(optOutState.statuses + status).flatten().toMutableList()
+    ).apply {
+      resourceStateRepository.upsert(this)
+    }
   }
 
   override fun markResource(resourceId: String, onDemandMarkData: OnDemandMarkData, workConfiguration: WorkConfiguration) {

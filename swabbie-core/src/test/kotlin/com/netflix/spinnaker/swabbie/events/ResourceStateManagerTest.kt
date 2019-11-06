@@ -22,12 +22,9 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
-import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
-import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.argWhere
 import com.nhaarman.mockito_kotlin.doReturn
@@ -46,13 +43,9 @@ object ResourceStateManagerTest {
   private val resourceTagger = mock<ResourceTagger>()
   private val clock = Clock.fixed(Instant.parse("2018-05-24T12:34:56Z"), ZoneOffset.UTC)
   private val registry = NoopRegistry()
-  private val taggingService = mock<TaggingService>()
-  private val taskTrackingRepository = mock<TaskTrackingRepository>()
-
   private var resource = TestResource("testResource")
   private var imageResource = TestResource(resourceId = "testImageResource", resourceType = "image")
   private var configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
-  private val applicationUtils = ApplicationUtils(emptyList())
 
   private val markedResourceWithViolations = MarkedResource(
     resource = resource,
@@ -79,10 +72,7 @@ object ResourceStateManagerTest {
     resourceStateRepository = resourceStateRepository,
     clock = clock,
     registry = registry,
-    resourceTagger = resourceTagger,
-    taggingService = taggingService,
-    taskTrackingRepository = taskTrackingRepository,
-    applicationUtils = applicationUtils
+    resourceTagger = resourceTagger
   )
 
   @AfterEach
@@ -92,15 +82,11 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and tag resource when it's marked`() {
-    val event = MarkResourceEvent(markedResourceWithViolations, configuration)
+    subject.handleEvents(
+      MarkResourceEvent(markedResourceWithViolations, configuration)
+    )
 
-    subject.handleEvents(event)
-
-    verify(resourceTagger).tag(
-      markedResource = markedResourceWithViolations,
-      workConfiguration = configuration,
-      description = "${event.markedResource.typeAndName()} scheduled to be cleaned up on " +
-        "${event.markedResource.deletionDate(clock)}")
+    verify(resourceTagger).tag(any(), any(), any())
 
     verify(resourceStateRepository).upsert(
       argWhere {
@@ -111,8 +97,6 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and untag resource when it's unmarked`() {
-    val event = UnMarkResourceEvent(markedResourceNoViolations, configuration)
-
     // previously marked resource
     whenever(resourceStateRepository.get(markedResourceNoViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
@@ -122,14 +106,11 @@ object ResourceStateManagerTest {
         )
       )
 
-    subject.handleEvents(event)
+    subject.handleEvents(
+      UnMarkResourceEvent(markedResourceNoViolations, configuration)
+    )
 
-    verify(resourceTagger)
-      .unTag(
-        markedResource = markedResourceNoViolations,
-        workConfiguration = configuration,
-        description = "${event.markedResource.typeAndName()}. No longer a cleanup candidate"
-      )
+    verify(resourceTagger).unTag(any(), any(), any())
 
     // should have two statuses with UNMARK being the latest
     verify(resourceStateRepository).upsert(
@@ -142,8 +123,6 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and untag resource when it's deleted`() {
-    val event = DeleteResourceEvent(markedResourceWithViolations, configuration)
-
     // previously marked resource
     whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
@@ -154,13 +133,11 @@ object ResourceStateManagerTest {
         )
       )
 
-    subject.handleEvents(event)
-
-    verify(resourceTagger).unTag(
-      markedResource = markedResourceWithViolations,
-      workConfiguration = configuration,
-      description = "Removing tag for now deleted ${event.markedResource.typeAndName()}"
+    subject.handleEvents(
+      DeleteResourceEvent(markedResourceWithViolations, configuration)
     )
+
+    verify(resourceTagger).unTag(any(), any(), any())
 
     // should have two statuses with DELETE being the latest
     verify(resourceStateRepository).upsert(
@@ -174,8 +151,6 @@ object ResourceStateManagerTest {
 
   @Test
   fun `should update state and untag resource when it's opted out`() {
-    val event = OptOutResourceEvent(markedImageResourceWithViolations, configuration)
-
     // previously marked resource
     whenever(resourceStateRepository.get(markedImageResourceWithViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
@@ -186,15 +161,11 @@ object ResourceStateManagerTest {
         )
       )
 
-    whenever(taggingService.upsertImageTag(any())) doReturn "1234"
-
-    subject.handleEvents(event)
-
-    verify(resourceTagger).unTag(
-      markedResource = markedImageResourceWithViolations,
-      workConfiguration = configuration,
-      description = "${event.markedResource.typeAndName()}. Opted Out"
+    subject.handleEvents(
+      OptOutResourceEvent(markedImageResourceWithViolations, configuration)
     )
+
+    verify(resourceTagger).unTag(any(), any(), any())
 
     // should have two statuses with OPTOUT being the latest
     verify(resourceStateRepository).upsert(
@@ -206,28 +177,10 @@ object ResourceStateManagerTest {
         it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
-
-    verify(taggingService).upsertImageTag(argWhere {
-      it.tags.containsKey("expiration_time") &&
-      it.tags.containsValue("never") &&
-      it.imageNames.contains("testResource") &&
-        it.regions != null &&
-        it.cloudProvider != null &&
-        it.cloudProviderType != null
-      it.application != null
-      it.description != null
-    })
-
-    verify(taskTrackingRepository).add(
-      argWhere { it == "1234" },
-      argWhere { it.action == Action.OPTOUT }
-    )
   }
 
   @Test
   fun `should update state when there was a task failure`() {
-    val event = OrcaTaskFailureEvent(Action.DELETE, markedResourceWithViolations, configuration)
-
     // previously marked resource
     whenever(resourceStateRepository.get(markedResourceWithViolations.resourceId, configuration.namespace)) doReturn
       ResourceState(
@@ -238,13 +191,10 @@ object ResourceStateManagerTest {
         )
       )
 
-    subject.handleEvents(event)
-
-    verify(resourceTagger).tag(
-      markedResource = markedResourceWithViolations,
-      workConfiguration = configuration,
-      description = subject.generateFailureMessage(event)
+    subject.handleEvents(
+      OrcaTaskFailureEvent(Action.DELETE, markedResourceWithViolations, configuration)
     )
+
     verify(resourceStateRepository).upsert(
       argWhere {
         !it.deleted &&

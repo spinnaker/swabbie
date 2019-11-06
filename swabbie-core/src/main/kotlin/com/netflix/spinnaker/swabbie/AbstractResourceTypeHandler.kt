@@ -167,25 +167,18 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           projectedDeletionStamp = -1L
         )
 
+    log.info("Opting out resource ${markedResource.resourceId} in namespace ${workConfiguration.namespace}")
     val status = Status(Action.OPTOUT.name, clock.instant().toEpochMilli())
+    ensureResourceUnmarked(markedResource, workConfiguration, "Opted Out")
+    applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, workConfiguration))
     val optOutState = resourceStateRepository.get(resource.resourceId, workConfiguration.namespace)
       ?: ResourceState(
           markedResource = markedResource,
           deleted = false,
-          optedOut = true,
-          statuses = mutableListOf(status),
-          currentStatus = status
+          statuses = mutableListOf(status)
         )
 
-    log.info("Opting out resource ${markedResource.resourceId} in namespace ${workConfiguration.namespace}")
-    ensureResourceUnmarked(markedResource, workConfiguration, "Opted Out")
-    applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, workConfiguration))
-    return optOutState.copy(
-      currentStatus = status,
-      statuses = (optOutState.statuses + status).toSet().toMutableList()
-    ).apply {
-      resourceStateRepository.upsert(this)
-    }
+    return resourceStateRepository.upsert(optOutState.copy(optedOut = true, currentStatus = status))
   }
 
   override fun markResource(resourceId: String, onDemandMarkData: OnDemandMarkData, workConfiguration: WorkConfiguration) {

@@ -115,10 +115,9 @@ class AmazonAutoScalingGroupHandler(
     }
   }
 
-  override fun handles(workConfiguration: WorkConfiguration):
-    Boolean = workConfiguration.resourceType == SERVER_GROUP &&
-    workConfiguration.cloudProvider == AWS &&
-    !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration): Boolean {
+    return workConfiguration.resourceType == SERVER_GROUP && workConfiguration.cloudProvider == AWS && rules.isNotEmpty()
+  }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonAutoScalingGroup>? {
     val params = Parameters(
@@ -152,20 +151,7 @@ class AmazonAutoScalingGroupHandler(
     if (serverGroups == null || serverGroups.isEmpty()) {
       return
     }
-    val elapsedTimeMillis = measureTimeMillis {
-      serverGroups.forEach { serverGroup ->
-        if (HAS_INSTANCES !in serverGroup.details) {
-          serverGroup.set(HAS_INSTANCES, serverGroup.instances != null && !serverGroup.instances.isEmpty())
-        }
-
-        (serverGroup.details["suspendedProcesses"] as? List<Map<String, Any>>)?.find {
-          it["processName"] == "AddToLoadBalancer"
-        }?.let {
-          serverGroup.set(IS_DISABLED, true)
-        }
-      }
-    }
-
+    val elapsedTimeMillis = measureTimeMillis {} // check references here. Empty body because all references are present.
     log.info("Completed checking references for {} server groups in ${elapsedTimeMillis}ms. Params: {}",
       serverGroups.size, params)
   }

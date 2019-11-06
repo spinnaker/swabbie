@@ -161,11 +161,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
     val markedResource = resourceRepository.find(resourceId, workConfiguration.namespace)
       ?: MarkedResource(
-        resource = resource,
-        summaries = emptyList(),
-        namespace = workConfiguration.namespace,
-        projectedDeletionStamp = -1L
-      )
+          resource = resource,
+          summaries = emptyList(),
+          namespace = workConfiguration.namespace,
+          projectedDeletionStamp = -1L
+        )
 
     val status = Status(Action.OPTOUT.name, clock.instant().toEpochMilli())
     val optOutState = resourceStateRepository.get(resource.resourceId, workConfiguration.namespace)

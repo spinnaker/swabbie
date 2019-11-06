@@ -50,7 +50,7 @@ class ResourceStateManager(
 
     when (event) {
       is MarkResourceEvent -> {
-        registry.counter(markCountId.withTags(workConfiguration))
+        registry.counter(markCountId.withTags(workConfiguration)).increment()
         resourceTagger?.tag(
           markedResource,
           workConfiguration,
@@ -58,7 +58,7 @@ class ResourceStateManager(
       }
 
       is UnMarkResourceEvent -> {
-        registry.counter(unMarkCountId.withTags(workConfiguration))
+        registry.counter(unMarkCountId.withTags(workConfiguration)).increment()
         resourceTagger?.unTag(
           markedResource,
           workConfiguration,
@@ -66,7 +66,7 @@ class ResourceStateManager(
       }
 
       is OwnerNotifiedEvent -> {
-        registry.counter(notifyCountId.withTags(workConfiguration))
+        registry.counter(notifyCountId.withTags(workConfiguration)).increment()
         resourceTagger?.tag(
           markedResource,
           workConfiguration,
@@ -74,7 +74,7 @@ class ResourceStateManager(
       }
 
       is OptOutResourceEvent -> {
-        registry.counter(optOutCountId.withTags(workConfiguration))
+        registry.counter(optOutCountId.withTags(workConfiguration)).increment()
         resourceTagger?.unTag(
           markedResource,
           workConfiguration,
@@ -82,7 +82,7 @@ class ResourceStateManager(
       }
 
       is DeleteResourceEvent -> {
-        registry.counter(deleteCountId.withTags(workConfiguration))
+        registry.counter(deleteCountId.withTags(workConfiguration)).increment()
         resourceTagger?.unTag(
           markedResource,
           workConfiguration,
@@ -90,7 +90,7 @@ class ResourceStateManager(
       }
 
       is OrcaTaskFailureEvent -> {
-        registry.counter(orcaTaskFailureId.withTags(workConfiguration))
+        registry.counter(orcaTaskFailureId.withTags(workConfiguration)).increment()
       }
 
       else -> log.warn("Unknown event type: ${event.javaClass.simpleName}")

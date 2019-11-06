@@ -182,7 +182,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, workConfiguration))
     return optOutState.copy(
       currentStatus = status,
-      statuses = setOf(optOutState.statuses + status).flatten().toMutableList()
+      statuses = (optOutState.statuses + status).toSet().toMutableList()
     ).apply {
       resourceStateRepository.upsert(this)
     }

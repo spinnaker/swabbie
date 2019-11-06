@@ -191,7 +191,7 @@ class AmazonAutoScalingGroupHandler(
             type = "upsertServerGroupTags",
             context = mutableMapOf(
               "serverGroupName" to markedResource.name,
-              "regions" to setOf(workConfiguration),
+              "regions" to setOf(workConfiguration.location),
               "tags" to mapOf("expiration_time" to "never"),
               "cloudProvider" to workConfiguration.cloudProvider,
               "cloudProviderType" to workConfiguration.cloudProvider,

@@ -170,12 +170,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val status = Status(Action.OPTOUT.name, clock.instant().toEpochMilli())
     val optOutState = resourceStateRepository.get(resource.resourceId, workConfiguration.namespace)
       ?: ResourceState(
-        markedResource = markedResource,
-        deleted = false,
-        optedOut = true,
-        statuses = mutableListOf(status),
-        currentStatus = status
-      )
+          markedResource = markedResource,
+          deleted = false,
+          optedOut = true,
+          statuses = mutableListOf(status),
+          currentStatus = status
+        )
 
     log.info("Opting out resource ${markedResource.resourceId} in namespace ${workConfiguration.namespace}")
     ensureResourceUnmarked(markedResource, workConfiguration, "Opted Out")

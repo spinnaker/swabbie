@@ -425,7 +425,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     optedOutResourceStates: List<ResourceState>,
     action: Action
   ): Boolean {
-    if (resource.getViolations().any { summary -> summary.ruleName == AlwaysCleanRule::class.java.simpleName }) {
+    val hasAlwaysCleanRule = resource.getViolations()
+        .any { summary ->
+          summary.ruleName == AlwaysCleanRule::class.java.simpleName
+        }
+
+    if (hasAlwaysCleanRule && resource.expired(clock)) {
       return false
     }
 

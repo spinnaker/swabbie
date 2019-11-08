@@ -173,7 +173,7 @@ object AmazonImageHandlerTest {
         resourceType = IMAGE,
         cloudProvider = AWS,
         name = "123-xenial-hvm-sriov-ebs",
-        creationDate = LocalDateTime.now().minusDays(3).toString(),
+        creationDate = LocalDateTime.now(clock).minusDays(3).toString(),
         blockDeviceMappings = emptyList()
       ),
       AmazonImage(
@@ -185,7 +185,7 @@ object AmazonImageHandlerTest {
         resourceType = IMAGE,
         cloudProvider = AWS,
         name = "132-xenial-hvm-sriov-ebs",
-        creationDate = LocalDateTime.now().minusDays(3).toString(),
+        creationDate = LocalDateTime.now(clock).minusDays(3).toString(),
         blockDeviceMappings = emptyList()
       )
     )
@@ -376,7 +376,7 @@ object AmazonImageHandlerTest {
         resourceType = IMAGE,
         cloudProvider = AWS,
         name = "123-xenial-hvm-sriov-ebs",
-        creationDate = LocalDateTime.now().minusDays(3).toString(),
+        creationDate = LocalDateTime.now(clock).minusDays(3).toString(),
         blockDeviceMappings = emptyList()
       ),
       AmazonImage(
@@ -422,7 +422,7 @@ object AmazonImageHandlerTest {
       resourceType = IMAGE,
       cloudProvider = AWS,
       name = "123-xenial-hvm-sriov-ebs",
-      creationDate = LocalDateTime.now().minusDays(3).toString(),
+      creationDate = LocalDateTime.now(clock).minusDays(3).toString(),
       blockDeviceMappings = emptyList()
     )
 

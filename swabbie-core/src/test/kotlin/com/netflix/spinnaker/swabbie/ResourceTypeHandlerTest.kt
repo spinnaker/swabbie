@@ -68,6 +68,7 @@ import strikt.assertions.isTrue
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
@@ -95,7 +96,12 @@ object ResourceTypeHandlerTest {
     TestRule(invalidOn = { true }, summary = null)
   )
 
-  private val defaultResource = TestResource(resourceId = "testResource", name = "testResourceName")
+  private val createTimestampTenDaysAgo = clock.instant().minus(10, ChronoUnit.DAYS).toEpochMilli()
+  private val defaultResource = createTestResource(
+    resourceId = "testResource",
+    resourceName = "testResourceName",
+    createTs = createTimestampTenDaysAgo
+  )
 
   // must update rules and candidates before using
   private val defaultHandler = TestResourceTypeHandler(
@@ -152,9 +158,9 @@ object ResourceTypeHandlerTest {
   @Test
   fun `should track violating resources`() {
     val resources: MutableList<TestResource> = mutableListOf(
-      TestResource("invalid resource 1"),
-      TestResource("invalid resource 2"),
-      TestResource("valid resource")
+      createTestResource(resourceId = "invalid resource 1", createTs = createTimestampTenDaysAgo),
+      createTestResource(resourceId = "invalid resource 2", createTs = createTimestampTenDaysAgo),
+      createTestResource(resourceId = "valid resource", createTs = createTimestampTenDaysAgo)
     )
 
     defaultHandler.setCandidates(resources)
@@ -177,14 +183,14 @@ object ResourceTypeHandlerTest {
   fun `should delete a resource`() {
     val configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
     val candidates = mutableListOf(
-      TestResource("1"),
-      TestResource("2")
+      createTestResource(resourceId = "1", createTs = createTimestampTenDaysAgo),
+      createTestResource(resourceId = "2", createTs = createTimestampTenDaysAgo)
     )
 
     defaultHandler.setRules(alwaysInvalidRules)
     defaultHandler.setCandidates(candidates)
 
-    val fifteenDaysAgo = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
+    val fifteenDaysAgo = clock.instant().minus(15, ChronoUnit.DAYS).toEpochMilli()
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
       listOf(
         MarkedResource(
@@ -244,8 +250,9 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should only process resources in allowList`() {
-    val resource1 = TestResource("1", name = "allowed resource")
-    val resource2 = TestResource("2", name = "not allowed resource")
+    val resource1 = createTestResource(resourceId = "1", resourceName = "allowed resource", createTs = createTimestampTenDaysAgo)
+    val resource2 = createTestResource(resourceId = "2", resourceName = "not allowed resource", createTs = createTimestampTenDaysAgo)
+
     // configuration with an allow list exclusion strategy
     val configuration = WorkConfigurationTestHelper.generateWorkConfiguration(exclusions = listOf(
       Exclusion()
@@ -710,5 +717,9 @@ object ResourceTypeHandlerTest {
 
       expectThat(this!!.notificationStamp).isNull()
     }
+  }
+
+  private fun createTestResource(resourceId: String, resourceName: String = resourceId, createTs: Long): TestResource {
+    return TestResource(resourceId = resourceId, createTs = createTs)
   }
 }

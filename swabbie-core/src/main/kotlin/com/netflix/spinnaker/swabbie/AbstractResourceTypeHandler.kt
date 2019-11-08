@@ -54,9 +54,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
-import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.time.temporal.ChronoUnit.DAYS
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.min
@@ -434,8 +432,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       return false
     }
 
-    val creationDate = Instant.ofEpochMilli(resource.createTs).atZone(ZoneId.systemDefault()).toLocalDate()
-    if (action != Action.NOTIFY && DAYS.between(creationDate, LocalDate.now()) < workConfiguration.maxAge) {
+    if (action != Action.NOTIFY && resource.age(clock).toDays() < workConfiguration.maxAge) {
       log.debug("Excluding resource (newer than {} days) {}", workConfiguration.maxAge, resource)
       exclusionCounters[action]?.incrementAndGet()
       return true

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Netflix, Inc.
+ * Copyright 2019 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,28 +14,13 @@
  * limitations under the License.
  */
 
-rootProject.name = 'swabbie'
+dependencies {
+  api(project(":swabbie-core"))
+  api(project(":swabbie-test"))
+  api("org.junit.jupiter:junit-jupiter-api")
 
-include 'swabbie-test',
-  'swabbie-core',
-  'swabbie-core-test',
-  'swabbie-retrofit',
-  'swabbie-redis',
-  'swabbie-aws',
-  'swabbie-echo',
-  'swabbie-orca',
-  'swabbie-clouddriver',
-  'swabbie-front50',
-  'swabbie-web',
-  'swabbie-bom'
-
-def setBuildFile(project) {
-  project.buildFileName = "${project.name}.gradle"
-  project.children.each {
-    setBuildFile(it)
-  }
-}
-
-rootProject.children.each {
-  setBuildFile it
+  api "com.netflix.spinnaker.kork:kork-core"
+  api "com.natpryce:hamkrest"
+  api "com.nhaarman:mockito-kotlin"
+  api "io.strikt:strikt-core"
 }

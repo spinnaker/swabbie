@@ -36,7 +36,7 @@ class ZeroInstanceDisabledServerGroupRule(
 ) : Rule<AmazonAutoScalingGroup> {
 
   @Value("\${swabbie.resource.disabled.days.count:30}")
-  private val disabledDurationInDays: Long = 30
+  private var disabledDurationInDays: Int = 30
 
   override fun apply(resource: AmazonAutoScalingGroup): Result {
     if (resource.isInLoadBalancer()) {
@@ -47,7 +47,7 @@ class ZeroInstanceDisabledServerGroupRule(
       val disabledTime = resource.disabledTime() ?: return Result(null)
 
       // time elapsed since the resource was disabled time is greater than disabledDurationInDays
-      if (disabledTime.isBefore(LocalDateTime.now(clock).minusDays(disabledDurationInDays))) {
+      if (disabledTime.isBefore(LocalDateTime.now(clock).minusDays(disabledDurationInDays.toLong()))) {
         return Result(
           Summary(
             description = "Server Group ${resource.autoScalingGroupName} has been disabled for more " +
@@ -59,6 +59,11 @@ class ZeroInstanceDisabledServerGroupRule(
     }
 
     return Result(null)
+  }
+
+  fun withDisabledDurationInDays(disabledDurationInDays: Int): ZeroInstanceDisabledServerGroupRule {
+    this.disabledDurationInDays = disabledDurationInDays
+    return this
   }
 }
 

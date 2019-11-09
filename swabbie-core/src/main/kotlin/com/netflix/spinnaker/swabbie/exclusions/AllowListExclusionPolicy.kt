@@ -18,22 +18,10 @@ package com.netflix.spinnaker.swabbie.exclusions
 
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.model.Application
 import org.springframework.stereotype.Component
 
 @Component
-class AllowListExclusionPolicy(
-  front50ApplicationCache: InMemoryCache<Application>,
-  accountProvider: AccountProvider
-) : ResourceExclusionPolicy {
-  private val compositeTypeMapping = mapOf(
-    "account" to accountProvider.getAccounts(),
-    "application" to front50ApplicationCache.get()
-  )
-
+class AllowListExclusionPolicy : ResourceExclusionPolicy {
   override fun getType(): ExclusionType = ExclusionType.Allowlist
 
   /**
@@ -47,38 +35,14 @@ class AllowListExclusionPolicy(
       }
 
       kv.keys.forEach { key ->
-        val parts = key.split(".")
-        val identifier = getIdentifierForType(excludable, parts[0])
-        if (identifier != null && parts.size > 1) {
-          compositeTypeMapping[parts[0]]?.filter { it.resourceId == identifier }?.forEach { target ->
-            findProperty(target, parts[1], kv[key]!!)?.let {
-              if (identifier.equals(it, ignoreCase = true)) {
-                return null
-              }
-            }
-          }
-        } else {
-          findProperty(excludable, key, kv[key]!!)?.let {
-            // since a matching value is returned for the key, we know it is in the allowlist
-            return null
-          }
+        findProperty(excludable, key, kv.getValue(key))?.let {
+          // since a matching value is returned for the key, we know it is in the allowlist
+          return null
         }
       }
 
       // if none of the keys have a qualifying value, the resource is not in the allowlist
-      return notAllowlistedMessage(getIdentifierForType(excludable), kv.values.flatten().toSet())
+      return notAllowlistedMessage(excludable.resourceId, kv.values.flatten().toSet())
     }
-  }
-
-  private fun getIdentifierForType(excludable: Excludable, type: String? = null): String? {
-    if (type == "application") {
-      return FriggaReflectiveNamer().deriveMoniker(excludable).app?.toLowerCase() ?: ""
-    }
-
-    if (type == "account") {
-      return excludable.name
-    }
-
-    return excludable.resourceId
   }
 }

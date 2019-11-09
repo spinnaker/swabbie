@@ -113,7 +113,7 @@ object AmazonImageHandlerTest {
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
       LiteralExclusionPolicy(),
-      AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
+      AllowListExclusionPolicy()
     ),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
@@ -305,7 +305,7 @@ object AmazonImageHandlerTest {
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
       workConfiguration.maxItemsProcessedPerCycle
 
-    subject.mark(workConfiguration)
+    subject.mark(workConfiguration.copy(retention = 4))
 
     // ami-132 is excluded by exclusion policies, specifically because ami-123 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(

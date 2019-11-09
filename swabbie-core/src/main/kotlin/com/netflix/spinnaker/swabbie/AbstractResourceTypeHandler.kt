@@ -257,7 +257,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
                 summaries = violations,
                 namespace = workConfiguration.namespace,
                 resourceOwner = candidate.details[resourceOwnerField] as String,
-                projectedDeletionStamp = deletionTimestamp(workConfiguration),
+                projectedDeletionStamp = deletionTimestamp(workConfiguration).toEpochMilli(),
                 lastSeenInfo = resourceUseTrackingRepository.getLastSeenInfo(candidate.resourceId)
               )
 
@@ -294,26 +294,6 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         markedResources.size.toLong()
       )
     }
-  }
-
-  override fun recalculateDeletionTimestamp(namespace: String, retentionSeconds: Long, numResources: Int) {
-    val newTimestamp = deletionTimestamp(retentionSeconds)
-    log.info("Updating deletion time to $newTimestamp for $numResources resources in ${javaClass.simpleName}.")
-
-    val markedResources = resourceRepository.getMarkedResources()
-      .filter { it.namespace == namespace }
-      .sortedBy { it.resource.createTs }
-
-    var countUpdated = 0
-    markedResources.forEach { resource ->
-      if (resource.projectedDeletionStamp > newTimestamp && countUpdated < numResources) {
-        resource.projectedDeletionStamp = newTimestamp
-        resourceRepository.upsert(resource)
-        countUpdated += 1
-      }
-    }
-
-    log.info("Updating deletion time to $newTimestamp complete for $countUpdated resources")
   }
 
   override fun evaluateCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): ResourceEvaluation {
@@ -377,15 +357,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
   }
 
-  fun deletionTimestamp(workConfiguration: WorkConfiguration): Long {
-    val daysInFuture = workConfiguration.retention.toLong()
-    val seconds = TimeUnit.DAYS.toSeconds(daysInFuture)
-    return deletionTimestamp(seconds)
-  }
-
-  private fun deletionTimestamp(retentionSeconds: Long): Long {
-    val proposedTime = clock.instant().plusSeconds(retentionSeconds).toEpochMilli()
-    return swabbieProperties.schedule.getNextTimeInWindow(proposedTime)
+  fun deletionTimestamp(workConfiguration: WorkConfiguration): Instant {
+    val daysMillis = TimeUnit.DAYS.toMillis(workConfiguration.retention.toLong())
+    return clock.instant().plusMillis(daysMillis)
   }
 
   private fun printResult(
@@ -406,7 +380,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       totalProcessed,
       totalResourcesVisitedCounter.get(),
       exclusionCounters[action],
-      workConfiguration.toLog()
+      workConfiguration.namespace
     )
 
     if (candidateCounter.get() > 0) {

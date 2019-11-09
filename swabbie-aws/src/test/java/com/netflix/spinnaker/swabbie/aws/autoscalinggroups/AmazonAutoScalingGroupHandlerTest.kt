@@ -17,33 +17,15 @@
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
-import com.natpryce.hamkrest.equalTo
-import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.Attribute
-import com.netflix.spinnaker.config.CloudProviderConfiguration
-import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.handler.ResourceTypeHandlerTests
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
-import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
-import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.Application
-import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.NotificationInfo
-import com.netflix.spinnaker.swabbie.model.Region
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaExecutionStatus
@@ -54,56 +36,47 @@ import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
-import com.nhaarman.mockito_kotlin.check
 import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.eq
+import com.nhaarman.mockito_kotlin.argWhere
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.reset
 import com.nhaarman.mockito_kotlin.times
-import com.nhaarman.mockito_kotlin.validateMockitoUsage
 import com.nhaarman.mockito_kotlin.verify
 import com.nhaarman.mockito_kotlin.whenever
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
-import java.time.ZoneOffset
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.util.Optional
 
-object AmazonAutoScalingGroupHandlerTest {
-  private val front50ApplicationCache = mock<InMemoryCache<Application>>()
-  private val accountProvider = mock<AccountProvider>()
-  private val aws = mock<AWS>()
+object AmazonAutoScalingGroupHandlerTest : ResourceTypeHandlerTests<AmazonAutoScalingGroupHandler>() {
+  private val applicationEventPublisher = mock<ApplicationEventPublisher>()
+  private val dynamicConfigService = mock<DynamicConfigService>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
+  private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
+  private val aws = mock<AWS>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val taskTrackingRepository = mock<TaskTrackingRepository>()
-  private val resourceOwnerResolver = mock<ResourceOwnerResolver<AmazonAutoScalingGroup>>()
-  private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)
-  private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val orcaService = mock<OrcaService>()
   private val resourceUseTrackingRepository = mock<ResourceUseTrackingRepository>()
-  private val dynamicConfigService = mock<DynamicConfigService>()
   private val notificationQueue = mock<NotificationQueue>()
+  private val zeroInstanceDisabledServerGroupRule: ZeroInstanceDisabledServerGroupRule = ZeroInstanceDisabledServerGroupRule(clock)
+    .withDisabledDurationInDays(1)
+
+  private val workConfiguration = WorkConfigurationTestHelper
+    .generateWorkConfiguration(resourceType = "serverGroup", cloudProvider = AWS)
 
   private val subject = AmazonAutoScalingGroupHandler(
     clock = clock,
     registry = NoopRegistry(),
-    rules = listOf(ZeroInstanceDisabledServerGroupRule(clock)),
+    rules = rules(),
     notifier = mock(),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
     taskTrackingRepository = taskTrackingRepository,
-    exclusionPolicies = listOf(
-      LiteralExclusionPolicy(),
-      AllowListExclusionPolicy(front50ApplicationCache, accountProvider)
-    ),
+    exclusionPolicies = exclusionPolicies,
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
     aws = aws,
@@ -115,254 +88,102 @@ object AmazonAutoScalingGroupHandlerTest {
     applicationUtils = ApplicationUtils(emptyList())
   )
 
-  @BeforeEach
-  fun setup() {
+  override fun initialize() {
     whenever(resourceOwnerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
-    whenever(front50ApplicationCache.get()) doReturn
-      setOf(
-        Application(name = "testapp", email = "name@netflix.com"),
-        Application(name = "important", email = "test@netflix.com"),
-        Application(name = "random", email = "random@netflix.com")
-      )
-
-    whenever(accountProvider.getAccounts()) doReturn
-      setOf(
-        SpinnakerAccount(
-          name = "test",
-          accountId = "1234",
-          type = "aws",
-          edda = "http://edda",
-          regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false,
-          environment = "test"
-        ),
-        SpinnakerAccount(
-          name = "prod",
-          accountId = "4321",
-          type = "aws",
-          edda = "http://edda",
-          regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false,
-          environment = "test"
-        )
-      )
   }
 
-  @AfterEach
-  fun cleanup() {
-    validateMockitoUsage()
-    reset(aws, accountProvider, applicationEventPublisher, resourceOwnerResolver)
+  override fun finalize() {
+    reset(aws, resourceOwnerResolver, orcaService)
   }
 
-  @Test
-  fun `should handle work for server groups`() {
-    Assertions.assertTrue(subject.handles(getWorkConfiguration()))
-  }
-
-  @Test
-  fun `should find server groups cleanup candidates`() {
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    whenever(aws.getServerGroups(params)) doReturn listOf(
-      AmazonAutoScalingGroup(
-        autoScalingGroupName = "testapp-v001",
-        instances = listOf(
-          mapOf("instanceId" to "i-01234")
-        ),
-        loadBalancerNames = listOf(),
-        createdTime = clock.millis()
-      ),
-      AmazonAutoScalingGroup(
-        autoScalingGroupName = "app-v001",
-        instances = listOf(
-          mapOf("instanceId" to "i-00000")
-        ),
-        loadBalancerNames = listOf(),
-        createdTime = clock.millis()
-      )
-    )
-
-    subject.getCandidates(getWorkConfiguration()).let { serverGroups ->
-      serverGroups!!.size shouldMatch equalTo(2)
-    }
-  }
-
-  @Test
-  fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val twoDaysAgo = Instant.now(clock).minus(2, ChronoUnit.DAYS).toEpochMilli()
-
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
-    val suspendedProcess = SuspendedProcess()
-    suspendedProcess.withProcessName("AddToLoadBalancer")
-    suspendedProcess.withSuspensionReason("User suspended at 2019-09-03T17:29:07Z")
-    whenever(aws.getServerGroups(params)) doReturn listOf(
-      AmazonAutoScalingGroup(
-        autoScalingGroupName = "testapp-v001",
-        instances = listOf(
-          mapOf("instanceId" to "i-01234")
-        ),
-        suspendedProcesses = listOf(
-          suspendedProcess
-        ),
-        loadBalancerNames = listOf(),
-        createdTime = twoDaysAgo
-      ).apply {
-        set("suspendedProcesses", listOf(
-          mapOf("processName" to "AddToLoadBalancer"),
-          mapOf("suspensionReason" to "User suspended at 2019-09-03T17:29:07Z")
-        ))
-      },
-      AmazonAutoScalingGroup(
-        autoScalingGroupName = "app-v001",
-        instances = listOf(),
-        loadBalancerNames = listOf(),
-        suspendedProcesses = listOf(
-          suspendedProcess
-        ),
-        createdTime = twoDaysAgo
-      ).apply {
-        set("suspendedProcesses", listOf(
-          mapOf("processName" to "AddToLoadBalancer"),
-          mapOf("suspensionReason" to "User suspended at 2019-08-03T17:29:07Z")
-        ))
-      }
-    )
-
-    val workConfiguration = getWorkConfiguration(
-      maxAgeDays = 1,
-      exclusionList = mutableListOf(
-        Exclusion()
-          .withType(ExclusionType.Allowlist.toString())
-          .withAttributes(
-            setOf(
-              Attribute()
-                .withKey("autoScalingGroupName")
-                .withValue(
-                  listOf("app-v001")
-                )
-            )
-          )
-      )
-    )
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
-
-    subject.getCandidates(getWorkConfiguration()).let { serverGroups ->
-      serverGroups!!.size shouldMatch equalTo(2)
-    }
-
-    subject.mark(workConfiguration)
-
-    // testapp-v001 is excluded by exclusion policies, specifically because testapp-v001 is not in allow list
-    verify(applicationEventPublisher, times(1)).publishEvent(
-      check<MarkResourceEvent> { event ->
-        Assertions.assertTrue(event.markedResource.resourceId == "app-v001")
-        Assertions.assertEquals(event.markedResource.projectedDeletionStamp.inDays(), 2)
-      }
-    )
-
-    verify(resourceRepository, times(1)).upsert(any(), any())
-    verify(applicationEventPublisher, times(1)).publishEvent(any<MarkResourceEvent>())
-  }
-
-  @Test
-  fun `should delete server groups`() {
-    val fifteenDaysAgo = clock.instant().minusSeconds(15 * 24 * 60 * 60).toEpochMilli()
-    val workConfiguration = getWorkConfiguration(maxAgeDays = 1)
-    val suspendedProcess = SuspendedProcess()
-    suspendedProcess.withProcessName("AddToLoadBalancer")
-    suspendedProcess.withSuspensionReason("User suspended at 2019-08-03T17:29:07Z")
-    val serverGroup = AmazonAutoScalingGroup(
-      autoScalingGroupName = "app-v001",
+  override fun rules(): List<Rule<AmazonAutoScalingGroup>> = listOf(zeroInstanceDisabledServerGroupRule)
+  override fun subject(): AmazonAutoScalingGroupHandler = subject
+  override fun workConfiguration(): WorkConfiguration = workConfiguration
+  override fun eventPublisher(): ApplicationEventPublisher = applicationEventPublisher
+  override fun resourceTrackingRepository(): ResourceTrackingRepository = resourceRepository
+  override fun taskTrackingRepository(): TaskTrackingRepository = taskTrackingRepository
+  override fun dynamicConfigService(): DynamicConfigService = dynamicConfigService
+  override fun resourceStateRepository(): ResourceStateRepository = resourceStateRepository
+  override fun getResourceById(resourceId: String): Any {
+    return AmazonAutoScalingGroup(
+      autoScalingGroupName = resourceId,
+      resourceId = resourceId,
       instances = listOf(),
+      suspendedProcesses = listOf(),
       loadBalancerNames = listOf(),
-      suspendedProcesses = listOf(
-        suspendedProcess
-      ),
-      createdTime = Instant.now(clock).minus(3, ChronoUnit.DAYS).toEpochMilli()
-
-    ).apply {
-      set("suspendedProcesses", listOf(
-        mapOf("processName" to "AddToLoadBalancer")
-      ))
-    }
-
-    whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn
-      listOf(
-        MarkedResource(
-          resource = serverGroup,
-          summaries = listOf(Summary("disabled server group", "testRule 1")),
-          namespace = workConfiguration.namespace,
-          resourceOwner = "test@netflix.com",
-          projectedDeletionStamp = fifteenDaysAgo,
-          notificationInfo = NotificationInfo(
-            recipient = "test@netflix.com",
-            notificationType = "email",
-            notificationStamp = clock.millis()
-          )
-        )
-      )
-
-    whenever(aws.getServerGroups(any())) doReturn listOf(serverGroup)
-    whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
-    whenever(orcaService.getTask("1234")) doReturn
-      TaskDetailResponse(
-        id = "id",
-        application = "app",
-        buildTime = "1",
-        startTime = "1",
-        endTime = "2",
-        status = OrcaExecutionStatus.SUCCEEDED,
-        name = "delete blah"
-      )
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
-    subject.delete(workConfiguration)
-
-    verify(orcaService, times(1)).orchestrate(any())
-
-    verify(taskTrackingRepository, times(1)).add(any(), any())
-    verify(applicationEventPublisher, times(1)).publishEvent(any<DeleteResourceEvent>())
+      createdTime = clock.instant().minus(3, ChronoUnit.DAYS).toEpochMilli()
+    )
   }
 
-  private fun Long.inDays(): Int =
-    Duration.between(Instant.ofEpochMilli(clock.millis()), Instant.ofEpochMilli(this)).toDays().toInt()
+  override fun ensureThereAreCleanupCandidates(resourceIds: List<String>, withViolations: Boolean) {
+    val params = Parameters(
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
+    )
 
-  internal fun getWorkConfiguration(
-    isEnabled: Boolean = true,
-    dryRunMode: Boolean = false,
-    accountIds: List<String> = listOf("test"),
-    regions: List<String> = listOf("us-east-1"),
-    exclusionList: MutableList<Exclusion> = mutableListOf(),
-    maxAgeDays: Int = 1
-  ): WorkConfiguration {
-    val swabbieProperties = SwabbieProperties().apply {
-      dryRun = dryRunMode
-      providers = listOf(
-        CloudProviderConfiguration().apply {
-          name = "aws"
-          exclusions = mutableSetOf()
-          accounts = accountIds
-          locations = regions
-          maxItemsProcessedPerCycle = 10
-          resourceTypes = listOf(
-            ResourceTypeConfiguration().apply {
-              name = "serverGroup"
-              enabled = isEnabled
-              dryRun = dryRunMode
-              exclusions = exclusionList.toMutableSet()
-              retention = 2
-              maxAge = maxAgeDays
-            }
-          )
+    val aDayAgo = clock.instant().minus(1, ChronoUnit.DAYS)
+    val disabledAt = LocalDateTime.ofInstant(aDayAgo, ZoneId.systemDefault())
+    val loadBalancers: List<String> = if (withViolations) listOf() else listOf("lb")
+    val instances: List<Map<String, Any>> = if (withViolations) listOf() else listOf(mapOf("instanceId" to "i-000"))
+    val suspendedProcesses = if (withViolations) listOf(
+      SuspendedProcess()
+        .withProcessName("AddToLoadBalancer")
+        .withSuspensionReason("User suspended at $disabledAt")
+    ) else listOf()
+
+    val resources = resourceIds.map { resourceId ->
+      (getResourceById(resourceId) as AmazonAutoScalingGroup).copy(
+        suspendedProcesses = suspendedProcesses,
+        loadBalancerNames = loadBalancers,
+        instances = instances
+      )
+    }
+
+    whenever(aws.getServerGroups(params)) doReturn resources
+  }
+
+  override fun ensureThereIsACleanupCandidate(resourceId: String) {
+    val params = Parameters(
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment,
+      id = resourceId
+    )
+
+    whenever(aws.getServerGroup(params)) doReturn getResourceById(resourceId) as AmazonAutoScalingGroup
+  }
+
+  override fun ensureTasksToBeSubmitted(resourceIds: List<String>): List<String> {
+    return resourceIds.map { resourceId ->
+      val task = "task-$resourceId"
+      whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/$task")
+      whenever(orcaService.getTask(task)) doReturn
+        TaskDetailResponse(
+          id = "id",
+          application = "app",
+          buildTime = "1",
+          startTime = clock.millis().toString(),
+          endTime = clock.millis().plus(1).toString(),
+          status = OrcaExecutionStatus.SUCCEEDED,
+          name = "delete server groups $resourceIds"
+        )
+
+      task
+    }
+  }
+
+  override fun deleteTaskSubmitted(count: Int): Boolean {
+    try {
+      verify(orcaService, times(count)).orchestrate(
+        argWhere { request ->
+          request.job.any { it.type == "destroyServerGroup" }
         }
       )
+    } catch (e: Throwable) {
+      return false
     }
 
-    return WorkConfigurator(
-      swabbieProperties = swabbieProperties,
-      accountProvider = accountProvider,
-      exclusionPolicies = listOf(AccountExclusionPolicy()),
-      exclusionsSuppliers = Optional.empty()
-    ).generateWorkConfigurations()[0]
+    return true
   }
 }

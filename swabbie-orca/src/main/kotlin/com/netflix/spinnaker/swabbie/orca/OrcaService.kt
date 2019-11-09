@@ -74,7 +74,7 @@ class OrchestrationRequest(
 )
 
 class OrcaJob(
-  type: String,
+  val type: String,
   context: MutableMap<String, Any?>
 ) : HashMap<String, Any?>(context.apply { put("type", type) }
 )

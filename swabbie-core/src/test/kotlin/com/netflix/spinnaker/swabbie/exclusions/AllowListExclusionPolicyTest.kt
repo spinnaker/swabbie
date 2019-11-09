@@ -33,44 +33,6 @@ object AllowListExclusionPolicyTest {
   private val front50ApplicationCache: InMemoryCache<Application> = mock()
 
   @Test
-  fun `should exclude based on composite key if not in Allow List`() {
-    val exclusions = listOf(
-      Exclusion()
-        .withType(ExclusionType.Allowlist.toString())
-        .withAttributes(
-          setOf(
-            Attribute()
-              .withKey("application.name")
-              .withValue(
-                listOf("testapp", "pattern:^important")
-              )
-          )
-        )
-    )
-    whenever(front50ApplicationCache.get()) doReturn
-      setOf(
-        Application(name = "testapp", email = "name@netflix.com"),
-        Application(name = "important", email = "test@netflix.com"),
-        Application(name = "random", email = "random@netflix.com")
-      )
-    val resources = listOf(
-      TestResource("testapp-v001"),
-      TestResource("important-v001"),
-      TestResource("test-v001")
-    )
-    resources.filter {
-      AllowListExclusionPolicy(front50ApplicationCache, mock()).apply(it, exclusions) == null
-    }.let { filteredResources ->
-      filteredResources.size shouldMatch equalTo(2)
-      filteredResources.map { it.resourceId }.let {
-        assertTrue(it.contains("important-v001"), "Allow List by pattern")
-        assertTrue(it.contains("testapp-v001"), "Allow List by name")
-      }
-      filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
-    }
-  }
-
-  @Test
   fun `should exclude if not Allow List`() {
     val exclusions = listOf(
       Exclusion()
@@ -85,19 +47,14 @@ object AllowListExclusionPolicyTest {
           )
         )
     )
-    whenever(front50ApplicationCache.get()) doReturn
-      setOf(
-        Application(name = "testapp", email = "name@netflix.com"),
-        Application(name = "important", email = "test@netflix.com"),
-        Application(name = "random", email = "random@netflix.com")
-      )
+
     val resources = listOf(
       TestResource("testapp-v001"),
       TestResource("important-v001"),
       TestResource("test-v001")
     )
     resources.filter {
-      AllowListExclusionPolicy(front50ApplicationCache, mock()).apply(it, exclusions) == null
+      AllowListExclusionPolicy().apply(it, exclusions) == null
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(2)
       filteredResources.map { it.resourceId }.let {
@@ -143,7 +100,7 @@ object AllowListExclusionPolicyTest {
         .withDetail("swabbieResourceOwner", "sobla@netflix.com")
     )
     resources.filter {
-      AllowListExclusionPolicy(front50ApplicationCache, mock()).apply(it, exclusions) == null
+      AllowListExclusionPolicy().apply(it, exclusions) == null
     }.let { filteredResources ->
       filteredResources.size shouldMatch equalTo(2)
       filteredResources.map { it.resourceId }.let {

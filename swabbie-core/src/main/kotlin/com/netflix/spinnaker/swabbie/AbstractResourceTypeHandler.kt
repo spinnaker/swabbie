@@ -428,7 +428,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           summary.ruleName == AlwaysCleanRule::class.java.simpleName
         }
 
-    if (hasAlwaysCleanRule && resource.expired(clock)) {
+    if (hasAlwaysCleanRule || resource.expired(clock)) {
       return false
     }
 

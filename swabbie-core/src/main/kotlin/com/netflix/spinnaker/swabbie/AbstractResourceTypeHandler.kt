@@ -500,10 +500,14 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val maxItemsToProcess = min(confirmedResourcesToDelete.size, workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService))
     confirmedResourcesToDelete.subList(0, maxItemsToProcess).let {
       partitionList(it, workConfiguration).forEach { partition ->
-        if (!partition.isEmpty()) {
+        if (partition.isNotEmpty()) {
           try {
             deleteResources(partition, workConfiguration)
-            partition.forEach { it -> applicationEventPublisher.publishEvent(DeleteResourceEvent(it, workConfiguration)) }
+            partition.forEach { markedResource ->
+              applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
+              resourceRepository.remove(markedResource)
+            }
+
             candidateCounter.addAndGet(partition.size)
           } catch (e: Exception) {
             log.error("Failed to delete $it. Configuration: {}", workConfiguration.toLog(), e)

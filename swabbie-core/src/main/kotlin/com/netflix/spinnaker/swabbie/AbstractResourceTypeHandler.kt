@@ -291,7 +291,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         violationCounter,
         candidateCounter,
         totalResourcesVisitedCounter,
-        resourceRepository.getNumMarkedResources()
+        markedResources.size.toLong()
       )
     }
   }

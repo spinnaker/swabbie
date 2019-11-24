@@ -21,7 +21,7 @@ import com.netflix.spectator.api.BasicTag
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spectator.api.patterns.PolledMeter
-import com.netflix.spinnaker.config.ResourceTypeConfiguration
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
@@ -569,7 +569,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     workConfiguration.enabledRules.forEach { ruleConfig ->
       when (ruleConfig.operator) {
         // Include violations of any rules that applied
-        ResourceTypeConfiguration.RuleConfiguration.OPERATOR.OR -> {
+        OPERATOR.OR -> {
           violationSummaries.addAll(
             rules.filter {
               it.name() in ruleConfig.rules
@@ -580,7 +580,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         }
 
         // Include violations if all specified rules applied
-        ResourceTypeConfiguration.RuleConfiguration.OPERATOR.AND -> {
+        OPERATOR.AND -> {
           val allApplied = ruleConfig.rules.all { rule ->
             rules.find { it.name() == rule }?.apply(this)?.summary != null
           }

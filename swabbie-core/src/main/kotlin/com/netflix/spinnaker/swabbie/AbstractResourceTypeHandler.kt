@@ -21,6 +21,7 @@ import com.netflix.spectator.api.BasicTag
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spectator.api.patterns.PolledMeter
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration
 import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
@@ -565,17 +566,16 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
 
     log.debug("Evaluating resource {} against enabled rules {}", resource.resourceId, workConfiguration.enabledRules)
-    val violationSummaries = mutableSetOf<Summary>()
+    val violationSummaries = mutableSetOf<Summary?>()
     workConfiguration.enabledRules.forEach { ruleConfig ->
       when (ruleConfig.operator) {
         // Include violations of any rules that applied
         OPERATOR.OR -> {
           violationSummaries.addAll(
-            rules.filter {
-              it.name() in ruleConfig.rules
-            }.mapNotNull {
-              it.apply(resource).summary
-            }
+            resolveRules(rules, ruleConfig)
+              .mapNotNull {
+                it.apply(resource).summary
+              }
           )
         }
 
@@ -586,19 +586,22 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           }
 
           if (allApplied) {
-            violationSummaries.addAll(
-              rules.filter {
-                it.name() in ruleConfig.rules
-              }.mapNotNull {
+            resolveRules(rules, ruleConfig)
+              .mapNotNull {
                 it.apply(resource).summary
               }
-            )
           }
         }
       }
     }
 
-    return violationSummaries.toList()
+    return violationSummaries.filterNotNull()
+  }
+
+  private fun resolveRules(rules: List<Rule<T>>, ruleConfig: RuleConfiguration): List<Rule<T>> {
+    return rules.filter {
+      it.name() in ruleConfig.rules
+    }
   }
 
   /**

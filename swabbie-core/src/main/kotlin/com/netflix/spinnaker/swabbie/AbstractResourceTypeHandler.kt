@@ -586,10 +586,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           }
 
           if (allApplied) {
-            resolveRules(rules, ruleConfig)
-              .mapNotNull {
-                it.apply(resource).summary
-              }
+            violationSummaries.addAll(
+              resolveRules(rules, ruleConfig)
+                .mapNotNull {
+                  it.apply(resource).summary
+                }
+            )
           }
         }
       }

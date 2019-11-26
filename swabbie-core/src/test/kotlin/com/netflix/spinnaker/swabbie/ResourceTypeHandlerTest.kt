@@ -202,11 +202,23 @@ object ResourceTypeHandlerTest {
       summary = Summary(description = "test rule", ruleName = "testRule2")
     )
 
+    val testRule3 = TestRule(
+      name = "testRule3",
+      invalidOn = { it.resourceId == resource.resourceId },
+      summary = Summary(description = "test rule", ruleName = "testRule3")
+    )
+
     // applies if all enabled rules apply
     val andRuleConfig = RuleConfiguration()
       .apply {
         operator = AND
         rules = listOf(testRule1.name(), testRule2.name())
+      }
+
+    val andRuleAllApply = RuleConfiguration()
+      .apply {
+        operator = AND
+        rules = listOf(testRule1.name(), testRule3.name())
       }
 
     // applies if any of the enabled rules apply
@@ -223,23 +235,33 @@ object ResourceTypeHandlerTest {
       }
 
     defaultHandler.setCandidates(mutableListOf(resource))
-    defaultHandler.setRules(mutableListOf(testRule1, testRule2))
+    defaultHandler.setRules(mutableListOf(testRule1, testRule2, testRule3))
 
     // no enabled rules goes through basic behavior of evaluating the resource against all rules
-    // in this case testRule1 applies to this resource
+    // in this case testRule1 & testRule3 apply to this resource
     expectThat(
       defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = emptyList()))
     ).isNotEmpty()
       .get {
         this.map { it.ruleName }
       }.isEqualTo(
-        listOf(testRule1.name())
+        listOf(testRule1.name(), testRule3.name())
       )
 
     // andRuleConfig
     expectThat(
       defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleConfig)))
     ).isEmpty()
+
+    // andRuleConfig: true (has violations since defined rules apply)
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleAllApply)))
+    ).isNotEmpty()
+      .get {
+        this.map { it.ruleName }
+      }.isEqualTo(
+        listOf(testRule1.name(), testRule3.name())
+      )
 
     // orRuleConfig
     expectThat(

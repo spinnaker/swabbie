@@ -63,7 +63,7 @@ interface ResourceTypeHandler<T : Resource> {
   fun optOut(resourceId: String, workConfiguration: WorkConfiguration): ResourceState
 
   /**
-   * Returns a list of resource violations from applying rules on this @param resource
+   * Returns a list of resource violations from applying rules
    */
   fun getViolations(resource: T, workConfiguration: WorkConfiguration): List<Summary>
 

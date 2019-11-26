@@ -566,7 +566,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
 
     log.debug("Evaluating resource {} against enabled rules {}", resource.resourceId, workConfiguration.enabledRules)
-    val violationSummaries = mutableSetOf<Summary?>()
+    val violationSummaries = mutableSetOf<Summary>()
     workConfiguration.enabledRules.forEach { ruleConfig ->
       when (ruleConfig.operator) {
         // Include violations of any rules that applied
@@ -595,7 +595,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       }
     }
 
-    return violationSummaries.filterNotNull()
+    return violationSummaries.toList()
   }
 
   private fun resolveRules(rules: List<Rule<T>>, ruleConfig: RuleConfiguration): List<Rule<T>> {

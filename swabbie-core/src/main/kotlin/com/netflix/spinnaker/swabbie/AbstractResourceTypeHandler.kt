@@ -244,7 +244,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         }
 
         try {
-          val violations: List<Summary> = candidate.getViolations(workConfiguration)
+          val violations: List<Summary> = getViolations(candidate, workConfiguration)
           val alreadyMarkedCandidate = markedCandidates.find { it.resourceId == candidate.resourceId }
           when {
             violations.isEmpty() -> {
@@ -352,13 +352,13 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
 
     val preprocessedCandidate = preProcessCandidates(candidates, workConfiguration).first()
-    val wouldMark = preprocessedCandidate.getViolations(workConfiguration).isNotEmpty()
+    val wouldMark = getViolations(preprocessedCandidate, workConfiguration).isNotEmpty()
     return ResourceEvaluation(
       workConfiguration.namespace,
       resourceId,
       wouldMark,
       if (wouldMark) "Resource has violations" else "Resource does not have violations",
-      preprocessedCandidate.getViolations(workConfiguration)
+      getViolations(preprocessedCandidate, workConfiguration)
     )
   }
 
@@ -490,7 +490,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val confirmedResourcesToDelete = currentMarkedResourcesToDelete.filter { resource ->
       var shouldSkip = false
       val candidate = processedCandidates.find { it.resourceId == resource.resourceId }
-      if ((candidate == null || candidate.getViolations(workConfiguration).isEmpty()) ||
+      if ((candidate == null || getViolations(candidate, workConfiguration).isEmpty()) ||
         shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.DELETE)) {
         shouldSkip = true
         ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies for deletion")
@@ -558,13 +558,13 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
    * @see [com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration]
    * @see [WorkConfiguration.enabledRules]
    */
-  private fun T.getViolations(workConfiguration: WorkConfiguration): List<Summary> {
+  override fun getViolations(resource: T, workConfiguration: WorkConfiguration): List<Summary> {
     if (workConfiguration.enabledRules.isNullOrEmpty()) {
       // Evaluate the resource against all rules and get violations
-      return getViolations()
+      return resource.getViolations()
     }
 
-    log.debug("Evaluating resource {} against enabled rules {}", resourceId, workConfiguration.enabledRules)
+    log.debug("Evaluating resource {} against enabled rules {}", resource.resourceId, workConfiguration.enabledRules)
     val violationSummaries = mutableSetOf<Summary>()
     workConfiguration.enabledRules.forEach { ruleConfig ->
       when (ruleConfig.operator) {
@@ -574,7 +574,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
             rules.filter {
               it.name() in ruleConfig.rules
             }.mapNotNull {
-              it.apply(this).summary
+              it.apply(resource).summary
             }
           )
         }
@@ -582,7 +582,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         // Include violations if all specified rules applied
         OPERATOR.AND -> {
           val allApplied = ruleConfig.rules.all { rule ->
-            rules.find { it.name() == rule }?.apply(this)?.summary != null
+            rules.find { it.name() == rule }?.apply(resource)?.summary != null
           }
 
           if (allApplied) {
@@ -590,7 +590,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
               rules.filter {
                 it.name() in ruleConfig.rules
               }.mapNotNull {
-                it.apply(this).summary
+                it.apply(resource).summary
               }
             )
           }

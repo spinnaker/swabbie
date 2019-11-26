@@ -162,6 +162,32 @@ class ResourceTypeConfiguration {
 
     // generic type for flexibility
     var rules: List<Any> = emptyList()
+
+    override fun equals(other: Any?): Boolean {
+      if (other is RuleConfiguration) {
+        if (operator != other.operator) {
+          return false
+        }
+
+        if (rules != other.rules) {
+          return false
+        }
+
+        return true
+      }
+
+      return false
+    }
+
+    override fun hashCode(): Int {
+      var result = operator.hashCode()
+      result = 31 * result + rules.hashCode()
+      return result
+    }
+
+    override fun toString(): String {
+      return "RuleConfiguration(operator=$operator, rules=$rules)"
+    }
   }
 }
 

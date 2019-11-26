@@ -172,8 +172,7 @@ object ResourceTypeHandlerTest {
       summary = violationSummary
     )
 
-    val resources = mutableListOf(resource1, resource2)
-    defaultHandler.setCandidates(resources)
+    defaultHandler.setCandidates(mutableListOf(resource1, resource2))
     defaultHandler.setRules(mutableListOf(testRule))
 
     expectThat(
@@ -189,10 +188,11 @@ object ResourceTypeHandlerTest {
 
   @Test
   fun `should get violations with enabled rules`() {
-    val resource1 = createTestResource(resourceId = "1", createTs = createTimestampTenDaysAgo)
+    val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
+    val resource = createTestResource(resourceId = "1", createTs = createTimestampTenDaysAgo)
     val testRule1 = TestRule(
       name = "testRule1",
-      invalidOn = { it.resourceId == resource1.resourceId },
+      invalidOn = { it.resourceId == resource.resourceId },
       summary = Summary(description = "test rule", ruleName = "testRule1")
     )
 
@@ -222,28 +222,38 @@ object ResourceTypeHandlerTest {
         rules = listOf(testRule2.name())
       }
 
-    val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
-    defaultHandler.setCandidates(mutableListOf(resource1))
+    defaultHandler.setCandidates(mutableListOf(resource))
     defaultHandler.setRules(mutableListOf(testRule1, testRule2))
+
+    // no enabled rules goes through basic behavior of evaluating the resource against all rules
+    // in this case testRule1 applies to this resource
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = emptyList()))
+    ).isNotEmpty()
+      .get {
+        this.map { it.ruleName }
+      }.isEqualTo(
+        listOf(testRule1.name())
+      )
 
     // andRuleConfig
     expectThat(
-      defaultHandler.getViolations(resource1, workConfiguration.copy(enabledRules = listOf(andRuleConfig)))
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleConfig)))
     ).isEmpty()
 
     // orRuleConfig
     expectThat(
-      defaultHandler.getViolations(resource1, workConfiguration.copy(enabledRules = listOf(orRuleConfig)))
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(orRuleConfig)))
     ).isNotEmpty()
 
     // orRuleConfig:true || andRuleConfig:false = true
     expectThat(
-      defaultHandler.getViolations(resource1, workConfiguration.copy(enabledRules = listOf(andRuleConfig, orRuleConfig)))
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleConfig, orRuleConfig)))
     ).isNotEmpty()
 
     // andRuleConfig:false || orNonApplyingRuleConfig:false = false
     expectThat(
-      defaultHandler.getViolations(resource1, workConfiguration.copy(enabledRules = listOf(andRuleConfig, orNonApplyingRuleConfig)))
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleConfig, orNonApplyingRuleConfig)))
     ).isEmpty()
   }
 

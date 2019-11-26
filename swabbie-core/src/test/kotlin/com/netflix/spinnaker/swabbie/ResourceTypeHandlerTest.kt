@@ -22,6 +22,9 @@ import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.NotificationConfiguration
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR.AND
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR.OR
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
@@ -62,6 +65,8 @@ import org.springframework.context.ApplicationEventPublisher
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
+import strikt.assertions.isEmpty
+import strikt.assertions.isNotEmpty
 import strikt.assertions.isNull
 import strikt.assertions.isFalse
 import strikt.assertions.isTrue
@@ -153,6 +158,125 @@ object ResourceTypeHandlerTest {
       verify(resourceRepository).upsert(any(), any())
       verify(applicationEventPublisher).publishEvent(any<MarkResourceEvent>())
     }
+  }
+
+  @Test
+  fun `should get violations`() {
+    val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
+    val resource1 = createTestResource(resourceId = "1", createTs = createTimestampTenDaysAgo)
+    val resource2 = createTestResource(resourceId = "2", createTs = createTimestampTenDaysAgo)
+    val violationSummary = Summary(description = "test rule", ruleName = "testRule")
+
+    val testRule = TestRule(
+      invalidOn = { it.resourceId == resource1.resourceId },
+      summary = violationSummary
+    )
+
+    defaultHandler.setCandidates(mutableListOf(resource1, resource2))
+    defaultHandler.setRules(mutableListOf(testRule))
+
+    expectThat(
+      defaultHandler.getViolations(resource1, workConfiguration = workConfiguration)
+    ).isEqualTo(
+      listOf(violationSummary)
+    )
+
+    expectThat(
+      defaultHandler.getViolations(resource2, workConfiguration = workConfiguration)
+    ).isEmpty()
+  }
+
+  @Test
+  fun `should get violations with enabled rules`() {
+    val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
+    val resource = createTestResource(resourceId = "1", createTs = createTimestampTenDaysAgo)
+    val testRule1 = TestRule(
+      name = "testRule1",
+      invalidOn = { it.resourceId == resource.resourceId },
+      summary = Summary(description = "test rule", ruleName = "testRule1")
+    )
+
+    val testRule2 = TestRule(
+      name = "testRule2",
+      invalidOn = { it.resourceId == "other" },
+      summary = Summary(description = "test rule", ruleName = "testRule2")
+    )
+
+    val testRule3 = TestRule(
+      name = "testRule3",
+      invalidOn = { it.resourceId == resource.resourceId },
+      summary = Summary(description = "test rule", ruleName = "testRule3")
+    )
+
+    // applies if all enabled rules apply
+    val andRuleConfig = RuleConfiguration()
+      .apply {
+        operator = AND
+        rules = listOf(testRule1.name(), testRule2.name())
+      }
+
+    val andRuleAllApply = RuleConfiguration()
+      .apply {
+        operator = AND
+        rules = listOf(testRule1.name(), testRule3.name())
+      }
+
+    // applies if any of the enabled rules apply
+    val orRuleConfig = RuleConfiguration()
+      .apply {
+        operator = OR
+        rules = listOf(testRule1.name(), testRule2.name())
+      }
+
+    val orNonApplyingRuleConfig = RuleConfiguration()
+      .apply {
+        operator = OR
+        rules = listOf(testRule2.name())
+      }
+
+    defaultHandler.setCandidates(mutableListOf(resource))
+    defaultHandler.setRules(mutableListOf(testRule1, testRule2, testRule3))
+
+    // no enabled rules goes through basic behavior of evaluating the resource against all rules
+    // in this case testRule1 & testRule3 apply to this resource
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = emptyList()))
+    ).isNotEmpty()
+      .get {
+        this.map { it.ruleName }
+      }.isEqualTo(
+        listOf(testRule1.name(), testRule3.name())
+      )
+
+    // andRuleConfig
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleConfig)))
+    ).isEmpty()
+
+    // andRuleConfig: true (has violations since defined rules apply)
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleAllApply)))
+    ).isNotEmpty()
+      .get {
+        this.map { it.ruleName }
+      }.isEqualTo(
+        listOf(testRule1.name(), testRule3.name())
+      )
+
+    // orRuleConfig
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(orRuleConfig)))
+    ).isNotEmpty()
+
+    // orRuleConfig:true || andRuleConfig:false = true
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleConfig, orRuleConfig)))
+    ).isNotEmpty()
+
+    // andRuleConfig:false || orNonApplyingRuleConfig:false = false
+    expectThat(
+      defaultHandler.getViolations(resource, workConfiguration.copy(enabledRules = listOf(andRuleConfig, orNonApplyingRuleConfig)))
+    ).isEmpty()
   }
 
   @Test

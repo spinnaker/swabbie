@@ -133,6 +133,62 @@ class ResourceTypeConfiguration {
   var entityTaggingEnabled: Boolean = false
   var maxAge: Int = 14
   var notification: NotificationConfiguration = EmptyNotificationConfiguration()
+  var enabledRules: List<RuleConfiguration> = listOf()
+
+  /**
+   * Allows to specify enabled rules. When defined, all other rules are ignored at runtime.
+   * See [com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler.getViolations]
+   *------------- config snippet for a resource type---------------
+          enabledRules:
+          - operator: OR
+            rules:
+              - ZeroInstanceInDiscoveryDisabledServerGroupRule
+              - ZeroInstanceDisabledServerGroupRule
+          - operator: AND
+            rules:
+              - ExpiredResourceRule
+              - ZeroInstanceDisabledServerGroupRule
+   *----------------
+   * @property operator ([RuleConfiguration.OPERATOR.OR], [RuleConfiguration.OPERATOR.AND]) dictate how rules are applied
+   * @property rules a list of named rules [com.netflix.spinnaker.swabbie.model.Rule]
+   */
+  class RuleConfiguration {
+    enum class OPERATOR {
+      OR, // applies if any specified rule applies
+      AND // applies only if all specified rules apply
+    }
+
+    var operator: OPERATOR = OPERATOR.OR
+
+    // generic type for flexibility
+    var rules: List<Any> = emptyList()
+
+    override fun equals(other: Any?): Boolean {
+      if (other is RuleConfiguration) {
+        if (operator != other.operator) {
+          return false
+        }
+
+        if (rules != other.rules) {
+          return false
+        }
+
+        return true
+      }
+
+      return false
+    }
+
+    override fun hashCode(): Int {
+      var result = operator.hashCode()
+      result = 31 * result + rules.hashCode()
+      return result
+    }
+
+    override fun toString(): String {
+      return "RuleConfiguration(operator=$operator, rules=$rules)"
+    }
+  }
 }
 
 class Attribute {

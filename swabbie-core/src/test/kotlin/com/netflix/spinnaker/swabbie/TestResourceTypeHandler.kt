@@ -156,9 +156,14 @@ class TestResourceTypeHandler(
 
 class TestRule(
   private val invalidOn: (Resource) -> Boolean,
-  private val summary: Summary?
+  private val summary: Summary?,
+  private val name: String = ""
 ) : Rule<TestResource> {
   override fun apply(resource: TestResource): Result {
     return if (invalidOn(resource)) Result(summary) else Result(null)
+  }
+
+  override fun name(): String {
+    return name
   }
 }

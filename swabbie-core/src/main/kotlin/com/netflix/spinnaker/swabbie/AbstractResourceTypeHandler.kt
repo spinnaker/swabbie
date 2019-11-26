@@ -21,6 +21,8 @@ import com.netflix.spectator.api.BasicTag
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spectator.api.patterns.PolledMeter
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
@@ -243,7 +245,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         }
 
         try {
-          val violations: List<Summary> = candidate.getViolations()
+          val violations: List<Summary> = getViolations(candidate, workConfiguration)
           val alreadyMarkedCandidate = markedCandidates.find { it.resourceId == candidate.resourceId }
           when {
             violations.isEmpty() -> {
@@ -351,13 +353,13 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
 
     val preprocessedCandidate = preProcessCandidates(candidates, workConfiguration).first()
-    val wouldMark = preprocessedCandidate.getViolations().isNotEmpty()
+    val wouldMark = getViolations(preprocessedCandidate, workConfiguration).isNotEmpty()
     return ResourceEvaluation(
       workConfiguration.namespace,
       resourceId,
       wouldMark,
       if (wouldMark) "Resource has violations" else "Resource does not have violations",
-      preprocessedCandidate.getViolations()
+      getViolations(preprocessedCandidate, workConfiguration)
     )
   }
 
@@ -489,7 +491,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val confirmedResourcesToDelete = currentMarkedResourcesToDelete.filter { resource ->
       var shouldSkip = false
       val candidate = processedCandidates.find { it.resourceId == resource.resourceId }
-      if ((candidate == null || candidate.getViolations().isEmpty()) ||
+      if ((candidate == null || getViolations(candidate, workConfiguration).isEmpty()) ||
         shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.DELETE)) {
         shouldSkip = true
         ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies for deletion")
@@ -549,6 +551,58 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private fun T.getViolations(): List<Summary> {
     return rules.mapNotNull {
       it.apply(this).summary
+    }
+  }
+
+  /**
+   * Evaluates a resource against rules and returns violation summaries for this resource
+   * @see [com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration]
+   * @see [WorkConfiguration.enabledRules]
+   */
+  override fun getViolations(resource: T, workConfiguration: WorkConfiguration): List<Summary> {
+    if (workConfiguration.enabledRules.isNullOrEmpty()) {
+      // Evaluate the resource against all rules and get violations
+      return resource.getViolations()
+    }
+
+    log.debug("Evaluating resource {} against enabled rules {}", resource.resourceId, workConfiguration.enabledRules)
+    val violationSummaries = mutableSetOf<Summary>()
+    workConfiguration.enabledRules.forEach { ruleConfig ->
+      when (ruleConfig.operator) {
+        // Include violations of any rules that applied
+        OPERATOR.OR -> {
+          violationSummaries.addAll(
+            resolveRules(rules, ruleConfig)
+              .mapNotNull {
+                it.apply(resource).summary
+              }
+          )
+        }
+
+        // Include violations if all specified rules applied
+        OPERATOR.AND -> {
+          val allApplied = ruleConfig.rules.all { rule ->
+            rules.find { it.name() == rule }?.apply(resource)?.summary != null
+          }
+
+          if (allApplied) {
+            violationSummaries.addAll(
+              resolveRules(rules, ruleConfig)
+                .mapNotNull {
+                  it.apply(resource).summary
+                }
+            )
+          }
+        }
+      }
+    }
+
+    return violationSummaries.toList()
+  }
+
+  private fun resolveRules(rules: List<Rule<T>>, ruleConfig: RuleConfiguration): List<Rule<T>> {
+    return rules.filter {
+      it.name() in ruleConfig.rules
     }
   }
 

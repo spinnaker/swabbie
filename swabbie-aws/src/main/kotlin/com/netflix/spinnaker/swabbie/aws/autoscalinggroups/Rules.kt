@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.appinfo.InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 import com.netflix.discovery.DiscoveryClient
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
@@ -26,6 +27,7 @@ import com.netflix.spinnaker.swabbie.model.Summary
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
@@ -40,7 +42,7 @@ class ZeroInstanceDisabledServerGroupRule(
   private val disabledDurationInDays: Long = 30
 
   override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonAutoScalingGroup::class.java.isAssignableFrom(clazz)
-  override fun <T : Resource> apply(resource: T): Result {
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
     if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
       return Result(null)
     }
@@ -74,7 +76,7 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
   private val disabledDurationInDays: Long = 30
 
   override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonAutoScalingGroup::class.java.isAssignableFrom(clazz)
-  override fun <T : Resource> apply(resource: T): Result {
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
     if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
       return Result(null)
     }
@@ -107,5 +109,124 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
     )
 
     return instance.status == OUT_OF_SERVICE && disabledInDays > disabledDurationInDays
+  }
+}
+
+@Component
+class ZeroInstanceRule : ServerGroupRule() {
+  override fun <T : Resource> applyRule(resource: T, ruleDefinition: RuleDefinition?): Result {
+    return apply(resource, ruleDefinition)
+  }
+
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    if (resource !is AmazonAutoScalingGroup || !resource.instances.isNullOrEmpty()) {
+      return Result(null)
+    }
+
+    return Result(Summary(description = "Server Group ${resource.resourceId} has no instances.", ruleName = name()))
+  }
+}
+
+@Component
+class ZeroLoadBalancerRule : ServerGroupRule() {
+  override fun <T : Resource> applyRule(resource: T, ruleDefinition: RuleDefinition?): Result {
+    return apply(resource, ruleDefinition)
+  }
+
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    if (resource !is AmazonAutoScalingGroup || !resource.loadBalancerNames.isNullOrEmpty()) {
+      return Result(null)
+    }
+
+    return Result(Summary(description = "Server Group ${resource.resourceId} has no load balancer.", ruleName = name()))
+  }
+}
+
+@Component
+class DisabledLoadBalancerRule(
+  private val clock: Clock
+) : ServerGroupRule() {
+  override fun <T : Resource> applyRule(resource: T, ruleDefinition: RuleDefinition?): Result {
+    return apply(resource, ruleDefinition)
+  }
+
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
+      return Result(null)
+    }
+
+    val disabledTime = resource.disabledTime()!!
+    val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int
+    if (moreThanDays != null && disabledTime.isBefore(LocalDateTime.now(clock).minusDays(moreThanDays.toLong()))) {
+      return Result(
+        Summary(description = "Server Group ${resource.resourceId} has been out of balancer longer than $moreThanDays days.", ruleName = name())
+      )
+    }
+
+    return Result(
+      Summary(description = "Server Group ${resource.resourceId} is out of load balancer.", ruleName = name())
+    )
+  }
+}
+
+@Component
+class NotInDiscoveryRule(
+  private val discoveryClient: Optional<DiscoveryClient>,
+  private val clock: Clock
+) : ServerGroupRule() {
+  override fun <T : Resource> applyRule(resource: T, ruleDefinition: RuleDefinition?): Result {
+    return apply(resource, ruleDefinition)
+  }
+
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int
+    if (resource !is AmazonAutoScalingGroup || !discoveryClient.isPresent || !resource.isOutOfDiscovery(moreThanDays)) {
+      return Result(null)
+    }
+
+    val violation = if (moreThanDays == null) {
+      "Server Group ${resource.resourceId} is out of Service Discovery."
+    } else {
+      "Server Group ${resource.resourceId} has been out of Service Discovery for more than $moreThanDays days."
+    }
+
+    return Result(Summary(violation, name()))
+  }
+
+  /**
+   * Returns true if all instances are out of discovery
+   * @param thresholdDays optional threshold for how many days this server group is out of service.
+   * return true if all instances are out of discovery and for over thresholdDays (if thresholdDays != null)
+   */
+  private fun AmazonAutoScalingGroup.isOutOfDiscovery(thresholdDays: Int?): Boolean {
+    return instances?.all {
+      val instanceInfos = discoveryClient
+        .get()
+        .getInstancesById(it["instanceId"] as String)
+
+      instanceInfos.all { instanceInfo ->
+        val outOfService = instanceInfo.status == OUT_OF_SERVICE
+        val disabledDays = Duration
+          .between(Instant.ofEpochMilli(instanceInfo.lastUpdatedTimestamp), Instant.now(clock))
+          .toDays()
+
+        if (thresholdDays != null) {
+          outOfService && disabledDays > thresholdDays
+        } else {
+          outOfService
+        }
+      }
+    } ?: false
+  }
+}
+
+abstract class ServerGroupRule : Rule {
+  abstract fun <T : Resource> applyRule(resource: T, ruleDefinition: RuleDefinition?): Result
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    return applyRule(resource, ruleDefinition)
+  }
+
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean {
+    return AmazonAutoScalingGroup::class.java.isAssignableFrom(clazz)
   }
 }

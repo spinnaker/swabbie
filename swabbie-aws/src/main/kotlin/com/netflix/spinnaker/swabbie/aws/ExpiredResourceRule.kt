@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws
 
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
@@ -36,7 +37,7 @@ class ExpiredResourceRule(
   private val clock: Clock
 ) : Rule {
   override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonResource::class.java.isAssignableFrom(clazz)
-  override fun <T : Resource> apply(resource: T): Result {
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
     if (resource is AmazonResource && resource.expired(clock)) {
       return Result(
         Summary(

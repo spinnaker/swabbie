@@ -21,8 +21,6 @@ import com.netflix.spectator.api.BasicTag
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spectator.api.patterns.PolledMeter
-import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration
-import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
@@ -39,7 +37,6 @@ import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
 import com.netflix.spinnaker.swabbie.model.ResourceState
-import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -49,6 +46,7 @@ import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -64,7 +62,7 @@ import kotlin.math.min
 abstract class AbstractResourceTypeHandler<T : Resource>(
   private val registry: Registry,
   val clock: Clock,
-  private val rules: List<Rule<T>>,
+  private val rulesEngine: RulesEngine,
   private val resourceRepository: ResourceTrackingRepository,
   private val resourceStateRepository: ResourceStateRepository,
   private val exclusionPolicies: List<ResourceExclusionPolicy>,
@@ -425,9 +423,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     optedOutResourceStates: List<ResourceState>,
     action: Action
   ): Boolean {
-    val hasAlwaysCleanRule = resource.getViolations()
-        .any { summary ->
-          summary.ruleName == AlwaysCleanRule::class.java.simpleName
+    val hasAlwaysCleanRule = rulesEngine.getRules(workConfiguration)
+        .any { rule ->
+          rule.name() == AlwaysCleanRule::class.java.simpleName
         }
 
     if (hasAlwaysCleanRule || resource.expired(clock)) {
@@ -548,62 +546,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     return partitions.sortedByDescending { it.size }
   }
 
-  private fun T.getViolations(): List<Summary> {
-    return rules.mapNotNull {
-      it.apply(this).summary
-    }
-  }
-
-  /**
-   * Evaluates a resource against rules and returns violation summaries for this resource
-   * @see [com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration]
-   * @see [WorkConfiguration.enabledRules]
-   */
   override fun getViolations(resource: T, workConfiguration: WorkConfiguration): List<Summary> {
-    if (workConfiguration.enabledRules.isNullOrEmpty()) {
-      // Evaluate the resource against all rules and get violations
-      return resource.getViolations()
-    }
-
-    log.debug("Evaluating resource {} against enabled rules {}", resource.resourceId, workConfiguration.enabledRules)
-    val violationSummaries = mutableSetOf<Summary>()
-    workConfiguration.enabledRules.forEach { ruleConfig ->
-      when (ruleConfig.operator) {
-        // Include violations of any rules that applied
-        OPERATOR.OR -> {
-          violationSummaries.addAll(
-            resolveRules(rules, ruleConfig)
-              .mapNotNull {
-                it.apply(resource).summary
-              }
-          )
-        }
-
-        // Include violations if all specified rules applied
-        OPERATOR.AND -> {
-          val allApplied = ruleConfig.rules.all { rule ->
-            rules.find { it.name() == rule }?.apply(resource)?.summary != null
-          }
-
-          if (allApplied) {
-            violationSummaries.addAll(
-              resolveRules(rules, ruleConfig)
-                .mapNotNull {
-                  it.apply(resource).summary
-                }
-            )
-          }
-        }
-      }
-    }
-
-    return violationSummaries.toList()
-  }
-
-  private fun resolveRules(rules: List<Rule<T>>, ruleConfig: RuleConfiguration): List<Rule<T>> {
-    return rules.filter {
-      it.name() in ruleConfig.rules
-    }
+    return rulesEngine.evaluate(resource, workConfiguration)
   }
 
   /**

@@ -20,6 +20,7 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
@@ -38,6 +39,7 @@ import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.test.TestResource
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
@@ -53,7 +55,7 @@ class TestResourceTypeHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   private val exclusionPolicies: MutableList<ResourceExclusionPolicy> = mutableListOf(),
   notifier: Notifier,
-  private val rules: MutableList<TestRule> = mutableListOf(),
+  private val rulesEngine: RulesEngine,
   private var simulatedCandidates: MutableList<TestResource> = mutableListOf(),
   registry: Registry = NoopRegistry(),
   private val taskTrackingRepository: TaskTrackingRepository,
@@ -63,7 +65,7 @@ class TestResourceTypeHandler(
 ) : AbstractResourceTypeHandler<TestResource>(
   registry,
   clock,
-  rules,
+  rulesEngine,
   resourceTrackingRepository,
   resourceStateRepository,
   exclusionPolicies,
@@ -75,31 +77,12 @@ class TestResourceTypeHandler(
   dynamicConfigService,
   notificationQueue
 ) {
-
   fun setCandidates(candidates: MutableList<TestResource>) {
     simulatedCandidates = candidates
   }
 
   fun clearCandidates() {
     simulatedCandidates = mutableListOf()
-  }
-
-  fun setRules(rules: MutableList<TestRule>) {
-    this.rules.clear()
-    this.rules.addAll(rules)
-  }
-
-  fun clearRules() {
-    rules.clear()
-  }
-
-  fun setExclusionPolicies(exclusionPolicies: MutableList<ResourceExclusionPolicy>) {
-    this.exclusionPolicies.clear()
-    this.exclusionPolicies.addAll(exclusionPolicies)
-  }
-
-  fun clearExclusionPolicies() {
-    exclusionPolicies.clear()
   }
 
   override fun deleteResources(
@@ -136,7 +119,7 @@ class TestResourceTypeHandler(
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean {
-    return !rules.isEmpty()
+    return rulesEngine.getRules(workConfiguration).isNotEmpty()
   }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<TestResource>? {
@@ -155,12 +138,20 @@ class TestResourceTypeHandler(
 }
 
 class TestRule(
-  private val invalidOn: (Resource) -> Boolean,
+  private val invalidOn: (Resource, Map<String, Any>) -> Boolean,
   private val summary: Summary?,
   private val name: String = ""
-) : Rule<TestResource> {
-  override fun apply(resource: TestResource): Result {
-    return if (invalidOn(resource)) Result(summary) else Result(null)
+) : Rule {
+  override fun <T : Resource> apply(resource: T): Result {
+    return if (invalidOn(resource, emptyMap())) Result(summary) else Result(null)
+  }
+
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    if (ruleDefinition == null || ruleDefinition.parameters.isEmpty()) {
+      return apply(resource)
+    }
+
+    return if (invalidOn(resource, ruleDefinition.parameters)) Result(summary) else Result(null)
   }
 
   override fun name(): String {

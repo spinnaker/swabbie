@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory
  */
 class AlwaysCleanRule(
   swabbieProperties: SwabbieProperties
-) : Rule<Resource> {
+) : Rule {
   private val config = swabbieProperties.testing.alwaysCleanRuleConfig
   private val log = LoggerFactory.getLogger(javaClass)
 
@@ -34,7 +34,7 @@ class AlwaysCleanRule(
     log.info("Using ${javaClass.simpleName} for resources ${config.resourceIds}")
   }
 
-  override fun apply(resource: Resource): Result {
+  override fun <T : Resource> apply(resource: T): Result {
     return if (config.resourceIds.contains(resource.resourceId)) {
       Result(
         Summary(

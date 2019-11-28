@@ -19,6 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.appinfo.InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 import com.netflix.discovery.DiscoveryClient
+import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
@@ -33,13 +34,13 @@ import java.util.Optional
 @Component
 class ZeroInstanceDisabledServerGroupRule(
   private val clock: Clock
-) : Rule<AmazonAutoScalingGroup> {
+) : Rule {
 
   @Value("\${swabbie.resource.disabled.days.count:30}")
   private val disabledDurationInDays: Long = 30
 
-  override fun apply(resource: AmazonAutoScalingGroup): Result {
-    if (resource.isInLoadBalancer()) {
+  override fun <T : Resource> apply(resource: T): Result {
+    if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
       return Result(null)
     }
 
@@ -66,13 +67,13 @@ class ZeroInstanceDisabledServerGroupRule(
 class ZeroInstanceInDiscoveryDisabledServerGroupRule(
   private val discoveryClient: Optional<DiscoveryClient>,
   private val clock: Clock
-) : Rule<AmazonAutoScalingGroup> {
+) : Rule {
 
   @Value("\${swabbie.resource.disabled.days.count:30}")
   private val disabledDurationInDays: Long = 30
 
-  override fun apply(resource: AmazonAutoScalingGroup): Result {
-    if (resource.isInLoadBalancer()) {
+  override fun <T : Resource> apply(resource: T): Result {
+    if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
       return Result(null)
     }
 

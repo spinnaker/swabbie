@@ -28,7 +28,6 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.model.ResourceState
@@ -42,6 +41,7 @@ import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
@@ -60,7 +60,7 @@ class AmazonAutoScalingGroupHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
-  private val rules: List<Rule<AmazonAutoScalingGroup>>,
+  private val rulesEngine: RulesEngine,
   private val aws: AWS,
   private val orcaService: OrcaService,
   private val applicationUtils: ApplicationUtils,
@@ -70,7 +70,7 @@ class AmazonAutoScalingGroupHandler(
 ) : AbstractResourceTypeHandler<AmazonAutoScalingGroup>(
   registry,
   clock,
-  rules,
+  rulesEngine,
   resourceTrackingRepository,
   resourceStateRepository,
   exclusionPolicies,
@@ -119,7 +119,8 @@ class AmazonAutoScalingGroupHandler(
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean {
-    return workConfiguration.resourceType == SERVER_GROUP && workConfiguration.cloudProvider == AWS && rules.isNotEmpty()
+    return workConfiguration.resourceType == SERVER_GROUP && workConfiguration.cloudProvider == AWS &&
+      rulesEngine.getRules(workConfiguration).isNotEmpty()
   }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonAutoScalingGroup>? {

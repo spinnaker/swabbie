@@ -22,6 +22,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.MarkedResourceInterface
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
 import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.model.SwabbieNamespace
 import com.netflix.spinnaker.swabbie.notifications.NotificationSender
 import com.netflix.spinnaker.swabbie.repository.DeleteInfo
@@ -40,10 +41,19 @@ class ResourceController(
   private val resourceStateRepository: ResourceStateRepository,
   private val resourceTrackingRepository: ResourceTrackingRepository,
   private val controllerUtils: ControllerUtils,
-  private val notificationSender: NotificationSender
+  private val notificationSender: NotificationSender,
+  private val workConfigurations: List<WorkConfiguration>
 ) {
 
   private val log = LoggerFactory.getLogger(javaClass)
+
+  @RequestMapping(value = ["/rules"], method = [RequestMethod.GET])
+  fun rules(): Any {
+    return workConfigurations
+      .flatMap {
+        it.enabledRules
+      }.toSet()
+  }
 
   /**
    * Returns all marked resource in summary, full, or list format.

@@ -42,7 +42,7 @@ data class WorkConfiguration(
   val maxItemsProcessedPerCycle: Int = 10,
   val itemsProcessedBatchSize: Int = 5,
   val enabledActions: List<Action> = listOf(Action.MARK, Action.NOTIFY, Action.DELETE),
-  val enabledRules: List<ResourceTypeConfiguration.RuleConfiguration> = listOf()
+  val enabledRules: Set<ResourceTypeConfiguration.RuleConfiguration> = setOf()
 ) {
   private val log = LoggerFactory.getLogger(javaClass)
 

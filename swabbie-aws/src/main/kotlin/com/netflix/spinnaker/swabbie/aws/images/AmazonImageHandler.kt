@@ -34,7 +34,6 @@ import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
-import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -50,6 +49,7 @@ import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
+import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.beans.factory.annotation.Value
@@ -72,7 +72,7 @@ class AmazonImageHandler(
   dynamicConfigService: DynamicConfigService,
   private val launchConfigurationCache: InMemorySingletonCache<AmazonLaunchConfigurationCache>,
   private val imagesUsedByinstancesCache: InMemorySingletonCache<AmazonImagesUsedByInstancesCache>,
-  private val rules: List<Rule<AmazonImage>>,
+  private val rulesEngine: RulesEngine,
   private val aws: AWS,
   private val orcaService: OrcaService,
   private val applicationUtils: ApplicationUtils,
@@ -84,7 +84,7 @@ class AmazonImageHandler(
 ) : AbstractResourceTypeHandler<AmazonImage>(
   registry,
   clock,
-  rules,
+  rulesEngine,
   resourceTrackingRepository,
   resourceStateRepository,
   exclusionPolicies,
@@ -134,8 +134,10 @@ class AmazonImageHandler(
     }
   }
 
-  override fun handles(workConfiguration: WorkConfiguration): Boolean =
-    workConfiguration.resourceType == IMAGE && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+  override fun handles(workConfiguration: WorkConfiguration): Boolean {
+    return workConfiguration.resourceType == IMAGE && workConfiguration.cloudProvider == AWS &&
+      rulesEngine.getRules(workConfiguration).isNotEmpty()
+  }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonImage>? {
     val params = Parameters(

@@ -39,6 +39,7 @@ class ZeroInstanceDisabledServerGroupRule(
   @Value("\${swabbie.resource.disabled.days.count:30}")
   private val disabledDurationInDays: Long = 30
 
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonAutoScalingGroup::class.java.isAssignableFrom(clazz)
   override fun <T : Resource> apply(resource: T): Result {
     if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
       return Result(null)
@@ -72,6 +73,7 @@ class ZeroInstanceInDiscoveryDisabledServerGroupRule(
   @Value("\${swabbie.resource.disabled.days.count:30}")
   private val disabledDurationInDays: Long = 30
 
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonAutoScalingGroup::class.java.isAssignableFrom(clazz)
   override fun <T : Resource> apply(resource: T): Result {
     if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
       return Result(null)

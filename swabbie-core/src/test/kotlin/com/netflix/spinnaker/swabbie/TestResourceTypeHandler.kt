@@ -142,6 +142,10 @@ class TestRule(
   private val summary: Summary?,
   private val name: String = ""
 ) : Rule {
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean {
+    return TestResource::class.java.isAssignableFrom(clazz)
+  }
+
   override fun <T : Resource> apply(resource: T): Result {
     return if (invalidOn(resource, emptyMap())) Result(summary) else Result(null)
   }

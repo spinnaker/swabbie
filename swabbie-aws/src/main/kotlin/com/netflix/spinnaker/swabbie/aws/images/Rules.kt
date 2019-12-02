@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OrphanedImageRule : Rule {
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonImage::class.java.isAssignableFrom(clazz)
   override fun <T : Resource> apply(resource: T): Result {
     if (resource !is AmazonImage) {
       return Result(null)

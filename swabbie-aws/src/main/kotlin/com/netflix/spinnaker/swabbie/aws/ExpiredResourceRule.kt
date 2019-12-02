@@ -35,6 +35,7 @@ import java.time.Clock
 class ExpiredResourceRule(
   private val clock: Clock
 ) : Rule {
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonResource::class.java.isAssignableFrom(clazz)
   override fun <T : Resource> apply(resource: T): Result {
     if (resource is AmazonResource && resource.expired(clock)) {
       return Result(

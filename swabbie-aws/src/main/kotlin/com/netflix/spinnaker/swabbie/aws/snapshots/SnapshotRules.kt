@@ -30,6 +30,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OrphanedSnapshotRule : Rule {
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonSnapshot::class.java.isAssignableFrom(clazz)
   override fun <T : Resource> apply(resource: T): Result {
     if (resource !is AmazonSnapshot || resource.matchesAnyRule(
         IMAGE_EXISTS

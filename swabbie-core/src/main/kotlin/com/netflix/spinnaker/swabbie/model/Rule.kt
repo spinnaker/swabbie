@@ -25,6 +25,7 @@ import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
  */
 interface Rule {
   fun <T : Resource> apply(resource: T): Result
+  fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = false
   fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result = apply(resource)
   fun name(): String = this.javaClass.simpleName
 }

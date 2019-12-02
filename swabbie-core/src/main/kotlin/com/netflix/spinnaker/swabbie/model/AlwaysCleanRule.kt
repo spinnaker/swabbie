@@ -34,6 +34,7 @@ class AlwaysCleanRule(
     log.info("Using ${javaClass.simpleName} for resources ${config.resourceIds}")
   }
 
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = true
   override fun <T : Resource> apply(resource: T): Result {
     return if (config.resourceIds.contains(resource.resourceId)) {
       Result(

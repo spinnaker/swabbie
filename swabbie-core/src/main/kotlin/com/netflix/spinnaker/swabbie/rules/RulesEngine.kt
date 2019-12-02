@@ -23,7 +23,6 @@ import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
@@ -32,7 +31,7 @@ open class ResourceRulesEngine(
   rules: List<Rule> = emptyList(),
   workConfigurations: List<WorkConfiguration> = emptyList()
 ) : RulesEngine {
-  private val log: Logger = LoggerFactory.getLogger(javaClass)
+  private val log by lazy { LoggerFactory.getLogger(javaClass) }
   private var ruleDefinitionRegistry: Map<RuleConfiguration, Map<RuleDefinition, Rule>>
 
   init {
@@ -64,7 +63,7 @@ open class ResourceRulesEngine(
     val violations = workConfiguration
       .enabledRules
       .flatMap { ruleConfig ->
-        resource.getViolations(ruleConfig)
+        resource.getViolations(ruleConfig, resource.javaClass)
       }.toSet()
 
     return violations.toList()
@@ -95,9 +94,14 @@ open class ResourceRulesEngine(
    * This configuration evaluates to: if ((ExpiredResourceRule && DisabledResourceRule) || (NoApplicationRule || AgeRule))
    * as hinted in the description of each rule configuration.
    */
-  private fun <T : Resource> T.getViolations(ruleConfig: RuleConfiguration): List<Summary> {
+  private fun <T : Resource> T.getViolations(ruleConfig: RuleConfiguration, type: Class<T>): List<Summary> {
     val violationSummaries = mutableSetOf<Summary?>()
     for ((ruleDefinition, rule) in ruleConfig.ruleDefinitions()) {
+      if (!rule.applicableForType(type)) {
+        log.warn("Skipping {}. Found non-applicable rule: $ruleConfig for resourceType: $resourceType")
+        return emptyList()
+      }
+
       val violation = rule.apply(this, ruleDefinition).summary
       if (ruleConfig.operator == OPERATOR.AND && violation == null) {
         return emptyList()

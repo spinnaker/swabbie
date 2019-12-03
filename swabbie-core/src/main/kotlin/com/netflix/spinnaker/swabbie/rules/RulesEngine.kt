@@ -53,7 +53,7 @@ open class ResourceRulesEngine(
   /**
    * Evaluates a resource against enabled rules via configuration
    * @see [com.netflix.spinnaker.swabbie.model.WorkConfiguration.enabledRules]
-   * ------------------ yaml config sample AND and OR rules---
+   * @see [getViolations]
    */
   override fun <T : Resource> evaluate(resource: T, workConfiguration: WorkConfiguration): List<Summary> {
     if (workConfiguration.enabledRules.isNullOrEmpty()) {

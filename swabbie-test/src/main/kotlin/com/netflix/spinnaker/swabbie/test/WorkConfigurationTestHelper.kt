@@ -33,12 +33,13 @@ object WorkConfigurationTestHelper {
     retention: Int = 14,
     notificationConfiguration: NotificationConfiguration = EmptyNotificationConfiguration(),
     resourceType: String = TEST_RESOURCE_TYPE,
-    namespace: String = "$TEST_RESOURCE_PROVIDER_TYPE:test:us-east-1:$TEST_RESOURCE_TYPE"
+    cloudProvider: String = TEST_RESOURCE_PROVIDER_TYPE,
+    namespace: String = "$cloudProvider:test:us-east-1:$resourceType"
   ): WorkConfiguration = WorkConfiguration(
     namespace = namespace,
     account = testAccount,
     location = "us-east-1",
-    cloudProvider = TEST_RESOURCE_PROVIDER_TYPE,
+    cloudProvider = cloudProvider,
     resourceType = resourceType,
     retention = retention,
     exclusions = exclusions.toSet(),
@@ -49,7 +50,7 @@ object WorkConfigurationTestHelper {
     notificationConfiguration = notificationConfiguration
   )
 
-  var testAccount = SpinnakerAccount(
+  private val testAccount = SpinnakerAccount(
     name = "test",
     accountId = "id",
     type = "type",

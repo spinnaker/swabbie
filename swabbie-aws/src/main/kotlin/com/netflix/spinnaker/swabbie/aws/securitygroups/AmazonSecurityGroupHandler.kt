@@ -26,7 +26,6 @@ import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -38,6 +37,7 @@ import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
@@ -56,7 +56,7 @@ class AmazonSecurityGroupHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
-  private val rules: List<Rule<AmazonSecurityGroup>>,
+  private val rulesEngine: RulesEngine,
   private val aws: AWS,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
@@ -66,7 +66,7 @@ class AmazonSecurityGroupHandler(
 ) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
   registry,
   clock,
-  rules,
+  rulesEngine,
   resourceTrackingRepository,
   resourceStateRepository,
   exclusionPolicies,

@@ -19,24 +19,22 @@ import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.Attribute
-import com.netflix.spinnaker.config.CloudProviderConfiguration
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.InMemorySingletonCache
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
@@ -47,7 +45,6 @@ import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.TaskResponse
@@ -57,6 +54,8 @@ import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
+import com.netflix.spinnaker.swabbie.rules.ResourceRulesEngine
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.check
@@ -74,13 +73,15 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.validateMockitoUsage
 import org.springframework.context.ApplicationEventPublisher
+import strikt.api.expectThat
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.Optional
 
+// TODO: jeyrs these tests should not care about what rules to include, the specific rules should have coverage for that
+// TODO: jeyrs Handler's tests should only care about the api given a resource is valid or not. Just need a mock for RulesEngine
 object AmazonImageHandlerTest {
   private val front50ApplicationCache = mock<InMemoryCache<Application>>()
   private val accountProvider = mock<AccountProvider>()
@@ -103,12 +104,32 @@ object AmazonImageHandlerTest {
   private val applicationUtils = ApplicationUtils(emptyList())
   private val dynamicConfigService = mock<DynamicConfigService>()
   private val notificationQueue = mock<NotificationQueue>()
+  private val imageRules = listOf(OrphanedImageRule())
+  private val enabledRules = setOf(
+    RuleConfiguration()
+      .apply {
+        operator = RuleConfiguration.OPERATOR.OR
+        rules = imageRules.map { r ->
+          RuleDefinition()
+            .apply { name = r.name() }
+        }.toSet()
+      })
+
+  private val workConfiguration = WorkConfigurationTestHelper
+    .generateWorkConfiguration(resourceType = IMAGE, cloudProvider = AWS)
+    .copy(enabledRules = enabledRules)
+
+  private val params = Parameters(
+    account = workConfiguration.account.accountId!!,
+    region = workConfiguration.location,
+    environment = workConfiguration.account.environment
+  )
 
   private val subject = AmazonImageHandler(
     clock = clock,
     registry = NoopRegistry(),
     notifier = mock(),
-    rules = listOf(OrphanedImageRule()),
+    rulesEngine = ResourceRulesEngine(imageRules, listOf(workConfiguration)),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
     exclusionPolicies = listOf(
@@ -132,6 +153,8 @@ object AmazonImageHandlerTest {
 
   @BeforeEach
   fun setup() {
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+      workConfiguration.maxItemsProcessedPerCycle
     whenever(resourceOwnerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
     whenever(front50ApplicationCache.get()) doReturn
       setOf(
@@ -162,7 +185,6 @@ object AmazonImageHandlerTest {
         )
       )
 
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(aws.getImages(params)) doReturn listOf(
       AmazonImage(
         imageId = "ami-123",
@@ -245,12 +267,12 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should handle work for images`() {
-    Assertions.assertTrue(subject.handles(getWorkConfiguration()))
+    expectThat(subject.handles(workConfiguration))
   }
 
   @Test
   fun `should find image cleanup candidates`() {
-    subject.getCandidates(getWorkConfiguration()).let { images ->
+    subject.getCandidates(workConfiguration).let { images ->
       // we get the entire collection of images
       images!!.size shouldMatch equalTo(2)
     }
@@ -258,45 +280,36 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should fail to get candidates if checking launch configuration references fails`() {
-    val configuration = getWorkConfiguration()
     whenever(launchConfigurationCache.get()) doThrow
       IllegalStateException("launch configs")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
-      subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
+      subject.preProcessCandidates(subject.getCandidates(workConfiguration).orEmpty(), workConfiguration)
     }
   }
 
   @Test
   fun `should fail to get candidates if checking instance references fails`() {
-    val configuration = getWorkConfiguration()
     whenever(imagesUsedByinstancesCache.get()) doThrow
       IllegalStateException("failed to get instances")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
-      subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
+      subject.preProcessCandidates(subject.getCandidates(workConfiguration).orEmpty(), workConfiguration)
     }
   }
 
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val workConfiguration = getWorkConfiguration(
-      maxAgeDays = 1,
-      exclusionList = mutableListOf(
-        Exclusion()
-          .withType(ExclusionType.Allowlist.toString())
-          .withAttributes(
-            setOf(
-              Attribute()
-                .withKey("imageId")
-                .withValue(
-                  listOf("ami-123") // will exclude anything else not matching this imageId
-                )
-            )
-          )
-      )
-    )
+    val allowList = Exclusion()
+      .withType(ExclusionType.Allowlist.toString())
+      .withAttributes(
+        setOf(
+          Attribute()
+            .withKey("imageId")
+            .withValue(listOf("ami-123"))
+        ))
 
+    val workConfiguration = workConfiguration.copy(maxAge = 1, exclusions = setOf(allowList), retention = 2)
     subject.getCandidates(workConfiguration).let { images ->
       // we get the entire collection of images
       images!!.size shouldMatch equalTo(2)
@@ -305,7 +318,7 @@ object AmazonImageHandlerTest {
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
       workConfiguration.maxItemsProcessedPerCycle
 
-    subject.mark(workConfiguration)
+    subject.mark(workConfiguration.copy(enabledRules = enabledRules))
 
     // ami-132 is excluded by exclusion policies, specifically because ami-123 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -320,6 +333,16 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should not mark images referenced by other resources`() {
+    val allowList = Exclusion()
+      .withType(ExclusionType.Allowlist.toString())
+      .withAttributes(
+        setOf(
+          Attribute()
+            .withKey("imageId")
+            .withValue(listOf("ami-123"))
+        ))
+
+    val workConfiguration = workConfiguration.copy(exclusions = setOf(allowList), retention = 2)
     whenever(imagesUsedByinstancesCache.get()) doReturn
       AmazonImagesUsedByInstancesCache(
         mapOf(
@@ -328,25 +351,6 @@ object AmazonImageHandlerTest {
         clock.instant().toEpochMilli(),
         "default"
       )
-
-    val workConfiguration = getWorkConfiguration(
-      exclusionList = mutableListOf(
-        Exclusion()
-          .withType(ExclusionType.Allowlist.toString())
-          .withAttributes(
-            setOf(
-              Attribute()
-                .withKey("imageId")
-                .withValue(
-                  listOf("ami-123") // will exclude anything else not matching this imageId
-                )
-            )
-          )
-      )
-    )
-
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
 
     subject.getCandidates(workConfiguration).let { images ->
       images!!.size shouldMatch equalTo(2)
@@ -364,8 +368,6 @@ object AmazonImageHandlerTest {
 
   @Test
   fun `should not mark ancestor or base images`() {
-    val workConfiguration = getWorkConfiguration()
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(aws.getImages(params)) doReturn listOf(
       AmazonImage(
         imageId = "ami-123",
@@ -412,7 +414,7 @@ object AmazonImageHandlerTest {
   @Test
   fun `should delete images`() {
     val fifteenDaysAgo = clock.instant().toEpochMilli() - 15 * 24 * 60 * 60 * 1000L
-    val workConfiguration = getWorkConfiguration(maxAgeDays = 2)
+    val workConfiguration = workConfiguration.copy(maxAge = 2)
     val image = AmazonImage(
       imageId = "ami-123",
       resourceId = "ami-123",
@@ -442,12 +444,7 @@ object AmazonImageHandlerTest {
         )
       )
 
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
-
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test", id = "ami-123")
-
-    whenever(aws.getImages(params)) doReturn listOf(image)
+    whenever(aws.getImages(params.copy(id = "ami-123"))) doReturn listOf(image)
     whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
 
     subject.delete(workConfiguration)
@@ -457,42 +454,4 @@ object AmazonImageHandlerTest {
   }
 
   private fun Long.inDays(): Int = Duration.between(Instant.ofEpochMilli(clock.millis()), Instant.ofEpochMilli(this)).toDays().toInt()
-
-  private fun getWorkConfiguration(
-    isEnabled: Boolean = true,
-    dryRunMode: Boolean = false,
-    accountIds: List<String> = listOf("test"),
-    regions: List<String> = listOf("us-east-1"),
-    exclusionList: MutableList<Exclusion> = mutableListOf(),
-    maxAgeDays: Int = 1
-  ): WorkConfiguration {
-    val swabbieProperties = SwabbieProperties().apply {
-      dryRun = dryRunMode
-      providers = listOf(
-        CloudProviderConfiguration().apply {
-          name = "aws"
-          exclusions = mutableSetOf()
-          accounts = accountIds
-          locations = regions
-          resourceTypes = listOf(
-            ResourceTypeConfiguration().apply {
-              name = "image"
-              enabled = isEnabled
-              dryRun = dryRunMode
-              exclusions = exclusionList.toMutableSet()
-              retention = 2
-              maxAge = maxAgeDays
-            }
-          )
-        }
-      )
-    }
-
-    return WorkConfigurator(
-      swabbieProperties = swabbieProperties,
-      accountProvider = accountProvider,
-      exclusionPolicies = listOf(AccountExclusionPolicy()),
-      exclusionsSuppliers = Optional.empty()
-    ).generateWorkConfigurations()[0]
-  }
 }

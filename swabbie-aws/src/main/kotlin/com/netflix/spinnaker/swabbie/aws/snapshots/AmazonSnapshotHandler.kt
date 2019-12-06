@@ -30,7 +30,6 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
-import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
@@ -45,6 +44,7 @@ import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
+import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
@@ -62,7 +62,7 @@ class AmazonSnapshotHandler(
   exclusionPolicies: List<ResourceExclusionPolicy>,
   applicationEventPublisher: ApplicationEventPublisher,
   dynamicConfigService: DynamicConfigService,
-  private val rules: List<Rule<AmazonSnapshot>>,
+  private val rulesEngine: RulesEngine,
   private val aws: AWS,
   private val orcaService: OrcaService,
   private val applicationUtils: ApplicationUtils,
@@ -74,7 +74,7 @@ class AmazonSnapshotHandler(
 ) : AbstractResourceTypeHandler<AmazonSnapshot>(
   registry,
   clock,
-  rules,
+  rulesEngine,
   resourceTrackingRepository,
   resourceStateRepository,
   exclusionPolicies,
@@ -130,7 +130,8 @@ class AmazonSnapshotHandler(
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =
-    workConfiguration.resourceType == SNAPSHOT && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
+    workConfiguration.resourceType == SNAPSHOT && workConfiguration.cloudProvider == AWS &&
+      rulesEngine.getRules(workConfiguration).isNotEmpty()
 
   override fun getCandidate(resourceId: String, resourceName: String, workConfiguration: WorkConfiguration): AmazonSnapshot? {
     val params = Parameters(

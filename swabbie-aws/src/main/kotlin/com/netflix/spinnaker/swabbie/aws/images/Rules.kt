@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.images
 
+import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
@@ -30,8 +31,13 @@ import org.springframework.stereotype.Component
  *  orphaned state (defined by the rules below) for 10 days before it will be marked.
  */
 @Component
-class OrphanedImageRule : Rule<AmazonImage> {
-  override fun apply(resource: AmazonImage): Result {
+class OrphanedImageRule : Rule {
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonImage::class.java.isAssignableFrom(clazz)
+  override fun <T : Resource> apply(resource: T): Result {
+    if (resource !is AmazonImage) {
+      return Result(null)
+    }
+
     if (resource.matchesAnyRule(
         USED_BY_INSTANCES,
         USED_BY_LAUNCH_CONFIGURATIONS,

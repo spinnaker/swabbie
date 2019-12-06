@@ -26,29 +26,28 @@ import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.Attribute
-import com.netflix.spinnaker.config.CloudProviderConfiguration
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.config.ResourceTypeConfiguration
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
-import com.netflix.spinnaker.swabbie.WorkConfigurator
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.NaiveExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
+import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
@@ -56,6 +55,8 @@ import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
+import com.netflix.spinnaker.swabbie.rules.ResourceRulesEngine
+import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.check
@@ -73,10 +74,11 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.springframework.context.ApplicationEventPublisher
+import strikt.api.expectThat
+import strikt.assertions.isTrue
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import java.util.Optional
 
 object AmazonSnapshotHandlerTest {
   private val objectMapper = ObjectMapper().registerKotlinModule().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -115,6 +117,26 @@ object AmazonSnapshotHandlerTest {
   private val applicationUtils = ApplicationUtils(emptyList())
   private val dynamicConfigService = mock<DynamicConfigService>()
   private val notificationQueue = mock<NotificationQueue>()
+  private val snapshotRules = listOf(OrphanedSnapshotRule())
+  private val enabledRules = setOf(
+    RuleConfiguration()
+      .apply {
+        operator = OPERATOR.OR
+        rules = snapshotRules.map { r ->
+          RuleDefinition()
+            .apply { name = r.name() }
+        }.toSet()
+      })
+
+  private val workConfiguration = WorkConfigurationTestHelper
+    .generateWorkConfiguration(resourceType = SNAPSHOT, cloudProvider = AWS)
+    .copy(enabledRules = enabledRules)
+
+  private val params = Parameters(
+    account = workConfiguration.account.accountId!!,
+    region = workConfiguration.location,
+    environment = workConfiguration.account.environment
+  )
 
   private val subject = AmazonSnapshotHandler(
     clock = clock,
@@ -130,7 +152,7 @@ object AmazonSnapshotHandlerTest {
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
     dynamicConfigService = dynamicConfigService,
-    rules = listOf(OrphanedSnapshotRule()),
+    rulesEngine = ResourceRulesEngine(snapshotRules, listOf(workConfiguration)),
     aws = aws,
     orcaService = orcaService,
     applicationUtils = applicationUtils,
@@ -156,6 +178,8 @@ object AmazonSnapshotHandlerTest {
 
   @BeforeEach
   fun setup() {
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+      workConfiguration.maxItemsProcessedPerCycle
     whenever(accountProvider.getAccounts()) doReturn
       setOf(
         SpinnakerAccount(
@@ -178,7 +202,6 @@ object AmazonSnapshotHandlerTest {
         )
       )
 
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(aws.getSnapshots(params)) doReturn listOf(
       AmazonSnapshot(
         volumeId = "vol-000",
@@ -225,50 +248,39 @@ object AmazonSnapshotHandlerTest {
 
   @Test
   fun `should handle snapshots`() {
-    Assertions.assertTrue(subject.handles(getWorkConfiguration()))
+    expectThat(subject.handles(workConfiguration)).isTrue()
   }
 
   @Test
   fun `should find snapshot cleanup candidates`() {
-    subject.getCandidates(getWorkConfiguration()).let { snapshots ->
+    subject.getCandidates(workConfiguration).let { snapshots ->
       snapshots!!.size shouldMatch equalTo(2)
     }
   }
 
   @Test
   fun `should fail if exception is thrown`() {
-    val configuration = getWorkConfiguration()
     whenever(aws.getSnapshots(any())) doThrow
       IllegalStateException("oh wow error")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
-      subject.preProcessCandidates(subject.getCandidates(getWorkConfiguration()).orEmpty(), configuration)
+      subject.preProcessCandidates(subject.getCandidates(workConfiguration).orEmpty(), workConfiguration)
     }
   }
 
   @Test
   fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val workConfiguration = getWorkConfiguration(
-      maxAgeDays = 1,
-      exclusionList = mutableListOf(
-        Exclusion()
-          .withType(ExclusionType.Allowlist.toString())
-          .withAttributes(
-            setOf(
-              Attribute()
-                .withKey("snapshotId")
-                .withValue(
-                  listOf("snap-000") // will exclude anything else not matching this imageId
-                )
-            )
-          )
-      )
-    )
+    val allowList = Exclusion()
+      .withType(ExclusionType.Allowlist.toString())
+      .withAttributes(
+        setOf(
+          Attribute()
+            .withKey("snapshotId")
+            .withValue(listOf("snap-000"))
+        ))
 
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
-
-    subject.mark(workConfiguration)
+    val workConfiguration = workConfiguration.copy(maxAge = 1, exclusions = setOf(allowList))
+    subject.mark(workConfiguration.copy(enabledRules = enabledRules))
 
     // snap-111 is excluded by exclusion policies, specifically because snap-111 is not allowlisted
     verify(applicationEventPublisher, times(1)).publishEvent(
@@ -282,7 +294,6 @@ object AmazonSnapshotHandlerTest {
 
   @Test
   fun `should not mark snapshots if they are not from a bake`() {
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(aws.getSnapshots(params)) doReturn listOf(
       AmazonSnapshot(
         volumeId = "vol-000",
@@ -298,11 +309,6 @@ object AmazonSnapshotHandlerTest {
         stateMessage = null
       )
     )
-
-    val workConfiguration = getWorkConfiguration()
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
-
     // description isn't from a bake, so it won't be marked
     subject.mark(workConfiguration)
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
@@ -311,55 +317,12 @@ object AmazonSnapshotHandlerTest {
 
   @Test
   fun `should not mark snapshots if they're in use`() {
-    val params = Parameters(account = "1234", region = "us-east-1", environment = "test")
     whenever(usedResourceRepository.isUsed(SNAPSHOT, "snap-000", "aws:${params.region}:${params.account}")) doReturn true
     whenever(usedResourceRepository.isUsed(SNAPSHOT, "snap-1111", "aws:${params.region}:${params.account}")) doReturn true
-
-    val workConfiguration = getWorkConfiguration()
-    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
-      workConfiguration.maxItemsProcessedPerCycle
 
     // both snapshots are in use, so they won't be marked
     subject.mark(workConfiguration)
     verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
     verify(resourceRepository, times(0)).upsert(any(), any())
-  }
-
-  private fun getWorkConfiguration(
-    isEnabled: Boolean = true,
-    dryRunMode: Boolean = false,
-    accountIds: List<String> = listOf("test"),
-    regions: List<String> = listOf("us-east-1"),
-    exclusionList: MutableList<Exclusion> = mutableListOf(),
-    maxAgeDays: Int = 1
-  ): WorkConfiguration {
-    val swabbieProperties = SwabbieProperties().apply {
-      dryRun = dryRunMode
-      providers = listOf(
-        CloudProviderConfiguration().apply {
-          name = "aws"
-          exclusions = mutableSetOf()
-          accounts = accountIds
-          locations = regions
-          resourceTypes = listOf(
-            ResourceTypeConfiguration().apply {
-              name = "snapshot"
-              enabled = isEnabled
-              dryRun = dryRunMode
-              exclusions = exclusionList.toMutableSet()
-              retention = 2
-              maxAge = maxAgeDays
-            }
-          )
-        }
-      )
-    }
-
-    return WorkConfigurator(
-      swabbieProperties = swabbieProperties,
-      accountProvider = accountProvider,
-      exclusionPolicies = listOf(AccountExclusionPolicy()),
-      exclusionsSuppliers = Optional.empty()
-    ).generateWorkConfigurations()[0]
   }
 }

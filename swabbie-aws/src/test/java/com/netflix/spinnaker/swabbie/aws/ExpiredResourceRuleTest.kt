@@ -28,7 +28,7 @@ import java.time.Instant
 
 object ExpiredResourceRuleTest {
   private val clock = MutableClock()
-  private val subject = ExpiredResourceRule<AmazonAutoScalingGroup>(clock)
+  private val subject = ExpiredResourceRule(clock)
   private val now = Instant.now(clock).toEpochMilli()
   private val asg = AmazonAutoScalingGroup(
     autoScalingGroupName = "testapp-v001",

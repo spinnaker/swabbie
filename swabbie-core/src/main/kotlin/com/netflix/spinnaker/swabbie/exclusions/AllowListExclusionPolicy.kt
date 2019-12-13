@@ -51,14 +51,14 @@ class AllowListExclusionPolicy(
         val identifier = getIdentifierForType(excludable, parts[0])
         if (identifier != null && parts.size > 1) {
           compositeTypeMapping[parts[0]]?.filter { it.resourceId == identifier }?.forEach { target ->
-            findProperty(target, parts[1], kv[key]!!)?.let {
+            target.findMatchingAttribute(parts[1], kv.getValue(key))?.let {
               if (identifier.equals(it, ignoreCase = true)) {
                 return null
               }
             }
           }
         } else {
-          findProperty(excludable, key, kv[key]!!)?.let {
+          excludable.findMatchingAttribute(key, kv.getValue(key))?.let {
             // since a matching value is returned for the key, we know it is in the allowlist
             return null
           }

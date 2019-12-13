@@ -30,6 +30,8 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.util.NoSuchElementException
+import kotlin.reflect.full.memberProperties
 
 /** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"
@@ -171,6 +173,50 @@ interface Identifiable : Named {
   fun resourceUrl(workConfiguration: WorkConfiguration): String {
     return "${workConfiguration.notificationConfiguration.resourceUrl}/$resourceId"
   }
+
+  fun findMatchingAttribute(key: String, values: List<Any>): String? {
+    try {
+      val fieldValue = getProperty(key) as? String
+      if (propertyMatches(values, fieldValue)) {
+        return fieldValue
+      }
+    } catch (e: IllegalArgumentException) {
+      return null
+    }
+
+    return null
+  }
+
+  private fun propertyMatches(values: List<Any>, fieldValue: String?): Boolean {
+    if (fieldValue == null) {
+      return false
+    }
+    val splitFieldValue = fieldValue.split(",").map { it.trim() }
+
+    return values.contains(fieldValue) ||
+      values.any { it is String && fieldValue.patternMatched(it) || splitFieldValue.contains(it) }
+  }
+
+  private fun <R : Any?> getProperty(propertyName: String): R {
+    try {
+      return readPropery(propertyName)
+    } catch (e: NoSuchElementException) {
+      val details: Map<String, Any?>? = readPropery("details")
+      if (details != null) {
+        return details[propertyName] as R
+      }
+
+      throw e
+    }
+  }
+
+  private fun <R : Any?> readPropery(propertyName: String): R {
+    @Suppress("UNCHECKED_CAST")
+    return javaClass.kotlin.memberProperties.first { it.name == propertyName }.get(this) as R
+  }
+
+  fun String.patternMatched(p: String): Boolean =
+    p.startsWith("pattern:") && this.contains(p.split(":").last().toRegex())
 }
 
 data class Grouping(

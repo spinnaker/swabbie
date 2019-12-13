@@ -44,3 +44,29 @@ class AgeRule(
     )
   }
 }
+
+/**
+ * Rule matches if provided attributes match the resource
+ *
+ * rules:
+ *  - name: AttributeRule
+ *    parameters:
+ *     name:
+ *      - foo
+ *      - pattern:^fo
+ */
+@Component
+class AttributeRule : Rule {
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = true
+
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    val params = ruleDefinition?.parameters ?: return Result(null)
+    for ((k, v) in params) {
+      if (resource.findMatchingAttribute(k, v as List<Any>) != null) {
+        return Result(Summary(description = "(${resource.resourceId}): matched by rule attributes.", ruleName = name()))
+      }
+    }
+
+    return Result(null)
+  }
+}

@@ -146,16 +146,8 @@ class TestRule(
     return TestResource::class.java.isAssignableFrom(clazz)
   }
 
-  override fun <T : Resource> apply(resource: T): Result {
-    return if (invalidOn(resource, emptyMap())) Result(summary) else Result(null)
-  }
-
   override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
-    if (ruleDefinition == null || ruleDefinition.parameters.isEmpty()) {
-      return apply(resource)
-    }
-
-    return if (invalidOn(resource, ruleDefinition.parameters)) Result(summary) else Result(null)
+    return if (invalidOn(resource, ruleDefinition?.parameters ?: emptyMap())) Result(summary) else Result(null)
   }
 
   override fun name(): String {

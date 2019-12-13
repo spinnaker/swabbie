@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.discovery.DiscoveryClient
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
@@ -31,7 +32,7 @@ import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Optional
 
-object OutOfDiscoveryRuleTest {
+object NotInDiscoveryRuleTest {
   private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)
 
   @Test
@@ -56,23 +57,27 @@ object OutOfDiscoveryRuleTest {
       createdTime = clock.millis()
     )
 
-    var rule = OutOfDiscoveryRule(Optional.of(discoveryClient), clock)
+    val rule = NotInDiscoveryRule(Optional.of(discoveryClient), clock)
 
     // applies because asg is out of discovery
     expectThat(rule.apply(asg).summary).isNotNull()
 
-    rule = rule.withParameters(
-      mapOf("thresholdDays" to 3)
-    )
+    var ruleDefinition = RuleDefinition()
+      .apply {
+        name = rule.name()
+        parameters = mapOf("moreThanDays" to 3)
+      }
 
     // doesn't apply because even though the asg is out of discovery, it hasn't been longer than 3 days
-    expectThat(rule.apply(asg).summary).isNull()
+    expectThat(rule.apply(asg, ruleDefinition).summary).isNull()
 
-    rule = rule.withParameters(
-      mapOf("thresholdDays" to 1)
-    )
+    ruleDefinition = RuleDefinition()
+      .apply {
+        name = rule.name()
+        parameters = mapOf("moreThanDays" to 1)
+      }
 
     // applies because the asg is out of discovery and it has been longer than 3 days
-    expectThat(rule.apply(asg).summary).isNotNull()
+    expectThat(rule.apply(asg, ruleDefinition).summary).isNotNull()
   }
 }

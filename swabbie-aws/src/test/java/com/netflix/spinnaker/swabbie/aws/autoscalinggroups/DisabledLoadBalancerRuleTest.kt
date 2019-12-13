@@ -17,8 +17,9 @@
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.kork.test.time.MutableClock
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
@@ -46,19 +47,24 @@ object DisabledLoadBalancerRuleTest {
     )
 
     clock.incrementBy(Duration.ofDays(2))
-    var rule = DisabledLoadBalancerRule(clock)
-    expectThat(rule.apply(asg).summary).isNotNull()
-
-    rule = rule.withParameters(
-      mapOf("thresholdDays" to 3)
-    )
-
-    expectThat(rule.apply(asg).summary).isNull()
-
-    rule = rule.withParameters(
-      mapOf("thresholdDays" to 1)
-    )
+    val rule = DisabledLoadBalancerRule(clock)
 
     expectThat(rule.apply(asg).summary).isNotNull()
+
+    var ruleDefinition = RuleDefinition()
+      .apply {
+        name = rule.name()
+        parameters = mapOf("moreThanDays" to 3)
+      }
+
+    expectThat(rule.apply(asg, ruleDefinition).summary).isNull()
+
+    ruleDefinition = RuleDefinition()
+      .apply {
+        name = rule.name()
+        parameters = mapOf("moreThanDays" to 1)
+      }
+
+    expectThat(rule.apply(asg, ruleDefinition).summary).isNotNull()
   }
 }

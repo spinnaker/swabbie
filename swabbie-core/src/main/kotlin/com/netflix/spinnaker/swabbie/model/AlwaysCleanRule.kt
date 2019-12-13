@@ -18,6 +18,7 @@
 
 package com.netflix.spinnaker.swabbie.model
 
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.config.SwabbieProperties
 import org.slf4j.LoggerFactory
 
@@ -35,7 +36,7 @@ class AlwaysCleanRule(
   }
 
   override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = true
-  override fun <T : Resource> apply(resource: T): Result {
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
     return if (config.resourceIds.contains(resource.resourceId)) {
       Result(
         Summary(

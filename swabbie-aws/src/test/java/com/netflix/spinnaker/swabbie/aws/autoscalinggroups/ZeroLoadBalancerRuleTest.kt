@@ -16,7 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
@@ -39,12 +39,8 @@ object ZeroLoadBalancerRuleTest {
       createdTime = clock.millis()
     )
 
-    // applies because the server group has no load balancer
     expectThat(rule.apply(asg).summary).isNotNull()
 
-    // doesn't apply because the server group has a load balancer
-    expectThat(
-      rule.apply(asg.copy(loadBalancerNames = listOf("lb"))).summary
-    ).isNull()
+    expectThat(rule.apply(asg.copy(loadBalancerNames = listOf("lb"))).summary).isNull()
   }
 }

@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie
+package com.netflix.spinnaker.swabbie.rules
 
-import com.netflix.spinnaker.swabbie.model.ParameterizedRule
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
+import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -26,23 +27,20 @@ import java.time.Clock
 @Component
 class AgeRule(
   private val clock: Clock
-) : ParameterizedRule<Resource> {
-  private var olderThanDays: Int? = null
-  override fun withParameters(parameters: Map<String, Any>): AgeRule {
-    olderThanDays = parameters["olderThanDays"] as? Int
-    return this
-  }
-
-  override fun apply(resource: Resource): Result {
-    if (olderThanDays != null && resource.age(clock).toDays() > olderThanDays!!) {
-      return Result(
-        Summary(
-          description = "Resource ${resource.resourceId} is older than $olderThanDays days.",
-          ruleName = name()
-        )
-      )
+) : Rule {
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = true
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    val age = resource.age(clock).toDays()
+    val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int
+    if (moreThanDays == null || age <= moreThanDays) {
+      return Result(null)
     }
 
-    return Result(null)
+    return Result(
+      Summary(
+        description = "Resource ${resource.resourceId} is older than $moreThanDays days.",
+        ruleName = name()
+      )
+    )
   }
 }

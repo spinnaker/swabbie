@@ -156,6 +156,8 @@ class DisabledLoadBalancerRule(
     }
 
     val disabledTime = resource.disabledTime()!!
+
+    // Parameter moreThanDays is optional. This rule would enforce moreThanDays if present otherwise it just asserts if the server group is disabled
     val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int
     if (moreThanDays != null && disabledTime.isBefore(LocalDateTime.now(clock).minusDays(moreThanDays.toLong()))) {
       return Result(
@@ -179,6 +181,8 @@ class NotInDiscoveryRule(
   }
 
   override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
+    // Parameter moreThanDays is optional. This rule would enforce moreThanDays if present otherwise it just asserts
+    // if the server group is out of discovery
     val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int
     if (resource !is AmazonAutoScalingGroup || !discoveryClient.isPresent || !resource.isOutOfDiscovery(moreThanDays)) {
       return Result(null)

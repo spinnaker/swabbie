@@ -19,7 +19,7 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.kork.test.time.MutableClock
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
@@ -66,5 +66,14 @@ object DisabledLoadBalancerRuleTest {
       }
 
     expectThat(rule.apply(asg, ruleDefinition).summary).isNotNull()
+
+    ruleDefinition = RuleDefinition()
+      .apply {
+        name = rule.name()
+      }
+
+    // When no parameter passed, rule should still assert that resource is disabled
+    expectThat(rule.apply(asg, ruleDefinition).summary).isNotNull()
+    expectThat(rule.apply(asg.copy(suspendedProcesses = emptyList()), ruleDefinition).summary).isNull()
   }
 }

@@ -16,7 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull

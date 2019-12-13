@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.images
 
+import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
@@ -33,7 +34,7 @@ import org.springframework.stereotype.Component
 @Component
 class OrphanedImageRule : Rule {
   override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonImage::class.java.isAssignableFrom(clazz)
-  override fun <T : Resource> apply(resource: T): Result {
+  override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
     if (resource !is AmazonImage) {
       return Result(null)
     }

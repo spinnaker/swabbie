@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.netflix.spinnaker.swabbie.aws
+package com.netflix.spinnaker.swabbie.rules
 
 import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
-import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
@@ -25,28 +24,23 @@ import com.netflix.spinnaker.swabbie.model.Summary
 import org.springframework.stereotype.Component
 import java.time.Clock
 
-/**
- * This rule applies if this amazon resource has expired.
- * A resource is expired if it's tagged with the following keys: ("expiration_time", "expires", "ttl")
- * Acceptable tag value: a number followed by a suffix such as d (days), w (weeks), m (month), y (year)
- * @see com.netflix.spinnaker.swabbie.tagging.TemporalTags.supportedTemporalTagValues
- */
-
 @Component
-class ExpiredResourceRule(
+class AgeRule(
   private val clock: Clock
 ) : Rule {
-  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonResource::class.java.isAssignableFrom(clazz)
+  override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = true
   override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
-    if (resource is AmazonResource && resource.expired(clock)) {
-      return Result(
-        Summary(
-          description = "${resource.resourceId} has expired.",
-          ruleName = javaClass.simpleName
-        )
-      )
+    val age = resource.age(clock).toDays()
+    val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int
+    if (moreThanDays == null || age <= moreThanDays) {
+      return Result(null)
     }
 
-    return Result(null)
+    return Result(
+      Summary(
+        description = "Resource ${resource.resourceId} is older than $moreThanDays days.",
+        ruleName = name()
+      )
+    )
   }
 }

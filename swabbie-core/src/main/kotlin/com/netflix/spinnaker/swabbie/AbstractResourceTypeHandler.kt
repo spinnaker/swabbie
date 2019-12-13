@@ -230,6 +230,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         .filter { it.markedResource.namespace == workConfiguration.namespace && it.optedOut }
 
       val preProcessedCandidates = candidates
+        .sortedBy {
+          it.createTs
+        }
         .withResolvedOwners(workConfiguration)
         .also { preProcessCandidates(it, workConfiguration) }
         .filter { !shouldExcludeResource(it, workConfiguration, optedOutResourceStates, Action.MARK) }
@@ -482,6 +485,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         currentMarkedResourcesToDelete.any { r ->
           candidate.resourceId == r.resourceId
         }
+      }
+      .sortedBy {
+        it.createTs
       }
       .withResolvedOwners(workConfiguration)
       .also { preProcessCandidates(it, workConfiguration) }

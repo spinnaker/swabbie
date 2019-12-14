@@ -165,7 +165,7 @@ class DisabledLoadBalancerRule(
       Summary(description = "Server Group ${resource.resourceId} is out of load balancer.", ruleName = name())
     )
 
-    if (disabledDays < moreThanDays) {
+    if (disabledDays <= moreThanDays) {
       return Result(null)
     }
 

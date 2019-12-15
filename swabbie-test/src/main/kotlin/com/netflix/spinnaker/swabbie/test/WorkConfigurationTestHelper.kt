@@ -44,7 +44,7 @@ object WorkConfigurationTestHelper {
     retention = retention,
     exclusions = exclusions.toSet(),
     dryRun = dryRun,
-    maxAge = 1,
+    maxAge = 0,
     itemsProcessedBatchSize = itemsProcessedBatchSize,
     maxItemsProcessedPerCycle = maxItemsProcessedPerCycle,
     notificationConfiguration = notificationConfiguration

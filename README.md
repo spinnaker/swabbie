@@ -15,117 +15,68 @@ If so, it is deleted.
 
 For a more detailed understanding of how Swabbie works, visit [the internals doc](INTERNALS.md).
 
-## Configuration
-
-There are lots of configuration options. 
-Configuration can be applied at the top level, at the provider level, or a the resource type level. 
-
-#### Top Level Config
-
-Top level config is located under the `swabbie` key.
-Examples of top level properties are:
-
-* `dryRun`
-* `work.intervalMs`
-* `queue.monitorIntervalMs`
-* `schedule`
-
-These map to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
-
-#### Provider Level Config  
-
-Provider level config options control specifics about the overall provider config.
-Some examples are:
-
-* `locations`
-* `maxItemsProcessedPerCycle`
-* `itemsProcessedBatchSize`
-* `exclusions`
-
-You can configure exclusions for the whole provider in this sections. 
-These exclusions add to exclusions defined for each resource type.
-
-These map to [CloudProviderConfiguration](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
-
-#### Resource Type Level Config  
-
-Resource type level config options are for behavior of the specific resource type.
-Some examples are:
-
-* `dryRun`
-* `maxAge`
-* `exclusions`
-* `notification`
-
-Any exclusions defined here apply for only the specific resource type and add to any exclusions defined at the provider level.
-
-These map to [ResourceTypeConfiguration](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
-
-### Example
-
-Here is an example of a configuration for Swabbie. 
-For current values and structure it is best to look at [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
+## How it works
+During initialization swabbie schedules work to routinely mark, notify and delete resources,
+utilizing a configurable rules engine to determine which resources to mark for deletion.   
 
 ```
-swabbie:
-  providers:
-    - name: aws
-      locations:
-        - us-east-1
-        - us-west-2
-      accounts:
-        - test
-        - prod
-      maxItemsProcessedPerCycle: 100
-      itemsProcessedBatchSize: 25
-      exclusions:
-        - type: Tag
-          attributes:
-            - key: expiration_time
-              value:
-                - never
-                - pattern:^\d+(d|m|y)$
-      resourceTypes:
-        - name: image
-          enabled: true
-          dryRun: false
-          retention: 2
-          maxAge: 30
-          exclusions:
-            - type: Literal
-              attributes:
-                - key: description
-                  value:
-                    - pattern:name=base
-          notification:
-            enabled: true
-            required: true
-            types:
-              - EMAIL
-            defaultDestination: swabbie-email-notifications@
-            optOutBaseUrl: apiUrl
-            resourceUrl: helpfulUrl
-        - name: loadBalancer
-          enabled: true
-          dryRun: true
-          retention: 10 #days
-          maxAge: 10 #days
-          entityTaggingEnabled: true
-          notification:
-            enabled: true
-            types:
-              - email
-              - slack
-            itemsPerMessage: 5
-            defaultDestination: swabbie@spinnaker.io
-            optOutBaseUrl: http://localhost:8088/
-            resourceUrl: https://spinnaker/infrastructure?q=
-          exclusions:
-            - type: Allowlist
-              attributes:
-                - key: swabbieResourceOwner
-                  value:
-                    - user@netflix.com
-
+- operator: AND
+   description: Disabled Server Groups that are older than a year
+   rules:
+    - name: ZeroInstanceDisabledServerGroupRule
+    - name: AgeRule
+      parameters:
+         moreThanDays: 365
+- operator: OR
+   description: Expired Server Groups
+   rules:
+    - name: ExpiredResourceRule
 ```
+
+Translates to:
+`((ZeroInstanceDisabledServerGroupRule && AgeRule) || ExpiredResourceRule) == true`
+
+Another example:
+```
+- operator: AND
+    description: Packer Images older than 2 days
+    rules:
+    - name: AttributeRule
+      parameters:
+        description:
+        - pattern:^packer-build
+    - name: AgeRule
+      parameters:
+        moreThanDays: 2
+```
+
+Reads: `((AttributeRule && AgeRule) == true`
+Rules that are defined with `AND` operator will apply only if all rules apply, similar to the logical `&&` operator.
+`OR` rules apply only if any rule apply similar to the logical `||` operator.
+
+To enable rules for a resource type:
+```
+resourceTypes:
+  - name: image
+    enabled: true
+    enabledRules:
+    - operator: AND
+        description: Packer Images older than 2 days
+        rules:
+        - name: AttributeRule
+          parameters:
+            description:
+            - pattern:^packer-build
+        - name: AgeRule
+          parameters:
+            moreThanDays: 2
+```
+
+## Running swabbie
+Requirements: 
+- Redis for storage
+- Application YAML [Configuration](swabbie-core/src/resources/swabbie.yml) (maps to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt))
+
+./gradlew run
+
 

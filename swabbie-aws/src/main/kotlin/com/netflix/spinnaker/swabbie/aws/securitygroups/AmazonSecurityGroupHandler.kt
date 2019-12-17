@@ -26,6 +26,8 @@ import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -43,7 +45,6 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Clock
 
-// TODO: add rules for this handler
 @Component
 class AmazonSecurityGroupHandler(
   registry: Registry,
@@ -101,7 +102,7 @@ class AmazonSecurityGroupHandler(
                   )
                 )
               ),
-              description = "Cleaning up Security Group for ${resource.grouping?.value.orEmpty()}"
+              description = "Deleting Security Group: ${resource.resourceId}"
             )
           ).let { taskResponse ->
             taskTrackingRepository.add(
@@ -136,11 +137,14 @@ class AmazonSecurityGroupHandler(
     candidates: List<AmazonSecurityGroup>,
     workConfiguration: WorkConfiguration
   ): List<AmazonSecurityGroup> {
-    TODO("not implemented") // To change body of created functions use File | Settings | File Templates.
+    log.warn("No pre reference checking for {}", workConfiguration.namespace)
+    return candidates.toList()
   }
 
-  // TODO: disabled
-  override fun handles(workConfiguration: WorkConfiguration): Boolean = false
+  override fun handles(workConfiguration: WorkConfiguration): Boolean {
+    return workConfiguration.resourceType == SECURITY_GROUP && workConfiguration.cloudProvider == AWS &&
+      rulesEngine.getRules(workConfiguration).isNotEmpty()
+  }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonSecurityGroup>? =
     aws.getSecurityGroups(

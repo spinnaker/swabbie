@@ -58,5 +58,9 @@ class Dates {
         .ofInstant(Instant.ofEpochMilli(timestampMillis), ZoneId.of("America/Los_Angeles"))
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSS'Z'"))
     }
+
+    fun toInstant(localDateTime: LocalDateTime): Instant {
+      return localDateTime.atZone(ZoneId.systemDefault()).toInstant()
+    }
   }
 }

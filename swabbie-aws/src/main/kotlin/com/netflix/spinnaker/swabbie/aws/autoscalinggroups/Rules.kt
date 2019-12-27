@@ -20,6 +20,7 @@ import com.netflix.appinfo.InstanceInfo
 import com.netflix.appinfo.InstanceInfo.InstanceStatus.OUT_OF_SERVICE
 import com.netflix.discovery.DiscoveryClient
 import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
+import com.netflix.spinnaker.swabbie.Dates
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
@@ -151,22 +152,25 @@ class DisabledLoadBalancerRule(
   }
 
   override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
-    if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer()) {
+    if (resource !is AmazonAutoScalingGroup || resource.isInLoadBalancer() || resource.disabledTime() == null) {
       return Result(null)
     }
 
-    val disabledTime = resource.disabledTime()!!
+    val disabledDays = Duration
+      .between(Dates.toInstant(resource.disabledTime()!!), Instant.now(clock))
+      .toDays()
 
     // Parameter moreThanDays is optional. This rule would enforce moreThanDays if present otherwise it just asserts if the server group is disabled
-    val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int
-    if (moreThanDays != null && disabledTime.isBefore(LocalDateTime.now(clock).minusDays(moreThanDays.toLong()))) {
-      return Result(
-        Summary(description = "Server Group ${resource.resourceId} has been out of balancer longer than $moreThanDays days.", ruleName = name())
-      )
+    val moreThanDays = ruleDefinition?.parameters?.get("moreThanDays") as? Int ?: return Result(
+      Summary(description = "Server Group ${resource.resourceId} is out of load balancer.", ruleName = name())
+    )
+
+    if (disabledDays <= moreThanDays) {
+      return Result(null)
     }
 
     return Result(
-      Summary(description = "Server Group ${resource.resourceId} is out of load balancer.", ruleName = name())
+      Summary(description = "Server Group ${resource.resourceId} has been out of balancer longer than $moreThanDays days.", ruleName = name())
     )
   }
 }

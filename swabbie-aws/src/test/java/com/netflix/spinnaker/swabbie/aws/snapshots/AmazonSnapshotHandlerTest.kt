@@ -22,32 +22,18 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.natpryce.hamkrest.equalTo
-import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.config.Attribute
-import com.netflix.spinnaker.config.Exclusion
-import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration
-import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
-import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleConfiguration.OPERATOR
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.AccountProvider
-import com.netflix.spinnaker.swabbie.InMemoryCache
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.exclusions.AllowListExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.LiteralExclusionPolicy
-import com.netflix.spinnaker.swabbie.exclusions.NaiveExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.Application
-import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
+import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
@@ -59,7 +45,8 @@ import com.netflix.spinnaker.swabbie.rules.ResourceRulesEngine
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
-import com.nhaarman.mockito_kotlin.check
+import com.nhaarman.mockito_kotlin.validateMockitoUsage
+import com.nhaarman.mockito_kotlin.verifyNoMoreInteractions
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.doThrow
 import com.nhaarman.mockito_kotlin.eq
@@ -72,9 +59,11 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito
 import org.springframework.context.ApplicationEventPublisher
 import strikt.api.expectThat
+import strikt.assertions.isEqualTo
+import strikt.assertions.isFalse
+import strikt.assertions.isNull
 import strikt.assertions.isTrue
 import java.time.Clock
 import java.time.Instant
@@ -101,8 +90,6 @@ object AmazonSnapshotHandlerTest {
     assert(image.imageId == "ami-08366161198075aff")
   }
 
-  private val front50ApplicationCache = mock<InMemoryCache<Application>>()
-  private val accountProvider = mock<AccountProvider>()
   private val resourceRepository = mock<ResourceTrackingRepository>()
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val usedResourceRepository = mock<UsedResourceRepository>()
@@ -117,20 +104,10 @@ object AmazonSnapshotHandlerTest {
   private val applicationUtils = ApplicationUtils(emptyList())
   private val dynamicConfigService = mock<DynamicConfigService>()
   private val notificationQueue = mock<NotificationQueue>()
-  private val snapshotRules = listOf(OrphanedSnapshotRule())
-  private val enabledRules = setOf(
-    RuleConfiguration()
-      .apply {
-        operator = OPERATOR.OR
-        rules = snapshotRules.map { r ->
-          RuleDefinition()
-            .apply { name = r.name() }
-        }.toSet()
-      })
-
+  private val rulesEngine = mock<ResourceRulesEngine>()
+  private val ruleAndViolationPair = Pair<Rule, List<Summary>>(mock(), listOf(Summary("violate rule", ruleName = "rule")))
   private val workConfiguration = WorkConfigurationTestHelper
     .generateWorkConfiguration(resourceType = SNAPSHOT, cloudProvider = AWS)
-    .copy(enabledRules = enabledRules)
 
   private val params = Parameters(
     account = workConfiguration.account.accountId!!,
@@ -144,15 +121,11 @@ object AmazonSnapshotHandlerTest {
     notifier = mock(),
     resourceTrackingRepository = resourceRepository,
     resourceStateRepository = resourceStateRepository,
-    exclusionPolicies = listOf(
-      LiteralExclusionPolicy(),
-      AllowListExclusionPolicy(front50ApplicationCache, accountProvider),
-      NaiveExclusionPolicy()
-    ),
+    exclusionPolicies = listOf(),
     resourceOwnerResolver = resourceOwnerResolver,
     applicationEventPublisher = applicationEventPublisher,
     dynamicConfigService = dynamicConfigService,
-    rulesEngine = ResourceRulesEngine(snapshotRules, listOf(workConfiguration)),
+    rulesEngine = rulesEngine,
     aws = aws,
     orcaService = orcaService,
     applicationUtils = applicationUtils,
@@ -161,6 +134,34 @@ object AmazonSnapshotHandlerTest {
     usedResourceRepository = usedResourceRepository,
     swabbieProperties = swabbieProperties,
     notificationQueue = notificationQueue
+  )
+
+  private val snap000 = AmazonSnapshot(
+    volumeId = "vol-000",
+    state = "completed",
+    progress = "100%",
+    startTime = 1519943308000,
+    volumeSize = 10,
+    description = "name=swabbie, arch=x86_64, ancestor_name=xb-ebs, ancestor_id=ami-0000, ancestor_version=nflx-base-5",
+    snapshotId = "snap-000",
+    ownerId = "1234",
+    encrypted = false,
+    ownerAlias = null,
+    stateMessage = null
+  )
+
+  private val snap111 = AmazonSnapshot(
+    volumeId = "vol-111",
+    state = "completed",
+    progress = "100%",
+    startTime = 1519943307000,
+    volumeSize = 10,
+    description = "name=swabbie, arch=x86_64, ancestor_name=xb-ebs, ancestor_id=ami-0000, ancestor_version=nflx-base-4",
+    snapshotId = "snap-1111",
+    ownerId = "1234",
+    encrypted = false,
+    ownerAlias = null,
+    stateMessage = null
   )
 
   @Test
@@ -178,67 +179,20 @@ object AmazonSnapshotHandlerTest {
 
   @BeforeEach
   fun setup() {
+    snap000.details.clear()
+    snap111.details.clear()
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
       workConfiguration.maxItemsProcessedPerCycle
-    whenever(accountProvider.getAccounts()) doReturn
-      setOf(
-        SpinnakerAccount(
-          name = "test",
-          accountId = "1234",
-          type = "aws",
-          edda = "http://edda",
-          regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false,
-          environment = "test"
-        ),
-        SpinnakerAccount(
-          name = "prod",
-          accountId = "4321",
-          type = "aws",
-          edda = "http://edda",
-          regions = listOf(Region(name = "us-east-1")),
-          eddaEnabled = false,
-          environment = "prod"
-        )
-      )
 
-    whenever(aws.getSnapshots(params)) doReturn listOf(
-      AmazonSnapshot(
-        volumeId = "vol-000",
-        state = "completed",
-        progress = "100%",
-        startTime = 1519943308000,
-        volumeSize = 10,
-        description = "name=swabbie, arch=x86_64, ancestor_name=xb-ebs, ancestor_id=ami-0000, ancestor_version=nflx-base-5",
-        snapshotId = "snap-000",
-        ownerId = "1234",
-        encrypted = false,
-        ownerAlias = null,
-        stateMessage = null
-      ),
-      AmazonSnapshot(
-        volumeId = "vol-111",
-        state = "completed",
-        progress = "100%",
-        startTime = 1519943307000,
-        volumeSize = 10,
-        description = "name=swabbie, arch=x86_64, ancestor_name=xb-ebs, ancestor_id=ami-0000, ancestor_version=nflx-base-4",
-        snapshotId = "snap-1111",
-        ownerId = "1234",
-        encrypted = false,
-        ownerAlias = null,
-        stateMessage = null
-      )
-    )
+    whenever(aws.getSnapshots(params)) doReturn listOf(snap000, snap111)
   }
 
   @AfterEach
   fun cleanup() {
-    Mockito.validateMockitoUsage()
+    validateMockitoUsage()
     reset(
       resourceRepository,
       aws,
-      accountProvider,
       applicationEventPublisher,
       resourceOwnerResolver,
       taskTrackingRepository,
@@ -248,14 +202,16 @@ object AmazonSnapshotHandlerTest {
 
   @Test
   fun `should handle snapshots`() {
+    whenever(rulesEngine.getRules(workConfiguration)) doReturn listOf(ruleAndViolationPair.first)
     expectThat(subject.handles(workConfiguration)).isTrue()
+
+    whenever(rulesEngine.getRules(workConfiguration)) doReturn emptyList<Rule>()
+    expectThat(subject.handles(workConfiguration)).isFalse()
   }
 
   @Test
-  fun `should find snapshot cleanup candidates`() {
-    subject.getCandidates(workConfiguration).let { snapshots ->
-      snapshots!!.size shouldMatch equalTo(2)
-    }
+  fun `should get snapshots`() {
+    expectThat(subject.getCandidates(workConfiguration)!!.count()).isEqualTo(2)
   }
 
   @Test
@@ -269,60 +225,30 @@ object AmazonSnapshotHandlerTest {
   }
 
   @Test
-  fun `should find cleanup candidates, apply exclusion policies on them and mark them`() {
-    val allowList = Exclusion()
-      .withType(ExclusionType.Allowlist.toString())
-      .withAttributes(
-        setOf(
-          Attribute()
-            .withKey("snapshotId")
-            .withValue(listOf("snap-000"))
-        ))
+  fun `should mark snapshots`() {
+    whenever(rulesEngine.evaluate(any<AmazonSnapshot>(), any())) doReturn ruleAndViolationPair.second
+    subject.mark(workConfiguration)
 
-    val workConfiguration = workConfiguration.copy(maxAge = 1, exclusions = setOf(allowList))
-    subject.mark(workConfiguration.copy(enabledRules = enabledRules))
-
-    // snap-111 is excluded by exclusion policies, specifically because snap-111 is not allowlisted
-    verify(applicationEventPublisher, times(1)).publishEvent(
-      check<MarkResourceEvent> { event ->
-        Assertions.assertTrue(event.markedResource.resourceId == "snap-000")
-      }
-    )
-
-    verify(resourceRepository, times(1)).upsert(any(), any())
+    verify(resourceRepository, times(2)).upsert(any(), any())
+    verify(applicationEventPublisher, times(2)).publishEvent(any<MarkResourceEvent>())
+    verifyNoMoreInteractions(applicationEventPublisher)
   }
 
   @Test
-  fun `should not mark snapshots if they are not from a bake`() {
-    whenever(aws.getSnapshots(params)) doReturn listOf(
-      AmazonSnapshot(
-        volumeId = "vol-000",
-        state = "completed",
-        progress = "100%",
-        startTime = 1519943308000,
-        volumeSize = 10,
-        description = "i am a snapshot would you look at that",
-        snapshotId = "snap-000",
-        ownerId = "1234",
-        encrypted = false,
-        ownerAlias = null,
-        stateMessage = null
-      )
-    )
-    // description isn't from a bake, so it won't be marked
-    subject.mark(workConfiguration)
-    verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
-    verify(resourceRepository, times(0)).upsert(any(), any())
-  }
+  fun `should set image exists`() {
+    whenever(
+      usedResourceRepository.isUsed(SNAPSHOT, snap000.snapshotId, "aws:${params.region}:${params.account}")
+    ) doReturn true
 
-  @Test
-  fun `should not mark snapshots if they're in use`() {
-    whenever(usedResourceRepository.isUsed(SNAPSHOT, "snap-000", "aws:${params.region}:${params.account}")) doReturn true
-    whenever(usedResourceRepository.isUsed(SNAPSHOT, "snap-1111", "aws:${params.region}:${params.account}")) doReturn true
+    whenever(
+      usedResourceRepository.isUsed(SNAPSHOT, snap111.snapshotId, "aws:${params.region}:${params.account}")
+    ) doReturn false
 
-    // both snapshots are in use, so they won't be marked
-    subject.mark(workConfiguration)
-    verify(applicationEventPublisher, times(0)).publishEvent(any<MarkResourceEvent>())
-    verify(resourceRepository, times(0)).upsert(any(), any())
+    expectThat(snap000.details[IMAGE_EXISTS]).isNull()
+
+    subject.preProcessCandidates(listOf(snap000, snap111), workConfiguration)
+
+    expectThat(snap000.details[IMAGE_EXISTS]).isEqualTo(true)
+    expectThat(snap111.details[IMAGE_EXISTS]).isNull()
   }
 }

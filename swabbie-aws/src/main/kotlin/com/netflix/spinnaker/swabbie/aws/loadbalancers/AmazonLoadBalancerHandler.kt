@@ -26,6 +26,8 @@ import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
@@ -56,7 +58,7 @@ class AmazonLoadBalancerHandler(
   applicationEventPublisher: ApplicationEventPublisher,
   swabbieProperties: SwabbieProperties,
   dynamicConfigService: DynamicConfigService,
-  rulesEngine: RulesEngine,
+  private val rulesEngine: RulesEngine,
   private val aws: AWS,
   private val orcaService: OrcaService,
   private val taskTrackingRepository: TaskTrackingRepository,
@@ -101,7 +103,7 @@ class AmazonLoadBalancerHandler(
                   )
                 )
               ),
-              description = "Cleaning up Load Balancer for ${resource.grouping?.value.orEmpty()}"
+              description = "Deleting Load Balancer: ${resource.resourceId}"
             )
           ).let { taskResponse ->
             taskTrackingRepository.add(
@@ -133,9 +135,8 @@ class AmazonLoadBalancerHandler(
   )
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean {
-    // TODO: handler currently disabled.
-//    return workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS && !rules.isEmpty()
-    return false
+    return workConfiguration.resourceType == LOAD_BALANCER && workConfiguration.cloudProvider == AWS &&
+      rulesEngine.getRules(workConfiguration).isNotEmpty()
   }
 
   override fun getCandidates(workConfiguration: WorkConfiguration): List<AmazonElasticLoadBalancer>? =

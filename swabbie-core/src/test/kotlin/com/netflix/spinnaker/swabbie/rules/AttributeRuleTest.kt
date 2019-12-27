@@ -45,20 +45,19 @@ object AttributeRuleTest {
 
   @Test
   fun `should apply`() {
-    val rule = AttributeRule()
-
     expectThat(rule.apply(resource).summary).isNull()
 
     val ruleDefinition = RuleDefinition()
       .apply {
         name = rule.name()
         parameters = mapOf(
-          "name" to listOf("foo", "pattern:^bar") // starts with bar
+          "name" to "pattern:^bar",
+          "resourceId" to "id"
         )
       }
 
     expectThat(rule.apply(resource, ruleDefinition).summary).isNull()
-    expectThat(rule.apply(resource.copy(name = "foo"), ruleDefinition).summary).isNotNull()
+    expectThat(rule.apply(resource.copy(resourceId = "id"), ruleDefinition).summary).isNotNull()
     expectThat(rule.apply(resource.copy(name = "foo bar"), ruleDefinition).summary).isNull()
     expectThat(rule.apply(resource.copy(name = "bar foo"), ruleDefinition).summary).isNotNull()
   }

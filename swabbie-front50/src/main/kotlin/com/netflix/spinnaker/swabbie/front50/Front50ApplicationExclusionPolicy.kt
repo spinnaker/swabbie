@@ -38,30 +38,27 @@ class Front50ApplicationExclusionPolicy(
   private val front50ApplicationCache: InMemoryCache<Application>
 ) : ResourceExclusionPolicy {
 
-  private fun findApplication(excludable: Excludable, names: Set<String>): Excludable? {
+  private fun findApplication(excludable: Excludable): Excludable? {
     val grouping: Grouping = excludable.grouping ?: return null
-    if (grouping.type == GroupingType.APPLICATION) {
-      return front50ApplicationCache.get().find { matchesApplication(it, grouping.value, names) }
+    if (grouping.type != GroupingType.APPLICATION) {
+      return null
     }
-    return null
+
+    return front50ApplicationCache
+      .get()
+      .find {
+        it.isNamed(grouping.value)
+      }
   }
 
-  private fun matchesApplication(application: Application, name: String, names: Set<String>): Boolean {
-    return application.name.equals(name, ignoreCase = true) ||
-      names.any { it.equals(application.name, ignoreCase = true) || application.name.matchPattern(it) }
+  private fun Application.isNamed(name: String): Boolean {
+    return this.name.equals(name, ignoreCase = true) || this.name.matchPattern(name)
   }
 
   override fun getType(): ExclusionType = ExclusionType.Application
 
   override fun apply(excludable: Excludable, exclusions: List<Exclusion>): String? {
-    val kv = keysAndValues(exclusions, ExclusionType.Allowlist)
-    val names: List<String> = kv.values.flatten().map { it.toString() }
-    val application = findApplication(excludable, names.toSet())
-
-    if (application != null) {
-      return byPropertyMatchingResult(exclusions, application)
-    }
-
-    return null
+    val application = findApplication(excludable) ?: return null
+    return byPropertyMatchingResult(exclusions, application)
   }
 }

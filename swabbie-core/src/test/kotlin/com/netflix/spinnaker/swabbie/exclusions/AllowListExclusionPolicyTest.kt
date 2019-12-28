@@ -14,67 +14,24 @@
  * limitations under the License.
  */
 package com.netflix.spinnaker.swabbie.exclusions
-import com.natpryce.hamkrest.equalTo
-import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.Attribute
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
-import com.netflix.spinnaker.swabbie.InMemoryCache
-import com.netflix.spinnaker.swabbie.model.Application
 import com.netflix.spinnaker.swabbie.test.TestResource
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.whenever
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import strikt.api.expect
+import strikt.assertions.containsExactly
+import strikt.assertions.isEqualTo
 
 object AllowListExclusionPolicyTest {
-  private val front50ApplicationCache: InMemoryCache<Application> = mock()
-
-  @Test
-  fun `should exclude based on composite key if not in Allow List`() {
-    val exclusions = listOf(
-      Exclusion()
-        .withType(ExclusionType.Allowlist.toString())
-        .withAttributes(
-          setOf(
-            Attribute()
-              .withKey("application.name")
-              .withValue(
-                listOf("testapp", "pattern:^important")
-              )
-          )
-        )
-    )
-    whenever(front50ApplicationCache.get()) doReturn
-      setOf(
-        Application(name = "testapp", email = "name@netflix.com"),
-        Application(name = "important", email = "test@netflix.com"),
-        Application(name = "random", email = "random@netflix.com")
-      )
-    val resources = listOf(
-      TestResource("testapp-v001"),
-      TestResource("important-v001"),
-      TestResource("test-v001")
-    )
-    resources.filter {
-      AllowListExclusionPolicy(front50ApplicationCache, mock()).apply(it, exclusions) == null
-    }.let { filteredResources ->
-      filteredResources.size shouldMatch equalTo(2)
-      filteredResources.map { it.resourceId }.let {
-        assertTrue(it.contains("important-v001"), "Allow List by pattern")
-        assertTrue(it.contains("testapp-v001"), "Allow List by name")
-      }
-      filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
-    }
-  }
+  private val subject = AllowListExclusionPolicy()
+  private val allowListType = ExclusionType.Allowlist.name
 
   @Test
   fun `should exclude if not Allow List`() {
     val exclusions = listOf(
       Exclusion()
-        .withType(ExclusionType.Allowlist.toString())
+        .withType(allowListType)
         .withAttributes(
           setOf(
             Attribute()
@@ -85,38 +42,39 @@ object AllowListExclusionPolicyTest {
           )
         )
     )
-    whenever(front50ApplicationCache.get()) doReturn
-      setOf(
-        Application(name = "testapp", email = "name@netflix.com"),
-        Application(name = "important", email = "test@netflix.com"),
-        Application(name = "random", email = "random@netflix.com")
-      )
-    val resources = listOf(
-      TestResource("testapp-v001"),
-      TestResource("important-v001"),
-      TestResource("test-v001")
-    )
-    resources.filter {
-      AllowListExclusionPolicy(front50ApplicationCache, mock()).apply(it, exclusions) == null
-    }.let { filteredResources ->
-      filteredResources.size shouldMatch equalTo(2)
-      filteredResources.map { it.resourceId }.let {
-        Assertions.assertTrue(it.contains("important-v001"), "Allow List by pattern")
-        Assertions.assertTrue(it.contains("testapp-v001"), "Allow List by name")
+
+    val resource1 = TestResource("testapp-v001")
+    val resource2 = TestResource("important-v001")
+    val resource3 = TestResource("test-v001")
+
+    val resources = listOf(resource1, resource2, resource3)
+
+    val result = resources
+      .filter {
+        subject.apply(it, exclusions) == null
       }
-      filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
+
+    expect {
+      that(result.size).isEqualTo(2)
+      that(result).containsExactly(resource1, resource2)
     }
   }
 
   @Test
   fun `should include if in one of the allow lists`() {
+    val ownerField = "swabbieResourceOwner"
+    val resource1 = TestResource("testapp-v001").withDetail(ownerField, "bla@netflix.com")
+    val resource2 = TestResource("grpclab-v001").withDetail(ownerField, "notbla@netflix.com")
+    val resource3 = TestResource("test-v001").withDetail(ownerField, "sobla@netflix.com")
+    val resources = listOf(resource1, resource2, resource3)
+
     val exclusions = listOf(
       Exclusion()
-        .withType(ExclusionType.Allowlist.toString())
+        .withType(allowListType)
         .withAttributes(
           setOf(
             Attribute()
-              .withKey("swabbieResourceOwner")
+              .withKey(ownerField)
               .withValue(
                 listOf("bla@netflix.com", "bla2@netflix.com")
               ),
@@ -128,29 +86,14 @@ object AllowListExclusionPolicyTest {
           )
         )
     )
-    whenever(front50ApplicationCache.get()) doReturn
-      setOf(
-        Application(name = "testapp", email = "bla@netflix.com"),
-        Application(name = "important", email = "test@netflix.com"),
-        Application(name = "random", email = "random@netflix.com")
-      )
-    val resources = listOf(
-      TestResource("testapp-v001")
-        .withDetail("swabbieResourceOwner", "bla@netflix.com"),
-      TestResource("grpclab-v001")
-        .withDetail("swabbieResourceOwner", "notbla@netflix.com"),
-      TestResource("test-v001")
-        .withDetail("swabbieResourceOwner", "sobla@netflix.com")
-    )
-    resources.filter {
-      AllowListExclusionPolicy(front50ApplicationCache, mock()).apply(it, exclusions) == null
-    }.let { filteredResources ->
-      filteredResources.size shouldMatch equalTo(2)
-      filteredResources.map { it.resourceId }.let {
-        assertTrue(it.contains("grpclab-v001"), "Allow List by pattern")
-        assertTrue(it.contains("testapp-v001"), "Allow List by owner")
-      }
-      filteredResources.first().resourceId shouldMatch equalTo("testapp-v001")
+
+    val result = resources.filter {
+      subject.apply(it, exclusions) == null
+    }
+
+    expect {
+      that(result.size).isEqualTo(2)
+      that(result).containsExactly(resource1, resource2)
     }
   }
 }

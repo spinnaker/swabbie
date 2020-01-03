@@ -174,9 +174,9 @@ interface Identifiable : Named {
     return "${workConfiguration.notificationConfiguration.resourceUrl}/$resourceId"
   }
 
-  fun matchResourceAttributes(key: String, values: List<Any?>): Boolean {
+  fun matchResourceAttributes(propertyName: String, values: List<Any?>): Boolean {
     return try {
-      (getProperty(key) as? Any).matchesAny(values)
+      (getProperty(propertyName) as? Any).matchesAny(values)
     } catch (e: Exception) {
       false
     }

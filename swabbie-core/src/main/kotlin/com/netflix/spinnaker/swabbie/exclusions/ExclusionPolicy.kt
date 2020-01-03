@@ -67,9 +67,9 @@ interface ExclusionPolicy {
 
     // match on property name
     kv.keys.forEach { key ->
-      val valueOptions: List<Any?> = kv.getValue(key)
-      if (excludable.matchResourceAttributes(key, valueOptions)) {
-        return patternMatchMessage(key, valueOptions.map { "$it" }.toSet())
+      val matchingValues: List<Any?> = kv.getValue(key)
+      if (excludable.matchResourceAttributes(key, matchingValues)) {
+        return patternMatchMessage(key, matchingValues.map { "$it" }.toSet())
       }
     }
 

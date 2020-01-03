@@ -174,27 +174,23 @@ interface Identifiable : Named {
     return "${workConfiguration.notificationConfiguration.resourceUrl}/$resourceId"
   }
 
-  fun findMatchingAttribute(key: String, values: List<Any>): String? {
-    try {
-      val fieldValue = getProperty(key) as? String
-      if (propertyMatches(values, fieldValue)) {
-        return fieldValue
-      }
-    } catch (e: IllegalArgumentException) {
-      return null
+  fun matchResourceAttributes(key: String, values: List<Any?>): Boolean {
+    return try {
+      (getProperty(key) as? Any).matchesAny(values)
+    } catch (e: Exception) {
+      false
     }
-
-    return null
   }
 
-  private fun propertyMatches(values: List<Any>, fieldValue: String?): Boolean {
-    if (fieldValue == null) {
-      return false
+  private fun Any?.matchesAny(values: List<Any?>): Boolean {
+    if (this == null || this !is String) {
+      return values.contains(this)
     }
-    val splitFieldValue = fieldValue.split(",").map { it.trim() }
 
-    return values.contains(fieldValue) ||
-      values.any { it is String && fieldValue.patternMatched(it) || splitFieldValue.contains(it) }
+    val splitFieldValue = this.split(",").map { it.trim() }
+
+    return values.contains(this) ||
+      values.any { it is String && this.patternMatched(it) || splitFieldValue.contains(it) }
   }
 
   private fun <R : Any?> getProperty(propertyName: String): R {
@@ -202,7 +198,7 @@ interface Identifiable : Named {
       return readPropery(propertyName)
     } catch (e: NoSuchElementException) {
       val details: Map<String, Any?>? = readPropery("details")
-      if (details != null) {
+      if (details != null && propertyName in details) {
         return details[propertyName] as R
       }
 

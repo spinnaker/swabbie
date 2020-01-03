@@ -35,7 +35,7 @@ class AllowListExclusionPolicy : ResourceExclusionPolicy {
       }
 
       kv.keys.forEach { key ->
-        excludable.findMatchingAttribute(key, kv.getValue(key))?.let {
+        if (excludable.matchResourceAttributes(key, kv.getValue(key))) {
           // since a matching value is returned for the key, we know it is in the allowlist
           return null
         }

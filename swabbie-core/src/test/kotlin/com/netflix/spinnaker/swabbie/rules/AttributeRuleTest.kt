@@ -61,4 +61,25 @@ object AttributeRuleTest {
     expectThat(rule.apply(resource.copy(name = "foo bar"), ruleDefinition).summary).isNull()
     expectThat(rule.apply(resource.copy(name = "bar foo"), ruleDefinition).summary).isNotNull()
   }
+
+  @Test
+  fun `should work with non strings properties`() {
+    expectThat(rule.apply(resource).summary).isNull()
+
+    val ruleDefinition = RuleDefinition()
+      .apply {
+        name = rule.name()
+        parameters = mapOf(
+          "isValid" to false,
+          "version" to 1.0
+        )
+      }
+
+    expectThat(rule.apply(resource, ruleDefinition).summary).isNull()
+    expectThat(rule.apply(resource.withDetail("isValid", false), ruleDefinition).summary).isNotNull()
+    expectThat(rule.apply(resource.withDetail("isValid", true), ruleDefinition).summary).isNull()
+
+    expectThat(rule.apply(resource.withDetail("version", 0), ruleDefinition).summary).isNull()
+    expectThat(rule.apply(resource.withDetail("version", 1.0), ruleDefinition).summary).isNotNull()
+  }
 }

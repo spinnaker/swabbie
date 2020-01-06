@@ -146,11 +146,7 @@ class ResourceTypeConfiguration {
             - name: ExpiredResourceRule
             - name: AttributeRule
               parameters:
-                - type: Tag
-                  attributes:
-                  - key: description
-                    value:
-                    - pattern:^packer-build
+                description: pattern:^packer-build
    *----------------
    * @property operator ([RuleConfiguration.OPERATOR.OR], [RuleConfiguration.OPERATOR.AND]) dictate how rules are applied
    * @property rules a list of named rules [com.netflix.spinnaker.swabbie.model.Rule]
@@ -204,7 +200,7 @@ class ResourceTypeConfiguration {
 
   class RuleDefinition {
     var name: String = ""
-    var parameters: Map<String, Any> = mapOf()
+    var parameters: Map<String, Any?> = mapOf()
 
     override fun equals(other: Any?): Boolean {
       if (this === other) {

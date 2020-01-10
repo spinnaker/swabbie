@@ -136,7 +136,11 @@ class RedisResourceStateRepository(
     }
   }
 
-  private fun readState(state: String): ResourceState? {
+  private fun readState(state: String?): ResourceState? {
+    if (state == null) {
+      return null
+    }
+
     var resourceState: ResourceState? = null
     try {
       resourceState = objectMapper.readValue(state)

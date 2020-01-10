@@ -1,8 +1,7 @@
 # Swabbie
 
-_**IMPORTANT:** This service is currently under development, and is actively being used at Netflix for deleting images and snapshots of ebs volumes._
-
-_**NOTE:** If you're interested in contributing support for other providers or resource types, open an issue or join the Spinnaker Team slack and post in #swabbie._
+_**IMPORTANT:** This service is currently under development, and is actively being used at Netflix for deleting images, 
+ebs snapshots and auto scaling groups._
 
 Swabbie automates the cleanup of unused resources such as EBS Volumes and Images.
 As a Janitor Monkey replacement, it can also be extended to clean up a variety of resource types.
@@ -16,62 +15,70 @@ If so, it is deleted.
 For a more detailed understanding of how Swabbie works, visit [the internals doc](INTERNALS.md).
 
 ## How it works
-During initialization swabbie schedules work to routinely mark, notify and delete resources,
-utilizing a configurable rules engine to determine which resources to mark for deletion.   
+
+![](swabbie-core/src/resources/swabbie-config.png)
+
+During initialization swabbie schedules work to routinely mark, notify and delete resources.
+The application configuration is flattened into work items that are placed on the work queue for processing:
+
+*YAML config -> Work Items -> Work Queue*
+
+![](swabbie-core/src/resources/swabbie-work-items.png)
+
+Each visited resource is evaluated against the rules engine in order to determine if it should be marked for deletion.
+If it is found to violate **rules**, the resource is tracked and an owner is notified.
+
+Rules in the rules engine are configurable and can be composed similar to an `if/else` branching.
+They can be defined with an `AND` (`&&`), or `OR` (`||`) operator:
+ 
+- `AND`: A branch applies if all contained rules apply to the resource being evaluated.
+- `OR`: A branch applies if any rule contained inside the branch applies.
 
 ```
-- operator: AND
-   description: Disabled Server Groups that are older than a year
-   rules:
-    - name: ZeroInstanceDisabledServerGroupRule
-    - name: AgeRule
+enabledRules:
+- operator: AND #branch1
+  description: Empty Server Groups that have been disabled for more than than 45 days.
+  rules:
+    - name: ZeroInstanceRule
+    - name: DisabledLoadBalancerRule
       parameters:
-         moreThanDays: 365
-- operator: OR
-   description: Expired Server Groups
-   rules:
+        moreThanDays: 45
+- operator: OR #branch2
+  description: Expired Server Groups.
+  rules:
     - name: ExpiredResourceRule
 ```
 
-Translates to:
-`((ZeroInstanceDisabledServerGroupRule && AgeRule) || ExpiredResourceRule) == true`
+Evaluates to `if ((branch1 || branch2) == true)` or `if (((ZeroInstanceDisabledServerGroupRule && AgeRule) || ExpiredResourceRule) == true)`
 
-Another example:
-```
-- operator: AND
-    description: Packer Images older than 2 days
-    rules:
-    - name: AttributeRule
-      parameters:
-        description:
-        - pattern:^packer-build
-    - name: AgeRule
-      parameters:
-        moreThanDays: 2
-```
+**Resource Marking Flow**:
 
-Reads: `((AttributeRule && AgeRule) == true`
-Rules that are defined with `AND` operator will apply only if all rules apply, similar to the logical `&&` operator.
-`OR` rules apply only if any rule apply similar to the logical `||` operator.
+![Mark Flow](swabbie-core/src/resources/marking.png)
 
-To enable rules for a resource type:
-```
-resourceTypes:
-  - name: image
-    enabled: true
-    enabledRules:
-    - operator: AND
-        description: Packer Images older than 2 days
-        rules:
-        - name: AttributeRule
-          parameters:
-            description:
-            - pattern:^packer-build
-        - name: AgeRule
-          parameters:
-            moreThanDays: 2
-```
+**Resource Deletion Flow**:
 
+![Delete Flow](swabbie-core/src/resources/delete.png)
+## What's supported today
+- Cloud Provider: `aws`
+  * Netflix uses Edda
+  * Vanilla AWS is also supported
+- Resource Types:
+  * AMIs
+  * Server Groups
+  * EBS Snapshots
+  * ELBs
+- Halyard: Not supported yet (PRs are welcome!)
+  
+## Contributing
+If you're interested in contributing support for other providers or resource types, open an issue or join 
+the Spinnaker Team slack and post in #swabbie.
+
+Areas:
+- Testing
+- Documentation
+- Other cloud provider
+- Extensibility
+ 
 ## Running swabbie
 Requirements: 
 - Redis for storage

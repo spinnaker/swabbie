@@ -47,22 +47,22 @@ swabbie:
           entityTaggingEnabled: true
           retention: 2
           maxAge: 30 # resources newer than this many days will be ignored
-          enabledActions:
+          enabledActions: # defaults to all actions
             - MARK # schedules resources for deletion
             - NOTIFY # notifies resource owners
             - DELETE # deletes resources
           enabledRules:
             - operator: AND
-                description: Disabled Server Groups that are older than a year
-                rules:
-                  - name: ZeroInstanceDisabledServerGroupRule
-                  - name: AgeRule # a rule that accepts a parameter olderThanDays
-                    parameters:
-                      olderThanDays: 365
+              description: Empty Server Groups that have been disabled for more than than 45 days.
+              rules:
+                - name: ZeroInstanceRule
+                - name: DisabledLoadBalancerRule
+                  parameters:
+                    moreThanDays: 45
             - operator: OR
-                description: Expired Server Groups
-                rules:
-                  - name: ExpiredResourceRule # amazon resources that are tagged with a like ttl=10d (d=days, w=weeks, m=months, y=year)
+              description: Expired Server Groups.
+              rules:
+                - name: ExpiredResourceRule # amazon resources that are tagged with a like ttl=10d (d=days, w=weeks, m=months, y=year)
           notification:
             enabled: true
             types:

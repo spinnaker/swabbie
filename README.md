@@ -16,14 +16,14 @@ For a more detailed understanding of how Swabbie works, visit [the internals doc
 
 ## How it works
 
-![](swabbie-core/src/resources/swabbie-config.png)
+![](docs/swabbie-config.png)
 
 During initialization swabbie schedules work to routinely mark, notify and delete resources.
 The application configuration is flattened into work items that are placed on the work queue for processing:
 
 *YAML config -> Work Items -> Work Queue*
 
-![](swabbie-core/src/resources/swabbie-work-items.png)
+![](docs/swabbie-work-items.png)
 
 Each visited resource is evaluated against the rules engine in order to determine if it should be marked for deletion.
 If it is found to violate **rules**, the resource is tracked and an owner is notified.
@@ -82,7 +82,7 @@ Areas:
 ## Running swabbie
 Requirements: 
 - Redis for storage
-- Application YAML [Configuration](swabbie-core/src/resources/swabbie.yml) (maps to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt))
+- Application YAML [Configuration](docs/swabbie.yml) (maps to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt))
 
 ./gradlew run
 

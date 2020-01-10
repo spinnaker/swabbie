@@ -16,14 +16,14 @@ For a more detailed understanding of how Swabbie works, visit [the internals doc
 
 ## How it works
 
-![](docs/swabbie-config.png)
+![Configuration](docs/swabbie-config.png)
 
 During initialization swabbie schedules work to routinely mark, notify and delete resources.
 The application configuration is flattened into work items that are placed on the work queue for processing:
 
 *YAML config -> Work Items -> Work Queue*
 
-![](docs/swabbie-work-items.png)
+![Work Diagram](docs/swabbie-work-items.png)
 
 Each visited resource is evaluated against the rules engine in order to determine if it should be marked for deletion.
 If it is found to violate **rules**, the resource is tracked and an owner is notified.
@@ -53,11 +53,11 @@ Evaluates to `if ((branch1 || branch2) == true)` or `if (((ZeroInstanceDisabledS
 
 **Resource Marking Flow**:
 
-![Mark Flow](swabbie-core/src/resources/marking.png)
+![Mark Flow](docs/marking.png)
 
 **Resource Deletion Flow**:
 
-![Delete Flow](swabbie-core/src/resources/delete.png)
+![Delete Flow](docs/delete.png)
 ## What's supported today
 - Cloud Provider: `aws`
   * Netflix uses Edda

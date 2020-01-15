@@ -25,41 +25,67 @@ The application configuration is flattened into work items that are placed on th
 
 ![Work Diagram](docs/swabbie-work-items.png)
 
-Each visited resource is evaluated against the rules engine in order to determine if it should be marked for deletion.
-If it is found to violate **rules**, the resource is tracked and an owner is notified.
+Each visited resource is evaluated against the **rules engine** in order to determine if it should be deleted. 
 
-Rules in the rules engine are configurable and can be composed similar to an `if/else` branching.
+**Rules** in the rules engine are configurable and can be composed similar to an `if/else` branch.
 They can be defined with an `AND` (`&&`), or `OR` (`||`) operator:
  
 - `AND`: A branch applies if all contained rules apply to the resource being evaluated.
 - `OR`: A branch applies if any rule contained inside the branch applies.
 
-```
-enabledRules:
-- operator: AND #branch1
-  description: Empty Server Groups that have been disabled for more than than 45 days.
-  rules:
-    - name: ZeroInstanceRule
-    - name: DisabledLoadBalancerRule
-      parameters:
-        moreThanDays: 45
-- operator: OR #branch2
-  description: Expired Server Groups.
-  rules:
-    - name: ExpiredResourceRule
+```yaml
+resourceTypes:
+- name: serverGroup
+  enabled: true
+  enabledRules:
+  - operator: AND # branch(1)
+    description: Empty Server Groups that have been disabled for more than than 45 days.
+    rules:
+      - name: ZeroInstanceRule
+      - name: DisabledLoadBalancerRule
+        parameters:
+          moreThanDays: 45
+  - operator: OR #branch(2)
+    description: Expired Server Groups.
+    rules:
+      - name: ExpiredResourceRule
 ```
 
-Evaluates to `if ((branch1 || branch2) == true)` or `if (((ZeroInstanceDisabledServerGroupRule && AgeRule) || ExpiredResourceRule) == true)`
+The above configuration translates to the following: 
 
-**Resource Marking Flow**:
+For every resource **r** of type serverGroup,
+
+* `r.marked == true => (branch(1) || branch(2)) == true`
+
+Or more generally:
+ 
+* `r.marked == true => (branch(1) || branch(2) || ... branch(n-1) || branch(n)) == true`
+
+As illustrated using defined rules:
+ 
+`if (((ZeroInstanceRule && DisabledLoadBalancerRule) || ExpiredResourceRule) == true)`
+##### Resource States:
+- **Marked**:
 
 ![Mark Flow](docs/marking.png)
 
-**Resource Deletion Flow**:
+During the marking process, previously marked resources that no longer qualify for deletion are Unmarked.
+
+- **Notified**:
+Once marked, the resource owner is resolved and notified about the upcoming deletion.
+
+- **Opted-Out**:
+A resource can be explicitly opted out of deletion via API or **exclusion policies**. 
+Opted out resources dare exempt from swabbie actions. 
+
+- **Deleted**:
 
 ![Delete Flow](docs/delete.png)
-## What's supported today
-- Cloud Provider: `aws`
+
+Resources are re-evaluated before deletion to ensure they can be safely deleted.
+
+### What's supported today
+- Cloud Provider: AWS
   * Netflix uses Edda
   * Vanilla AWS is also supported
 - Resource Types:
@@ -78,6 +104,7 @@ Areas:
 - Documentation
 - Other cloud provider
 - Extensibility
+- Plugin support
  
 ## Running swabbie
 Requirements: 

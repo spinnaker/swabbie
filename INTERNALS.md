@@ -65,7 +65,7 @@ After this waiting period a resource is re-checked to make sure it still qualifi
 
 ### Resource Handlers
 
-[AbstractResourceTypeHandler](/Users/emburns/netflix/spinnaker/swabbie/swabbie-core/src/main/kotlin/com/netflix/spinnaker/swabbie/AbstractResourceTypeHandler.kt) The base functionality for classes that decide whether a resource is in use or not.
+[AbstractResourceTypeHandler](/swabbie-core/src/main/kotlin/com/netflix/spinnaker/swabbie/AbstractResourceTypeHandler.kt) The base functionality for classes that decide whether a resource is in use or not.
 This class handles the generic functionality for marking/notifying/deleting/opting out of any resource.
 When you add support for a new resource you shouldn't have to touch this class.
 

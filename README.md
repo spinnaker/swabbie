@@ -16,7 +16,7 @@ For a more detailed understanding of how Swabbie works, visit [the internals doc
 
 ## How it works
 
-![Configuration](docs/swabbie-config.png)
+![Configuration](docs/swabbie-services-config.png)
 
 During initialization swabbie schedules work to routinely mark, notify and delete resources.
 The application configuration is flattened into work items that are placed on the work queue for processing:
@@ -76,7 +76,7 @@ Once marked, the resource owner is resolved and notified about the upcoming dele
 
 - **Opted-Out**:
 A resource can be explicitly opted out of deletion via API or **exclusion policies**. 
-Opted out resources dare exempt from swabbie actions. 
+Opted out resources are exempt from swabbie actions. 
 
 - **Deleted**:
 

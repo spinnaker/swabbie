@@ -119,41 +119,18 @@ open class WorkConfigurator(
   }
 
   private fun mergeExclusions(global: Set<Exclusion>?, local: Set<Exclusion>?): Set<Exclusion> {
-    if ((global == null || global.isEmpty()) && (local == null || local.isEmpty())) {
-      return emptySet()
-    } else if ((global == null || global.isEmpty()) && local != null) {
-      return local
-    } else if (global != null && (local == null || local.isEmpty())) {
-      return global
-    }
-
-    // local is additive to global. local can override global
-    val result = local!!.toMutableSet()
-    merge(global!!, result)
-
+    val result = local?.toMutableSet() ?: mutableSetOf()
     // include runtime exclusions
     exclusionsSuppliers.ifPresent { exclusionsProviders ->
       exclusionsProviders.forEach { exclusionProvider ->
-        merge(exclusionProvider.get().toSet(), result)
+        result.addAll(exclusionProvider.get().toSet())
       }
+    }
+
+    if (global != null) {
+      result.addAll(global)
     }
 
     return result.toSet()
-  }
-
-  private fun merge(from: Set<Exclusion>, to: MutableSet<Exclusion>) {
-    from.forEach { f ->
-      var found = false
-      to.forEach { t ->
-        if (t.type == f.type) {
-          (t.attributes).addAll(f.attributes)
-          found = true
-        }
-      }
-
-      if (!found) {
-        to.add(f)
-      }
-    }
   }
 }

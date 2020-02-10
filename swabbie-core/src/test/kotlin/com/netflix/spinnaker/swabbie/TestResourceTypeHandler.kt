@@ -138,7 +138,7 @@ class TestResourceTypeHandler(
 }
 
 class TestRule(
-  private val invalidOn: (Resource, Map<String, Any>) -> Boolean,
+  private val invalidOn: (Resource, Map<String, Any?>) -> Boolean,
   private val summary: Summary?,
   private val name: String = ""
 ) : Rule {

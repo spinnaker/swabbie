@@ -1,0 +1,75 @@
+orca:
+  baseUrl: # url to orca
+
+front50:
+  baseUrl: # url to front50
+
+clouddriver:
+  baseUrl: # url to clouddriver
+
+echo:
+  baseUrl: # url to echo
+
+redis:
+  enabled: true
+
+okHttpClient:
+  #keyStore:
+  #trustStore:
+  propagateSpinnakerHeaders: true
+  connectTimeoutMs: 60000
+  readTimeoutMs: 60000
+
+
+# Lock options
+locking:
+  enabled: true
+  maximumLockDurationMillis: 7200000
+  heartbeatRateMillis: 5000
+  leaseDurationMillis: 60000
+
+swabbie:
+  dryRun: false
+  work:
+    intervalMs: 300000
+  queue:
+    monitorIntervalMs: 600000
+  providers:
+    - name: aws
+      locations:
+        - us-east-1
+      accounts:
+        - test
+      resourceTypes:
+        - name: serverGroup
+          enabled: true
+          dryRun: false
+          entityTaggingEnabled: true
+          retention: 2
+          maxAge: 30 # resources newer than this many days will be ignored
+          enabledActions: # defaults to all actions
+            - MARK # schedules resources for deletion
+            - NOTIFY # notifies resource owners
+            - DELETE # deletes resources
+          enabledRules:
+            - operator: AND
+              description: Empty Server Groups that have been disabled for more than than 45 days.
+              rules:
+                - name: ZeroInstanceRule
+                - name: DisabledLoadBalancerRule
+                  parameters:
+                    moreThanDays: 45
+            - operator: OR
+              description: Expired Server Groups.
+              rules:
+                - name: ExpiredResourceRule # amazon resources that are tagged with a like ttl=10d (d=days, w=weeks, m=months, y=year)
+          notification:
+            enabled: true
+            types:
+              - EMAIL
+            defaultDestination: swabbie-email-notifications@netflix.com
+            optOutBaseUrl: https://gate/cleanup/resources
+            resourceUrl: http://go/spin/#/applications/{{application}}/clusters/serverGroupDetails/{{cloudProvider}}/{{env}}/{{region}}/{{resourceId}}
+            docsUrl: http://manuals.test.netflix.net/view/spinnaker/mkdocs/master/reference/clean-up/automated-deletion/index.html
+logging:
+  config: ${user.home}/.spinnaker/logback-defaults.xml

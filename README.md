@@ -1,8 +1,7 @@
 # Swabbie
 
-_**IMPORTANT:** This service is currently under development, and is actively being used at Netflix for deleting images and snapshots of ebs volumes._
-
-_**NOTE:** If you're interested in contributing support for other providers or resource types, open an issue or join the Spinnaker Team slack and post in #swabbie._
+_**IMPORTANT:** This service is currently under development, and is actively being used at Netflix for deleting images, 
+ebs snapshots and auto scaling groups._
 
 Swabbie automates the cleanup of unused resources such as EBS Volumes and Images.
 As a Janitor Monkey replacement, it can also be extended to clean up a variety of resource types.
@@ -15,117 +14,103 @@ If so, it is deleted.
 
 For a more detailed understanding of how Swabbie works, visit [the internals doc](INTERNALS.md).
 
-## Configuration
+## How it works
 
-There are lots of configuration options. 
-Configuration can be applied at the top level, at the provider level, or a the resource type level. 
+![Configuration](docs/swabbie-services-config.png)
 
-#### Top Level Config
+During initialization swabbie schedules work to routinely mark, notify and delete resources.
+The application configuration is flattened into work items that are placed on the work queue for processing:
 
-Top level config is located under the `swabbie` key.
-Examples of top level properties are:
+*YAML config -> Work Items -> Work Queue*
 
-* `dryRun`
-* `work.intervalMs`
-* `queue.monitorIntervalMs`
-* `schedule`
+![Work Diagram](docs/swabbie-work-items.png)
 
-These map to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
+Each visited resource is evaluated against the **rules engine** in order to determine if it should be deleted. 
 
-#### Provider Level Config  
+**Rules** in the rules engine are configurable and can be composed similar to an `if/else` branch.
+They can be defined with an `AND` (`&&`), or `OR` (`||`) operator:
+ 
+- `AND`: A branch applies if all contained rules apply to the resource being evaluated.
+- `OR`: A branch applies if any rule contained inside the branch applies.
 
-Provider level config options control specifics about the overall provider config.
-Some examples are:
-
-* `locations`
-* `maxItemsProcessedPerCycle`
-* `itemsProcessedBatchSize`
-* `exclusions`
-
-You can configure exclusions for the whole provider in this sections. 
-These exclusions add to exclusions defined for each resource type.
-
-These map to [CloudProviderConfiguration](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
-
-#### Resource Type Level Config  
-
-Resource type level config options are for behavior of the specific resource type.
-Some examples are:
-
-* `dryRun`
-* `maxAge`
-* `exclusions`
-* `notification`
-
-Any exclusions defined here apply for only the specific resource type and add to any exclusions defined at the provider level.
-
-These map to [ResourceTypeConfiguration](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
-
-### Example
-
-Here is an example of a configuration for Swabbie. 
-For current values and structure it is best to look at [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt).
-
+```yaml
+resourceTypes:
+- name: serverGroup
+  enabled: true
+  enabledRules:
+  - operator: AND # branch(1)
+    description: Empty Server Groups that have been disabled for more than than 45 days.
+    rules:
+      - name: ZeroInstanceRule
+      - name: DisabledLoadBalancerRule
+        parameters:
+          moreThanDays: 45
+  - operator: OR #branch(2)
+    description: Expired Server Groups.
+    rules:
+      - name: ExpiredResourceRule
 ```
-swabbie:
-  providers:
-    - name: aws
-      locations:
-        - us-east-1
-        - us-west-2
-      accounts:
-        - test
-        - prod
-      maxItemsProcessedPerCycle: 100
-      itemsProcessedBatchSize: 25
-      exclusions:
-        - type: Tag
-          attributes:
-            - key: expiration_time
-              value:
-                - never
-                - pattern:^\d+(d|m|y)$
-      resourceTypes:
-        - name: image
-          enabled: true
-          dryRun: false
-          retention: 2
-          maxAge: 30
-          exclusions:
-            - type: Literal
-              attributes:
-                - key: description
-                  value:
-                    - pattern:name=base
-          notification:
-            enabled: true
-            required: true
-            types:
-              - EMAIL
-            defaultDestination: swabbie-email-notifications@
-            optOutBaseUrl: apiUrl
-            resourceUrl: helpfulUrl
-        - name: loadBalancer
-          enabled: true
-          dryRun: true
-          retention: 10 #days
-          maxAge: 10 #days
-          entityTaggingEnabled: true
-          notification:
-            enabled: true
-            types:
-              - email
-              - slack
-            itemsPerMessage: 5
-            defaultDestination: swabbie@spinnaker.io
-            optOutBaseUrl: http://localhost:8088/
-            resourceUrl: https://spinnaker/infrastructure?q=
-          exclusions:
-            - type: Allowlist
-              attributes:
-                - key: swabbieResourceOwner
-                  value:
-                    - user@netflix.com
 
-```
+The above configuration translates to the following: 
+
+For every resource **r** of type serverGroup,
+
+* `r.marked == true => (branch(1) || branch(2)) == true`
+
+Or more generally:
+ 
+* `r.marked == true => (branch(1) || branch(2) || ... branch(n-1) || branch(n)) == true`
+
+As illustrated using defined rules:
+ 
+`if (((ZeroInstanceRule && DisabledLoadBalancerRule) || ExpiredResourceRule) == true)`
+##### Resource States:
+- **Marked**:
+
+![Mark Flow](docs/marking.png)
+
+During the marking process, previously marked resources that no longer qualify for deletion are Unmarked.
+
+- **Notified**:
+Once marked, the resource owner is resolved and notified about the upcoming deletion.
+
+- **Opted-Out**:
+A resource can be explicitly opted out of deletion via API or **exclusion policies**. 
+Opted out resources are exempt from swabbie actions. 
+
+- **Deleted**:
+
+![Delete Flow](docs/delete.png)
+
+Resources are re-evaluated before deletion to ensure they can be safely deleted.
+
+### What's supported today
+- Cloud Provider: AWS
+  * Netflix uses Edda
+  * Vanilla AWS is also supported
+- Resource Types:
+  * AMIs
+  * Server Groups
+  * EBS Snapshots
+  * ELBs
+- Halyard: Not supported yet (PRs are welcome!)
+  
+## Contributing
+If you're interested in contributing support for other providers or resource types, open an issue or join 
+the Spinnaker Team slack and post in #swabbie.
+
+Areas:
+- Testing
+- Documentation
+- Other cloud provider
+- Extensibility
+- Plugin support
+ 
+## Running swabbie
+Requirements: 
+- Redis for storage
+- Application YAML [Configuration](docs/swabbie.yml) (maps to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt))
+
+./gradlew run
+
 

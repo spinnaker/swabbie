@@ -71,6 +71,6 @@ class AttributeRule : Rule {
   private fun <T : Resource> T.matchAttributes(ruleDefinition: RuleDefinition?): Boolean {
     // params contains key-value pairs to match against the resource's attributes
     val params = ruleDefinition?.parameters ?: return false
-    return params.any { (key, value) -> findMatchingAttribute(key, listOf(value)) != null }
+    return params.any { (key, value) -> matchResourceAttributes(key, listOf(value)) }
   }
 }

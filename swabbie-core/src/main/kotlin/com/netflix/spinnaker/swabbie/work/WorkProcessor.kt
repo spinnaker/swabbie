@@ -100,7 +100,10 @@ class WorkProcessor(
       }
     }
 
-    registry.timer(workDurationId).record(elapsedTimeMillis, TimeUnit.MILLISECONDS)
+    registry.timer(workDurationId.withTags(
+      "configuration", work.workConfiguration.namespace,
+      "action", work.action.name)
+    ).record(elapsedTimeMillis, TimeUnit.MILLISECONDS)
   }
 
   private fun track(work: WorkItem, success: Boolean) {

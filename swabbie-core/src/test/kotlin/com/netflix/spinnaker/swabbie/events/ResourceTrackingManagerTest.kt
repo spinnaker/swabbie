@@ -41,8 +41,7 @@ object ResourceTrackingManagerTest {
   private var configuration = WorkConfigurationTestHelper.generateWorkConfiguration()
 
   private var subject = ResourceTrackingManager(
-    resourceTrackingRepository = resourceTrackingRepository,
-    registry = registry
+    resourceTrackingRepository = resourceTrackingRepository
   )
 
   @AfterEach

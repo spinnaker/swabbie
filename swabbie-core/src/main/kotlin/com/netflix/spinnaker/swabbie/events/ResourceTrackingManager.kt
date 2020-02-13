@@ -18,8 +18,6 @@
 
 package com.netflix.spinnaker.swabbie.events
 
-import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -30,11 +28,11 @@ import org.springframework.stereotype.Component
  * Handles any further change in state after a resource is updated
  * for resources that are changed via an orca task.
  */
+// TODO: (jeyrs) - Review me. Don't think this class is needed since the resource removal happens on site
 @Component
 class ResourceTrackingManager(
-  private val resourceTrackingRepository: ResourceTrackingRepository,
-  registry: Registry
-) : MetricsSupport(registry) {
+  private val resourceTrackingRepository: ResourceTrackingRepository
+) {
 
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 

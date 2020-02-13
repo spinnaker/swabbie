@@ -30,6 +30,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.time.Clock
+import java.util.concurrent.TimeUnit
+import kotlin.system.measureTimeMillis
 
 @Component
 @ConditionalOnExpression("\${swabbie.enabled:true}")
@@ -43,6 +45,7 @@ class WorkProcessor(
 ) : DiscoveryActivated() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workId = registry.createId("swabbie.work")
+  private val workDurationId = registry.createId("swabbie.resources.work.duration")
 
   /**
    * Takes work [WorkItem] off the [WorkQueue], acquires a lock and
@@ -76,31 +79,38 @@ class WorkProcessor(
   }
 
   private fun process(work: WorkItem) {
-    try {
-      resourceTypeHandlers.find {
-        it.handles(work.workConfiguration)
-      }?.let { handler ->
-        log.debug("Processing: $work")
-        when (work.action) {
-          Action.MARK -> handler.mark(work.workConfiguration)
-          Action.NOTIFY -> handler.notify(work.workConfiguration)
-          Action.DELETE -> handler.delete(work.workConfiguration)
-          else -> log.warn("Unknown action {}", work.action.name)
-        }
+    val elapsedTimeMillis = measureTimeMillis {
+      try {
+        resourceTypeHandlers.find {
+          it.handles(work.workConfiguration)
+        }?.let { handler ->
+          log.debug("${handler.javaClass.simpleName} processing: {}", work.workConfiguration.namespace)
+          when (work.action) {
+            Action.MARK -> handler.mark(work.workConfiguration)
+            Action.NOTIFY -> handler.notify(work.workConfiguration)
+            Action.DELETE -> handler.delete(work.workConfiguration)
+            else -> log.warn("Unknown action {}", work.action.name)
+          }
 
-        work.track(success = true)
+          track(work, success = true)
+        }
+      } catch (e: Exception) {
+        log.error("Failed to process: {}", work, e)
+        track(work, success = false)
       }
-    } catch (e: Exception) {
-      log.error("Failed to process: {}", work, e)
-      work.track(success = false)
     }
+
+    registry.timer(workDurationId.withTags(
+      "configuration", work.workConfiguration.namespace,
+      "action", work.action.name)
+    ).record(elapsedTimeMillis, TimeUnit.MILLISECONDS)
   }
 
-  private fun WorkItem.track(success: Boolean) {
+  private fun track(work: WorkItem, success: Boolean) {
     registry.counter(workId.withTags(
       "success", success.toString(),
-      "configuration", workConfiguration.namespace,
-      "action", action.name)
+      "configuration", work.workConfiguration.namespace,
+      "action", work.action.name)
     ).increment()
   }
 

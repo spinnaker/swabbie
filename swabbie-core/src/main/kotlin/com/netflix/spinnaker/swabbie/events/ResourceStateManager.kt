@@ -18,7 +18,6 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
-import com.netflix.spinnaker.swabbie.MetricsSupport
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
@@ -37,8 +36,15 @@ class ResourceStateManager(
   private val clock: Clock,
   private val registry: Registry,
   @Autowired(required = false) private val resourceTagger: ResourceTagger?
-) : MetricsSupport(registry) {
+) {
   private val log = LoggerFactory.getLogger(javaClass)
+
+  private val markCountId: Id = registry.createId("swabbie.resources.markCount")
+  private val unMarkCountId: Id = registry.createId("swabbie.resources.unMarkCount")
+  private val deleteCountId: Id = registry.createId("swabbie.resources.deleteCount")
+  private val notifyCountId: Id = registry.createId("swabbie.resources.notifyCount")
+  private val optOutCountId: Id = registry.createId("swabbie.resources.optOutCount")
+  private val orcaTaskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
 
   @EventListener
   fun handleEvents(event: Event) {
@@ -50,7 +56,7 @@ class ResourceStateManager(
 
     when (event) {
       is MarkResourceEvent -> {
-        registry.counter(markCountId.withTags(workConfiguration)).increment()
+        registry.counter(withTags(markCountId, workConfiguration)).increment()
         resourceTagger?.tag(
           markedResource,
           workConfiguration,
@@ -58,7 +64,7 @@ class ResourceStateManager(
       }
 
       is UnMarkResourceEvent -> {
-        registry.counter(unMarkCountId.withTags(workConfiguration)).increment()
+        registry.counter(withTags(unMarkCountId, workConfiguration)).increment()
         resourceTagger?.unTag(
           markedResource,
           workConfiguration,
@@ -66,7 +72,7 @@ class ResourceStateManager(
       }
 
       is OwnerNotifiedEvent -> {
-        registry.counter(notifyCountId.withTags(workConfiguration)).increment()
+        registry.counter(withTags(notifyCountId, workConfiguration)).increment()
         resourceTagger?.tag(
           markedResource,
           workConfiguration,
@@ -74,7 +80,7 @@ class ResourceStateManager(
       }
 
       is OptOutResourceEvent -> {
-        registry.counter(optOutCountId.withTags(workConfiguration)).increment()
+        registry.counter(withTags(optOutCountId, workConfiguration)).increment()
         resourceTagger?.unTag(
           markedResource,
           workConfiguration,
@@ -82,7 +88,7 @@ class ResourceStateManager(
       }
 
       is DeleteResourceEvent -> {
-        registry.counter(deleteCountId.withTags(workConfiguration)).increment()
+        registry.counter(withTags(deleteCountId, workConfiguration)).increment()
         resourceTagger?.unTag(
           markedResource,
           workConfiguration,
@@ -90,7 +96,7 @@ class ResourceStateManager(
       }
 
       is OrcaTaskFailureEvent -> {
-        registry.counter(orcaTaskFailureId.withTags(workConfiguration)).increment()
+        registry.counter(withTags(orcaTaskFailureId, workConfiguration)).increment()
       }
 
       else -> log.warn("Unknown event type: ${event.javaClass.simpleName}")
@@ -125,15 +131,13 @@ class ResourceStateManager(
     resourceStateRepository.upsert(newState)
   }
 
-  private fun Id.withTags(workConfiguration: WorkConfiguration): Id {
-    return apply {
-      withTags(
-        "configuration", workConfiguration.namespace,
-        "resourceType", workConfiguration.resourceType,
-        "location", workConfiguration.location,
-        "account", workConfiguration.account.name
-      )
-    }
+  private fun withTags(id: Id, workConfiguration: WorkConfiguration): Id {
+    return id.withTags(
+      "resourceType", workConfiguration.resourceType,
+      "location", workConfiguration.location,
+      "account", workConfiguration.account.name,
+      "configuration", workConfiguration.namespace
+    )
   }
 }
 

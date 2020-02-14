@@ -27,16 +27,16 @@ import java.time.ZoneId
 @JsonTypeName("amazonLaunchConfiguration")
 data class AmazonLaunchConfiguration(
   val imageId: String,
-  private val launchConfigurationName: String,
+  private val launchConfigurationName: String? = "",
   private val createdTime: Long,
-  override val resourceId: String = launchConfigurationName,
+  override val resourceId: String = launchConfigurationName ?: "",
   override val resourceType: String = LAUNCH_CONFIGURATION,
   override val cloudProvider: String = AWS,
-  override val name: String = launchConfigurationName,
+  override val name: String = resourceId,
   private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
 ) : AmazonResource(creationDate) {
   fun getAutoscalingGroupName() =
-    launchConfigurationName.substringBeforeLast("-")
+    name.substringBeforeLast("-")
   override fun equals(other: Any?): Boolean {
     return super.equals(other)
   }

@@ -158,17 +158,19 @@ object AmazonLaunchConfigurationHandlerTest {
 
   @Test
   fun `should check server group references`() {
+    val serverGroup = AmazonAutoScalingGroup(
+      autoScalingGroupName = "app-v001",
+      instances = listOf(),
+      loadBalancerNames = listOf(),
+      createdTime = clock.millis()
+    ).apply {
+      set("launchConfigurationName", lc1.name)
+    }
+
     expectThat(lc1.details[isUsedByServerGroups]).isNull()
     expectThat(lc2.details[isUsedByServerGroups]).isNull()
 
-    whenever(aws.getServerGroups(params)) doReturn listOf(
-      AmazonAutoScalingGroup(
-        autoScalingGroupName = "app-v001",
-        instances = listOf(),
-        loadBalancerNames = listOf(),
-        createdTime = clock.millis()
-      )
-    )
+    whenever(aws.getServerGroups(params)) doReturn listOf(serverGroup)
 
     subject.preProcessCandidates(listOf(lc1, lc2), workConfiguration)
 

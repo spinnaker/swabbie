@@ -23,6 +23,7 @@ import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
+import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
@@ -30,11 +31,14 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
+import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
-import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
-import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
-import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
+import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import org.springframework.context.ApplicationEventPublisher
@@ -77,7 +81,38 @@ class AmazonLaunchConfigurationHandler(
   notificationQueue
 ) {
   override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    TODO("not implemented") // To change body of created functions use File | Settings | File Templates.
+    val application = applicationUtils.determineApp(markedResources.first().resource)
+    val launchConfigurationNames = markedResources
+      .map {
+        it.resourceId
+      }.toSet()
+
+    orcaService.orchestrate(
+      OrchestrationRequest(
+        application = application,
+        job = listOf(
+          OrcaJob(
+            type = "deleteLaunchConfiguration",
+            context = mutableMapOf(
+              "credentials" to workConfiguration.account.name,
+              "launchConfigurationNames" to launchConfigurationNames,
+              "cloudProvider" to AWS,
+              "region" to workConfiguration.location
+            )
+          )
+        ),
+        description = "Deleting LaunchConfigurations: $launchConfigurationNames"
+      )
+    ).let { taskResponse ->
+      val completeEvent = TaskCompleteEventInfo(
+        action = Action.DELETE,
+        markedResources = markedResources,
+        workConfiguration = workConfiguration,
+        submittedTimeMillis = clock.instant().toEpochMilli()
+      )
+
+      taskTrackingRepository.add(taskResponse.taskId(), completeEvent)
+    }
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean {

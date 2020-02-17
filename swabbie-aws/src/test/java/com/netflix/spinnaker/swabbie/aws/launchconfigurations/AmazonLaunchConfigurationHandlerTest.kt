@@ -24,13 +24,17 @@ import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfigurationHandler.Companion.isUsedByServerGroups
+import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.model.Rule
-import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.AWS
+import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
+import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.NotificationInfo
+import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaService
+import com.netflix.spinnaker.swabbie.orca.TaskResponse
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
@@ -119,6 +123,8 @@ object AmazonLaunchConfigurationHandlerTest {
 
   @BeforeEach
   fun setup() {
+    lc1.details.clear()
+    lc2.details.clear()
     whenever(resourceOwnerResolver.resolve(any())) doReturn user
     whenever(aws.getLaunchConfigurations(params)) doReturn listOf(lc1, lc2)
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
@@ -176,5 +182,37 @@ object AmazonLaunchConfigurationHandlerTest {
 
     expectThat(lc1.details[isUsedByServerGroups]).isEqualTo(true)
     expectThat(lc2.details[isUsedByServerGroups]).isEqualTo(false)
+  }
+
+  @Test
+  fun `should delete launch configurations`() {
+    val markedResources = listOf(
+      MarkedResource(
+        resource = lc1,
+        summaries = ruleAndViolationPair.second,
+        namespace = workConfiguration.namespace,
+        resourceOwner = user,
+        projectedDeletionStamp = clock.millis(),
+        notificationInfo = NotificationInfo(
+          recipient = user,
+          notificationType = "email",
+          notificationStamp = clock.millis()
+        )
+      ))
+
+    whenever(rulesEngine.evaluate(any<AmazonLaunchConfiguration>(), any())) doReturn ruleAndViolationPair.second
+    whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn markedResources
+
+    whenever(aws.getLaunchConfigurations(params.copy(id = lc1.name))) doReturn listOf(lc1)
+    whenever(orcaService.orchestrate(any())) doReturn TaskResponse(ref = "/tasks/1234")
+
+    subject.delete(workConfiguration)
+
+    verify(orcaService).orchestrate(any())
+    verify(taskTrackingRepository).add(any(), any())
+    verify(applicationEventPublisher).publishEvent(any<DeleteResourceEvent>())
+
+    verifyNoMoreInteractions(applicationEventPublisher)
+    verifyNoMoreInteractions(orcaService)
   }
 }

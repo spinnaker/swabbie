@@ -56,6 +56,11 @@ class RedisTaskTrackingRepository(
       taskCompleteEventInfo.submittedTimeMillis = clock.instant().toEpochMilli()
     }
 
+    taskCompleteEventInfo
+      .apply {
+        log.info("Orchestrated task $taskId for ${action.name} on resources: ${markedResources.map { it.uniqueId() }}")
+      }
+
     redisClientDelegate.withCommandsClient { client ->
       client.hset(SUBMITTED_TASKS_KEY, taskId, objectMapper.writeValueAsString(taskCompleteEventInfo))
       client.hset(TASK_STATUS_KEY, taskId, TaskState.IN_PROGRESS.toString())

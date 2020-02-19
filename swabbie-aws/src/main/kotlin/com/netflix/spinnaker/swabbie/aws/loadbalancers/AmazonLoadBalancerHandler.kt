@@ -88,7 +88,6 @@ class AmazonLoadBalancerHandler(
       markedResource.resource.let { resource ->
         if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
           // TODO: consider also removing dns records for the ELB
-          log.debug("This load balancer is about to be deleted {}", markedResource)
           orcaService.orchestrate(
             OrchestrationRequest(
               application = applicationUtils.determineApp(resource),

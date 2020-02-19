@@ -125,7 +125,6 @@ class AmazonSnapshotHandler(
           submittedTimeMillis = clock.instant().toEpochMilli()
         )
       )
-      log.debug("Deleting resources ${markedResources.map { it.uniqueId() }} in orca task ${taskResponse.taskId()}")
     }
   }
 

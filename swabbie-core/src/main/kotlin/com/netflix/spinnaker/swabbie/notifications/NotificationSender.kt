@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.notifications
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.lock.LockManager
@@ -59,11 +60,18 @@ class NotificationSender(
   private val workConfigurations: List<WorkConfiguration>
 ) : DiscoveryActivated() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private val notificationsId = registry.createId("swabbie.notifications")
+  private val notificationAttemptsId = registry.createId("swabbie.notifications.attempts")
+  private val notificationsQueueSizeId = registry.createId("swabbie.notifications.queueSize")
 
   private val lockOptions = LockManager.LockOptions()
     .withLockName(lockingService.ownerName)
     .withMaximumLockDuration(lockingService.swabbieMaxLockDuration)
+
+  init {
+    PolledMeter.using(registry)
+      .withId(notificationsQueueSizeId)
+      .monitorValue(notificationQueue.size())
+  }
 
   /**
    * Periodically sends notifications to resolved resource owners
@@ -109,7 +117,7 @@ class NotificationSender(
             val result = notifyUser(owner, resourceType, notificationData, workConfiguration.notificationConfiguration)
             if (!result.success) {
               log.warn("Failed to send notification to $owner. Resource type: ${task.resourceType}")
-              registry.counter(notificationsId.withTags("result", "failure")).increment()
+              registry.counter(notificationAttemptsId.withTags("result", "failure")).increment()
               continue
             }
 
@@ -120,7 +128,7 @@ class NotificationSender(
             )
 
             updateNotificationInfoAndPublishEvent(notificationInfo, list)
-            registry.counter(notificationsId.withTags("result", "success")).increment()
+            registry.counter(notificationAttemptsId.withTags("result", "success")).increment()
           }
         }
       } catch (e: Exception) {

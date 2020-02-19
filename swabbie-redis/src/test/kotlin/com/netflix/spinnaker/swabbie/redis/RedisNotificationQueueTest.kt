@@ -18,7 +18,6 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.resourceDeserializerModule
 import com.netflix.spinnaker.kork.jedis.EmbeddedRedis
 import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
@@ -40,16 +39,16 @@ import strikt.assertions.size
 object RedisNotificationQueueTest {
   private val embeddedRedis = EmbeddedRedis.embed()
   private val jedisPool = embeddedRedis.pool as JedisPool
+  private val redisClientSelector = RedisClientSelector(
+    listOf(JedisClientDelegate("primaryDefault", jedisPool))
+  )
+
   private val objectMapper = ObjectMapper().apply {
     registerModule(KotlinModule())
     registerModule(resourceDeserializerModule())
   }
 
-  private val queue = RedisNotificationQueue(
-    objectMapper,
-    NoopRegistry(),
-    RedisClientSelector(listOf(JedisClientDelegate("primaryDefault", jedisPool)))
-  )
+  private val queue = RedisNotificationQueue(objectMapper, redisClientSelector)
 
   @BeforeEach
   fun setup() {

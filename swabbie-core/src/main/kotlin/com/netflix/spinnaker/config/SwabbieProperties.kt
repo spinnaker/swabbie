@@ -126,7 +126,7 @@ class Exclusion {
 class ResourceTypeConfiguration {
   var enabled: Boolean = false
   var enabledActions: List<Action> = mutableListOf(Action.MARK, Action.NOTIFY, Action.DELETE)
-  var dryRun: Boolean = true
+  var dryRun: Boolean = false
   var retention: Int = 14
   var exclusions: MutableSet<Exclusion> = mutableSetOf()
   lateinit var name: String

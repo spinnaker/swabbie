@@ -16,8 +16,6 @@
 
 package com.netflix.spinnaker.swabbie.redis
 
-import com.netflix.spectator.api.Registry
-import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -34,7 +32,6 @@ import org.springframework.stereotype.Component
 @Component
 class RedisWorkQueue(
   redisClientSelector: RedisClientSelector,
-  private val registry: Registry,
   private val _seed: List<WorkConfiguration>
 ) : WorkQueue {
   private val log = LoggerFactory.getLogger(javaClass)
@@ -43,7 +40,6 @@ class RedisWorkQueue(
 
   init {
     log.info("Using ${javaClass.simpleName}")
-    this.track()
   }
 
   override fun seed() {
@@ -78,12 +74,6 @@ class RedisWorkQueue(
     return redisClientDelegate.withCommandsClient<Set<String>> { client ->
       client.smembers(WORK_KEY)
     }.size
-  }
-
-  private fun WorkQueue.track() {
-    PolledMeter.using(registry)
-      .withName("swabbie.redis.queueSize")
-      .monitorValue(size())
   }
 }
 

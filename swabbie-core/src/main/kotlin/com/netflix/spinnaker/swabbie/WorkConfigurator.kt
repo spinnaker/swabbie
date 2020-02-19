@@ -94,7 +94,7 @@ open class WorkConfigurator(
                 cloudProviderConfiguration.exclusions,
                 resourceTypeConfiguration.exclusions
               ),
-              dryRun = if (swabbieProperties.dryRun) true else resourceTypeConfiguration.dryRun,
+              dryRun = if (resourceTypeConfiguration.dryRun) true else swabbieProperties.dryRun,
               notificationConfiguration = resourceTypeConfiguration.notification,
               entityTaggingEnabled = resourceTypeConfiguration.entityTaggingEnabled,
               maxAge = resourceTypeConfiguration.maxAge,

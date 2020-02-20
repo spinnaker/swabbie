@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.Schedule
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
@@ -48,7 +49,14 @@ class WorkQueueManager(
   private val cacheStatus: CacheStatus
 ) : DiscoveryActivated() {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private val queueId = registry.createId("swabbie.redis.queue")
+  private val queueId = registry.createId("swabbie.work.queue")
+  private val queueSizeId = registry.createId("swabbie.work.queueSize")
+
+  init {
+    PolledMeter.using(registry)
+      .withId(queueSizeId)
+      .monitorValue(queue.size())
+  }
 
   override fun onDiscoveryUpCallback(event: RemoteStatusChangedEvent) {
     if (isEnabled()) {

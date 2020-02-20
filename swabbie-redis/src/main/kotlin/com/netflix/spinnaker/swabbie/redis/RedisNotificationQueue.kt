@@ -18,8 +18,6 @@ package com.netflix.spinnaker.swabbie.redis
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.netflix.spectator.api.Registry
-import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
@@ -32,15 +30,10 @@ import org.springframework.stereotype.Component
 @Component
 class RedisNotificationQueue(
   private val objectMapper: ObjectMapper,
-  private val registry: Registry,
   redisClientSelector: RedisClientSelector
 ) : NotificationQueue {
   private val NOTIFICATION_KEY = "{swabbie:notifications}"
   private val redisClientDelegate: RedisClientDelegate = redisClientSelector.primary("default")
-
-  init {
-    this.track()
-  }
 
   override fun add(notificationTask: NotificationTask) {
     redisClientDelegate.withCommandsClient { client ->
@@ -63,10 +56,4 @@ class RedisNotificationQueue(
   }
 
   override fun isEmpty(): Boolean = size() == 0
-
-  private fun NotificationQueue.track() {
-    PolledMeter.using(registry)
-      .withName("swabbie.redis.notificationQueueSize")
-      .monitorValue(size())
-  }
 }

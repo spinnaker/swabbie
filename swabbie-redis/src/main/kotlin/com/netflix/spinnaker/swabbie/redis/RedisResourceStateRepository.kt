@@ -76,7 +76,7 @@ class RedisResourceStateRepository(
           while (shouldContinue) {
             val scanResult = client.sscan(ALL_STATES_KEY, cursor, scanParams)
             results.addAll(scanResult.result)
-            cursor = scanResult.stringCursor
+            cursor = scanResult.cursor
             if ("0" == cursor) {
               shouldContinue = false
             }

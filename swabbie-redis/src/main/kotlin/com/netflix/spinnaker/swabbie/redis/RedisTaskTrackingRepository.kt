@@ -118,7 +118,7 @@ class RedisTaskTrackingRepository(
         scanResult.result.forEach { entry ->
           results[entry.key] = entry.value
         }
-        cursor = scanResult.stringCursor
+        cursor = scanResult.cursor
         if ("0" == cursor) {
           shouldContinue = false
         }

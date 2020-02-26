@@ -1,27 +1,35 @@
+server:
+  port: 8088
+
 orca:
-  baseUrl: # url to orca
+  baseUrl: # orca url
 
 front50:
-  baseUrl: # url to front50
+  baseUrl: # front50 url
 
 clouddriver:
-  baseUrl: # url to clouddriver
+  baseUrl: # clouddriver url
 
 echo:
-  baseUrl: # url to echo
+  baseUrl: # echo url
 
-redis:
-  enabled: true
+retrofit:
+  logLevel: BASIC
 
 okHttpClient:
-  #keyStore:
-  #trustStore:
   propagateSpinnakerHeaders: true
   connectTimeoutMs: 60000
   readTimeoutMs: 60000
 
+redis:
+  enabled: true
+  clients:
+    default:
+      primary:
+        driver: redis
+        config:
+          connection: redis://localhost:6379
 
-# Lock options
 locking:
   enabled: true
   maximumLockDurationMillis: 7200000
@@ -31,26 +39,28 @@ locking:
 swabbie:
   dryRun: false
   work:
-    intervalMs: 300000
+    intervalMs: 30000
   queue:
-    monitorIntervalMs: 600000
+    monitorIntervalMs: 60000
+
   providers:
     - name: aws
       locations:
         - us-east-1
       accounts:
         - test
+      maxItemsProcessedPerCycle: 2000
+      itemsProcessedBatchSize: 2000
+      resourcesPerNotification: 100
       resourceTypes:
         - name: serverGroup
           enabled: true
-          dryRun: false
-          entityTaggingEnabled: true
-          retention: 2
-          maxAge: 30 # resources newer than this many days will be ignored
+          retention: 10
+          maxAge: 30
           enabledActions: # defaults to all actions
             - MARK # schedules resources for deletion
             - NOTIFY # notifies resource owners
-            - DELETE # deletes resources
+            #- DELETE # deletes resources. uncomment to enable actual deletion
           enabledRules:
             - operator: AND
               description: Empty Server Groups that have been disabled for more than than 45 days.
@@ -62,14 +72,64 @@ swabbie:
             - operator: OR
               description: Expired Server Groups.
               rules:
-                - name: ExpiredResourceRule # amazon resources that are tagged with a like ttl=10d (d=days, w=weeks, m=months, y=year)
+                - name: ExpiredResourceRule
           notification:
             enabled: true
             types:
               - EMAIL
-            defaultDestination: swabbie-email-notifications@netflix.com
-            optOutBaseUrl: https://gate/cleanup/resources
-            resourceUrl: http://go/spin/#/applications/{{application}}/clusters/serverGroupDetails/{{cloudProvider}}/{{env}}/{{region}}/{{resourceId}}
-            docsUrl: http://manuals.test.netflix.net/view/spinnaker/mkdocs/master/reference/clean-up/automated-deletion/index.html
-logging:
-  config: ${user.home}/.spinnaker/logback-defaults.xml
+            defaultDestination: # a default email address to email in case owner is not resolved
+            optOutBaseUrl: https://gate/cleanup/resources # where gate is running
+            resourceUrl: http://url/to/spinnaker/ui/#/applications/{{application}}/clusters/serverGroupDetails/{{cloudProvider}}/{{env}}/{{region}}/{{resourceId}} # link to where the resource is in spinnaker. This template only applies to server groups
+            docsUrl: # where you may have your docs site. This link is included in the email notification.
+        - name: launchConfiguration
+          enabled: true
+          retention: 10
+          maxAge: 30
+          enabledActions:
+            - MARK
+          enabledRules:
+            - operator: OR
+              description: Orphaned or expired Launch Configurations.
+              rules:
+                - name: ExpiredResourceRule
+                - name: AttributeRule
+                  parameters:
+                    isUsedByServerGroups: false
+          notification:
+            enabled: false
+        - name: image
+          enabled: true
+          retention: 2
+          maxAge: 30
+          enabledRules:
+            - operator: AND
+              description: Images not referenced by instances, launch configs and with no siblings or copies in other accounts.
+              rules:
+                - name: AttributeRule
+                  parameters:
+                    - usedByLaunchConfigurations: false
+                - name: AttributeRule
+                  parameters:
+                    - usedByInstances: false
+                - name: AttributeRule
+                  parameters:
+                    - hasSiblingsInOtherAccounts: false
+                - name: AttributeRule
+                  parameters:
+                    - seenInUseRecently: false
+          notification:
+            enabled: false
+        - name: snapshot
+          enabled: true
+          retention: 2
+          maxAge: 30
+          enabledRules:
+            - operator: OR
+              description: Snapshots referencing images that no longer exist.
+              rules:
+                - name: AttributeRule
+                  parameters:
+                    - imageExists: false
+                - name: ExpiredResourceRule # amazon resources that are tagged with: ttl=10d (d=days, w=weeks, m=months, y=year)
+          notification:
+            enabled: false

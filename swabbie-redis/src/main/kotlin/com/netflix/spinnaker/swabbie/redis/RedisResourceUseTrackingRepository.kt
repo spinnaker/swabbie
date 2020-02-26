@@ -105,7 +105,7 @@ class RedisResourceUseTrackingRepository(
       while (shouldContinue) {
         val scanResult: ScanResult<Tuple> = client.zscan(key, cursor, scanParams)
         results.addAll(scanResult.result)
-        cursor = scanResult.stringCursor
+        cursor = scanResult.cursor
         if ("0" == cursor) {
           shouldContinue = false
         }

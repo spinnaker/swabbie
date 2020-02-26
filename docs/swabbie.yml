@@ -107,16 +107,16 @@ swabbie:
               rules:
                 - name: AttributeRule
                   parameters:
-                    - usedByLaunchConfigurations: false
+                    usedByLaunchConfigurations: false
                 - name: AttributeRule
                   parameters:
-                    - usedByInstances: false
+                    usedByInstances: false
                 - name: AttributeRule
                   parameters:
-                    - hasSiblingsInOtherAccounts: false
+                    hasSiblingsInOtherAccounts: false
                 - name: AttributeRule
                   parameters:
-                    - seenInUseRecently: false
+                    seenInUseRecently: false
           notification:
             enabled: false
         - name: snapshot
@@ -129,7 +129,7 @@ swabbie:
               rules:
                 - name: AttributeRule
                   parameters:
-                    - imageExists: false
+                    imageExists: false
                 - name: ExpiredResourceRule # amazon resources that are tagged with: ttl=10d (d=days, w=weeks, m=months, y=year)
           notification:
             enabled: false

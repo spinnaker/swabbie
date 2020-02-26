@@ -296,8 +296,7 @@ class AmazonImageHandler(
     images.filter {
       NAIVE_EXCLUSION !in it.details &&
         USED_BY_INSTANCES !in it.details &&
-        USED_BY_LAUNCH_CONFIGURATIONS !in it.details &&
-        IS_BASE_OR_ANCESTOR !in it.details
+        USED_BY_LAUNCH_CONFIGURATIONS !in it.details
     }.forEach { image ->
       if (!unusedAndTracked.containsKey(image.imageId) && usedImages.contains(image.imageId)) {
         // Image has not been unused for the outOfUseThreshold, and has been seen before

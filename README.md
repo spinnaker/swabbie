@@ -91,6 +91,7 @@ Resources are re-evaluated before deletion to ensure they can be safely deleted.
 - Resource Types:
   * AMIs
   * Server Groups
+  * Launch Configurations
   * EBS Snapshots
   * ELBs
 - Halyard: Not supported yet (PRs are welcome!)
@@ -108,9 +109,10 @@ Areas:
  
 ## Running swabbie
 Requirements: 
-- Redis for storage
-- Application YAML [Configuration](docs/swabbie.yml) (maps to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt))
+- Redis for storage 
+- Copy config file to a directory of your choice [Configuration](docs/swabbie.yml) (maps to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt))
+- Update config with your settings and run
 
-./gradlew run
+`./gradlew run -Dspring.config.location=/absolute/path/to/swabbie.yml`
 
 

@@ -1,3 +1,6 @@
+server:
+  port: 8088
+
 orca:
   baseUrl: # orca url
 
@@ -10,10 +13,22 @@ clouddriver:
 echo:
   baseUrl: # echo url
 
+retrofit:
+  logLevel: BASIC
+
 okHttpClient:
   propagateSpinnakerHeaders: true
   connectTimeoutMs: 60000
   readTimeoutMs: 60000
+
+redis:
+  enabled: true
+  clients:
+    default:
+      primary:
+        driver: redis
+        config:
+          connection: redis://localhost:6379
 
 locking:
   enabled: true
@@ -42,10 +57,10 @@ swabbie:
           enabled: true
           retention: 10
           maxAge: 30
-          enabledActions:
-            - MARK
-            - NOTIFY
-            #- DELETE
+          enabledActions: # defaults to all actions
+            - MARK # schedules resources for deletion
+            - NOTIFY # notifies resource owners
+            #- DELETE # deletes resources. uncomment to enable actual deletion
           enabledRules:
             - operator: AND
               description: Empty Server Groups that have been disabled for more than than 45 days.
@@ -110,7 +125,7 @@ swabbie:
           maxAge: 30
           enabledRules:
             - operator: OR
-              description: Snapshots referencing images no longer exist.
+              description: Snapshots referencing images that no longer exist.
               rules:
                 - name: AttributeRule
                   parameters:
@@ -118,18 +133,3 @@ swabbie:
                 - name: ExpiredResourceRule # amazon resources that are tagged with: ttl=10d (d=days, w=weeks, m=months, y=year)
           notification:
             enabled: false
-
-redis:
-  enabled: true
-  clients:
-    default:
-      primary:
-        driver: redis
-        config:
-          connection: redis://localhost:6379
-
-retrofit:
-  logLevel: BASIC
-
-server:
-  port: 8088

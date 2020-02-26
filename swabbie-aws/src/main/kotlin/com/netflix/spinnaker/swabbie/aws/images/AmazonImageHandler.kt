@@ -180,10 +180,6 @@ class AmazonImageHandler(
     log.debug("checking references for {} resources. Parameters: {}", images.size, params)
 
     images.forEach { image ->
-      if (image.name == null || image.description == null) {
-        image.set(NAIVE_EXCLUSION, true) // exclude these with exclusions
-      }
-
       if (image.blockDeviceMappings != null) {
         image.blockDeviceMappings.forEach { blockDevice ->
           if (blockDevice.ebs != null && blockDevice.ebs.snapshotId != null) {

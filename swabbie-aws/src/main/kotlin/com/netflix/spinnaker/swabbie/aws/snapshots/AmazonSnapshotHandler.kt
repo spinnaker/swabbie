@@ -29,7 +29,6 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
-import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
@@ -172,35 +171,9 @@ class AmazonSnapshotHandler(
   private fun checkIfImagesExist(candidates: List<AmazonSnapshot>, params: Parameters) {
     log.info("Checking for existing images for {} snapshots. Params: {} ", candidates.size, params)
     candidates.forEach { snapshot ->
-      if (snapshot.description == null) {
-        snapshot.set(NAIVE_EXCLUSION, true)
-        return
-      }
-
-      if (descriptionIsFromAutoBake(snapshot.description)) {
-          // if description contains these keys then it's most likely an auto-captured snapshot.
-        if (usedResourceRepository.isUsed(SNAPSHOT, snapshot.snapshotId, "aws:${params.region}:${params.account}")) {
-          snapshot.set(IMAGE_EXISTS, true)
-        }
-      } else {
-        snapshot.set(NAIVE_EXCLUSION, true)
+      if (usedResourceRepository.isUsed(SNAPSHOT, snapshot.snapshotId, "aws:${params.region}:${params.account}")) {
+        snapshot.set(IMAGE_EXISTS, true)
       }
     }
-  }
-
-  // todo eb: generalize this netflix-specific pattern
-  fun descriptionIsFromAutoBake(description: String): Boolean {
-    // description=name=nflx-sirt-forensics, arch=x86_64, ancestor_name=bionic-classicbase-unstable-x86_64-201902272237-ebs, ancestor_id=ami-067321616378baefc, ancestor_version=nflx-base-5.347.2-h1144.4aace97~unstable
-    val pairs = description.replace(" ", "").split(",")
-    val parsedDescr = mutableMapOf<String, String>()
-    pairs.forEach { pair ->
-      val split = pair.split("=")
-      if (split.size == 2) {
-        parsedDescr[split[0]] = split[1]
-      }
-    }
-
-    return parsedDescr.containsKey("name") && parsedDescr.containsKey("ancestor_name") &&
-      parsedDescr.containsKey("ancestor_id") && parsedDescr.containsKey("ancestor_version")
   }
 }

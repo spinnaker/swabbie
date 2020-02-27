@@ -42,13 +42,13 @@ swabbie:
     intervalMs: 30000
   queue:
     monitorIntervalMs: 60000
-    schedule:
-      allowedDaysOfWeek:
-        - Monday
-        - Tuesday
-        - Wednesday
-        - Thursday
-        - FRIDAY
+  schedule:
+    allowedDaysOfWeek:
+      - Monday
+      - Tuesday
+      - Wednesday
+      - Thursday
+      - FRIDAY
     startTime: "09:00"
     endTime: "17:00"
 

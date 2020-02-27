@@ -110,6 +110,15 @@ swabbie:
           enabled: true
           retention: 2
           maxAge: 30
+          exclusions:
+            - type: Literal
+              attributes:
+                - key: description
+                  value:
+                    - pattern:base-ami
+                - key: name
+                  value:
+                    - pattern:base
           enabledRules:
             - operator: AND
               description: Images not referenced by instances, launch configs and with no siblings or copies in other accounts.

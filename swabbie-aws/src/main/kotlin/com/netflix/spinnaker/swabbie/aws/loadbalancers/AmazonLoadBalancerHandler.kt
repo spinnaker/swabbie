@@ -23,7 +23,6 @@ import com.netflix.spinnaker.swabbie.AbstractResourceTypeHandler
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.aws.AWS
-import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
@@ -162,29 +161,30 @@ class AmazonLoadBalancerHandler(
     workConfiguration: WorkConfiguration,
     loadBalancers: List<AmazonElasticLoadBalancer>
   ): List<AmazonElasticLoadBalancer> {
-    aws.getServerGroups(
-      Parameters(
-        account = workConfiguration.account.accountId!!,
-        region = workConfiguration.location,
-        environment = workConfiguration.account.environment
-      )
-    ).let { serverGroups ->
-      if (serverGroups.isEmpty()) {
-        throw IllegalStateException("Unable to retrieve server groups")
+    val params = Parameters(
+      account = workConfiguration.account.accountId!!,
+      region = workConfiguration.location,
+      environment = workConfiguration.account.environment
+    )
+
+    val serverGroups = aws
+      .getServerGroups(params)
+      .also {
+        if (it.isEmpty()) {
+          throw IllegalStateException("Unable to retrieve server groups")
+        }
       }
 
-      serverGroups.forEach { serverGroup ->
-        loadBalancers.addServerGroupReferences(serverGroup)
+    serverGroups.forEach { serverGroup ->
+      loadBalancers.forEach {
+        it.set(isAttachedToServerGroups, serverGroup.loadBalancerNames?.contains(it.name) ?: false)
       }
     }
 
     return loadBalancers
   }
 
-  private fun List<AmazonElasticLoadBalancer>.addServerGroupReferences(serverGroup: AmazonAutoScalingGroup) = filter {
-    (serverGroup.details["loadBalancerNames"] as List<String>).contains(it.name)
-  }.map { elb ->
-    elb.details["serverGroups"] = elb.details["serverGroups"] ?: mutableListOf<String>()
-    (elb.details["serverGroups"] as MutableList<String>).add(serverGroup.name)
+  companion object {
+    const val isAttachedToServerGroups = "isAttachedToServerGroups"
   }
 }

@@ -43,7 +43,6 @@ class OrphanedImageRule : Rule {
         USED_BY_INSTANCES,
         USED_BY_LAUNCH_CONFIGURATIONS,
         HAS_SIBLINGS_IN_OTHER_ACCOUNTS,
-        IS_BASE_OR_ANCESTOR,
         SEEN_IN_USE_RECENTLY
       )) {
       return Result(null)
@@ -67,5 +66,4 @@ class OrphanedImageRule : Rule {
 const val USED_BY_INSTANCES = "usedByInstances"
 const val USED_BY_LAUNCH_CONFIGURATIONS = "usedByLaunchConfigurations"
 const val HAS_SIBLINGS_IN_OTHER_ACCOUNTS = "hasSiblingsInOtherAccounts"
-const val IS_BASE_OR_ANCESTOR = "isBaseOrAncestor"
 const val SEEN_IN_USE_RECENTLY = "seenInUseRecently"

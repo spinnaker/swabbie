@@ -164,19 +164,6 @@ object AmazonSnapshotHandlerTest {
     stateMessage = null
   )
 
-  @Test
-  fun `description matching works`() {
-    val d = "Created by AWS-VMImport service for import-snap-fh3h9fjz"
-    val d2 = "Copied for DestinationAmi ami-abc5d1bc from SourceAmi ami-51505e46 for SourceSnapshot snap-0ea59b6dfbba3cf48. Task created on 1,482,344,892,652."
-    val d3 = "snapshot of image.vmdk"
-    assert(!subject.descriptionIsFromAutoBake(d))
-    assert(!subject.descriptionIsFromAutoBake(d2))
-    assert(!subject.descriptionIsFromAutoBake(d3))
-
-    val d4 = "name=orca, arch=x86_64, ancestor_name=xenialbase-x86_64-201902202219-ebs, ancestor_id=ami-0fea682be4d892b0a, ancestor_version=nflx-base-5.344.0-h1137.cc92ef3"
-    assert(subject.descriptionIsFromAutoBake(d4))
-  }
-
   @BeforeEach
   fun setup() {
     snap000.details.clear()

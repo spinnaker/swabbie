@@ -106,6 +106,7 @@ class Vanilla(
 
     var result: DescribeInstancesResult = account.ec2(params.region)
       .describeInstances(request)
+    instances.addAll(result.reservations.map { it.instances }.flatten())
 
     var nextToken = result.nextToken
     while (!nextToken.isNullOrBlank()) {
@@ -133,6 +134,10 @@ class Vanilla(
       .withMaxRecords(launchConfigurationsMaxResult)
     var result: DescribeLaunchConfigurationsResult = account.autoScaling(params.region)
       .describeLaunchConfigurations(request)
+
+    launchConfigurations.addAll(
+      convert(result.launchConfigurations)
+    )
 
     var nextToken = result.nextToken
     while (!nextToken.isNullOrBlank()) {
@@ -163,6 +168,9 @@ class Vanilla(
     val request = DescribeAutoScalingGroupsRequest().withMaxRecords(serverGroupMaxResult)
     var result: DescribeAutoScalingGroupsResult = account.autoScaling(params.region)
       .describeAutoScalingGroups()
+    autoScalingGroups.addAll(
+      convert(result.autoScalingGroups)
+    )
 
     var nextToken = result.nextToken
     while (!nextToken.isNullOrBlank()) {
@@ -192,6 +200,9 @@ class Vanilla(
     val elbList = mutableListOf<AmazonElasticLoadBalancer>()
     var result: DescribeLoadBalancersResult = account.elasticLoadBalancing(params.region)
       .describeLoadBalancers()
+    elbList.addAll(
+      convert(result.loadBalancerDescriptions)
+    )
 
     var nextToken = result.nextMarker
     while (!nextToken.isNullOrBlank()) {
@@ -222,7 +233,9 @@ class Vanilla(
     // AWS api doesnt support pagination, breaking down the list because this call can be very expensive
     imageFilters.forEach {
       log.info("Getting Images with filter {}", it)
-      val request = DescribeImagesRequest().withFilters(it)
+      val request = DescribeImagesRequest()
+        .withFilters(Filter("is-public").withValues("false"))
+        .withFilters(it)
       val result: DescribeImagesResult = account.ec2(params.region).describeImages(request)
       images.addAll(convert(result.images))
     }
@@ -242,6 +255,9 @@ class Vanilla(
     val groups = mutableListOf<AmazonSecurityGroup>()
     var result: DescribeSecurityGroupsResult = account.ec2(params.region)
       .describeSecurityGroups()
+    groups.addAll(
+      convert(result.securityGroups)
+    )
 
     var nextToken = result.nextToken
     while (!nextToken.isNullOrBlank()) {
@@ -272,6 +288,10 @@ class Vanilla(
     val request = DescribeSnapshotsRequest().withMaxResults(snapshotsMaxResult)
     var result: DescribeSnapshotsResult = account.ec2(params.region)
       .describeSnapshots(request)
+
+    snapshots.addAll(
+      convert(result.snapshots)
+    )
 
     var nextToken = result.nextToken
     while (!nextToken.isNullOrBlank()) {

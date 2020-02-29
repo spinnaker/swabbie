@@ -109,14 +109,14 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     }
 
     val markedResources = workConfiguration.getMarkedResourcesToNotify()
-    if (markedResources.isEmpty()) {
+    if (markedResources.isEmpty() && workConfiguration.notificationConfiguration.enabled) {
       log.info("Nothing to notify for {}. Skipping...", workConfiguration)
       return
     }
 
-    log.info("Processing ${markedResources.size} for notification in ${javaClass.simpleName}")
     if (workConfiguration.notificationConfiguration.enabled) {
       // Notifications are routinely batched and sent by [com.netflix.spinnaker.swabbie.notifications.NotificationSender]
+      log.info("Queuing notifications for  ${markedResources.size} resources in ${workConfiguration.namespace}")
       notificationQueue.add(workConfiguration)
     } else {
       // Do not send notifications for these resources. They are updated with a new deletion timestamp to offset

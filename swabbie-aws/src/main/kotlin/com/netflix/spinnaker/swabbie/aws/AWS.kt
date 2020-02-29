@@ -233,7 +233,9 @@ class Vanilla(
     // AWS api doesnt support pagination, breaking down the list because this call can be very expensive
     imageFilters.forEach {
       log.info("Getting Images with filter {}", it)
-      val request = DescribeImagesRequest().withFilters(it)
+      val request = DescribeImagesRequest()
+        .withFilters(Filter("is-public").withValues("false"))
+        .withFilters(it)
       val result: DescribeImagesResult = account.ec2(params.region).describeImages(request)
       images.addAll(convert(result.images))
     }

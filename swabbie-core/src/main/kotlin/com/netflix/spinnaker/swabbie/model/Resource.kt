@@ -41,6 +41,7 @@ const val LOAD_BALANCER = "loadBalancer"
 const val SERVER_GROUP = "serverGroup"
 const val LAUNCH_CONFIGURATION = "launchConfiguration"
 const val SNAPSHOT = "snapshot"
+const val IAM_ROLE = "iamRole"
 
 /** Provider Types **/
 const val AWS = "aws"

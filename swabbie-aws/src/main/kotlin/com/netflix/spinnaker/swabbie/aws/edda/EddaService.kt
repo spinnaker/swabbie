@@ -17,6 +17,7 @@
 package com.netflix.spinnaker.swabbie.aws.edda
 
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import com.netflix.spinnaker.swabbie.aws.iamroles.AmazonIamRole
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
@@ -74,4 +75,10 @@ interface EddaService {
 
   @GET("/api/v2/aws/launchConfigurations/{launchConfigurationName}")
   fun getLaunchConfig(@Path("launchConfigurationName") launchConfigurationName: String): AmazonLaunchConfiguration
+
+  @GET("/api/v2/aws/iamRoles/{roleName}")
+  fun getIamRole(roleName: String): AmazonIamRole?
+
+  @GET("/api/v2/aws/iamRoles;_expand")
+  fun getIamRoles(): List<AmazonIamRole>?
 }

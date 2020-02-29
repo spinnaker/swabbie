@@ -64,6 +64,7 @@ import com.amazonaws.services.ec2.model.DescribeSnapshotsRequest
 import com.amazonaws.services.ec2.model.DescribeSnapshotsResult
 import com.amazonaws.services.ec2.model.DescribeInstancesResult
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest
+import com.netflix.spinnaker.swabbie.aws.iamroles.AmazonIamRole
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Duration
@@ -86,6 +87,8 @@ interface AWS {
   fun getSnapshot(params: Parameters): AmazonSnapshot?
   fun getServerGroups(params: Parameters): List<AmazonAutoScalingGroup>
   fun getServerGroup(params: Parameters): AmazonAutoScalingGroup?
+  fun getIamRoles(params: Parameters): List<AmazonIamRole>?
+  fun getIamRole(params: Parameters): AmazonIamRole?
 }
 
 /**
@@ -185,6 +188,14 @@ class Vanilla(
     val request = DescribeAutoScalingGroupsRequest().withAutoScalingGroupNames(params.id)
     val result = account.autoScaling(params.region).describeAutoScalingGroups(request)
     return convert<AmazonAutoScalingGroup>(result.autoScalingGroups).first()
+  }
+
+  override fun getIamRoles(params: Parameters): List<AmazonIamRole>? {
+    TODO("not implemented") // To change body of created functions use File | Settings | File Templates.
+  }
+
+  override fun getIamRole(params: Parameters): AmazonIamRole? {
+    TODO("not implemented") // To change body of created functions use File | Settings | File Templates.
   }
 
   override fun getElasticLoadBalancers(params: Parameters): List<AmazonElasticLoadBalancer> {

@@ -25,6 +25,7 @@ import com.netflix.spinnaker.swabbie.EndpointProvider
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import com.netflix.spinnaker.swabbie.aws.iamroles.AmazonIamRole
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
@@ -38,6 +39,7 @@ import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
+import com.netflix.spinnaker.swabbie.model.IAM_ROLE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import retrofit.Endpoints
@@ -142,6 +144,18 @@ class Edda(
   override fun getServerGroup(params: Parameters): AmazonAutoScalingGroup? {
     return call(params, SERVER_GROUP) {
       eddaService: EddaService -> eddaService.getAutoScalingGroup(params.id)
+    }
+  }
+
+  override fun getIamRoles(params: Parameters): List<AmazonIamRole>? {
+    return call(params, IAM_ROLE) {
+      eddaService: EddaService -> eddaService.getIamRoles()
+    } ?: emptyList()
+  }
+
+  override fun getIamRole(params: Parameters): AmazonIamRole? {
+    return call(params, IAM_ROLE) {
+      eddaService: EddaService -> eddaService.getIamRole(params.id)
     }
   }
 

@@ -22,7 +22,6 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.config.REDIS_CHUNK_SIZE
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
-import com.netflix.spinnaker.kork.web.exceptions.NotFoundException
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import org.slf4j.LoggerFactory
@@ -54,15 +53,15 @@ class RedisResourceStateRepository(
   override fun upsert(resourceState: ResourceState): ResourceState {
     val markedResource = resourceState.markedResource
     val uniqueId = "${markedResource.namespace}:${markedResource.resourceId}".toLowerCase()
-    statesKey(uniqueId).let {
-      redisClientDelegate.withCommandsClient { client ->
+    redisClientDelegate.run {
+      this.withCommandsClient { client ->
         client.hset(SINGLE_STATE_KEY, uniqueId, objectMapper.writeValueAsString(resourceState))
         client.sadd(ALL_STATES_KEY, uniqueId)
       }
-    }
 
-    return get(resourceState.markedResource.resourceId, resourceState.markedResource.namespace)
-      ?: throw NotFoundException()
+      return get(resourceState.markedResource.resourceId, resourceState.markedResource.namespace)
+        ?: resourceState
+    }
   }
 
   override fun getAll(): List<ResourceState> {
@@ -189,5 +188,3 @@ class RedisResourceStateRepository(
 
 const val SINGLE_STATE_KEY = "{swabbie:resourceState}"
 const val ALL_STATES_KEY = "{swabbie:resourceStates}"
-
-fun statesKey(id: String) = "{swabbie:resourceStates}:$id"

@@ -116,7 +116,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
     if (workConfiguration.notificationConfiguration.enabled) {
       // Notifications are routinely batched and sent by [com.netflix.spinnaker.swabbie.notifications.NotificationSender]
-      log.info("Queuing notifications for  ${markedResources.size} resources in ${workConfiguration.namespace}")
+      log.info("Queuing notifications for resources in ${workConfiguration.namespace}")
       notificationQueue.add(workConfiguration)
     } else {
       // Do not send notifications for these resources. They are updated with a new deletion timestamp to offset

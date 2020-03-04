@@ -199,6 +199,7 @@ class ResourceTypeConfiguration {
   }
 
   class RuleDefinition {
+    var description: String? = null
     var name: String = ""
     var parameters: Map<String, Any?> = mapOf()
 

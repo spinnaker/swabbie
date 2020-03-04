@@ -65,7 +65,8 @@ class AttributeRule : Rule {
       return Result(null)
     }
 
-    return Result(Summary(description = "(${resource.resourceId}): matched by rule attributes.", ruleName = name()))
+    return Result(
+      Summary(ruleDefinition?.description ?: "(${resource.resourceId}): matched by rule attributes.", name()))
   }
 
   private fun <T : Resource> T.matchAttributes(ruleDefinition: RuleDefinition?): Boolean {

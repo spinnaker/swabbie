@@ -20,6 +20,6 @@ import com.netflix.spinnaker.swabbie.model.Application
 import retrofit.http.GET
 
 interface Front50Service {
-  @GET("/v2/applications")
+  @GET("/v2/applications?restricted=false")
   fun getApplications(): Set<Application>
 }

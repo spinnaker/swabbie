@@ -123,18 +123,7 @@ swabbie:
             - operator: AND
               description: Images not referenced by instances, launch configs and with no siblings or copies in other accounts.
               rules:
-                - name: AttributeRule
-                  parameters:
-                    usedByLaunchConfigurations: false
-                - name: AttributeRule
-                  parameters:
-                    usedByInstances: false
-                - name: AttributeRule
-                  parameters:
-                    hasSiblingsInOtherAccounts: false
-                - name: AttributeRule
-                  parameters:
-                    seenInUseRecently: false
+                - name: OrphanedImageRule
           notification:
             enabled: false
         - name: snapshot

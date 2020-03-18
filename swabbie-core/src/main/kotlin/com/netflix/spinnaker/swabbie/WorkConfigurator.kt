@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie
 
+import com.netflix.spinnaker.config.CloudProviderConfiguration
 import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.swabbie.exclusions.BasicExclusionPolicy
@@ -46,13 +47,11 @@ open class WorkConfigurator(
    * Clouddriver is the default account provider
    */
   internal fun getAccounts(): List<Account> {
-    accountProvider.getAccounts().let { accounts ->
-      return if (accounts.isEmpty()) {
-        listOf(EmptyAccount())
-      } else {
-        accounts.toList()
+    return accountProvider.getAccounts()
+      .toMutableList()
+      .apply {
+        add(EmptyAccount())
       }
-    }
   }
 
   /**
@@ -69,8 +68,7 @@ open class WorkConfigurator(
         it.enabled
       }.forEach { resourceTypeConfiguration ->
         spinnakerAccounts.filter {
-          cloudProviderConfiguration.accounts.contains(it.name) &&
-            it.type.equals(cloudProviderConfiguration.name, ignoreCase = true)
+          it.matchesProvider(cloudProviderConfiguration)
         }.forEach { account ->
           val accountRegions = account.regions?.map { it.name } ?: emptyList()
           cloudProviderConfiguration.locations.filter {
@@ -116,6 +114,14 @@ open class WorkConfigurator(
 
     log.info("Generated {} work configurations {}", all.size, all)
     return all
+  }
+
+  private fun Account.matchesProvider(cloudProviderConfiguration: CloudProviderConfiguration): Boolean {
+    if (!cloudProviderConfiguration.accounts.contains(name)) {
+      return false
+    }
+
+    return type.equals(cloudProviderConfiguration.name, ignoreCase = true) || this is EmptyAccount
   }
 
   private fun mergeExclusions(global: Set<Exclusion>?, local: Set<Exclusion>?): Set<Exclusion> {

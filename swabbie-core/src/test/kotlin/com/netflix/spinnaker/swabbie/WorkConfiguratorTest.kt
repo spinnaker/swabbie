@@ -25,6 +25,7 @@ import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.config.ResourceTypeConfiguration
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
+import com.netflix.spinnaker.swabbie.model.EmptyAccount
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.nhaarman.mockito_kotlin.doReturn
@@ -32,6 +33,9 @@ import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.contains
+import strikt.assertions.isEqualTo
 import java.util.Optional
 
 object WorkConfiguratorTest {
@@ -68,7 +72,9 @@ object WorkConfiguratorTest {
         )
       )
 
-    workConfigurator.getAccounts().size shouldMatch equalTo(2)
+    val accounts = workConfigurator.getAccounts()
+    expectThat(accounts.size).isEqualTo(3)
+    expectThat(accounts).contains(EmptyAccount())
   }
 
   @Test

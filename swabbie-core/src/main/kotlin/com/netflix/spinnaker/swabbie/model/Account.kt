@@ -58,14 +58,17 @@ data class SpinnakerAccount(
     get() = type
 }
 
+/**
+ * A placeholder account for things with no concept of an account
+ */
 data class EmptyAccount(
-  override val accountId: String? = "",
-  override val type: String = "",
-  override val name: String = "",
+  override val accountId: String? = none,
+  override val type: String = none,
+  override val name: String = none,
   override val eddaEnabled: Boolean = false,
-  override val edda: String? = "",
-  override val regions: List<Region> = emptyList(),
-  override val environment: String = "",
+  override val edda: String? = none,
+  override val regions: List<Region> = listOf(Region(false, none)),
+  override val environment: String = none,
   override val grouping: Grouping? = null
 ) : Account, HasDetails() {
   override val resourceId: String
@@ -75,3 +78,5 @@ data class EmptyAccount(
   override val cloudProvider: String
     get() = type
 }
+
+const val none = "none"

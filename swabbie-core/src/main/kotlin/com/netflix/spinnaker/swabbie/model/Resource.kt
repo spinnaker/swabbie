@@ -193,7 +193,7 @@ interface Identifiable : Named {
       values.any { it is String && this.patternMatched(it) || splitFieldValue.contains(it) }
   }
 
-  private fun <R : Any?> getProperty(propertyName: String): R {
+  fun <R : Any?> getProperty(propertyName: String): R {
     try {
       return readPropery(propertyName)
     } catch (e: NoSuchElementException) {

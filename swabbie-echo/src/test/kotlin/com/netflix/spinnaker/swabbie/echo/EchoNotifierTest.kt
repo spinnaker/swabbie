@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie.echo
 
 import com.netflix.spinnaker.config.NotificationConfiguration
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -32,7 +31,7 @@ import strikt.assertions.isEqualTo
 
 object EchoNotifierTest {
   private val echoService = mock<EchoService>()
-  private val subject = EchoNotifier(echoService, RetrySupport())
+  private val subject = EchoNotifier(echoService)
 
   @Test
   fun `should notify`() {

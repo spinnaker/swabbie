@@ -64,7 +64,7 @@ class NotificationSender(
   private val notificationsQueueSizeId = registry.createId("swabbie.notifications.queueSize")
 
   private val lockOptions = LockManager.LockOptions()
-    .withLockName(lockingService.ownerName)
+    .withLockName(javaClass.simpleName)
     .withMaximumLockDuration(lockingService.swabbieMaxLockDuration)
 
   init {

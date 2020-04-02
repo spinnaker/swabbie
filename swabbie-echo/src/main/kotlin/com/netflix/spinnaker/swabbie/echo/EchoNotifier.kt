@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.swabbie.echo
 
 import com.netflix.spinnaker.config.NotificationConfiguration
-import com.netflix.spinnaker.kork.core.RetrySupport
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType
@@ -29,13 +28,9 @@ import java.lang.UnsupportedOperationException
 
 @Component
 class EchoNotifier(
-  private val echoService: EchoService,
-  private val retrySupport: RetrySupport
+  private val echoService: EchoService
 ) : Notifier {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
-  private val timeoutMillis: Long = 5000
-  private val maxAttempts: Int = 3
-
   override fun notify(
     recipient: String,
     notificationContext: Map<String, Any>,
@@ -46,15 +41,12 @@ class EchoNotifier(
       .forEach { notificationType ->
         when {
           notificationType.equals(NotificationType.EMAIL.name, true) -> {
-            try {
-              retrySupport.retry({
-                sendEmail(recipient, notificationContext)
-              }, maxAttempts, timeoutMillis, false)
-
-              return NotificationResult(recipient, NotificationType.EMAIL, success = true)
+            return try {
+              sendEmail(recipient, notificationContext)
+              NotificationResult(recipient, NotificationType.EMAIL, success = true)
             } catch (e: Exception) {
               log.error("Failed to send notification", e)
-              return NotificationResult(recipient, NotificationType.EMAIL, success = false)
+              NotificationResult(recipient, NotificationType.EMAIL, success = false)
             }
           }
         }

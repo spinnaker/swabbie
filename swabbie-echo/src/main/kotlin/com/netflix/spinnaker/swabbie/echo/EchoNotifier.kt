@@ -42,10 +42,11 @@ class EchoNotifier(
         when {
           notificationType.equals(NotificationType.EMAIL.name, true) -> {
             return try {
+              log.info("Sending notification to $recipient. context: $notificationContext")
               sendEmail(recipient, notificationContext)
               NotificationResult(recipient, NotificationType.EMAIL, success = true)
             } catch (e: Exception) {
-              log.error("Failed to send notification", e)
+              log.error("Failed to send notification to $recipient. context: $notificationContext", e)
               NotificationResult(recipient, NotificationType.EMAIL, success = false)
             }
           }

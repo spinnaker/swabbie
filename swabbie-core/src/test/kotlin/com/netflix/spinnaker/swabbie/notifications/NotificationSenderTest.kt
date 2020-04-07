@@ -68,6 +68,9 @@ object NotificationSenderTest {
   private val workConfiguration2 = WorkConfigurationTestHelper
     .generateWorkConfiguration(namespace = "ns2", resourceType = "type2")
 
+  private val workConfiguration3 = WorkConfigurationTestHelper
+    .generateWorkConfiguration(namespace = "ns3", resourceType = "type1")
+
   private val notificationService = NotificationSender(
     lockingService = LockingService.NOOP(),
     notifier = notifier,
@@ -77,7 +80,7 @@ object NotificationSenderTest {
     resourceStateRepository = resourceStateRepository,
     notificationQueue = notificationQueue,
     registry = NoopRegistry(),
-    workConfigurations = listOf(workConfiguration1, workConfiguration2),
+    workConfigurations = listOf(workConfiguration1, workConfiguration2, workConfiguration3),
     dynamicConfigService = dynamicConfigService
   )
 
@@ -166,6 +169,54 @@ object NotificationSenderTest {
     verify(applicationEventPublisher, times(2)).publishEvent(any<OwnerNotifiedEvent>())
 
     listOf(resource1, resource2).forEach {
+      expectThat(it.notificationInfo)
+        .isNotNull()
+        .get { notificationStamp }
+        .isNotNull()
+    }
+  }
+
+  @Test
+  fun `should notify deduped notifications and update notification info`() {
+    val owner1 = "test@netflix.com"
+    val owner2 = "test2@netflix.com"
+    val resource1 = createMarkedResource(workConfiguration = workConfiguration1, id = "1", owner = owner1)
+    val resource2 = createMarkedResource(workConfiguration = workConfiguration2, id = "2", owner = owner2)
+    val resource3 = createMarkedResource(workConfiguration = workConfiguration3, id = "3", owner = owner1)
+
+    notificationQueue.add(
+      NotificationTask(
+        resourceType = workConfiguration1.resourceType,
+        namespace = workConfiguration1.namespace
+      ))
+
+    notificationQueue.add(
+      NotificationTask(
+        resourceType = workConfiguration2.resourceType,
+        namespace = workConfiguration2.namespace
+      ))
+
+    notificationQueue.add(
+      NotificationTask(
+        resourceType = workConfiguration3.resourceType,
+        namespace = workConfiguration3.namespace
+      )
+    )
+
+    whenever(
+      resourceRepository.getMarkedResources()
+    ) doReturn listOf(resource1, resource2, resource3)
+
+    whenever(
+      notifier.notify(any(), any(), any())
+    ) doReturn Notifier.NotificationResult(owner1, Notifier.NotificationType.EMAIL, success = true)
+
+    notificationService.sendNotifications()
+
+    verify(notifier, times(2)).notify(any(), any(), any())
+    verify(applicationEventPublisher, times(3)).publishEvent(any<OwnerNotifiedEvent>())
+
+    listOf(resource1, resource2, resource3).forEach {
       expectThat(it.notificationInfo)
         .isNotNull()
         .get { notificationStamp }

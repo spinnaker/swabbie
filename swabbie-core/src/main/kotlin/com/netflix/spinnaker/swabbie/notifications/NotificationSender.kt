@@ -86,6 +86,7 @@ class NotificationSender(
 
     lockingService.acquireLock(lockOptions) {
       try {
+        val notified = mutableSetOf<MarkedResource>()
         val resources = getResourcesToNotify()
         val notificationTasks = notificationQueue.popAll()
         for (task in notificationTasks) {
@@ -97,8 +98,9 @@ class NotificationSender(
           val maxItemsToProcess = workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService)
 
           val resourcesByOwner: Map<String, List<MarkedResource>> = resources
+            .toSet()
             .filter {
-              it.resourceType == resourceType
+              it.resourceType == resourceType && !notified.contains(it)
             }
             .take(maxItemsToProcess)
             .groupBy {
@@ -120,6 +122,8 @@ class NotificationSender(
               registry.counter(notificationAttemptsId.withTags("result", "failure")).increment()
               continue
             }
+
+            notified.addAll(list)
 
             val notificationInfo = NotificationInfo(
               result.recipient,

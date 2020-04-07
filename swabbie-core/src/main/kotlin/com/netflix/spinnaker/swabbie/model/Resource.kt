@@ -311,6 +311,28 @@ data class MarkedResource(
       projectedDeletionStamp += timestampToAdd
     }
   }
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) {
+      return true
+    }
+
+    if (javaClass != other?.javaClass) {
+      return false
+    }
+
+    other as MarkedResource
+
+    if (resource != other.resource) {
+      return false
+    }
+
+    return true
+  }
+
+  override fun hashCode(): Int {
+    return resource.hashCode()
+  }
 }
 
 data class SlimMarkedResource(

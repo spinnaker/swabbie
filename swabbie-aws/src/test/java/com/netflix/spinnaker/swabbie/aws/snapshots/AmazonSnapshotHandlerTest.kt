@@ -25,14 +25,14 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.ResourceOwnerResolver
 import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
-import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.Rule
+import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.orca.OrcaService
@@ -45,16 +45,19 @@ import com.netflix.spinnaker.swabbie.rules.ResourceRulesEngine
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
 import com.nhaarman.mockito_kotlin.any
-import com.nhaarman.mockito_kotlin.validateMockitoUsage
-import com.nhaarman.mockito_kotlin.verifyNoMoreInteractions
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.doThrow
 import com.nhaarman.mockito_kotlin.eq
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.reset
 import com.nhaarman.mockito_kotlin.times
+import com.nhaarman.mockito_kotlin.validateMockitoUsage
 import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.verifyNoMoreInteractions
 import com.nhaarman.mockito_kotlin.whenever
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -65,9 +68,6 @@ import strikt.assertions.isEqualTo
 import strikt.assertions.isFalse
 import strikt.assertions.isNull
 import strikt.assertions.isTrue
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
 object AmazonSnapshotHandlerTest {
   private val objectMapper = ObjectMapper().registerKotlinModule().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

@@ -19,12 +19,12 @@ package com.netflix.spinnaker.swabbie.echo
 import com.netflix.spinnaker.config.NotificationConfiguration
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
-import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationSeverity
+import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType
+import java.lang.UnsupportedOperationException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import java.lang.UnsupportedOperationException
 
 @Component
 class EchoNotifier(

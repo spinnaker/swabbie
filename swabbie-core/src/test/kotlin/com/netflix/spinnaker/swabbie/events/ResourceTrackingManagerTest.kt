@@ -28,9 +28,9 @@ import com.nhaarman.mockito_kotlin.argWhere
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.reset
 import com.nhaarman.mockito_kotlin.verify
+import java.time.Clock
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import java.time.Clock
 
 object ResourceTrackingManagerTest {
   private val resourceTrackingRepository = mock<ResourceTrackingRepository>()

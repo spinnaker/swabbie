@@ -18,9 +18,9 @@
 
 package com.netflix.spinnaker.swabbie.repository
 
-import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.util.concurrent.TimeUnit
+import org.slf4j.LoggerFactory
 
 class InMemoryTaskTrackingRepository(
   private val clock: Clock

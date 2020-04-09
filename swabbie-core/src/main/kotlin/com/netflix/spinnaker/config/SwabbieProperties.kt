@@ -18,13 +18,13 @@ package com.netflix.spinnaker.config
 
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.EmptyNotificationConfiguration
-import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import org.springframework.boot.context.properties.ConfigurationProperties
 
 /**
  * @param {@link #minImagesUsedByLC} minimum number of images used by launch configurations that should be

@@ -24,11 +24,11 @@ import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
+import java.time.Clock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
-import java.time.Clock
 
 @Component
 class ResourceStateManager(

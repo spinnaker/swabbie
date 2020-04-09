@@ -45,9 +45,6 @@ import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.rules.RulesEngine
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -56,6 +53,9 @@ import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.min
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 
 abstract class AbstractResourceTypeHandler<T : Resource>(
   private val registry: Registry,

@@ -18,13 +18,13 @@ package com.netflix.spinnaker.swabbie.aws
 
 import com.netflix.spinnaker.kork.test.time.MutableClock
 import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGroup
+import java.time.Duration
+import java.time.Instant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
-import java.time.Duration
-import java.time.Instant
 
 object ExpiredResourceRuleTest {
   private val clock = MutableClock()

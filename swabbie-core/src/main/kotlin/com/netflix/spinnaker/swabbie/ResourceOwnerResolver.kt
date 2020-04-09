@@ -18,10 +18,10 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.swabbie.model.Resource
+import java.util.regex.Pattern
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import java.util.regex.Pattern
 
 /**
  * Looks at all available resolution strategies for finding an owner for a resource,

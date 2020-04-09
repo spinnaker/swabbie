@@ -1,11 +1,11 @@
 package com.netflix.spinnaker.swabbie
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
 
 interface CacheStatus {
   abstract fun cachesLoaded(): Boolean

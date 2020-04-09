@@ -30,7 +30,6 @@ import com.netflix.spinnaker.swabbie.model.NotificationInfo
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationResult
 import com.netflix.spinnaker.swabbie.notifications.Notifier.NotificationType.EMAIL
@@ -40,10 +39,12 @@ import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.test.InMemoryNotificationQueue
+import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
 import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.argWhere
 import com.nhaarman.mockito_kotlin.check
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.inOrder
@@ -53,7 +54,11 @@ import com.nhaarman.mockito_kotlin.reset
 import com.nhaarman.mockito_kotlin.times
 import com.nhaarman.mockito_kotlin.verify
 import com.nhaarman.mockito_kotlin.whenever
-import com.nhaarman.mockito_kotlin.argWhere
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -61,15 +66,10 @@ import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
+import strikt.assertions.isFalse
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
-import strikt.assertions.isFalse
 import strikt.assertions.isTrue
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
-import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()

@@ -51,13 +51,13 @@ import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.UsedResourceRepository
 import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.utils.ApplicationUtils
+import java.time.Clock
+import java.time.Duration
+import kotlin.system.measureTimeMillis
 import net.logstash.logback.argument.StructuredArguments.kv
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
-import java.time.Clock
-import java.time.Duration
-import kotlin.system.measureTimeMillis
 
 @Component
 class AmazonImageHandler(

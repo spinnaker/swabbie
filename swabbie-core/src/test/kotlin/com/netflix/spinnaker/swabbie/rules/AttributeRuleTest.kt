@@ -18,13 +18,13 @@ package com.netflix.spinnaker.swabbie.rules
 
 import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.swabbie.test.TestResource
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
 object AttributeRuleTest {
   private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)

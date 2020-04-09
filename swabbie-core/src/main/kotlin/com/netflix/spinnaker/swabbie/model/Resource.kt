@@ -24,14 +24,14 @@ import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
 import com.netflix.spinnaker.swabbie.tagging.TemporalTags
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.util.NoSuchElementException
 import kotlin.reflect.full.memberProperties
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 /** Resource Types **/
 const val SECURITY_GROUP = "securityGroup"

@@ -18,10 +18,10 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.config.LockingConfigurationProperties
 import com.netflix.spinnaker.kork.lock.LockManager
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.concurrent.Callable
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 open class LockingService(
   private val lockManager: LockManager,

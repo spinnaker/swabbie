@@ -24,11 +24,11 @@ import com.netflix.spinnaker.config.Exclusion
 import com.netflix.spinnaker.config.ExclusionType
 import com.netflix.spinnaker.kork.test.time.MutableClock
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 object AmazonTagExclusionPolicyTest {
   private val clock = MutableClock()

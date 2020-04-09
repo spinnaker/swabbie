@@ -16,8 +16,8 @@
 
 package com.netflix.spinnaker.swabbie.redis
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue

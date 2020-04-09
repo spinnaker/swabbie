@@ -16,19 +16,38 @@
 
 package com.netflix.spinnaker.swabbie.aws
 
+import com.amazonaws.AmazonClientException
+import com.amazonaws.AmazonServiceException
+import com.amazonaws.AmazonWebServiceRequest
+import com.amazonaws.ClientConfiguration
+import com.amazonaws.SdkBaseException
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider
+import com.amazonaws.retry.PredefinedRetryPolicies.DEFAULT_BACKOFF_STRATEGY
+import com.amazonaws.retry.PredefinedRetryPolicies.DEFAULT_MAX_ERROR_RETRY
+import com.amazonaws.retry.RetryPolicy
+import com.amazonaws.retry.RetryUtils
 import com.amazonaws.services.autoscaling.AmazonAutoScaling
 import com.amazonaws.services.autoscaling.AmazonAutoScalingClientBuilder
 import com.amazonaws.services.autoscaling.model.DescribeAutoScalingGroupsRequest
 import com.amazonaws.services.autoscaling.model.DescribeAutoScalingGroupsResult
-import com.amazonaws.services.autoscaling.model.DescribeLaunchConfigurationsResult
 import com.amazonaws.services.autoscaling.model.DescribeLaunchConfigurationsRequest
+import com.amazonaws.services.autoscaling.model.DescribeLaunchConfigurationsResult
 import com.amazonaws.services.ec2.AmazonEC2
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder
+import com.amazonaws.services.ec2.model.DescribeImagesRequest
+import com.amazonaws.services.ec2.model.DescribeImagesResult
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest
+import com.amazonaws.services.ec2.model.DescribeInstancesResult
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult
+import com.amazonaws.services.ec2.model.DescribeSnapshotsRequest
+import com.amazonaws.services.ec2.model.DescribeSnapshotsResult
+import com.amazonaws.services.ec2.model.Filter
+import com.amazonaws.services.ec2.model.Instance
 import com.amazonaws.services.elasticloadbalancing.AmazonElasticLoadBalancing
 import com.amazonaws.services.elasticloadbalancing.AmazonElasticLoadBalancingClientBuilder
-import com.amazonaws.services.elasticloadbalancing.model.DescribeLoadBalancersResult
 import com.amazonaws.services.elasticloadbalancing.model.DescribeLoadBalancersRequest
+import com.amazonaws.services.elasticloadbalancing.model.DescribeLoadBalancersResult
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.cache.CacheBuilder
@@ -43,30 +62,11 @@ import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import java.util.concurrent.TimeUnit
-import com.amazonaws.retry.PredefinedRetryPolicies.DEFAULT_MAX_ERROR_RETRY
-import com.amazonaws.retry.PredefinedRetryPolicies.DEFAULT_BACKOFF_STRATEGY
-import com.amazonaws.ClientConfiguration
-import com.amazonaws.retry.RetryPolicy
-import com.amazonaws.SdkBaseException
-import com.amazonaws.retry.RetryUtils
-import com.amazonaws.AmazonServiceException
 import java.io.IOException
-import com.amazonaws.AmazonClientException
-import com.amazonaws.AmazonWebServiceRequest
-import com.amazonaws.services.ec2.model.Instance
-import com.amazonaws.services.ec2.model.Filter
-import com.amazonaws.services.ec2.model.DescribeImagesRequest
-import com.amazonaws.services.ec2.model.DescribeImagesResult
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest
-import com.amazonaws.services.ec2.model.DescribeSnapshotsRequest
-import com.amazonaws.services.ec2.model.DescribeSnapshotsResult
-import com.amazonaws.services.ec2.model.DescribeInstancesResult
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.time.Duration
 
 /**
  * AWS reads API

@@ -18,14 +18,14 @@ package com.netflix.spinnaker.swabbie.aws.caches
 
 import com.netflix.spinnaker.swabbie.AccountProvider
 import com.netflix.spinnaker.swabbie.CachedViewProvider
-import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.AWS
+import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import java.time.Clock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.time.Clock
 
 class LaunchConfigurationCacheProvider(
   private val clock: Clock,

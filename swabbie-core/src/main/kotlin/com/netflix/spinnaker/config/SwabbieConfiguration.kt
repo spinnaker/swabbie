@@ -36,6 +36,8 @@ import com.netflix.spinnaker.swabbie.exclusions.ExclusionsSupplier
 import com.netflix.spinnaker.swabbie.model.RESOURCE_TYPE_INFO_FIELD
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import java.time.Clock
+import java.util.Optional
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -46,8 +48,6 @@ import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.type.filter.AssignableTypeFilter
 import org.springframework.util.ClassUtils
-import java.time.Clock
-import java.util.Optional
 
 @Configuration
 @EnableConfigurationProperties(SwabbieProperties::class)

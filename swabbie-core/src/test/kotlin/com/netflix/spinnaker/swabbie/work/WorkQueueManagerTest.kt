@@ -31,16 +31,16 @@ import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.reset
 import com.nhaarman.mockito_kotlin.whenever
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.assertions.isFalse
-import strikt.assertions.isTrue
 import java.time.Clock
 import java.time.LocalDateTime
 import java.time.Month
 import java.time.ZoneId
 import java.time.ZoneOffset
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.isFalse
+import strikt.assertions.isTrue
 
 object WorkQueueManagerTest {
 

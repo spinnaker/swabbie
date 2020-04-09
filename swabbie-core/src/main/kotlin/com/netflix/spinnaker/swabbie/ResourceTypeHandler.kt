@@ -18,9 +18,9 @@ package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
-import com.netflix.spinnaker.swabbie.model.Summary
-import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.ResourceState
+import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 
 interface ResourceTypeHandler<T : Resource> {

@@ -17,12 +17,12 @@
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
 
 object ZeroInstanceDisabledServerGroupRuleTest {
 

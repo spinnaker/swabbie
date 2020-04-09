@@ -31,12 +31,12 @@ import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
+import java.util.Optional
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.contains
 import strikt.assertions.isEqualTo
-import java.util.Optional
 
 object WorkConfiguratorTest {
   private val accountProvider: AccountProvider = mock()

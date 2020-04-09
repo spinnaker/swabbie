@@ -19,8 +19,8 @@ package com.netflix.spinnaker.swabbie.test
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.model.WorkItem
 import com.netflix.spinnaker.swabbie.work.WorkQueue
-import org.slf4j.LoggerFactory
 import java.util.concurrent.LinkedBlockingQueue
+import org.slf4j.LoggerFactory
 
 // For testing purpose
 class InMemoryWorkQueue(

@@ -18,14 +18,14 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.fasterxml.jackson.annotation.JsonTypeName
+import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
 import com.netflix.spinnaker.swabbie.Dates
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.lang.Exception
 import java.time.Instant
-import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
-import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.time.LocalDateTime
 import java.time.ZoneId
 

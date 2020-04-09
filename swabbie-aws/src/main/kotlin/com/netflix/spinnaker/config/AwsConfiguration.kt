@@ -34,11 +34,11 @@ import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationInMemor
 import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
 import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import java.time.Clock
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
-import java.time.Clock
 
 @Configuration
 @ComponentScan(basePackages = ["com.netflix.spinnaker.swabbie.aws"])

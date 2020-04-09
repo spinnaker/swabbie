@@ -17,11 +17,11 @@
 package com.netflix.spinnaker.swabbie.discovery
 
 import com.netflix.discovery.EurekaClient
+import java.lang.management.ManagementFactory
+import java.util.Optional
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.lang.management.ManagementFactory
-import java.util.Optional
 
 @Configuration
 open class DiscoveryPollingConfiguration {

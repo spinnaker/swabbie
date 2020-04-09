@@ -41,8 +41,8 @@ import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import com.netflix.spinnaker.swabbie.test.TestResource
-import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
+import org.springframework.context.ApplicationEventPublisher
 
 /**
  * A test resource type handler that provides fake resources to test abstract resource type handler logic

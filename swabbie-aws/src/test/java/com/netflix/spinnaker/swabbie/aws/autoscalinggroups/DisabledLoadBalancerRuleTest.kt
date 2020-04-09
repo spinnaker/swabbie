@@ -19,12 +19,12 @@ package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.netflix.spinnaker.config.ResourceTypeConfiguration.RuleDefinition
 import com.netflix.spinnaker.kork.test.time.MutableClock
+import java.time.Duration
+import java.time.LocalDateTime
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
-import java.time.Duration
-import java.time.LocalDateTime
 
 object DisabledLoadBalancerRuleTest {
   private val clock = MutableClock()

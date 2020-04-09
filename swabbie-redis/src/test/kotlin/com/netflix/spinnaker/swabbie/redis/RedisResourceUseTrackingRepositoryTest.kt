@@ -29,13 +29,13 @@ import com.netflix.spinnaker.kork.jedis.JedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.kork.test.time.MutableClock
 import com.netflix.spinnaker.swabbie.test.TestResource
+import java.time.Duration
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.util.Assert
 import redis.clients.jedis.JedisPool
-import java.time.Duration
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 object RedisResourceUseTrackingRepositoryTest {

@@ -26,13 +26,13 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.repository.TaskState
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
+import java.time.Clock
+import java.util.concurrent.TimeUnit
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
 import redis.clients.jedis.ScanResult
-import java.time.Clock
-import java.util.concurrent.TimeUnit
 
 @Component
 class RedisTaskTrackingRepository(

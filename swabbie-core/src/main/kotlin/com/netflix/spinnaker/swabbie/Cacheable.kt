@@ -17,10 +17,10 @@
 package com.netflix.spinnaker.swabbie
 
 import com.netflix.spinnaker.swabbie.model.Named
+import java.util.concurrent.atomic.AtomicReference
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
-import java.util.concurrent.atomic.AtomicReference
 
 interface Cacheable : Named
 

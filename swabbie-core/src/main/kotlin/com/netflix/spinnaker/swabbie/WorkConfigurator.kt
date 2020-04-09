@@ -26,9 +26,9 @@ import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
 import com.netflix.spinnaker.swabbie.model.Account
 import com.netflix.spinnaker.swabbie.model.EmptyAccount
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import java.util.Optional
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.Optional
 
 /**
  * Flattens the YAML configuration into units of work called [WorkConfiguration]

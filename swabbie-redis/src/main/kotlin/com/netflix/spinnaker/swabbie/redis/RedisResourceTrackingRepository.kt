@@ -25,13 +25,13 @@ import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.repository.DeleteInfo
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
+import java.time.Clock
+import java.time.Instant
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
 import redis.clients.jedis.ScanResult
 import redis.clients.jedis.Tuple
-import java.time.Clock
-import java.time.Instant
 
 @Component
 class RedisResourceTrackingRepository(

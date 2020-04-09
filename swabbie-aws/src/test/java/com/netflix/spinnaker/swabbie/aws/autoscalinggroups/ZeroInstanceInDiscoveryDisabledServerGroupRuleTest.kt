@@ -23,15 +23,15 @@ import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.whenever
-import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.assertions.isNotNull
-import strikt.assertions.isNull
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Optional
+import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.isNotNull
+import strikt.assertions.isNull
 
 object ZeroInstanceInDiscoveryDisabledServerGroupRuleTest {
 

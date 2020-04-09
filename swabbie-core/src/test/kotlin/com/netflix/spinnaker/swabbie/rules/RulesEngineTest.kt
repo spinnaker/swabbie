@@ -27,15 +27,15 @@ import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
-import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.assertions.isEmpty
-import strikt.assertions.containsExactlyInAnyOrder
-import strikt.assertions.containsExactly
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.containsExactly
+import strikt.assertions.containsExactlyInAnyOrder
+import strikt.assertions.isEmpty
 
 object RulesEngineTest {
   private val clock = Clock.fixed(Instant.now(), ZoneId.systemDefault())

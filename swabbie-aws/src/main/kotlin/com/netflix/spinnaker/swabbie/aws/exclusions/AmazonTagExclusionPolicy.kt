@@ -22,8 +22,8 @@ import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.exclusions.Excludable
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.BasicTag
-import org.springframework.stereotype.Component
 import java.time.Clock
+import org.springframework.stereotype.Component
 
 @Component
 class AmazonTagExclusionPolicy(

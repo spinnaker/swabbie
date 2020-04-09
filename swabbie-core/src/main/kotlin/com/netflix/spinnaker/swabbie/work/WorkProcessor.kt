@@ -24,14 +24,14 @@ import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkItem
+import java.time.Clock
+import java.util.concurrent.TimeUnit
+import kotlin.system.measureTimeMillis
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import java.time.Clock
-import java.util.concurrent.TimeUnit
-import kotlin.system.measureTimeMillis
 
 @Component
 @ConditionalOnExpression("\${swabbie.enabled:true}")

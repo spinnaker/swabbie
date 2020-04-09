@@ -21,8 +21,8 @@ package com.netflix.spinnaker.swabbie
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import com.netflix.spinnaker.config.Schedule
-import org.junit.jupiter.api.Test
 import java.time.Instant
+import org.junit.jupiter.api.Test
 
 object ScheduleTest {
   private val subject = Schedule().also { it.enabled = true }

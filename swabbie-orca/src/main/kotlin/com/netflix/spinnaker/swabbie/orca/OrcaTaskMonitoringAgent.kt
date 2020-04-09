@@ -27,12 +27,6 @@ import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.OrcaTaskFailureEvent
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
-import net.logstash.logback.argument.StructuredArguments.kv
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.context.ApplicationEventPublisher
-import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -43,6 +37,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
+import net.logstash.logback.argument.StructuredArguments.kv
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.stereotype.Component
 
 @Component
 class OrcaTaskMonitoringAgent(

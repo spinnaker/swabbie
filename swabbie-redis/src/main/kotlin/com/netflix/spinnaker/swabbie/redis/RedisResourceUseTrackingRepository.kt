@@ -27,14 +27,14 @@ import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.repository.LastSeenInfo
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import java.time.Clock
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
 import redis.clients.jedis.ScanResult
 import redis.clients.jedis.Tuple
-import java.time.Clock
-import java.time.Duration
-import java.time.temporal.ChronoUnit
 
 @Component
 class RedisResourceUseTrackingRepository(

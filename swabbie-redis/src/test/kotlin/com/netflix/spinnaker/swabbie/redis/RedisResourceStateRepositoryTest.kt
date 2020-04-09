@@ -33,6 +33,8 @@ import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.test.TestResource
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -41,8 +43,6 @@ import redis.clients.jedis.JedisPool
 import strikt.api.expect
 import strikt.assertions.hasSize
 import strikt.assertions.isNotNull
-import java.time.Duration
-import java.util.concurrent.TimeUnit
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 object RedisResourceStateRepositoryTest {

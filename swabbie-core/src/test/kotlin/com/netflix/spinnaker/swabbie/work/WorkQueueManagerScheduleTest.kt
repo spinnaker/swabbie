@@ -19,11 +19,6 @@
 package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spinnaker.config.Schedule
-import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.api.expectThrows
-import strikt.assertions.isFalse
-import strikt.assertions.isTrue
 import java.time.Clock
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -31,6 +26,11 @@ import java.time.LocalDateTime
 import java.time.Month
 import java.time.ZoneId
 import java.time.ZoneOffset
+import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.api.expectThrows
+import strikt.assertions.isFalse
+import strikt.assertions.isTrue
 
 object WorkQueueManagerScheduleTest {
 

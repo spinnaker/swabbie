@@ -34,15 +34,15 @@ import com.netflix.spinnaker.swabbie.model.Summary
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.repository.TaskCompleteEventInfo
 import com.netflix.spinnaker.swabbie.test.TestResource
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.util.Assert
 import redis.clients.jedis.JedisPool
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 object RedisTaskTrackingRepositoryTest {

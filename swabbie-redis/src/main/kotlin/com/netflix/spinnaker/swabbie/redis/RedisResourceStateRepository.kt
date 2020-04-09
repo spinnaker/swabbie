@@ -24,13 +24,13 @@ import com.netflix.spinnaker.kork.jedis.RedisClientDelegate
 import com.netflix.spinnaker.kork.jedis.RedisClientSelector
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
+import java.time.Clock
+import java.util.concurrent.TimeUnit
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import redis.clients.jedis.ScanParams
-import java.time.Clock
-import java.util.concurrent.TimeUnit
 
 @Component
 class RedisResourceStateRepository(

@@ -16,13 +16,13 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
 object ZeroLoadBalancerRuleTest {
   private val clock = Clock.fixed(Instant.now(), ZoneOffset.UTC)

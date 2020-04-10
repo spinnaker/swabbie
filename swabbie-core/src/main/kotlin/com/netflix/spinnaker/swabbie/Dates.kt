@@ -28,6 +28,7 @@ class Dates {
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"),
+      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ"),

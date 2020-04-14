@@ -27,6 +27,7 @@ dependencies {
   implementation "com.squareup.retrofit:converter-jackson"
   implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
   implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
+  implementation "com.google.guava:guava"
 
   testImplementation project(":swabbie-test")
   testImplementation "com.netflix.spinnaker.kork:kork-test"

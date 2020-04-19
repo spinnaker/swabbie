@@ -13,30 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-buildscript {
-  repositories {
-    jcenter()
-    maven { url "https://spinnaker.bintray.com/gradle" }
-    maven { url "https://plugins.gradle.org/m2/" }
-  }
-  dependencies {
-    classpath "com.netflix.spinnaker.gradle:spinnaker-dev-plugin:$spinnakerGradleVersion"
-    if (Boolean.valueOf(enablePublishing)) {
-      classpath "com.netflix.spinnaker.gradle:spinnaker-gradle-project:$spinnakerGradleVersion"
-    }
-  }
-}
 
 plugins {
-  id("nebula.kotlin") version "1.3.31" apply false
+  id("io.spinnaker.project") version "$spinnakerGradleVersion" apply false
+  id("nebula.kotlin") version "1.3.70" apply false
   id("org.jetbrains.dokka") version "0.9.18" apply false
 }
 
 allprojects {
-  apply plugin: "spinnaker.base-project"
-  if (Boolean.valueOf(enablePublishing)) {
-    apply plugin: "spinnaker.project"
-  }
+  apply plugin: "io.spinnaker.project"
 
   if (korkVersion.endsWith("-SNAPSHOT")) {
     repositories {
@@ -51,9 +36,7 @@ allprojects {
     exclude group: "org.slf4j", module: "slf4j-log4j12"
     exclude group: "org.slf4j", module: "slf4j-simple"
   }
-}
 
-subprojects {
   if (name != "swabbie-bom") {
     apply plugin: "java"
     apply from: "$rootDir/gradle/kotlin.gradle"

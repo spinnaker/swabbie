@@ -58,7 +58,7 @@ open class AwsConfiguration {
     accountProvider: AccountProvider,
     aws: AWS
   ): CachedViewProvider<AmazonImagesUsedByInstancesCache> {
-    return ImagesUsedByInstancesProvider(clock, accountProvider, aws)
+    return ImagesUsedByInstancesProvider(clock, workConfigurations, accountProvider, aws)
   }
 
   @Bean

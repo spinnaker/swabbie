@@ -40,8 +40,10 @@ class LaunchConfigurationCacheProvider(
     log.info("Loading cache for ${javaClass.simpleName}")
     val refdAmisByRegion = mutableMapOf<String, MutableMap<String, MutableSet<AmazonLaunchConfiguration>>>()
     val configuredRegions = workConfigurations.map { it.location }.toSet()
+    val configuredAccountIds = workConfigurations.map { it.account.accountId }.toSet()
     accountProvider.getAccounts()
       .filter(isCorrectCloudProviderAndRegion(configuredRegions))
+      .filter { account -> configuredAccountIds.contains(account.accountId) }
       .forEach { account ->
         account.regions?.forEach { region ->
           log.info("Reading launch configurations in {}/{}/{}", account.accountId, region.name, account.environment)

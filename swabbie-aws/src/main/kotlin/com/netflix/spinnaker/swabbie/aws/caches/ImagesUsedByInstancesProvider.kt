@@ -21,12 +21,14 @@ import com.netflix.spinnaker.swabbie.CachedViewProvider
 import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
+import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.time.Clock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class ImagesUsedByInstancesProvider(
   private val clock: Clock,
+  private val workConfigurations: List<WorkConfiguration>,
   private val accountProvider: AccountProvider,
   private val aws: AWS
 ) : CachedViewProvider<AmazonImagesUsedByInstancesCache>, AWS by aws {
@@ -34,8 +36,10 @@ class ImagesUsedByInstancesProvider(
   override fun load(): AmazonImagesUsedByInstancesCache {
     log.info("Loading cache for ${javaClass.simpleName}")
     val refdAmisByRegion = mutableMapOf<String, MutableSet<String>>()
+    val configuredAccountIds = workConfigurations.map { it.account.accountId }.toSet()
     accountProvider.getAccounts()
       .filter { it.cloudProvider == "aws" && !it.regions.isNullOrEmpty() }
+      .filter { account -> configuredAccountIds.contains(account.accountId) }
       .forEach { account ->
         account.regions!!.forEach { region ->
           // we need to read all the instances in every region, no matter if it's deprecated or not,

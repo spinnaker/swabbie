@@ -329,7 +329,7 @@ class AmazonImageHandler(
           OrcaJob(
             type = "upsertImageTags",
             context = mutableMapOf(
-              "imageNames" to setOf(markedResource.resourceId),
+              "imageNames" to setOf(markedResource.name),
               "regions" to setOf(workConfiguration.location),
               "tags" to mapOf("expiration_time" to "never"),
               "cloudProvider" to workConfiguration.cloudProvider,

@@ -19,7 +19,6 @@ dependencies {
 
   implementation "redis.clients:jedis"
   implementation "com.netflix.spinnaker.kork:kork-jedis"
-  implementation "com.netflix.spinnaker.kork:kork-dynomite"
   implementation "com.netflix.spinnaker.kork:kork-test"
   implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
 

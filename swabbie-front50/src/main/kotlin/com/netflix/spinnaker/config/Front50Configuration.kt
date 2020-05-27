@@ -17,6 +17,8 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jakewharton.retrofit.Ok3Client
+import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
 import com.netflix.spinnaker.okhttp.SpinnakerRequestInterceptor
 import com.netflix.spinnaker.swabbie.front50.Front50Service
 import org.springframework.beans.factory.annotation.Value
@@ -27,7 +29,6 @@ import org.springframework.context.annotation.Import
 import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RestAdapter
-import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
@@ -41,13 +42,13 @@ open class Front50Configuration {
   open fun front50Service(
     front50Endpoint: Endpoint,
     objectMapper: ObjectMapper,
-    retrofitClient: Client,
+    clientProvider: OkHttpClientProvider,
     spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
     retrofitLogLevel: RestAdapter.LogLevel
   ): Front50Service = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(front50Endpoint)
-    .setClient(retrofitClient)
+    .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("front50", front50Endpoint.url))))
     .setLogLevel(retrofitLogLevel)
     .setConverter(JacksonConverter(objectMapper))
     .build()

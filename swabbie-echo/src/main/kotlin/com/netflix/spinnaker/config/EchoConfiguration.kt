@@ -17,6 +17,8 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jakewharton.retrofit.Ok3Client
+import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
 import com.netflix.spinnaker.swabbie.echo.EchoService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -28,7 +30,6 @@ import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RequestInterceptor
 import retrofit.RestAdapter
-import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
@@ -44,13 +45,13 @@ open class EchoConfiguration {
   open fun echoService(
     echoEndpoint: Endpoint,
     objectMapper: ObjectMapper,
-    retrofitClient: Client,
+    clientProvider: OkHttpClientProvider,
     spinnakerRequestInterceptor: RequestInterceptor,
     retrofitLogLevel: RestAdapter.LogLevel
   ) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(echoEndpoint)
-    .setClient(retrofitClient)
+    .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("echo", echoEndpoint.url))))
     .setLogLevel(retrofitLogLevel)
     .setConverter(JacksonConverter(objectMapper))
     .build()

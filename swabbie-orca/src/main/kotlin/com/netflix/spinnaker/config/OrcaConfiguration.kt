@@ -17,6 +17,8 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jakewharton.retrofit.Ok3Client
+import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.tagging.OrcaTaggingService
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
@@ -29,7 +31,6 @@ import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RequestInterceptor
 import retrofit.RestAdapter
-import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
@@ -44,14 +45,14 @@ open class OrcaConfiguration {
   open fun orcaService(
     orcaEndpoint: Endpoint,
     objectMapper: ObjectMapper,
-    retrofitClient: Client,
+    clientProvider: OkHttpClientProvider,
     spinnakerRequestInterceptor: RequestInterceptor,
     retrofitLogLevel: RestAdapter.LogLevel
   ): OrcaService =
     RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(orcaEndpoint)
-    .setClient(retrofitClient)
+    .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("orca", orcaEndpoint.url))))
     .setLogLevel(retrofitLogLevel)
     .setConverter(JacksonConverter(objectMapper))
     .build()

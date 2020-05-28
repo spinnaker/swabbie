@@ -17,6 +17,8 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jakewharton.retrofit.Ok3Client
+import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
 import com.netflix.spinnaker.okhttp.SpinnakerRequestInterceptor
 import com.netflix.spinnaker.swabbie.clouddriver.CloudDriverService
 import org.springframework.beans.factory.annotation.Value
@@ -26,7 +28,6 @@ import org.springframework.context.annotation.Import
 import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RestAdapter
-import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
@@ -39,13 +40,13 @@ open class ClouddriverConfiguration {
   open fun clouddriverService(
     clouddriverEndpoint: Endpoint,
     objectMapper: ObjectMapper,
-    retrofitClient: Client,
+    clientProvider: OkHttpClientProvider,
     spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
     retrofitLogLevel: RestAdapter.LogLevel
   ) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(clouddriverEndpoint)
-    .setClient(retrofitClient)
+    .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("clouddriver", clouddriverEndpoint.url))))
     .setLogLevel(retrofitLogLevel)
     .setConverter(JacksonConverter(objectMapper))
     .build()

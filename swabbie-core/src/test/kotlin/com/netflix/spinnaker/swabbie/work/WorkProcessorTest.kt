@@ -16,11 +16,8 @@
 
 package com.netflix.spinnaker.swabbie.work
 
-import com.netflix.appinfo.InstanceInfo.InstanceStatus.DOWN
-import com.netflix.appinfo.InstanceInfo.InstanceStatus.UP
-import com.netflix.discovery.StatusChangeEvent
 import com.netflix.spectator.api.NoopRegistry
-import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
+import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
 import com.netflix.spinnaker.swabbie.events.Action
@@ -52,6 +49,7 @@ object WorkProcessorTest {
   private val workQueue = InMemoryWorkQueue(_seed = listOf(workConfiguration1, workConfiguration2))
   private val handler1 = mock<ResourceTypeHandler<TestResource>>()
   private val handler2 = mock<ResourceTypeHandler<TestResource>>()
+  private val discoveryStatusListener = mock<DiscoveryStatusListener>()
 
   private val processor = WorkProcessor(
     clock = Clock.systemDefaultZone(),
@@ -59,18 +57,15 @@ object WorkProcessorTest {
     resourceTypeHandlers = listOf(handler1, handler2),
     workQueue = workQueue,
     lockingService = LockingService.NOOP(),
-    cacheStatus = NoopCacheStatus()
+    cacheStatus = NoopCacheStatus(),
+    discoveryStatusListener = discoveryStatusListener
   )
-
-  // StatusChangeEvent(previous, current)
-  private val upEvent = RemoteStatusChangedEvent(StatusChangeEvent(DOWN, UP))
-  private val downEvent = RemoteStatusChangedEvent(StatusChangeEvent(UP, DOWN))
 
   @BeforeEach
   fun setup() {
     workQueue.clear()
     reset(handler1, handler2)
-    processor.onApplicationEvent(upEvent)
+    whenever(discoveryStatusListener.isEnabled) doReturn true
   }
 
   @Test
@@ -142,7 +137,7 @@ object WorkProcessorTest {
 
   @Test
   fun `should not process work when disabled`() {
-    processor.onApplicationEvent(downEvent)
+    whenever(discoveryStatusListener.isEnabled) doReturn false
     workQueue.seed()
     processor.process()
 

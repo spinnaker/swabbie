@@ -16,13 +16,13 @@
 
 package com.netflix.spinnaker.swabbie.work
 
-import com.netflix.appinfo.InstanceInfo.InstanceStatus.DOWN
-import com.netflix.appinfo.InstanceInfo.InstanceStatus.UP
-import com.netflix.discovery.StatusChangeEvent
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
+import com.netflix.spinnaker.kork.discovery.DiscoveryStatusChangeEvent
+import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
+import com.netflix.spinnaker.kork.discovery.InstanceStatus
+import com.netflix.spinnaker.kork.discovery.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.test.time.MutableClock
 import com.netflix.spinnaker.swabbie.test.InMemoryWorkQueue
 import com.netflix.spinnaker.swabbie.test.NoopCacheStatus
@@ -47,6 +47,7 @@ object WorkQueueManagerTest {
   val dynamicConfigService: DynamicConfigService = mock()
   val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration()
   val workQueue = InMemoryWorkQueue(listOf(workConfiguration))
+  val discoveryStatusListener = mock<DiscoveryStatusListener>()
 
   val workQueueManager = WorkQueueManager(
     dynamicConfigService = dynamicConfigService,
@@ -54,21 +55,24 @@ object WorkQueueManagerTest {
     queue = workQueue,
     clock = timeToWorkClock(),
     registry = NoopRegistry(),
-    cacheStatus = NoopCacheStatus()
+    cacheStatus = NoopCacheStatus(),
+    discoveryStatusListener = discoveryStatusListener
   )
 
   // StatusChangeEvent(previous, current)
-  val upEvent = RemoteStatusChangedEvent(StatusChangeEvent(DOWN, UP))
-  val downEvent = RemoteStatusChangedEvent(StatusChangeEvent(UP, DOWN))
+  val upEvent = RemoteStatusChangedEvent(DiscoveryStatusChangeEvent(InstanceStatus.UNKNOWN, InstanceStatus.UP))
+  val downEvent = RemoteStatusChangedEvent(DiscoveryStatusChangeEvent(InstanceStatus.UP, InstanceStatus.DOWN))
 
   @BeforeEach
   fun reset() {
     workQueue.clear()
     reset(dynamicConfigService)
+    reset(discoveryStatusListener)
   }
 
   @Test
   fun `when down queue should not be filled`() {
+    whenever(discoveryStatusListener.isEnabled) doReturn false
     workQueueManager.onApplicationEvent(downEvent)
     workQueueManager.monitor()
     expectThat(workQueue.isEmpty()).isTrue()
@@ -76,6 +80,7 @@ object WorkQueueManagerTest {
 
   @Test
   fun `when down queue should not be emptied`() {
+    whenever(discoveryStatusListener.isEnabled) doReturn false
     workQueueManager.onApplicationEvent(downEvent)
     workQueue.seed()
     workQueueManager.monitor()
@@ -85,6 +90,7 @@ object WorkQueueManagerTest {
   @Test
   fun `when up and enabled queue should be filled`() {
     whenever(dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) doReturn false
+    whenever(discoveryStatusListener.isEnabled) doReturn true
 
     workQueueManager.onApplicationEvent(upEvent)
     workQueueManager.monitor()
@@ -95,8 +101,10 @@ object WorkQueueManagerTest {
   @Test
   fun `when up and disabled queue should be emptied`() {
     whenever(dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) doReturn true
+    whenever(discoveryStatusListener.isEnabled) doReturn true
 
     workQueueManager.onApplicationEvent(upEvent)
+    workQueueManager.monitor()
 
     expectThat(workQueue.isEmpty()).isTrue()
   }

@@ -19,10 +19,10 @@ package com.netflix.spinnaker.swabbie.notifications
 import com.netflix.spectator.api.Registry
 import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.NotificationConfiguration
+import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
 import com.netflix.spinnaker.swabbie.model.MarkedResource
@@ -57,8 +57,9 @@ class NotificationSender(
   private val notificationQueue: NotificationQueue,
   private val registry: Registry,
   private val dynamicConfigService: DynamicConfigService,
-  private val workConfigurations: List<WorkConfiguration>
-) : DiscoveryActivated() {
+  private val workConfigurations: List<WorkConfiguration>,
+  private val discoveryStatusListener: DiscoveryStatusListener
+) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val notificationAttemptsId = registry.createId("swabbie.notifications.attempts")
   private val notificationsQueueSizeId = registry.createId("swabbie.notifications.queueSize")
@@ -80,7 +81,7 @@ class NotificationSender(
    */
   @Scheduled(cron = "\${swabbie.notification.cron.schedule:0 0/5 * * * ?}")
   fun sendNotifications() {
-    if (!isUp()) {
+    if (!discoveryStatusListener.isEnabled) {
       return
     }
 

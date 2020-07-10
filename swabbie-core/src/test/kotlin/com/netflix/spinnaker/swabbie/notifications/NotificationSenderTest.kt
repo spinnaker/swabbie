@@ -16,11 +16,9 @@
 
 package com.netflix.spinnaker.swabbie.notifications
 
-import com.netflix.appinfo.InstanceInfo
-import com.netflix.discovery.StatusChangeEvent
 import com.netflix.spectator.api.NoopRegistry
+import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
-import com.netflix.spinnaker.kork.eureka.RemoteStatusChangedEvent
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.OwnerNotifiedEvent
@@ -61,6 +59,7 @@ object NotificationSenderTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()
   private val applicationEventPublisher = mock<ApplicationEventPublisher>()
   private val dynamicConfigService = mock<DynamicConfigService>()
+  private val discoveryStatusListener = mock<DiscoveryStatusListener>()
 
   private val workConfiguration1 = WorkConfigurationTestHelper
     .generateWorkConfiguration(namespace = "ns1", resourceType = "type1")
@@ -80,7 +79,8 @@ object NotificationSenderTest {
     notificationQueue = notificationQueue,
     registry = NoopRegistry(),
     workConfigurations = listOf(workConfiguration1, workConfiguration2, workConfiguration3),
-    dynamicConfigService = dynamicConfigService
+    dynamicConfigService = dynamicConfigService,
+    discoveryStatusListener = discoveryStatusListener
   )
 
   private val now = clock.millis()
@@ -88,9 +88,7 @@ object NotificationSenderTest {
   @BeforeEach
   fun setup() {
     whenever(dynamicConfigService.getConfig(any<Class<*>>(), any(), any())) doReturn 2
-    notificationService
-      .onApplicationEvent(
-        RemoteStatusChangedEvent(StatusChangeEvent(InstanceInfo.InstanceStatus.DOWN, InstanceInfo.InstanceStatus.UP)))
+    whenever(discoveryStatusListener.isEnabled) doReturn true
   }
 
   @AfterEach

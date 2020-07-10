@@ -19,6 +19,7 @@ dependencies {
   implementation project(":swabbie-orca")
   implementation project(":swabbie-retrofit")
 
+  implementation "com.netflix.eureka:eureka-client"
   implementation "com.netflix.spinnaker.kork:kork-aws:$korkVersion"
   implementation "com.netflix.awsobjectmapper:awsobjectmapper"
   implementation "com.amazonaws:aws-java-sdk-ec2"

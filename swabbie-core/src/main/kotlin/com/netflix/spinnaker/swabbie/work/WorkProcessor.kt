@@ -17,11 +17,11 @@
 package com.netflix.spinnaker.swabbie.work
 
 import com.netflix.spectator.api.Registry
+import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.CacheStatus
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.ResourceTypeHandler
-import com.netflix.spinnaker.swabbie.discovery.DiscoveryActivated
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.model.WorkItem
 import java.time.Clock
@@ -41,8 +41,9 @@ class WorkProcessor(
   private val resourceTypeHandlers: List<ResourceTypeHandler<*>>,
   private val workQueue: WorkQueue,
   private val lockingService: LockingService,
-  private val cacheStatus: CacheStatus
-) : DiscoveryActivated() {
+  private val cacheStatus: CacheStatus,
+  private val discoveryStatusListener: DiscoveryStatusListener
+) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val workId = registry.createId("swabbie.work")
   private val workDurationId = registry.createId("swabbie.resources.work.duration")
@@ -53,7 +54,7 @@ class WorkProcessor(
    */
   @Scheduled(fixedDelayString = "\${swabbie.work.interval-ms:180000}")
   fun process() {
-    if (!isUp()) {
+    if (!discoveryStatusListener.isEnabled) {
       // queue processors shouldn't work while they're down in discovery
       return
     }

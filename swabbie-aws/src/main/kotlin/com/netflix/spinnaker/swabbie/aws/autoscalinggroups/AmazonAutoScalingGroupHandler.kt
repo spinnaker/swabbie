@@ -156,8 +156,10 @@ class AmazonAutoScalingGroupHandler(
       return
     }
     val elapsedTimeMillis = measureTimeMillis {} // check references here. Empty body because all references are present.
-    log.info("Completed checking references for {} server groups in ${elapsedTimeMillis}ms. Params: {}",
-      serverGroups.size, params)
+    log.info(
+      "Completed checking references for {} server groups in ${elapsedTimeMillis}ms. Params: {}",
+      serverGroups.size, params
+    )
   }
 
   override fun getCandidate(

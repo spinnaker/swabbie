@@ -77,18 +77,18 @@ open class ResourceRulesEngine(
    * Applies rules defined in configuration and returns resulting violations
    * ------------------ yaml config sample AND and OR rules---
    * enabledRules:
-      - operator: AND
-        description: Resource is expired and is disabled
-        rules:
-          - name: ExpiredResourceRule
-          - name: DisabledResourceRule
-      - operator: OR
-        description: Resource has no application or is older than a year
-        rules:
-          - name: NoApplicationRule
-          - name: AgeRule
-            parameters:
-              olderThanDays: 365
+   - operator: AND
+   description: Resource is expired and is disabled
+   rules:
+   - name: ExpiredResourceRule
+   - name: DisabledResourceRule
+   - operator: OR
+   description: Resource has no application or is older than a year
+   rules:
+   - name: NoApplicationRule
+   - name: AgeRule
+   parameters:
+   olderThanDays: 365
    *-----------------------------------------------------
    *
    * This configuration evaluates to: if ((ExpiredResourceRule && DisabledResourceRule) || (NoApplicationRule || AgeRule))

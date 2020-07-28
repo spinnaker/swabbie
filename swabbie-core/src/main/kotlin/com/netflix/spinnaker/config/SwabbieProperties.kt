@@ -139,14 +139,14 @@ class ResourceTypeConfiguration {
    * Allows to specify enabled rules. When defined, all other rules are ignored at runtime.
    * See [com.netflix.spinnaker.swabbie.rules.RulesEngine.evaluate]
    *------------- config snippet for a resource type---------------
-          enabledRules:
-          - operator: AND
-            description: Images with packer tags that are expired
-            rules:
-            - name: ExpiredResourceRule
-            - name: AttributeRule
-              parameters:
-                description: pattern:^packer-build
+   enabledRules:
+   - operator: AND
+   description: Images with packer tags that are expired
+   rules:
+   - name: ExpiredResourceRule
+   - name: AttributeRule
+   parameters:
+   description: pattern:^packer-build
    *----------------
    * @property operator ([RuleConfiguration.OPERATOR.OR], [RuleConfiguration.OPERATOR.AND]) dictate how rules are applied
    * @property rules a list of named rules [com.netflix.spinnaker.swabbie.model.Rule]

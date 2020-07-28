@@ -35,18 +35,22 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 
 @Configuration
-@ComponentScan(basePackages = arrayOf(
-  "com.netflix.spinnaker.swabbie.controllers"
-))
+@ComponentScan(
+  basePackages = arrayOf(
+    "com.netflix.spinnaker.swabbie.controllers"
+  )
+)
 open class WebConfiguration
 @Autowired constructor(
   private val registry: Registry
 ) : WebMvcConfigurerAdapter() {
 
   override fun addInterceptors(registry: InterceptorRegistry) {
-    registry.addInterceptor(MetricsInterceptor(
-      this.registry, "controller.invocations", listOf("application"), listOf("BasicErrorController")
-    ))
+    registry.addInterceptor(
+      MetricsInterceptor(
+        this.registry, "controller.invocations", listOf("application"), listOf("BasicErrorController")
+      )
+    )
   }
 
   @Bean

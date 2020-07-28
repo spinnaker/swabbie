@@ -74,7 +74,8 @@ open class WorkConfigurator(
           cloudProviderConfiguration.locations.filter {
             accountRegions.contains(it)
           }.forEach { location ->
-            val namespace = String.format("%s:%s:%s:%s",
+            val namespace = String.format(
+              "%s:%s:%s:%s",
               cloudProviderConfiguration.name,
               account.name,
               location,

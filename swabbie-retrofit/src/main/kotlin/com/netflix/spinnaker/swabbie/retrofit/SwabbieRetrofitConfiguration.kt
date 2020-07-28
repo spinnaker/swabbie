@@ -58,12 +58,16 @@ open class SwabbieRetrofitConfiguration {
     val userAgent = "Spinnaker-${System.getProperty("spring.application.name", "unknown")}/" +
       (javaClass.`package`.implementationVersion ?: "1.0")
     val cfg = okHttpClientConfig.create().apply {
-      networkInterceptors().add(Interceptor { chain ->
-        chain.proceed(chain.request().newBuilder()
-          .header("User-Agent", userAgent)
-          .header("X-SPINNAKER-USER", spinnakerUser)
-          .build())
-      })
+      networkInterceptors().add(
+        Interceptor { chain ->
+          chain.proceed(
+            chain.request().newBuilder()
+              .header("User-Agent", userAgent)
+              .header("X-SPINNAKER-USER", spinnakerUser)
+              .build()
+          )
+        }
+      )
 
       connectionPool = ConnectionPool(maxIdleConnections, keepAliveDurationMs)
       retryOnConnectionFailure = this@SwabbieRetrofitConfiguration.retryOnConnectionFailure

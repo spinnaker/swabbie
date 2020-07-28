@@ -164,7 +164,8 @@ class AmazonSnapshotHandler(
         account = workConfiguration.account.accountId!!,
         region = workConfiguration.location,
         environment = workConfiguration.account.environment
-      ))
+      )
+    )
     return candidates
   }
 

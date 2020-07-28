@@ -39,21 +39,21 @@ class ResourceEntityTagger(
     log.debug("tagging resource {}", markedResource)
     taggingService.entityTag(
       UpsertEntityTagsRequest(
-      entityRef = EntityRef(
-        entityType = markedResource.resourceType.toLowerCase(),
-        cloudProvider = markedResource.cloudProvider,
-        entityId = markedResource.resourceId,
-        region = workConfiguration.location,
-        account = workConfiguration.account.name!!
-      ),
-      tags = listOf(
-        EntityTag(
-          namespace = "swabbie:${workConfiguration.namespace.toLowerCase()}",
-          value = TagValue(message = tagMessage(markedResource, workConfiguration))
-        )
-      ),
-      application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
-      description = description
+        entityRef = EntityRef(
+          entityType = markedResource.resourceType.toLowerCase(),
+          cloudProvider = markedResource.cloudProvider,
+          entityId = markedResource.resourceId,
+          region = workConfiguration.location,
+          account = workConfiguration.account.name!!
+        ),
+        tags = listOf(
+          EntityTag(
+            namespace = "swabbie:${workConfiguration.namespace.toLowerCase()}",
+            value = TagValue(message = tagMessage(markedResource, workConfiguration))
+          )
+        ),
+        application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
+        description = description
       )
     )
   }
@@ -70,7 +70,7 @@ class ResourceEntityTagger(
     val time = markedResource.deletionDate(clock)
     val docLink: String = documentationLink(workConfiguration)
     return "Scheduled to be cleaned up on $time<br /> \n " +
-    "* $message <br /> \n" +
+      "* $message <br /> \n" +
       "* Click <a href='" +
       "${markedResource.optOutUrl(workConfiguration)}' target='_blank'>here</a> to opt out. \n" +
       docLink
@@ -101,7 +101,8 @@ class ResourceEntityTagger(
   }
 
   private fun tagId(workConfiguration: WorkConfiguration, markedResource: MarkedResource): String =
-    String.format("%s:%s:%s:%s:%s",
+    String.format(
+      "%s:%s:%s:%s:%s",
       workConfiguration.cloudProvider,
       workConfiguration.resourceType.toLowerCase(),
       markedResource.resourceId,

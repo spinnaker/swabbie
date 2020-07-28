@@ -40,11 +40,12 @@ class OrphanedImageRule : Rule {
     }
 
     if (resource.matchesAnyRule(
-        USED_BY_INSTANCES,
-        USED_BY_LAUNCH_CONFIGURATIONS,
-        HAS_SIBLINGS_IN_OTHER_ACCOUNTS,
-        SEEN_IN_USE_RECENTLY
-      )) {
+      USED_BY_INSTANCES,
+      USED_BY_LAUNCH_CONFIGURATIONS,
+      HAS_SIBLINGS_IN_OTHER_ACCOUNTS,
+      SEEN_IN_USE_RECENTLY
+    )
+    ) {
       return Result(null)
     }
 

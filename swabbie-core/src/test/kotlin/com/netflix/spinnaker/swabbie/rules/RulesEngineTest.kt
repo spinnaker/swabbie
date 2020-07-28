@@ -162,15 +162,15 @@ object RulesEngineTest {
   /**
    * ------------------ config sample AND and OR rules---
    * enabledRules:
-      - operator: AND
-        description: Resource is expired and is disabled
-        rules:
-          - name: ExpiredResourceRule
-          - name: DisabledResourceRule
-      - operator: OR
-        description: Resource has no application
-        rules:
-          - name: NoApplicationRule
+   - operator: AND
+   description: Resource is expired and is disabled
+   rules:
+   - name: ExpiredResourceRule
+   - name: DisabledResourceRule
+   - operator: OR
+   description: Resource has no application
+   rules:
+   - name: NoApplicationRule
    *-----------------------------------------------------
    */
 
@@ -210,13 +210,13 @@ object RulesEngineTest {
   /**
    * ------------------ config sample OR---
    * enabledRules:
-      - operator: OR
-        description: Applies if resource is older than a year or has expired
-        rules:
-          - name: ExpiredResourceRule
-          - name: AgeRule
-            parameters:
-              olderThanDays: 365
+   - operator: OR
+   description: Applies if resource is older than a year or has expired
+   rules:
+   - name: ExpiredResourceRule
+   - name: AgeRule
+   parameters:
+   olderThanDays: 365
    *-------------------------------
    */
   @Test
@@ -268,15 +268,15 @@ object RulesEngineTest {
   /**
    * ------------------ config sample AND---
    * enabledRules:
-      - operator: AND
-        description: Resource is older than a year and has been disabled longer than 30 days
-        rules:
-          - name: DisabledResourceRule
-            parameters:
-              longerThanDays: 30
-          - name: AgeRule
-            parameters:
-              olderThanDays: 365
+   - operator: AND
+   description: Resource is older than a year and has been disabled longer than 30 days
+   rules:
+   - name: DisabledResourceRule
+   parameters:
+   longerThanDays: 30
+   - name: AgeRule
+   parameters:
+   olderThanDays: 365
    *-------------------------------
    */
   @Test

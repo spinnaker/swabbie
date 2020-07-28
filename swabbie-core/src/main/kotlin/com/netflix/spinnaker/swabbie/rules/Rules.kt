@@ -46,12 +46,12 @@ class AgeRule(
 }
 
 /**
-  description: "A rule that applies when parameters match a resource's attributes"
-  rules:
-  - name: AttributeRule
-    parameters:
-      name: pattern:some
-      desc: blah
+ description: "A rule that applies when parameters match a resource's attributes"
+ rules:
+ - name: AttributeRule
+ parameters:
+ name: pattern:some
+ desc: blah
  */
 @Component
 class AttributeRule : Rule {
@@ -66,7 +66,8 @@ class AttributeRule : Rule {
     }
 
     return Result(
-      Summary(ruleDefinition?.description ?: "(${resource.resourceId}): matched by rule attributes.", name()))
+      Summary(ruleDefinition?.description ?: "(${resource.resourceId}): matched by rule attributes.", name())
+    )
   }
 
   private fun <T : Resource> T.matchAttributes(ruleDefinition: RuleDefinition?): Boolean {

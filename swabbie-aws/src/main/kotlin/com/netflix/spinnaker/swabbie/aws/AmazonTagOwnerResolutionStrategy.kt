@@ -37,6 +37,6 @@ class AmazonTagOwnerResolutionStrategy : ResourceOwnerResolutionStrategy<Resourc
 
   private fun getOwner(tags: List<Map<*, *>>): String? {
     return tags.find { it["key"] == "creator" || it["key"] == "owner" }?.get("value") as? String
-    ?: return tags.find { "owner" in it || "creator" in it }?.map { it.value }?.first() as? String
+      ?: return tags.find { "owner" in it || "creator" in it }?.map { it.value }?.first() as? String
   }
 }

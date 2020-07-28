@@ -171,10 +171,10 @@ object ResourceStateManagerTest {
     verify(resourceStateRepository).upsert(
       argWhere {
         it.optedOut &&
-        it.markedResource == markedImageResourceWithViolations &&
-        it.currentStatus!!.name == Action.OPTOUT.name &&
-        it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
-        it.currentStatus!!.timestamp > it.statuses.first().timestamp
+          it.markedResource == markedImageResourceWithViolations &&
+          it.currentStatus!!.name == Action.OPTOUT.name &&
+          it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
+          it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
   }
@@ -198,10 +198,10 @@ object ResourceStateManagerTest {
     verify(resourceStateRepository).upsert(
       argWhere {
         !it.deleted &&
-        it.markedResource == markedResourceWithViolations &&
-        it.currentStatus!!.name.contains("FAILED", ignoreCase = true) &&
-        it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
-        it.currentStatus!!.timestamp > it.statuses.first().timestamp
+          it.markedResource == markedResourceWithViolations &&
+          it.currentStatus!!.name.contains("FAILED", ignoreCase = true) &&
+          it.statuses.size == 2 && it.statuses.first().name == Action.MARK.name &&
+          it.currentStatus!!.timestamp > it.statuses.first().timestamp
       }
     )
   }

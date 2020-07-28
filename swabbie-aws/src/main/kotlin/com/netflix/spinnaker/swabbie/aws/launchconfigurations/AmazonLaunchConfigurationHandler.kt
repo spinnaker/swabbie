@@ -176,8 +176,10 @@ class AmazonLaunchConfigurationHandler(
       setServerGroupReferences(launchConfigurations, params)
     }
 
-    log.info("Completed checking references for {} launch configs in $elapsedTimeMillis ms. Params: {}",
-      launchConfigurations.size, params)
+    log.info(
+      "Completed checking references for {} launch configs in $elapsedTimeMillis ms. Params: {}",
+      launchConfigurations.size, params
+    )
   }
 
   private fun setServerGroupReferences(launchConfigurations: List<AmazonLaunchConfiguration>, params: Parameters) {

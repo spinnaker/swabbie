@@ -50,13 +50,13 @@ open class OrcaConfiguration {
     retrofitLogLevel: RestAdapter.LogLevel
   ): OrcaService =
     RestAdapter.Builder()
-    .setRequestInterceptor(spinnakerRequestInterceptor)
-    .setEndpoint(orcaEndpoint)
-    .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("orca", orcaEndpoint.url))))
-    .setLogLevel(retrofitLogLevel)
-    .setConverter(JacksonConverter(objectMapper))
-    .build()
-    .create(OrcaService::class.java)
+      .setRequestInterceptor(spinnakerRequestInterceptor)
+      .setEndpoint(orcaEndpoint)
+      .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("orca", orcaEndpoint.url))))
+      .setLogLevel(retrofitLogLevel)
+      .setConverter(JacksonConverter(objectMapper))
+      .build()
+      .create(OrcaService::class.java)
 
   @Bean
   open fun entityTaggingService(orcaService: OrcaService): TaggingService {

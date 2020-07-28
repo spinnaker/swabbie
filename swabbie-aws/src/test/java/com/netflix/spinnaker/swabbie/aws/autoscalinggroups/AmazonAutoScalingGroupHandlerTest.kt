@@ -175,7 +175,8 @@ object AmazonAutoScalingGroupHandlerTest {
           notificationType = "email",
           notificationStamp = clock.millis()
         )
-      ))
+      )
+    )
 
     whenever(rulesEngine.evaluate(any<AmazonAutoScalingGroup>(), any())) doReturn ruleAndViolationPair.second
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn markedResources

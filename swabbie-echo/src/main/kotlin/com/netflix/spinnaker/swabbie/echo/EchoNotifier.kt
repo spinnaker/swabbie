@@ -51,7 +51,7 @@ class EchoNotifier(
             }
           }
         }
-    }
+      }
 
     throw UnsupportedOperationException("Notification Type not supported in $notificationConfiguration")
   }

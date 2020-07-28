@@ -104,11 +104,13 @@ class TestingController(
     @RequestBody resource: OnDemandMarkData
   ) {
     val workConfiguration = findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
-    val markedResource = createMarkedResource(workConfiguration,
+    val markedResource = createMarkedResource(
+      workConfiguration,
       resource.resourceId!!,
       resource.resourceOwner,
       resource.projectedDeletionStamp,
-      resource.markTs)
+      resource.markTs
+    )
     val notificationResourceData = NotificationSender.NotificationResourceData(
       resourceType = workConfiguration.resourceType,
       resourceUrl = markedResource.resource.resourceUrl(workConfiguration),
@@ -122,7 +124,8 @@ class TestingController(
       markedResource.resourceOwner,
       markedResource.resourceType,
       listOf(notificationResourceData),
-      workConfiguration.notificationConfiguration)
+      workConfiguration.notificationConfiguration
+    )
   }
 
   private fun findWorkConfiguration(namespace: SwabbieNamespace): WorkConfiguration {
@@ -143,7 +146,8 @@ class TestingController(
     markTs: Long?
   ): MarkedResource {
     return MarkedResource(
-      resource = TestResource(resourceId = id,
+      resource = TestResource(
+        resourceId = id,
         name = id,
         resourceType = workConfiguration.resourceType,
         cloudProvider = workConfiguration.cloudProvider

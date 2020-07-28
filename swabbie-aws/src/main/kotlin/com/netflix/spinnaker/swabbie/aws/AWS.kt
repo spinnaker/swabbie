@@ -390,8 +390,10 @@ class Vanilla(
 
   private fun clientConfiguration(): ClientConfiguration {
     return ClientConfiguration()
-      .withRetryPolicy(RetryPolicy(
-        AWSRetryCondition(), DEFAULT_BACKOFF_STRATEGY, DEFAULT_MAX_ERROR_RETRY, true)
+      .withRetryPolicy(
+        RetryPolicy(
+          AWSRetryCondition(), DEFAULT_BACKOFF_STRATEGY, DEFAULT_MAX_ERROR_RETRY, true
+        )
       ).withRequestTimeout(Duration.ofMinutes(5).toMillis().toInt())
   }
 

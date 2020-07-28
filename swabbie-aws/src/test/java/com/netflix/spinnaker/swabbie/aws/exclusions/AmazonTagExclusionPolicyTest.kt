@@ -81,7 +81,8 @@ object AmazonTagExclusionPolicyTest {
           value = listOf(
             mapOf("excludeMe" to true)
           )
-      ))
+        )
+    )
 
     resources.filter {
       subject.apply(it, exclusions) == null
@@ -102,7 +103,8 @@ object AmazonTagExclusionPolicyTest {
         name = "tags",
         value = listOf(
           mapOf("expiration_time" to "10d")
-        )),
+        )
+      ),
       AwsTestResource(
         id = "2",
         creationDate = now.toString()
@@ -111,7 +113,8 @@ object AmazonTagExclusionPolicyTest {
         value = listOf(
           mapOf("expiration_time" to "9d")
         )
-      ))
+      )
+    )
 
     clock.incrementBy(Duration.ofDays(10))
 

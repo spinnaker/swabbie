@@ -28,16 +28,16 @@ class TemporalTagExclusionSupplier : ExclusionsSupplier {
   override fun get(): List<Exclusion> {
     return listOf(
       Exclusion()
-      .withType(ExclusionType.Tag.toString())
-      .withAttributes(
-        TemporalTags.temporalTags.map { key ->
-          Attribute()
-            .withKey(key)
-            .withValue(
-              TemporalTags.supportedTemporalTagValues
-            )
-        }.toSet()
-      )
+        .withType(ExclusionType.Tag.toString())
+        .withAttributes(
+          TemporalTags.temporalTags.map { key ->
+            Attribute()
+              .withKey(key)
+              .withValue(
+                TemporalTags.supportedTemporalTagValues
+              )
+          }.toSet()
+        )
     )
   }
 }

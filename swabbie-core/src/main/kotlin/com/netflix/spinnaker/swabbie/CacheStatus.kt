@@ -21,19 +21,22 @@ open class InMemoryCacheStatus(
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
   init {
-    executorService.scheduleWithFixedDelay({
-      try {
-        if (!allLoaded.get()) {
-          log.debug("All caches not loaded, checking cache status.")
-          updateStatus()
-        } else {
-          log.debug("All caches loaded")
-          shutdown()
+    executorService.scheduleWithFixedDelay(
+      {
+        try {
+          if (!allLoaded.get()) {
+            log.debug("All caches not loaded, checking cache status.")
+            updateStatus()
+          } else {
+            log.debug("All caches loaded")
+            shutdown()
+          }
+        } catch (e: Exception) {
+          log.error("Failed while checking the caches in ${javaClass.simpleName}.", e)
         }
-      } catch (e: Exception) {
-        log.error("Failed while checking the caches in ${javaClass.simpleName}.", e)
-      }
-    }, 0, 5, TimeUnit.SECONDS)
+      },
+      0, 5, TimeUnit.SECONDS
+    )
   }
 
   private fun updateStatus() {

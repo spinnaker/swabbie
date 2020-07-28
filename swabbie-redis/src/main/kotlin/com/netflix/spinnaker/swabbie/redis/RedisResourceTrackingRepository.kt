@@ -56,8 +56,8 @@ class RedisResourceTrackingRepository(
   override fun find(resourceId: String, namespace: String): MarkedResource? {
     val key = "$namespace:$resourceId".toLowerCase()
     return redisClientDelegate.withCommandsClient<String> { client ->
-        client.hget(SINGLE_RESOURCES_KEY, key)
-      }?.let { readMarkedResource(it) }
+      client.hget(SINGLE_RESOURCES_KEY, key)
+    }?.let { readMarkedResource(it) }
   }
 
   override fun getMarkedResources(): List<MarkedResource> {
@@ -170,17 +170,17 @@ class RedisResourceTrackingRepository(
         }
       }
       results
-      }.mapNotNull { json ->
-        var deleteInfo: DeleteInfo? = null
-        try {
-          deleteInfo = objectMapper.readValue(json)
-        } catch (e: Exception) {
-          redisErrorCounter.increment()
-          log.error("Exception reading delete info $json in ${javaClass.simpleName}: ", e)
-        }
-        deleteInfo
-      }.toList()
-    }
+    }.mapNotNull { json ->
+      var deleteInfo: DeleteInfo? = null
+      try {
+        deleteInfo = objectMapper.readValue(json)
+      } catch (e: Exception) {
+        redisErrorCounter.increment()
+        log.error("Exception reading delete info $json in ${javaClass.simpleName}: ", e)
+      }
+      deleteInfo
+    }.toList()
+  }
 
   private fun readMarkedResource(resource: String?): MarkedResource? {
     if (resource == null) {

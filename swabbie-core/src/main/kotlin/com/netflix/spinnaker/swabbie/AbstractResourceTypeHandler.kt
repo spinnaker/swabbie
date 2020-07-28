@@ -127,7 +127,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
           markedResource
             .withNotificationInfo()
             .withAdditionalTimeForDeletion(
-              Instant.ofEpochMilli(markedResource.markTs!!).until(Instant.now(clock), ChronoUnit.MILLIS))
+              Instant.ofEpochMilli(markedResource.markTs!!).until(Instant.now(clock), ChronoUnit.MILLIS)
+            )
             .also {
               resourceRepository.upsert(markedResource)
             }
@@ -140,10 +141,12 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
    * @see [com.netflix.spinnaker.swabbie.notifications.NotificationSender]
    */
   private fun NotificationQueue.add(workConfiguration: WorkConfiguration) {
-    add(NotificationTask(
-      namespace = workConfiguration.namespace,
-      resourceType = workConfiguration.resourceType
-    ))
+    add(
+      NotificationTask(
+        namespace = workConfiguration.namespace,
+        resourceType = workConfiguration.resourceType
+      )
+    )
   }
 
   /**
@@ -159,11 +162,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
     val markedResource = resourceRepository.find(resourceId, workConfiguration.namespace)
       ?: MarkedResource(
-          resource = resource,
-          summaries = emptyList(),
-          namespace = workConfiguration.namespace,
-          projectedDeletionStamp = -1L
-        )
+        resource = resource,
+        summaries = emptyList(),
+        namespace = workConfiguration.namespace,
+        projectedDeletionStamp = -1L
+      )
 
     log.info("Opting out resource ${markedResource.resourceId} in namespace ${workConfiguration.namespace}")
     val status = Status(Action.OPTOUT.name, clock.instant().toEpochMilli())
@@ -171,10 +174,10 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     applicationEventPublisher.publishEvent(OptOutResourceEvent(markedResource, workConfiguration))
     val optOutState = resourceStateRepository.get(resource.resourceId, workConfiguration.namespace)
       ?: ResourceState(
-          markedResource = markedResource,
-          deleted = false,
-          statuses = mutableListOf(status)
-        )
+        markedResource = markedResource,
+        deleted = false,
+        statuses = mutableListOf(status)
+      )
 
     return resourceStateRepository.upsert(optOutState.copy(optedOut = true, currentStatus = status))
   }
@@ -239,9 +242,11 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         val alreadyMarkedCandidate = markedCandidates.find { it.resourceId == candidate.resourceId }
         when {
           violations.isEmpty() -> {
-            ensureResourceUnmarked(alreadyMarkedCandidate,
+            ensureResourceUnmarked(
+              alreadyMarkedCandidate,
               workConfiguration,
-              "Resource no longer qualifies for deletion")
+              "Resource no longer qualifies for deletion"
+            )
           }
           alreadyMarkedCandidate == null -> {
             val newMarkedResource = MarkedResource(
@@ -375,7 +380,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     excluded: Int,
     total: Int
   ) {
-    log.info("$name Summary: {} processed out of {}. {} excluded. Configuration: {}",
+    log.info(
+      "$name Summary: {} processed out of {}. {} excluded. Configuration: {}",
       processed,
       total,
       excluded,
@@ -390,9 +396,9 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     action: Action
   ): Boolean {
     val hasAlwaysCleanRule = rulesEngine.getRules(workConfiguration)
-        .any { rule ->
-          rule.name() == AlwaysCleanRule::class.java.simpleName
-        }
+      .any { rule ->
+        rule.name() == AlwaysCleanRule::class.java.simpleName
+      }
 
     if (hasAlwaysCleanRule || resource.expired(clock)) {
       return false
@@ -448,7 +454,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       var shouldSkip = false
       val candidate = processedCandidates.find { it.resourceId == resource.resourceId }
       if ((candidate == null || getViolations(candidate, workConfiguration).isEmpty()) ||
-        shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.DELETE)) {
+        shouldExcludeResource(candidate, workConfiguration, optedOutResourceStates, Action.DELETE)
+      ) {
         shouldSkip = true
         ensureResourceUnmarked(resource, workConfiguration, "Resource no longer qualifies for deletion")
       }
@@ -490,7 +497,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         "location", workConfiguration.location,
         "account", workConfiguration.account.name,
         "action", action.name
-      )).set(count.toDouble())
+      )
+    ).set(count.toDouble())
   }
 
   private fun recordExcludedResources(workConfiguration: WorkConfiguration, action: Action, count: Int) {
@@ -500,7 +508,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         "location", workConfiguration.location,
         "account", workConfiguration.account.name,
         "action", action.name
-      )).set(count.toDouble())
+      )
+    ).set(count.toDouble())
   }
 
   private fun recordFailureForAction(action: Action, workConfiguration: WorkConfiguration, e: Exception) {
@@ -511,7 +520,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
         "account", workConfiguration.account.name,
         "action", action.name,
         "exception", e.javaClass.simpleName
-      )).increment()
+      )
+    ).increment()
   }
 
   /**

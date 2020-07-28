@@ -54,10 +54,11 @@ class AmazonSnapshot(
   companion object {
     private fun convertStartTime(value: Any): Long {
       return when (value) {
-        is String -> Dates
-          .toLocalDateTime(value)
-          .toInstant(ZoneId.systemDefault().rules.getOffset(Instant.now()))
-          .toEpochMilli()
+        is String ->
+          Dates
+            .toLocalDateTime(value)
+            .toInstant(ZoneId.systemDefault().rules.getOffset(Instant.now()))
+            .toEpochMilli()
         is Long -> value
         else -> throw IllegalArgumentException("Start time must be String (date) or Long, but given ${value.javaClass}")
       }

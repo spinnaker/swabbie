@@ -26,8 +26,10 @@ class AdminController(
     @RequestParam(required = true) retentionSeconds: Long,
     @RequestParam(required = true) numResources: Int
   ) {
-    log.info("Recalculating deletion timestamp for oldest $numResources resources in $namespace. " +
-        "Setting to ${retentionSeconds}s from now.")
+    log.info(
+      "Recalculating deletion timestamp for oldest $numResources resources in $namespace. " +
+        "Setting to ${retentionSeconds}s from now."
+    )
     val workConfiguration = controllerUtils.findWorkConfiguration(SwabbieNamespace.namespaceParser(namespace))
     val handler = controllerUtils.findHandler(workConfiguration)
     handler.recalculateDeletionTimestamp(namespace, retentionSeconds, numResources)

@@ -64,9 +64,12 @@ class OrcaTaskMonitoringAgent(
 
   override fun onApplicationEvent(event: RemoteStatusChangedEvent) {
     if (event.source.isUp) {
-      executorService.scheduleWithFixedDelay({
-        withLocking(javaClass.simpleName) { monitorOrcaTasks() }
-      }, getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS)
+      executorService.scheduleWithFixedDelay(
+        {
+          withLocking(javaClass.simpleName) { monitorOrcaTasks() }
+        },
+        getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS
+      )
     } else {
       stop()
     }
@@ -162,9 +165,12 @@ class OrcaTaskMonitoringAgent(
   }
 
   private fun getTask(taskId: String): TaskDetailResponse =
-    retrySupport.retry({
-      orcaService.getTask(taskId)
-    }, maxAttempts, timeoutMillis, false)
+    retrySupport.retry(
+      {
+        orcaService.getTask(taskId)
+      },
+      maxAttempts, timeoutMillis, false
+    )
 
   private fun clean() {
     taskTrackingRepository.cleanUpFinishedTasks(daysToKeepTasks)

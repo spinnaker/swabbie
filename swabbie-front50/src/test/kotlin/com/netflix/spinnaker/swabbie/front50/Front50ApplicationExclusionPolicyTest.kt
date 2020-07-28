@@ -103,7 +103,8 @@ object Front50ApplicationExclusionPolicyTest {
     val resources = listOf(
       TestResource("clouddriver-v001", grouping = Grouping("clouddriver", GroupingType.APPLICATION)),
       TestResource("acloud-v001", grouping = Grouping("acloud", GroupingType.APPLICATION)),
-      TestResource("wowcloudwow", grouping = Grouping("wowcloudwow", GroupingType.APPLICATION)))
+      TestResource("wowcloudwow", grouping = Grouping("wowcloudwow", GroupingType.APPLICATION))
+    )
 
     resources.filter {
       Front50ApplicationExclusionPolicy(front50ApplicationCache).apply(it, exclusions) == null
@@ -124,7 +125,7 @@ object Front50ApplicationExclusionPolicyTest {
               .withValue(
                 listOf("testapp")
               ),
-          Attribute()
+            Attribute()
               .withKey("email")
               .withValue(
                 listOf("test@netflix.com")
@@ -134,14 +135,14 @@ object Front50ApplicationExclusionPolicyTest {
     )
 
     whenever(front50ApplicationCache.get()) doReturn
-        setOf(
-            Application(name = "testapp", email = "name@netflix.com"),
-            Application(name = "test", email = "test@netflix.com"),
-            Application(name = "random", email = "random@netflix.com")
-        )
+      setOf(
+        Application(name = "testapp", email = "name@netflix.com"),
+        Application(name = "test", email = "test@netflix.com"),
+        Application(name = "random", email = "random@netflix.com")
+      )
 
     val resources = listOf(
-        TestResource("my-package-0.0.1", grouping = Grouping("my-package", GroupingType.PACKAGE_NAME))
+      TestResource("my-package-0.0.1", grouping = Grouping("my-package", GroupingType.PACKAGE_NAME))
     )
 
     resources.filter {

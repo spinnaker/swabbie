@@ -36,7 +36,8 @@ class EddaEndpointCache(
 
     // i.e. "http://edda-account.region.foo.bar.com",
     private fun buildEndpoint(endpoint: String): EddaEndpoint? {
-      val regex = """^https?://edda-([\w\-]+)\.([\w\-]+)\.([\w\-]+)\..*$""".toRegex()
+      val regex =
+        """^https?://edda-([\w\-]+)\.([\w\-]+)\.([\w\-]+)\..*$""".toRegex()
       val match = regex.matchEntire(endpoint) ?: return null
       val (account, region, env) = match.destructured
 

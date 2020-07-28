@@ -127,7 +127,8 @@ object NotificationSenderTest {
       NotificationTask(
         resourceType = notResourceType,
         namespace = workConfiguration1.namespace
-      ))
+      )
+    )
 
     whenever(
       resourceRepository.getMarkedResources()
@@ -150,7 +151,8 @@ object NotificationSenderTest {
       NotificationTask(
         resourceType = workConfiguration1.resourceType,
         namespace = workConfiguration1.namespace
-      ))
+      )
+    )
 
     whenever(
       resourceRepository.getMarkedResources()
@@ -185,13 +187,15 @@ object NotificationSenderTest {
       NotificationTask(
         resourceType = workConfiguration1.resourceType,
         namespace = workConfiguration1.namespace
-      ))
+      )
+    )
 
     notificationQueue.add(
       NotificationTask(
         resourceType = workConfiguration2.resourceType,
         namespace = workConfiguration2.namespace
-      ))
+      )
+    )
 
     notificationQueue.add(
       NotificationTask(
@@ -231,7 +235,8 @@ object NotificationSenderTest {
       NotificationTask(
         resourceType = workConfiguration1.resourceType,
         namespace = workConfiguration1.namespace
-      ))
+      )
+    )
 
     whenever(resourceStateRepository.getAll()) doReturn
       listOf(
@@ -274,7 +279,8 @@ object NotificationSenderTest {
       NotificationTask(
         resourceType = workConfiguration1.resourceType,
         namespace = workConfiguration1.namespace
-      ))
+      )
+    )
 
     whenever(
       resourceRepository.getMarkedResources()

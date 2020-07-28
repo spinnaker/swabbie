@@ -34,8 +34,9 @@ class OrphanedSnapshotRule : Rule {
   override fun <T : Resource> applicableForType(clazz: Class<T>): Boolean = AmazonSnapshot::class.java.isAssignableFrom(clazz)
   override fun <T : Resource> apply(resource: T, ruleDefinition: RuleDefinition?): Result {
     if (resource !is AmazonSnapshot || resource.matchesAnyRule(
-        IMAGE_EXISTS
-      )) {
+      IMAGE_EXISTS
+    )
+    ) {
       return Result(null)
     }
 

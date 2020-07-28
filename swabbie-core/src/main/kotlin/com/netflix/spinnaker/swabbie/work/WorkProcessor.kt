@@ -101,17 +101,21 @@ class WorkProcessor(
       }
     }
 
-    registry.timer(workDurationId.withTags(
-      "configuration", work.workConfiguration.namespace,
-      "action", work.action.name)
+    registry.timer(
+      workDurationId.withTags(
+        "configuration", work.workConfiguration.namespace,
+        "action", work.action.name
+      )
     ).record(elapsedTimeMillis, TimeUnit.MILLISECONDS)
   }
 
   private fun track(work: WorkItem, success: Boolean) {
-    registry.counter(workId.withTags(
-      "success", success.toString(),
-      "configuration", work.workConfiguration.namespace,
-      "action", work.action.name)
+    registry.counter(
+      workId.withTags(
+        "success", success.toString(),
+        "configuration", work.workConfiguration.namespace,
+        "action", work.action.name
+      )
     ).increment()
   }
 

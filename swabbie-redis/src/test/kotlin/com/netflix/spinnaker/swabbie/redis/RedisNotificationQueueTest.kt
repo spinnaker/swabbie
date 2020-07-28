@@ -70,15 +70,19 @@ object RedisNotificationQueueTest {
   @Test
   fun `should add`() {
     val workConfiguration = WorkConfigurationTestHelper.generateWorkConfiguration(namespace = "ns1")
-    queue.add(NotificationTask(
-      resourceType = "type1",
-      namespace = workConfiguration.namespace
-    ))
+    queue.add(
+      NotificationTask(
+        resourceType = "type1",
+        namespace = workConfiguration.namespace
+      )
+    )
 
-    queue.add(NotificationTask(
-      resourceType = "type2",
-      namespace = workConfiguration.namespace
-    ))
+    queue.add(
+      NotificationTask(
+        resourceType = "type2",
+        namespace = workConfiguration.namespace
+      )
+    )
 
     expectThat(queue.isEmpty()).isFalse()
 
@@ -87,15 +91,19 @@ object RedisNotificationQueueTest {
     expectThat(queue.isEmpty()).isTrue()
 
     // should be a set
-    queue.add(NotificationTask(
-      resourceType = "type1",
-      namespace = workConfiguration.namespace
-    ))
+    queue.add(
+      NotificationTask(
+        resourceType = "type1",
+        namespace = workConfiguration.namespace
+      )
+    )
 
-    queue.add(NotificationTask(
-      resourceType = "type1",
-      namespace = workConfiguration.namespace
-    ))
+    queue.add(
+      NotificationTask(
+        resourceType = "type1",
+        namespace = workConfiguration.namespace
+      )
+    )
 
     expectThat(queue.popAll()).size.isEqualTo(1)
   }

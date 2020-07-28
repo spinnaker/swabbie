@@ -260,7 +260,8 @@ object AmazonImageHandlerTest {
           notificationType = "email",
           notificationStamp = clock.millis()
         )
-      ))
+      )
+    )
 
     whenever(rulesEngine.evaluate(any<AmazonImage>(), any())) doReturn ruleAndViolationPair.second
     whenever(resourceRepository.getMarkedResourcesToDelete()) doReturn markedResources

@@ -68,9 +68,10 @@ class ResourceController(
 
     return when {
       expand -> markedResources
-      list -> markedResources
-                .map { DeleteInfo(name = it.name.orEmpty(), namespace = it.namespace, resourceId = it.resourceId) }
-                .sortedBy { it.name }
+      list ->
+        markedResources
+          .map { DeleteInfo(name = it.name.orEmpty(), namespace = it.namespace, resourceId = it.resourceId) }
+          .sortedBy { it.name }
       else -> markedResources.map { it.slim() }
     }
   }

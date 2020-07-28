@@ -69,5 +69,6 @@ class LaunchConfigurationCacheProvider(
 
   private fun isCorrectCloudProviderAndRegion(configuredRegions: Set<String>) =
     { account: Account ->
-      account.cloudProvider == "aws" && !account.regions.isNullOrEmpty() && account.regions!!.any { it.name in configuredRegions } }
+      account.cloudProvider == "aws" && !account.regions.isNullOrEmpty() && account.regions!!.any { it.name in configuredRegions }
+    }
 }

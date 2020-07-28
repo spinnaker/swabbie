@@ -63,85 +63,99 @@ class Edda(
 
   override fun getLaunchConfigurations(params: Parameters): List<AmazonLaunchConfiguration> {
     return call(params, LAUNCH_CONFIGURATION) {
-      eddaService: EddaService -> eddaService.getLaunchConfigs()
+      eddaService: EddaService ->
+      eddaService.getLaunchConfigs()
     } ?: emptyList()
   }
 
   override fun getLaunchConfiguration(params: Parameters): AmazonLaunchConfiguration? {
     return call(params, LAUNCH_CONFIGURATION) {
-      eddaService: EddaService -> eddaService.getLaunchConfig(params.id)
+      eddaService: EddaService ->
+      eddaService.getLaunchConfig(params.id)
     }
   }
 
   override fun getInstances(params: Parameters): List<AmazonInstance> {
     return call(params, INSTANCE) {
-      eddaService: EddaService -> eddaService.getInstances()
+      eddaService: EddaService ->
+      eddaService.getInstances()
     } ?: emptyList()
   }
 
   override fun getInstance(params: Parameters): AmazonInstance? {
     return call(params, INSTANCE) {
-      eddaService: EddaService -> eddaService.getInstance(params.id)
+      eddaService: EddaService ->
+      eddaService.getInstance(params.id)
     }
   }
 
   override fun getElasticLoadBalancers(params: Parameters): List<AmazonElasticLoadBalancer> {
     return call(params, LOAD_BALANCER) {
-      eddaService: EddaService -> eddaService.getLoadBalancers()
+      eddaService: EddaService ->
+      eddaService.getLoadBalancers()
     } ?: emptyList()
   }
 
   override fun getElasticLoadBalancer(params: Parameters): AmazonElasticLoadBalancer? {
     return call(params, LOAD_BALANCER) {
-      eddaService: EddaService -> eddaService.getLoadBalancer(params.id)
+      eddaService: EddaService ->
+      eddaService.getLoadBalancer(params.id)
     }
   }
 
   override fun getImages(params: Parameters): List<AmazonImage> {
     return call(params, IMAGE) {
-      eddaService: EddaService -> eddaService.getImages()
+      eddaService: EddaService ->
+      eddaService.getImages()
     } ?: emptyList()
   }
 
   override fun getImage(params: Parameters): AmazonImage? {
     return call(params, IMAGE) {
-      eddaService: EddaService -> eddaService.getImage(params.id)
+      eddaService: EddaService ->
+      eddaService.getImage(params.id)
     }
   }
 
   override fun getSecurityGroups(params: Parameters): List<AmazonSecurityGroup> {
     return call(params, SECURITY_GROUP) {
-      eddaService: EddaService -> eddaService.getSecurityGroups()
+      eddaService: EddaService ->
+      eddaService.getSecurityGroups()
     } ?: emptyList()
   }
 
   override fun getSecurityGroup(params: Parameters): AmazonSecurityGroup? {
     return call(params, SECURITY_GROUP) {
-      eddaService: EddaService -> eddaService.getSecurityGroup(params.id)
+      eddaService: EddaService ->
+      eddaService.getSecurityGroup(params.id)
     }
   }
 
   override fun getSnapshots(params: Parameters): List<AmazonSnapshot> {
     return call(params, SNAPSHOT) {
-      eddaService: EddaService -> eddaService.getSnapshots()
+      eddaService: EddaService ->
+      eddaService.getSnapshots()
     } ?: emptyList()
   }
 
   override fun getSnapshot(params: Parameters): AmazonSnapshot? {
     return call(params, SNAPSHOT) {
-      eddaService: EddaService -> eddaService.getSnapshot(params.id)
+      eddaService: EddaService ->
+      eddaService.getSnapshot(params.id)
     }
   }
 
   override fun getServerGroups(params: Parameters): List<AmazonAutoScalingGroup> {
     return call(params, SERVER_GROUP) {
-      eddaService: EddaService -> eddaService.getAutoScalingGroups()
+      eddaService: EddaService ->
+      eddaService.getAutoScalingGroups()
     } ?: emptyList()
   }
 
   override fun getServerGroup(params: Parameters): AmazonAutoScalingGroup? {
     return call(params, SERVER_GROUP) {
-      eddaService: EddaService -> eddaService.getAutoScalingGroup(params.id)
+      eddaService: EddaService ->
+      eddaService.getAutoScalingGroup(params.id)
     }
   }
 
@@ -153,17 +167,20 @@ class Edda(
     }
 
     return try {
-      retrySupport.retry({
-        try {
-          AuthenticatedRequest.allowAnonymous { client.run(fx) }
-        } catch (e: Exception) {
-          if (e is RetrofitError && e.response.status == 404) {
-            null
-          } else {
-            throw e
+      retrySupport.retry(
+        {
+          try {
+            AuthenticatedRequest.allowAnonymous { client.run(fx) }
+          } catch (e: Exception) {
+            if (e is RetrofitError && e.response.status == 404) {
+              null
+            } else {
+              throw e
+            }
           }
-        }
-      }, maxRetries, retryBackOffMillis, false)
+        },
+        maxRetries, retryBackOffMillis, false
+      )
     } catch (e: Exception) {
       registry.counter(eddaFailureCountId.withTags("resourceType", resourceType)).increment()
       throw e

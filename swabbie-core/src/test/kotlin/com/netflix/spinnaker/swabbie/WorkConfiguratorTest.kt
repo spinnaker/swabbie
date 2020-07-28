@@ -221,8 +221,10 @@ object WorkConfiguratorTest {
       )
 
     workConfigurator.generateWorkConfigurations().let { workConfigurations ->
-      assertEquals(workConfigurations.size, 2,
-        "excludes disabled securityGroup & ami because of the account exclusion by name")
+      assertEquals(
+        workConfigurations.size, 2,
+        "excludes disabled securityGroup & ami because of the account exclusion by name"
+      )
       with(workConfigurations[0]) {
         assertEquals("aws:test:us-east-1:loadbalancer", namespace, "granularity")
         assertEquals(false, dryRun, "dryRun is false")

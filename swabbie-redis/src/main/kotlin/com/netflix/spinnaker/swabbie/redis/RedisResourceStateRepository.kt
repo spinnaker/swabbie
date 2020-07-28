@@ -65,40 +65,40 @@ class RedisResourceStateRepository(
   }
 
   override fun getAll(): List<ResourceState> {
-      return redisClientDelegate.run {
-        val set = this.withCommandsClient<Set<String>> { client ->
-          val results = mutableListOf<String>()
-          val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
-          var cursor = "0"
-          var shouldContinue = true
+    return redisClientDelegate.run {
+      val set = this.withCommandsClient<Set<String>> { client ->
+        val results = mutableListOf<String>()
+        val scanParams: ScanParams = ScanParams().count(REDIS_CHUNK_SIZE)
+        var cursor = "0"
+        var shouldContinue = true
 
-          while (shouldContinue) {
-            val scanResult = client.sscan(ALL_STATES_KEY, cursor, scanParams)
-            results.addAll(scanResult.result)
-            cursor = scanResult.cursor
-            if ("0" == cursor) {
-              shouldContinue = false
-            }
+        while (shouldContinue) {
+          val scanResult = client.sscan(ALL_STATES_KEY, cursor, scanParams)
+          results.addAll(scanResult.result)
+          cursor = scanResult.cursor
+          if ("0" == cursor) {
+            shouldContinue = false
           }
-          results.toSet()
         }
-
-        if (set.isEmpty()) {
-          emptyList()
-        } else {
-          val state = mutableSetOf<ResourceState>()
-          set.chunked(REDIS_CHUNK_SIZE).forEach { subset ->
-            this.withCommandsClient<Set<String>> { client ->
-              client.hmget(SINGLE_STATE_KEY, *subset.map { it }.toTypedArray()).toSet()
-            }?.mapNotNull { json ->
-              readState(json)
-            }?.let {
-              state.addAll(it)
-            }
-          }
-          state.toList()
-        }
+        results.toSet()
       }
+
+      if (set.isEmpty()) {
+        emptyList()
+      } else {
+        val state = mutableSetOf<ResourceState>()
+        set.chunked(REDIS_CHUNK_SIZE).forEach { subset ->
+          this.withCommandsClient<Set<String>> { client ->
+            client.hmget(SINGLE_STATE_KEY, *subset.map { it }.toTypedArray()).toSet()
+          }?.mapNotNull { json ->
+            readState(json)
+          }?.let {
+            state.addAll(it)
+          }
+        }
+        state.toList()
+      }
+    }
   }
 
   override fun get(resourceId: String, namespace: String): ResourceState? {
@@ -107,8 +107,8 @@ class RedisResourceStateRepository(
         this.withCommandsClient<String> { client ->
           client.hget(SINGLE_STATE_KEY, key)
         }?.let { json ->
-            readState(json)
-          }
+          readState(json)
+        }
       }
     }
   }
@@ -182,7 +182,7 @@ class RedisResourceStateRepository(
    */
   private fun ResourceState.shouldClean(): Boolean =
     statuses.any { it.name.equals("mark", true) } &&
-    statuses.first { it.name.equals("mark", true) }
+      statuses.first { it.name.equals("mark", true) }
       .timestamp.plus(TimeUnit.DAYS.toMillis(deletedRetentionDays)) < clock.instant().toEpochMilli()
 }
 

@@ -20,7 +20,6 @@ import com.netflix.spinnaker.swabbie.model.Named
 import java.util.concurrent.atomic.AtomicReference
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Scheduled
 
 interface Cacheable : Named
 
@@ -28,17 +27,19 @@ interface Cache<out T> {
   fun get(): Set<T>
   fun contains(key: String?): Boolean
   fun loadingComplete(): Boolean
+  fun refresh()
 }
 
 interface SingletonCache<out T> {
   fun get(): T
   fun loadingComplete(): Boolean
+  fun refresh()
 }
 
 open class InMemoryCache<out T : Cacheable>(
   private val sourceProvider: () -> Set<T>
 ) : Cache<T> {
-
+  private val cache = AtomicReference<Set<T>>()
   val log: Logger = LoggerFactory.getLogger(javaClass)
 
   override fun contains(key: String?): Boolean {
@@ -46,12 +47,9 @@ open class InMemoryCache<out T : Cacheable>(
     return get().find { it.name == key } != null
   }
 
-  private val cache = AtomicReference<Set<T>>()
-
-  @Scheduled(initialDelay = 0L, fixedDelayString = "\${cache.update-interval-millis:900000}")
-  private fun refresh() {
+  override fun refresh() {
     try {
-      log.info("Refreshing cache ${javaClass.name}")
+      log.info("Refreshing cache ${javaClass.simpleName}")
       cache.set(sourceProvider.invoke())
     } catch (e: Exception) {
       log.error("Error refreshing cache ${javaClass.name}", e)
@@ -74,12 +72,10 @@ open class InMemoryCache<out T : Cacheable>(
 open class InMemorySingletonCache<out T : Cacheable>(
   private val sourceProvider: () -> T
 ) : SingletonCache<T> {
+  private val cache = AtomicReference<T>()
   val log: Logger = LoggerFactory.getLogger(javaClass)
 
-  private val cache = AtomicReference<T>()
-
-  @Scheduled(initialDelay = 0L, fixedDelayString = "\${cache.update-interval-millis:900000}")
-  private fun refresh() {
+  override fun refresh() {
     try {
       log.info("Refreshing cache ${javaClass.name}")
       cache.set(sourceProvider.invoke())

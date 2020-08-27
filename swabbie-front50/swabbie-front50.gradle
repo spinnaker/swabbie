@@ -15,9 +15,9 @@
  */
 
 dependencies {
-  compile project(":swabbie-retrofit")
-  compile project(":swabbie-core")
+  implementation project(":swabbie-core")
+  implementation project(":swabbie-retrofit")
 
-  testCompile project(":swabbie-test")
-  testCompile "com.squareup.retrofit:retrofit-mock"
+  testImplementation project(":swabbie-test")
+  testImplementation "com.squareup.retrofit:retrofit-mock"
 }

@@ -15,11 +15,11 @@
  */
 
 dependencies {
-  compile "com.jakewharton.retrofit:retrofit1-okhttp3-client"
-  compile "com.squareup.retrofit:retrofit"
-  compile "com.squareup.okhttp:okhttp-apache"
-  compile "com.squareup.okhttp:okhttp-urlconnection"
-  compile "com.squareup.retrofit:converter-jackson"
-  compile "com.netflix.spinnaker.kork:kork-web"
-  compile "io.reactivex:rxjava"
+  implementation "com.jakewharton.retrofit:retrofit1-okhttp3-client"
+  implementation "com.squareup.retrofit:retrofit"
+  implementation "com.squareup.okhttp:okhttp-apache"
+  implementation "com.squareup.okhttp:okhttp-urlconnection"
+  implementation "com.squareup.retrofit:converter-jackson"
+  implementation "com.netflix.spinnaker.kork:kork-web"
+  implementation "io.reactivex:rxjava"
 }

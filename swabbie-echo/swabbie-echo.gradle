@@ -15,7 +15,16 @@
  */
 
 dependencies {
-  compile project(":swabbie-core")
-  compile project(":swabbie-retrofit")
-  testCompile project(":swabbie-test")
+  implementation project(":swabbie-core")
+  implementation project(":swabbie-retrofit")
+  implementation "com.netflix.spinnaker.kork:kork-core"
+  implementation "com.netflix.spinnaker.kork:kork-web"
+  implementation "com.jakewharton.retrofit:retrofit1-okhttp3-client"
+  implementation "com.squareup.retrofit:retrofit"
+  implementation "com.squareup.okhttp:okhttp-apache"
+  implementation "com.squareup.okhttp:okhttp-urlconnection"
+  implementation "com.squareup.retrofit:converter-jackson"
+
+  testImplementation project(":swabbie-test")
+  testImplementation "io.strikt:strikt-core"
 }

@@ -30,7 +30,15 @@ dependencies {
   implementation "com.netflix.spinnaker.moniker:moniker"
   implementation "net.logstash.logback:logstash-logback-encoder"
   implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
+  implementation "com.netflix.spinnaker.kork:kork-core"
+  implementation "com.netflix.spinnaker.kork:kork-web"
+
+  implementation "com.squareup.retrofit:retrofit"
+  implementation "com.squareup.okhttp:okhttp-apache"
+  implementation "com.squareup.okhttp:okhttp-urlconnection"
+  implementation "com.squareup.retrofit:converter-jackson"
 
   testImplementation project(":swabbie-test")
   testImplementation "com.netflix.spinnaker.kork:kork-test"
+  testImplementation "io.strikt:strikt-core"
 }

@@ -31,4 +31,5 @@ dependencies {
 
   testImplementation project(":swabbie-test")
   testImplementation "com.netflix.spinnaker.kork:kork-test"
+  testImplementation "io.strikt:strikt-core"
 }

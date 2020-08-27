@@ -3,12 +3,13 @@ package com.netflix.spinnaker.swabbie
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import javax.annotation.PreDestroy
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 interface CacheStatus {
-  abstract fun cachesLoaded(): Boolean
+  fun cachesLoaded(): Boolean
 }
 
 @Component
@@ -17,25 +18,44 @@ open class InMemoryCacheStatus(
   private val singletonCaches: List<SingletonCache<*>>
 ) : CacheStatus {
   private var allLoaded = AtomicReference<Boolean>(false)
-  private val executorService = Executors.newSingleThreadScheduledExecutor()
+  private val monitorExecutor = Executors.newSingleThreadScheduledExecutor()
+  private val cacheLoaderExecutor = Executors.newSingleThreadScheduledExecutor()
   private val log: Logger = LoggerFactory.getLogger(javaClass)
 
   init {
-    executorService.scheduleWithFixedDelay(
+    refreshCaches()
+
+    // monitor the status of caches. Sets allLoaded=true when all caches are filled.
+    monitorCaches()
+  }
+
+  private fun monitorCaches() {
+    monitorExecutor.scheduleWithFixedDelay(
       {
         try {
           if (!allLoaded.get()) {
             log.debug("All caches not loaded, checking cache status.")
             updateStatus()
-          } else {
-            log.debug("All caches loaded")
-            shutdown()
           }
         } catch (e: Exception) {
-          log.error("Failed while checking the caches in ${javaClass.simpleName}.", e)
+          log.error("Failed while checking the cache status", e)
         }
       },
-      0, 5, TimeUnit.SECONDS
+      0, 1, TimeUnit.MINUTES
+    )
+  }
+
+  private fun refreshCaches() {
+    cacheLoaderExecutor.scheduleWithFixedDelay(
+      {
+        try {
+          caches.forEach(Cache<*>::refresh)
+          singletonCaches.forEach(SingletonCache<*>::refresh)
+        } catch (e: Exception) {
+          log.error("Failed while refreshing caches.", e)
+        }
+      },
+      0, 15, TimeUnit.MINUTES
     )
   }
 
@@ -51,15 +71,10 @@ open class InMemoryCacheStatus(
     allLoaded.set(true)
   }
 
+  @PreDestroy
   private fun shutdown() {
-    executorService.shutdown()
-    try {
-      if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
-        executorService.shutdownNow()
-      }
-    } catch (e: InterruptedException) {
-      executorService.shutdownNow()
-    }
+    monitorExecutor.shutdownNow()
+    cacheLoaderExecutor.shutdownNow()
   }
 
   override fun cachesLoaded(): Boolean {

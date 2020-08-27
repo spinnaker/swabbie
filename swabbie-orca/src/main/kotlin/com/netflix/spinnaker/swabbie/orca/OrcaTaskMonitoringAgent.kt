@@ -21,7 +21,7 @@ package com.netflix.spinnaker.swabbie.orca
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.kork.core.RetrySupport
-import com.netflix.spinnaker.kork.discovery.RemoteStatusChangedEvent
+import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.events.OrcaTaskFailureEvent
@@ -41,7 +41,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.context.ApplicationListener
 import org.springframework.stereotype.Component
 
 @Component
@@ -52,9 +51,9 @@ class OrcaTaskMonitoringAgent(
   private val orcaService: OrcaService,
   private val applicationEventPublisher: ApplicationEventPublisher,
   private val retrySupport: RetrySupport,
+  private val discoveryStatusListener: DiscoveryStatusListener,
   private val lockingService: Optional<LockingService>
-) : ApplicationListener<RemoteStatusChangedEvent> {
-
+) {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val executorService = Executors.newSingleThreadScheduledExecutor()
   private val lastRunAgeId: Id = registry.createId("swabbie.agents.run.age")
@@ -62,27 +61,26 @@ class OrcaTaskMonitoringAgent(
   private val timeoutMillis: Long = 5000
   private val maxAttempts: Int = 3
 
-  override fun onApplicationEvent(event: RemoteStatusChangedEvent) {
-    if (event.source.isUp) {
-      executorService.scheduleWithFixedDelay(
-        {
-          withLocking(javaClass.simpleName) { monitorOrcaTasks() }
-        },
-        getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS
-      )
-    } else {
-      stop()
-    }
-  }
-
   @PostConstruct
-  private fun init() {
+  fun init() {
     log.info("Initializing agent ${javaClass.simpleName}")
     registry.gauge(lastRunAgeId.withTag("agentName", javaClass.simpleName), this) {
       Duration
         .between(it.getLastAgentRun(), clock.instant())
         .toMillis().toDouble()
     }
+
+    // Monitor tasks
+    monitor()
+  }
+
+  private fun monitor() {
+    executorService.scheduleWithFixedDelay(
+      {
+        withLocking(javaClass.simpleName) { monitorOrcaTasks() }
+      },
+      getAgentDelay(), getAgentFrequency(), TimeUnit.SECONDS
+    )
   }
 
   @PreDestroy
@@ -112,6 +110,10 @@ class OrcaTaskMonitoringAgent(
   }
 
   private fun monitorOrcaTasks() {
+    if (!discoveryStatusListener.isEnabled) {
+      return
+    }
+
     initialize()
 
     val inProgressTasks = taskTrackingRepository.getInProgress()
@@ -169,7 +171,7 @@ class OrcaTaskMonitoringAgent(
       {
         orcaService.getTask(taskId)
       },
-      maxAttempts, timeoutMillis, false
+      maxAttempts, Duration.ofMillis(timeoutMillis), false
     )
 
   private fun clean() {

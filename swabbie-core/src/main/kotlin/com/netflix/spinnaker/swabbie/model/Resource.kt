@@ -209,6 +209,7 @@ interface Identifiable : Named {
 
   private fun <R : Any?> readPropery(propertyName: String): R {
     @Suppress("UNCHECKED_CAST")
+    val prop = javaClass.kotlin.memberProperties.first { it.name == propertyName }
     return javaClass.kotlin.memberProperties.first { it.name == propertyName }.get(this) as R
   }
 

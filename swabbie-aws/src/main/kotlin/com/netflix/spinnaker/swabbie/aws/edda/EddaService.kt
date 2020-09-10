@@ -20,6 +20,7 @@ import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGrou
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
+import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplate
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
@@ -74,4 +75,10 @@ interface EddaService {
 
   @GET("/api/v2/aws/launchConfigurations/{launchConfigurationName}")
   fun getLaunchConfig(@Path("launchConfigurationName") launchConfigurationName: String): AmazonLaunchConfiguration
+
+  @GET("/api/v2/aws/launchTemplates;_expand")
+  fun getLaunchTemplates(): List<AmazonLaunchTemplate>
+
+  @GET("/api/v2/aws/launchTemplates/{launchTemplateId}")
+  fun getLaunchTemplate(@Path("launchTemplateId") launchTemplateId: String): AmazonLaunchTemplate
 }

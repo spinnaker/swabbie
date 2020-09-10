@@ -38,6 +38,8 @@ import com.amazonaws.services.ec2.model.DescribeImagesRequest
 import com.amazonaws.services.ec2.model.DescribeImagesResult
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest
 import com.amazonaws.services.ec2.model.DescribeInstancesResult
+import com.amazonaws.services.ec2.model.DescribeLaunchTemplatesRequest
+import com.amazonaws.services.ec2.model.DescribeLaunchTemplatesResult
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult
 import com.amazonaws.services.ec2.model.DescribeSnapshotsRequest
@@ -57,6 +59,7 @@ import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGrou
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
+import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplate
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
@@ -76,6 +79,8 @@ interface AWS {
   fun getInstance(params: Parameters): AmazonInstance?
   fun getLaunchConfigurations(params: Parameters): List<AmazonLaunchConfiguration>
   fun getLaunchConfiguration(params: Parameters): AmazonLaunchConfiguration?
+  fun getLaunchTemplates(params: Parameters): List<AmazonLaunchTemplate>
+  fun getLaunchTemplate(params: Parameters): AmazonLaunchTemplate?
   fun getElasticLoadBalancers(params: Parameters): List<AmazonElasticLoadBalancer>
   fun getElasticLoadBalancer(params: Parameters): AmazonElasticLoadBalancer?
   fun getImages(params: Parameters): List<AmazonImage>
@@ -160,6 +165,32 @@ class Vanilla(
     val request = DescribeLaunchConfigurationsRequest().withLaunchConfigurationNames(params.id)
     val result = account.autoScaling(params.region).describeLaunchConfigurations(request)
     return convert<AmazonLaunchConfiguration>(result.launchConfigurations).first()
+  }
+
+  override fun getLaunchTemplates(params: Parameters): List<AmazonLaunchTemplate> {
+    val account: SpinnakerAccount = findAccount(params) ?: return emptyList()
+    val launchTemplates: MutableList<AmazonLaunchTemplate> = ArrayList()
+    val request = DescribeLaunchTemplatesRequest()
+    while (true) {
+      val result: DescribeLaunchTemplatesResult = account.ec2(params.region).describeLaunchTemplates(request)
+      launchTemplates.addAll(
+        convert(result.launchTemplates)
+      )
+      if (result.nextToken != null) {
+        request.withNextToken(result.nextToken)
+      } else {
+        break
+      }
+    }
+
+    return launchTemplates
+  }
+
+  override fun getLaunchTemplate(params: Parameters): AmazonLaunchTemplate? {
+    val account: SpinnakerAccount = findAccount(params) ?: return null
+    val request = DescribeLaunchTemplatesRequest().withLaunchTemplateIds(params.id)
+    val result = account.ec2(params.region).describeLaunchTemplates(request)
+    return convert<AmazonLaunchTemplate>(result.launchTemplates).first()
   }
 
   override fun getServerGroups(params: Parameters): List<AmazonAutoScalingGroup> {

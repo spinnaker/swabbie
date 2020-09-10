@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.aws.autoscalinggroups
 
+import com.amazonaws.services.autoscaling.model.LaunchTemplateSpecification
 import com.amazonaws.services.autoscaling.model.SuspendedProcess
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.netflix.spinnaker.moniker.frigga.FriggaReflectiveNamer
@@ -40,7 +41,8 @@ data class AmazonAutoScalingGroup(
   override val resourceType: String = SERVER_GROUP,
   override val cloudProvider: String = AWS,
   override val name: String = autoScalingGroupName,
-  private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString()
+  private val creationDate: String? = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdTime), ZoneId.systemDefault()).toString(),
+  val launchTemplate: LaunchTemplateSpecification? = null
 ) : AmazonResource(creationDate) {
   private val suspensionReasonDateRegex = "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})".toRegex()
 

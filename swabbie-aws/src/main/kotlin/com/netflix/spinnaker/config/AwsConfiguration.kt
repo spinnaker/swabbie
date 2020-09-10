@@ -31,8 +31,11 @@ import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesInMemoryCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationInMemoryCache
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchTemplateVersionCache
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchTemplateVersionInMemoryCache
 import com.netflix.spinnaker.swabbie.aws.caches.ImagesUsedByInstancesProvider
 import com.netflix.spinnaker.swabbie.aws.caches.LaunchConfigurationCacheProvider
+import com.netflix.spinnaker.swabbie.aws.caches.LaunchTemplateVersionsCacheProvider
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import java.time.Clock
 import org.springframework.context.annotation.Bean
@@ -69,6 +72,23 @@ open class AwsConfiguration {
     aws: AWS
   ): CachedViewProvider<AmazonLaunchConfigurationCache> {
     return LaunchConfigurationCacheProvider(clock, workConfigurations, accountProvider, aws)
+  }
+
+  @Bean
+  open fun launchTemplateVersionCacheProvider(
+    clock: Clock,
+    workConfigurations: List<WorkConfiguration>,
+    accountProvider: AccountProvider,
+    aws: AWS
+  ): CachedViewProvider<AmazonLaunchTemplateVersionCache> {
+    return LaunchTemplateVersionsCacheProvider(clock, workConfigurations, accountProvider, aws)
+  }
+
+  @Bean
+  open fun launchTemplateVersionInMemoryCache(
+    provider: CachedViewProvider<AmazonLaunchTemplateVersionCache>
+  ): AmazonLaunchTemplateVersionInMemoryCache {
+    return AmazonLaunchTemplateVersionInMemoryCache(provider)
   }
 
   @Bean

@@ -38,6 +38,8 @@ import com.amazonaws.services.ec2.model.DescribeImagesRequest
 import com.amazonaws.services.ec2.model.DescribeImagesResult
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest
 import com.amazonaws.services.ec2.model.DescribeInstancesResult
+import com.amazonaws.services.ec2.model.DescribeLaunchTemplateVersionsRequest
+import com.amazonaws.services.ec2.model.DescribeLaunchTemplateVersionsResult
 import com.amazonaws.services.ec2.model.DescribeLaunchTemplatesRequest
 import com.amazonaws.services.ec2.model.DescribeLaunchTemplatesResult
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest
@@ -60,6 +62,7 @@ import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplate
+import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplateVersion
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.model.AmazonResource
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
@@ -91,6 +94,7 @@ interface AWS {
   fun getSnapshot(params: Parameters): AmazonSnapshot?
   fun getServerGroups(params: Parameters): List<AmazonAutoScalingGroup>
   fun getServerGroup(params: Parameters): AmazonAutoScalingGroup?
+  fun getLaunchTemplateVersions(params: Parameters): List<AmazonLaunchTemplateVersion>
 }
 
 /**
@@ -191,6 +195,25 @@ class Vanilla(
     val request = DescribeLaunchTemplatesRequest().withLaunchTemplateIds(params.id)
     val result = account.ec2(params.region).describeLaunchTemplates(request)
     return convert<AmazonLaunchTemplate>(result.launchTemplates).first()
+  }
+
+  override fun getLaunchTemplateVersions(params: Parameters): List<AmazonLaunchTemplateVersion> {
+    val account: SpinnakerAccount = findAccount(params) ?: return emptyList()
+    val launchTemplateVersions: MutableList<AmazonLaunchTemplateVersion> = ArrayList()
+    val request = DescribeLaunchTemplateVersionsRequest().withVersions("\$Latest", "\$Default")
+    while (true) {
+      val result: DescribeLaunchTemplateVersionsResult = account.ec2(params.region).describeLaunchTemplateVersions(request)
+      launchTemplateVersions.addAll(
+        convert(result.launchTemplateVersions)
+      )
+      if (result.nextToken != null) {
+        request.withNextToken(result.nextToken)
+      } else {
+        break
+      }
+    }
+
+    return launchTemplateVersions
   }
 
   override fun getServerGroups(params: Parameters): List<AmazonAutoScalingGroup> {

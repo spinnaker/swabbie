@@ -43,7 +43,8 @@ class OrphanedImageRule : Rule {
       USED_BY_INSTANCES,
       USED_BY_LAUNCH_CONFIGURATIONS,
       HAS_SIBLINGS_IN_OTHER_ACCOUNTS,
-      SEEN_IN_USE_RECENTLY
+      SEEN_IN_USE_RECENTLY,
+      USED_BY_LAUNCH_TEMPLATES
     )
     ) {
       return Result(null)
@@ -51,7 +52,7 @@ class OrphanedImageRule : Rule {
 
     return Result(
       Summary(
-        description = "Image is not referenced by an Instance, Launch Configuration, " +
+        description = "Image is not referenced by an Instance, Launch Configuration/Template, " +
           "and has no siblings in other accounts, " +
           "and has been that way for over the outOfUseThreshold days",
         ruleName = name()
@@ -66,5 +67,6 @@ class OrphanedImageRule : Rule {
 
 const val USED_BY_INSTANCES = "usedByInstances"
 const val USED_BY_LAUNCH_CONFIGURATIONS = "usedByLaunchConfigurations"
+const val USED_BY_LAUNCH_TEMPLATES = "usedByLaunchTemplates"
 const val HAS_SIBLINGS_IN_OTHER_ACCOUNTS = "hasSiblingsInOtherAccounts"
 const val SEEN_IN_USE_RECENTLY = "seenInUseRecently"

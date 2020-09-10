@@ -81,4 +81,7 @@ interface EddaService {
 
   @GET("/api/v2/aws/launchTemplates/{launchTemplateId}")
   fun getLaunchTemplate(@Path("launchTemplateId") launchTemplateId: String): AmazonLaunchTemplate
+
+  @GET("/api/v2/view/launchTemplateVersions;_expand")
+  fun getLaunchTemplateVersions(): List<Edda.EddaLaunchTemplaVersion> // TODO: switch to just launchTemplateVersion when edda is updated
 }

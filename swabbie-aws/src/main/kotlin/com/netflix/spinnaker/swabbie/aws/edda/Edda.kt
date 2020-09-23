@@ -28,12 +28,14 @@ import com.netflix.spinnaker.swabbie.aws.autoscalinggroups.AmazonAutoScalingGrou
 import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
+import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplate
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
 import com.netflix.spinnaker.swabbie.model.IMAGE
 import com.netflix.spinnaker.swabbie.model.INSTANCE
 import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
+import com.netflix.spinnaker.swabbie.model.LAUNCH_TEMPLATE
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
@@ -72,6 +74,20 @@ class Edda(
     return call(params, LAUNCH_CONFIGURATION) {
       eddaService: EddaService ->
       eddaService.getLaunchConfig(params.id)
+    }
+  }
+
+  override fun getLaunchTemplates(params: Parameters): List<AmazonLaunchTemplate> {
+    return call(params, LAUNCH_TEMPLATE) {
+      eddaService: EddaService ->
+      eddaService.getLaunchTemplates()
+    } ?: emptyList()
+  }
+
+  override fun getLaunchTemplate(params: Parameters): AmazonLaunchTemplate? {
+    return call(params, LAUNCH_TEMPLATE) {
+      eddaService: EddaService ->
+      eddaService.getLaunchTemplate(params.id)
     }
   }
 

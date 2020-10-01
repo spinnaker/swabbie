@@ -1,11 +1,11 @@
 # Swabbie
 
-_**IMPORTANT:** This service is currently under development, and is actively being used at Netflix for deleting images, 
+_**IMPORTANT:** This service is currently under development, and is actively being used at Netflix for deleting images,
 ebs snapshots and auto scaling groups._
 
 Swabbie automates the cleanup of unused resources such as EBS Volumes and Images.
 As a Janitor Monkey replacement, it can also be extended to clean up a variety of resource types.
-Swabbie applies a set of rules to mark cleanup candidates. 
+Swabbie applies a set of rules to mark cleanup candidates.
 Once marked, a resource is scheduled for deletion, and an owner is notified.
 Before being deleted the resource is checked again to make sure it still qualifies for deletion.
 If so, it is deleted.
@@ -25,11 +25,11 @@ The application configuration is flattened into work items that are placed on th
 
 ![Work Diagram](docs/swabbie-work-items.png)
 
-Each visited resource is evaluated against the **rules engine** in order to determine if it should be deleted. 
+Each visited resource is evaluated against the **rules engine** in order to determine if it should be deleted.
 
 **Rules** in the rules engine are configurable and can be composed similar to an `if/else` branch.
 They can be defined with an `AND` (`&&`), or `OR` (`||`) operator:
- 
+
 - `AND`: A branch applies if all contained rules apply to the resource being evaluated.
 - `OR`: A branch applies if any rule contained inside the branch applies.
 
@@ -51,18 +51,18 @@ resourceTypes:
       - name: ExpiredResourceRule
 ```
 
-The above configuration translates to the following: 
+The above configuration translates to the following:
 
 For every resource **r** of type serverGroup,
 
 * `r.marked == true => (branch(1) || branch(2)) == true`
 
 Or more generally:
- 
+
 * `r.marked == true => (branch(1) || branch(2) || ... branch(n-1) || branch(n)) == true`
 
 As illustrated using defined rules:
- 
+
 `if (((ZeroInstanceRule && DisabledLoadBalancerRule) || ExpiredResourceRule) == true)`
 ##### Resource States:
 - **Marked**:
@@ -75,8 +75,8 @@ During the marking process, previously marked resources that no longer qualify f
 Once marked, the resource owner is resolved and notified about the upcoming deletion.
 
 - **Opted-Out**:
-A resource can be explicitly opted out of deletion via API or **exclusion policies**. 
-Opted out resources are exempt from swabbie actions. 
+A resource can be explicitly opted out of deletion via API or **exclusion policies**.
+Opted out resources are exempt from swabbie actions.
 
 - **Deleted**:
 
@@ -92,12 +92,13 @@ Resources are re-evaluated before deletion to ensure they can be safely deleted.
   * AMIs
   * Server Groups
   * Launch Configurations
+  * Launch Templates
   * EBS Snapshots
   * ELBs
 - Halyard: Not supported yet (PRs are welcome!)
-  
+
 ## Contributing
-If you're interested in contributing support for other providers or resource types, open an issue or join 
+If you're interested in contributing support for other providers or resource types, open an issue or join
 the Spinnaker Team slack and post in #swabbie.
 
 Areas:
@@ -106,10 +107,10 @@ Areas:
 - Other cloud provider
 - Extensibility
 - Plugin support
- 
+
 ## Running swabbie
-Requirements: 
-- Redis for storage 
+Requirements:
+- Redis for storage
 - Copy config file to a directory of your choice [Configuration](docs/swabbie.yml) (maps to [SwabbieProperties](swabbie-core/src/main/kotlin/com/netflix/spinnaker/config/SwabbieProperties.kt))
 - Update config with your settings and run
 

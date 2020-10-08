@@ -19,7 +19,7 @@ dependencies {
   implementation "com.netflix.spinnaker.kork:kork-core"
   implementation "com.netflix.spinnaker.kork:kork-web"
   implementation "net.logstash.logback:logstash-logback-encoder"
-  implementation "com.netflix.spinnaker.moniker:moniker"
+  implementation "com.netflix.spinnaker.kork:kork-moniker"
   implementation "com.squareup.retrofit:retrofit"
   implementation "com.fasterxml.jackson.core:jackson-annotations"
   implementation "com.fasterxml.jackson.core:jackson-core"

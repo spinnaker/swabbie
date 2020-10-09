@@ -41,6 +41,7 @@ const val LOAD_BALANCER = "loadBalancer"
 const val SERVER_GROUP = "serverGroup"
 const val LAUNCH_CONFIGURATION = "launchConfiguration"
 const val LAUNCH_TEMPLATE = "launchTemplate"
+const val LAUNCH_TEMPLATE_VERSION = "launchTemplateVersion"
 const val SNAPSHOT = "snapshot"
 
 /** Provider Types **/

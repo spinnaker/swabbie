@@ -26,6 +26,7 @@ import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchTemplateVersionCache
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exception.CacheSizeException
 import com.netflix.spinnaker.swabbie.exception.StaleCacheException
@@ -72,6 +73,7 @@ class AmazonImageHandler(
   dynamicConfigService: DynamicConfigService,
   private val launchConfigurationCache: InMemorySingletonCache<AmazonLaunchConfigurationCache>,
   private val imagesUsedByinstancesCache: InMemorySingletonCache<AmazonImagesUsedByInstancesCache>,
+  private val launchTemplateVersionCache: InMemorySingletonCache<AmazonLaunchTemplateVersionCache>,
   private val rulesEngine: RulesEngine,
   private val aws: AWS,
   private val orcaService: OrcaService,
@@ -194,6 +196,7 @@ class AmazonImageHandler(
         setUsedByLaunchConfigurations(images, params)
         setUsedByInstances(images, params)
         setSeenWithinUnusedThreshold(images)
+        setUsedByLaunchTemplates(images, params)
       } catch (e: Exception) {
         log.error("Failed to check image references. Params: {}", params, e)
         throw IllegalStateException("Unable to process ${images.size} images. Params: $params", e)
@@ -238,6 +241,46 @@ class AmazonImageHandler(
           resourceUseTrackingRepository.recordUse(
             image.resourceId,
             usedByLaunchConfigs
+          )
+        }
+      }
+  }
+
+  /**
+   * Checks if images are used by launch templates in all accounts
+   */
+  private fun setUsedByLaunchTemplates(
+    images: List<AmazonImage>,
+    params: Parameters
+  ) {
+    if (launchTemplateVersionCache.get().getLastUpdated()
+      < clock.instant().toEpochMilli().minus(Duration.ofHours(1).toMillis())
+    ) {
+      throw StaleCacheException("Amazon launch template cache over 1 hour old, aborting.")
+    }
+    val imagesUsedByLaunchTemplatesForRegion = launchTemplateVersionCache.get().getRefdAmisForRegion(params.region).keys
+    log.info("Checking the {} images used by launch templates.", imagesUsedByLaunchTemplatesForRegion.size)
+    if (imagesUsedByLaunchTemplatesForRegion.size < swabbieProperties.minImagesUsedByLC) {
+      throw CacheSizeException(
+        "Amazon launch templates cache contains less than " +
+          "${swabbieProperties.minImagesUsedByLC} images used, aborting for safety."
+      )
+    }
+
+    images
+      .filter { NAIVE_EXCLUSION !in it.details }
+      .forEach { image ->
+        if (imagesUsedByLaunchTemplatesForRegion.contains(image.imageId)) {
+          log.debug("Image {} ({}) in {} is USED_BY_LAUNCH_TEMPLATES", image.imageId, image.name, params.region)
+          image.set(USED_BY_LAUNCH_TEMPLATES, true)
+
+          val usedByLaunchTemplates = launchTemplateVersionCache
+            .get().getLaunchTemplateVersionsByRegionForImage(params.copy(id = image.imageId))
+            .joinToString(",") { it.getAutoscalingGroupName() }
+
+          resourceUseTrackingRepository.recordUse(
+            image.resourceId,
+            usedByLaunchTemplates
           )
         }
       }

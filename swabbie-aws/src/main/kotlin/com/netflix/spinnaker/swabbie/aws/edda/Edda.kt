@@ -29,6 +29,7 @@ import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplate
+import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplateVersion
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
@@ -174,6 +175,23 @@ class Edda(
       eddaService.getAutoScalingGroup(params.id)
     }
   }
+
+  // TODO: This should be updated as it would fail once edda fixes this endpoint
+  // see pattern in other functions
+  // See note in EddaService.getLaunchTemplateVersions
+  override fun getLaunchTemplateVersions(params: Parameters): List<AmazonLaunchTemplateVersion> {
+    val result = call(params, SERVER_GROUP) {
+      eddaService: EddaService ->
+      eddaService.getLaunchTemplateVersions()
+    } ?: emptyList()
+
+    return result.flatMap { it.versions }
+  }
+
+  data class EddaLaunchTemplaVersion(
+    val versions: List<AmazonLaunchTemplateVersion>,
+    val id: String
+  )
 
   private fun <R> call(params: Parameters, resourceType: String, fx: (EddaService) -> R): R? {
     val client = clients[Key(params.account, params.region, params.environment)]

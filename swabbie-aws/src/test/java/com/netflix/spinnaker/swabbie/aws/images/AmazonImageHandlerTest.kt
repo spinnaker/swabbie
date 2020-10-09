@@ -15,6 +15,7 @@
 */
 package com.netflix.spinnaker.swabbie.aws.images
 
+import com.amazonaws.services.ec2.model.ResponseLaunchTemplateData
 import com.netflix.spectator.api.NoopRegistry
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
@@ -24,6 +25,8 @@ import com.netflix.spinnaker.swabbie.aws.AWS
 import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonImagesUsedByInstancesCache
 import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchConfigurationCache
+import com.netflix.spinnaker.swabbie.aws.caches.AmazonLaunchTemplateVersionCache
+import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplateVersion
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.model.AWS
@@ -85,6 +88,7 @@ object AmazonImageHandlerTest {
     minImagesUsedByLC = 0
   }
   private val launchConfigurationCache = mock<InMemorySingletonCache<AmazonLaunchConfigurationCache>>()
+  private val launchTemplateVersionCache = mock<InMemorySingletonCache<AmazonLaunchTemplateVersionCache>>()
   private val imagesUsedByinstancesCache = mock<InMemorySingletonCache<AmazonImagesUsedByInstancesCache>>()
   private val applicationUtils = ApplicationUtils(emptyList())
   private val dynamicConfigService = mock<DynamicConfigService>()
@@ -102,6 +106,7 @@ object AmazonImageHandlerTest {
 
   private val usedByInstancesCache = AmazonImagesUsedByInstancesCache(emptyMap(), clock.millis(), "instanceCache")
   private val usedByLaunchConfigCache = AmazonLaunchConfigurationCache(emptyMap(), clock.millis(), "launchConfigCache")
+  private val usedByLaunchTemplateCache = AmazonLaunchTemplateVersionCache(emptyMap(), clock.millis(), "launchTemplateVersionCache")
 
   private val subject = AmazonImageHandler(
     clock = clock,
@@ -120,6 +125,7 @@ object AmazonImageHandlerTest {
     swabbieProperties = swabbieProperties,
     launchConfigurationCache = launchConfigurationCache,
     imagesUsedByinstancesCache = imagesUsedByinstancesCache,
+    launchTemplateVersionCache = launchTemplateVersionCache,
     applicationUtils = applicationUtils,
     dynamicConfigService = dynamicConfigService,
     usedResourceRepository = usedSnapshotRepository,
@@ -162,6 +168,7 @@ object AmazonImageHandlerTest {
     whenever(aws.getImages(params)) doReturn listOf(ami123, ami132)
     whenever(imagesUsedByinstancesCache.get()) doReturn usedByInstancesCache
     whenever(launchConfigurationCache.get()) doReturn usedByLaunchConfigCache
+    whenever(launchTemplateVersionCache.get()) doReturn usedByLaunchTemplateCache
 
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
       workConfiguration.maxItemsProcessedPerCycle
@@ -178,6 +185,7 @@ object AmazonImageHandlerTest {
       taskTrackingRepository,
       imagesUsedByinstancesCache,
       launchConfigurationCache,
+      launchTemplateVersionCache,
       rulesEngine
     )
   }
@@ -200,6 +208,16 @@ object AmazonImageHandlerTest {
   fun `should fail to get candidates if checking launch configuration references fails`() {
     whenever(launchConfigurationCache.get()) doThrow
       IllegalStateException("launch configs")
+
+    Assertions.assertThrows(IllegalStateException::class.java) {
+      subject.preProcessCandidates(subject.getCandidates(workConfiguration).orEmpty(), workConfiguration)
+    }
+  }
+
+  @Test
+  fun `should fail to get candidates if checking launch template references fails`() {
+    whenever(launchTemplateVersionCache.get()) doThrow
+      IllegalStateException("launch templates")
 
     Assertions.assertThrows(IllegalStateException::class.java) {
       subject.preProcessCandidates(subject.getCandidates(workConfiguration).orEmpty(), workConfiguration)
@@ -244,6 +262,33 @@ object AmazonImageHandlerTest {
 
     expectThat(ami123.details[USED_BY_INSTANCES]).isEqualTo(true)
     expectThat(ami132.details[USED_BY_INSTANCES]).isNull()
+  }
+
+  @Test
+  fun `should set used by launch templates`() {
+    val ltv = AmazonLaunchTemplateVersion(
+      launchTemplateId = "lt-1",
+      versionNumber = 0,
+      launchTemplateName = "lt-1",
+      launchTemplateData = ResponseLaunchTemplateData().withImageId(ami123.imageId),
+      createdTime = clock.millis()
+    )
+
+    whenever(rulesEngine.evaluate(eq(ami123), any())) doReturn ruleAndViolationPair.second
+    whenever(launchTemplateVersionCache.get()) doReturn
+      AmazonLaunchTemplateVersionCache(
+        mapOf(
+          "us-east-1" to mapOf(ami123.imageId to setOf(ltv))
+        ),
+        clock.millis(),
+        "default"
+      )
+
+    expectThat(ami123.details[USED_BY_LAUNCH_TEMPLATES]).isNull()
+    subject.preProcessCandidates(listOf(ami123, ami132), workConfiguration)
+
+    expectThat(ami123.details[USED_BY_LAUNCH_TEMPLATES]).isEqualTo(true)
+    expectThat(ami132.details[USED_BY_LAUNCH_TEMPLATES]).isNull()
   }
 
   @Test

@@ -25,9 +25,9 @@ import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
-import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.ResourcePartition
 import com.netflix.spinnaker.swabbie.model.Result
 import com.netflix.spinnaker.swabbie.model.Rule
 import com.netflix.spinnaker.swabbie.model.Summary
@@ -86,10 +86,10 @@ class TestResourceTypeHandler(
   }
 
   override fun deleteResources(
-    markedResources: List<MarkedResource>,
+    resourcePartition: ResourcePartition,
     workConfiguration: WorkConfiguration
   ) {
-    markedResources.forEach { m ->
+    resourcePartition.markedResources.forEach { m ->
       val found = simulatedCandidates.contains(m.resource)
       if (found) {
         simulatedCandidates.remove(m.resource)

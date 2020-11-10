@@ -41,6 +41,7 @@ data class WorkConfiguration(
   val maxAge: Int = 14,
   val maxItemsProcessedPerCycle: Int = 10,
   val itemsProcessedBatchSize: Int = 5,
+  val deleteSpreadMs: Long = 0L,
   val enabledActions: List<Action> = listOf(Action.MARK, Action.NOTIFY, Action.DELETE),
   val enabledRules: Set<ResourceTypeConfiguration.RuleConfiguration> = setOf()
 ) {
@@ -65,6 +66,11 @@ data class WorkConfiguration(
   fun getMaxItemsProcessedPerCycle(dynamicConfigService: DynamicConfigService): Int {
     val key = "$namespace.max-items-processed-per-cycle"
     return dynamicConfigService.getConfig(Int::class.java, key, maxItemsProcessedPerCycle)
+  }
+
+  fun getDeleteSpreadMs(dynamicConfigService: DynamicConfigService): Long {
+    val key = "$namespace.delete-spread-ms"
+    return dynamicConfigService.getConfig(Long::class.java, key, deleteSpreadMs)
   }
 }
 

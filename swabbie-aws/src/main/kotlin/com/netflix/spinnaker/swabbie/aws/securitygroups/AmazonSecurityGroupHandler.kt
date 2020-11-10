@@ -26,7 +26,7 @@ import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourcePartition
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
@@ -80,10 +80,10 @@ class AmazonSecurityGroupHandler(
   notificationQueue
 ) {
   override fun deleteResources(
-    markedResources: List<MarkedResource>,
+    resourcePartition: ResourcePartition,
     workConfiguration: WorkConfiguration
   ) {
-    markedResources.forEach { markedResource ->
+    resourcePartition.markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
           log.debug("This resource is about to be deleted {}", markedResource)
@@ -109,7 +109,7 @@ class AmazonSecurityGroupHandler(
               taskResponse.taskId(),
               TaskCompleteEventInfo(
                 action = Action.DELETE,
-                markedResources = markedResources,
+                markedResources = resourcePartition.markedResources,
                 workConfiguration = workConfiguration,
                 submittedTimeMillis = clock.instant().toEpochMilli()
               )

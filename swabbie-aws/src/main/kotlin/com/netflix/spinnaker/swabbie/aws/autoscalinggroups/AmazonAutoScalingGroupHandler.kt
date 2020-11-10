@@ -28,6 +28,7 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourcePartition
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
@@ -84,10 +85,10 @@ class AmazonAutoScalingGroupHandler(
 ) {
 
   override fun deleteResources(
-    markedResources: List<MarkedResource>,
+    resourcePartition: ResourcePartition,
     workConfiguration: WorkConfiguration
   ) {
-    markedResources.forEach { markedResource ->
+    resourcePartition.markedResources.forEach { markedResource ->
       orcaService.orchestrate(
         OrchestrationRequest(
           application = FriggaReflectiveNamer().deriveMoniker(markedResource).app ?: "swabbie",
@@ -109,7 +110,7 @@ class AmazonAutoScalingGroupHandler(
           taskResponse.taskId(),
           TaskCompleteEventInfo(
             action = Action.DELETE,
-            markedResources = markedResources,
+            markedResources = resourcePartition.markedResources,
             workConfiguration = workConfiguration,
             submittedTimeMillis = clock.instant().toEpochMilli()
           )

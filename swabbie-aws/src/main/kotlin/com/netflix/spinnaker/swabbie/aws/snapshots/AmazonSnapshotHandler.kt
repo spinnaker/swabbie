@@ -28,7 +28,7 @@ import com.netflix.spinnaker.swabbie.aws.Parameters
 import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
-import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourcePartition
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
@@ -36,7 +36,7 @@ import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.orca.OrcaJob
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.OrchestrationRequest
-import com.netflix.spinnaker.swabbie.orca.generateWaitStageWithRandWaitTime
+import com.netflix.spinnaker.swabbie.orca.generatedWaitStageWithFixedWaitTime
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
@@ -94,32 +94,32 @@ class AmazonSnapshotHandler(
    * First, we wait for a random amount of time.
    * Then, we do the delete.
    */
-  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+  override fun deleteResources(resourcePartition: ResourcePartition, workConfiguration: WorkConfiguration) {
     orcaService.orchestrate(
       OrchestrationRequest(
         // resources are partitioned based on grouping, so find the app to use from first resource
-        application = applicationUtils.determineApp(markedResources.first().resource),
+        application = applicationUtils.determineApp(resourcePartition.markedResources.first().resource),
         job = listOf(
-          generateWaitStageWithRandWaitTime(cleanInterval),
+          generatedWaitStageWithFixedWaitTime(resourcePartition.offsetMs),
           OrcaJob(
             type = "deleteSnapshot",
             context = mutableMapOf(
               "credentials" to workConfiguration.account.name,
-              "snapshotIds" to markedResources.map { it.resourceId }.toSet(),
+              "snapshotIds" to resourcePartition.markedResources.map { it.resourceId }.toSet(),
               "cloudProvider" to AWS,
               "region" to workConfiguration.location,
               "requisiteStageRefIds" to listOf("0")
             )
           )
         ),
-        description = "Deleting Snapshots: ${markedResources.map { it.resourceId }}"
+        description = "Deleting Snapshots: ${resourcePartition.markedResources.map { it.resourceId }}"
       )
     ).let { taskResponse ->
       taskTrackingRepository.add(
         taskResponse.taskId(),
         TaskCompleteEventInfo(
           action = Action.DELETE,
-          markedResources = markedResources,
+          markedResources = resourcePartition.markedResources,
           workConfiguration = workConfiguration,
           submittedTimeMillis = clock.instant().toEpochMilli()
         )

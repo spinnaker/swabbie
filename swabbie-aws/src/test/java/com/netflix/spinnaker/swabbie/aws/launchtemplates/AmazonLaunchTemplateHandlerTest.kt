@@ -130,6 +130,9 @@ object AmazonLaunchTemplateHandlerTest {
     whenever(aws.getLaunchTemplates(params)) doReturn listOf(lt1, lt2)
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
       workConfiguration.maxItemsProcessedPerCycle
+
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.deleteSpreadMs))) doReturn
+      workConfiguration.deleteSpreadMs
   }
 
   @AfterEach

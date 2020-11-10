@@ -27,7 +27,7 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
-import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourcePartition
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -80,10 +80,10 @@ class AmazonLoadBalancerHandler(
   notificationQueue
 ) {
   override fun deleteResources(
-    markedResources: List<MarkedResource>,
+    resourcePartition: ResourcePartition,
     workConfiguration: WorkConfiguration
   ) {
-    markedResources.forEach { markedResource ->
+    resourcePartition.markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
           // TODO: consider also removing dns records for the ELB
@@ -108,7 +108,7 @@ class AmazonLoadBalancerHandler(
               taskResponse.taskId(),
               TaskCompleteEventInfo(
                 action = Action.DELETE,
-                markedResources = markedResources,
+                markedResources = resourcePartition.markedResources,
                 workConfiguration = workConfiguration,
                 submittedTimeMillis = clock.instant().toEpochMilli()
               )

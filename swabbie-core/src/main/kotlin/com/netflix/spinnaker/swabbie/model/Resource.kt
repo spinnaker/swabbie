@@ -389,3 +389,8 @@ data class ResourceEvaluation(
   val wouldMarkReason: String,
   val summaries: List<Summary>
 )
+
+data class ResourcePartition(
+  var offsetMs: Long = 0,
+  val markedResources: List<MarkedResource>
+)

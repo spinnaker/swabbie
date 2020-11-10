@@ -34,6 +34,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.ResourcePartition
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
@@ -83,7 +84,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
    * Deleted resources are produced via [DeleteResourceEvent]
    * for additional processing
    */
-  abstract fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration)
+  abstract fun deleteResources(resourcePartition: ResourcePartition, workConfiguration: WorkConfiguration)
 
   /**
    * finds & tracks cleanup candidates
@@ -206,7 +207,7 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
       ?: throw NotFoundException("Resource $resourceId not found in namespace ${workConfiguration.namespace}")
 
     log.debug("Deleting resource $resourceId in namespace ${workConfiguration.namespace} without checking rules.")
-    deleteResources(listOf(markedResource), workConfiguration)
+    deleteResources(ResourcePartition(markedResources = listOf(markedResource)), workConfiguration)
   }
 
   private fun doMark(workConfiguration: WorkConfiguration) {
@@ -464,20 +465,20 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
 
     val excludedCount = currentMarkedResourcesToDelete.size - confirmedResourcesToDelete.size
     val candidateCounter = AtomicInteger(0)
-    val maxItemsToProcess = min(confirmedResourcesToDelete.size, workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService))
-    confirmedResourcesToDelete.subList(0, maxItemsToProcess).let {
-      partitionList(it, workConfiguration).forEach { partition ->
-        if (partition.isNotEmpty()) {
+    val maxItemsToProcessConfig = min(confirmedResourcesToDelete.size, workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService))
+    confirmedResourcesToDelete.subList(0, maxItemsToProcessConfig).let { maxItemsToProcess ->
+      partitionList(maxItemsToProcess, workConfiguration).forEach { partition ->
+        if (partition.markedResources.isNotEmpty()) {
           try {
             deleteResources(partition, workConfiguration)
-            partition.forEach { markedResource ->
+            partition.markedResources.forEach { markedResource ->
               applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
               resourceRepository.remove(markedResource)
             }
 
-            candidateCounter.addAndGet(partition.size)
+            candidateCounter.addAndGet(partition.markedResources.size)
           } catch (e: Exception) {
-            log.error("Failed to delete $it. Configuration: {}", workConfiguration.toLog(), e)
+            log.error("Failed to delete $maxItemsToProcess. Configuration: {}", workConfiguration.toLog(), e)
             recordFailureForAction(Action.DELETE, workConfiguration, e)
           }
         }
@@ -527,21 +528,31 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   /**
    * Partitions the list of marked resources to process:
    * For convenience, partitions are grouped by relevance
+   *
+   * Sets the partition offset time based on the delete-spread-ms configuration divided by the total
+   * partition size.
    */
   fun partitionList(
     markedResources: List<MarkedResource>,
     configuration: WorkConfiguration
-  ): List<List<MarkedResource>> {
-    val partitions = mutableListOf<List<MarkedResource>>()
+  ): List<ResourcePartition> {
+    val partitions = mutableListOf<ResourcePartition>()
     markedResources.groupBy {
       it.resource.grouping
     }.map {
-      Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach { partition ->
-        partitions.add(partition)
+      Lists.partition(it.value, configuration.itemsProcessedBatchSize).forEach { groupedMarkedResources ->
+        partitions.add(ResourcePartition(markedResources = groupedMarkedResources))
       }
     }
 
-    return partitions.sortedByDescending { it.size }
+    if (partitions.isNotEmpty()) {
+      val offsetIntervalMs = configuration.getDeleteSpreadMs(dynamicConfigService) / partitions.size
+      partitions.forEachIndexed { index, partition ->
+        partition.offsetMs = index * offsetIntervalMs
+      }
+    }
+
+    return partitions.sortedByDescending { it.markedResources.size }
   }
 
   override fun getViolations(resource: T, workConfiguration: WorkConfiguration): List<Summary> {

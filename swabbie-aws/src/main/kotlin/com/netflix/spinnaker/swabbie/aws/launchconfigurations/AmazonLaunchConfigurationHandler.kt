@@ -27,7 +27,7 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
-import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.ResourcePartition
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -80,9 +80,9 @@ class AmazonLaunchConfigurationHandler(
   dynamicConfigService,
   notificationQueue
 ) {
-  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
-    val application = applicationUtils.determineApp(markedResources.first().resource)
-    val launchConfigurationNames = markedResources
+  override fun deleteResources(resourcePartition: ResourcePartition, workConfiguration: WorkConfiguration) {
+    val application = applicationUtils.determineApp(resourcePartition.markedResources.first().resource)
+    val launchConfigurationNames = resourcePartition.markedResources
       .map {
         it.resourceId
       }.toSet()
@@ -106,7 +106,7 @@ class AmazonLaunchConfigurationHandler(
     ).let { taskResponse ->
       val completeEvent = TaskCompleteEventInfo(
         action = Action.DELETE,
-        markedResources = markedResources,
+        markedResources = resourcePartition.markedResources,
         workConfiguration = workConfiguration,
         submittedTimeMillis = clock.instant().toEpochMilli()
       )

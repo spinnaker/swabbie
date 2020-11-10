@@ -16,6 +16,7 @@
 
 package com.netflix.spinnaker.swabbie.orca
 
+import java.util.concurrent.TimeUnit
 import retrofit.http.Body
 import retrofit.http.GET
 import retrofit.http.Headers
@@ -101,6 +102,25 @@ fun generateWaitStageWithRandWaitTime(ceiling: Long, stageId: String = "0", requ
     type = "wait",
     context = mutableMapOf(
       "waitTime" to generateRandomWaitTimeS(ceiling),
+      "refId" to stageId,
+      "requisiteStageRefIds" to requisiteStageRefIds
+    )
+  )
+
+/**
+ * Generates a wait stage with a fixed wait time.
+ *
+ * This stage is meant to be used at the start of an orca task to stagger
+ * the start of many delete tasks, and the default [stageId] is 0.
+ *
+ * Optionally, you can add a [stageId] and [requisiteStageRefIds] to
+ * construct a stage you can place anywhere in your pipeline.
+ */
+fun generatedWaitStageWithFixedWaitTime(waitTimeMs: Long, stageId: String = "0", requisiteStageRefIds: List<String> = emptyList()) =
+  OrcaJob(
+    type = "wait",
+    context = mutableMapOf(
+      "waitTime" to TimeUnit.MILLISECONDS.toSeconds(waitTimeMs),
       "refId" to stageId,
       "requisiteStageRefIds" to requisiteStageRefIds
     )

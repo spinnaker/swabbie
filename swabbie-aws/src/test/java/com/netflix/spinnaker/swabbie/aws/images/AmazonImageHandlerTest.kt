@@ -172,6 +172,9 @@ object AmazonImageHandlerTest {
 
     whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
       workConfiguration.maxItemsProcessedPerCycle
+
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.deleteSpreadMs))) doReturn
+      workConfiguration.deleteSpreadMs
   }
 
   @AfterEach

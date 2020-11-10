@@ -47,6 +47,7 @@ import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.argWhere
 import com.nhaarman.mockito_kotlin.check
 import com.nhaarman.mockito_kotlin.doReturn
+import com.nhaarman.mockito_kotlin.eq
 import com.nhaarman.mockito_kotlin.inOrder
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.never
@@ -113,7 +114,10 @@ object ResourceTypeHandlerTest {
   @BeforeEach
   fun setup() {
     whenever(ownerResolver.resolve(any())) doReturn "lucious-mayweather@netflix.com"
-    whenever(dynamicConfigService.getConfig(any<Class<*>>(), any(), any())) doReturn 10
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.maxItemsProcessedPerCycle))) doReturn
+      workConfiguration.maxItemsProcessedPerCycle
+    whenever(dynamicConfigService.getConfig(any(), any(), eq(workConfiguration.deleteSpreadMs))) doReturn
+      3600000
   }
 
   @AfterEach
@@ -311,8 +315,7 @@ object ResourceTypeHandlerTest {
     )
 
     val workConfiguration = workConfiguration.copy(
-      itemsProcessedBatchSize = 2,
-      maxItemsProcessedPerCycle = 3
+      itemsProcessedBatchSize = 2
     )
 
     val markedResources = listOf(
@@ -357,12 +360,15 @@ object ResourceTypeHandlerTest {
 
     val result = defaultHandler.partitionList(markedResources, workConfiguration)
     Assertions.assertTrue(result.size == 3)
-    Assertions.assertTrue(result[0].size == 2, "resources 1 & 2 because their names match to the same app")
-    Assertions.assertTrue(result[1].size == 2)
-    Assertions.assertTrue(result[2].size == 1)
-    Assertions.assertTrue(result[0].none { it.name == resource3.name })
-    Assertions.assertTrue(result[1].all { it.name!!.startsWith("my-package") })
-    Assertions.assertTrue(result[2].all { it.name == resource3.name })
+    Assertions.assertTrue(result[0].markedResources.size == 2, "resources 1 & 2 because their names match to the same app")
+    Assertions.assertTrue(result[1].markedResources.size == 2)
+    Assertions.assertTrue(result[2].markedResources.size == 1)
+    Assertions.assertTrue(result[0].markedResources.none { it.name == resource3.name })
+    Assertions.assertTrue(result[1].markedResources.all { it.name!!.startsWith("my-package") })
+    Assertions.assertTrue(result[2].markedResources.all { it.name == resource3.name })
+    Assertions.assertTrue(result[0].offsetMs == 0L)
+    Assertions.assertTrue(result[1].offsetMs == 2400000L)
+    Assertions.assertTrue(result[2].offsetMs == 1200000L)
   }
 
   @Test
@@ -406,10 +412,10 @@ object ResourceTypeHandlerTest {
 
     val result = defaultHandler.partitionList(markedResources, workConfiguration)
     Assertions.assertTrue(result.size == 2)
-    Assertions.assertTrue(result[0].size == 1)
-    Assertions.assertTrue(result[1].size == 1)
-    Assertions.assertTrue(result[0].none { it.name == resource2.name })
-    Assertions.assertTrue(result[1].none { it.name == resource1.name })
+    Assertions.assertTrue(result[0].markedResources.size == 1)
+    Assertions.assertTrue(result[1].markedResources.size == 1)
+    Assertions.assertTrue(result[0].markedResources.none { it.name == resource2.name })
+    Assertions.assertTrue(result[1].markedResources.none { it.name == resource1.name })
   }
 
   @Test

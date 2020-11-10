@@ -41,6 +41,7 @@ data class WorkConfiguration(
   val maxAge: Int = 14,
   val maxItemsProcessedPerCycle: Int = 10,
   val itemsProcessedBatchSize: Int = 5,
+  val maxTasksPerBatch: Int = 200,
   val enabledActions: List<Action> = listOf(Action.MARK, Action.NOTIFY, Action.DELETE),
   val enabledRules: Set<ResourceTypeConfiguration.RuleConfiguration> = setOf()
 ) {

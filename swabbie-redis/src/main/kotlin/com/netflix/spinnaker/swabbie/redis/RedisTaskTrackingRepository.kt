@@ -160,8 +160,7 @@ class RedisTaskTrackingRepository(
       .keys
   }
 
-  // todo eb: this actually cleans up running tasks as well
-  override fun cleanUpFinishedTasks(daysToLeave: Int) {
+  override fun cleanUpTasks(daysToLeave: Int) {
     val allBefore: Set<String> = getAllBefore(daysToLeave)
     if (allBefore.isEmpty()) return
 

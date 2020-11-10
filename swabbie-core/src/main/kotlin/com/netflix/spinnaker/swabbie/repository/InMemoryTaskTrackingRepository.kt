@@ -72,7 +72,7 @@ class InMemoryTaskTrackingRepository(
     return submittedTasks[taskId]
   }
 
-  override fun cleanUpFinishedTasks(daysToLeave: Int) {
+  override fun cleanUpTasks(daysToLeave: Int) {
     getAllBefore(daysToLeave).forEach { taskId ->
       submittedTasks.remove(taskId)
       taskStatus.remove(taskId)

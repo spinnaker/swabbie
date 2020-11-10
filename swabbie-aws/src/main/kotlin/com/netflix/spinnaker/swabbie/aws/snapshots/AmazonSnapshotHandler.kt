@@ -30,6 +30,7 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
+import com.netflix.spinnaker.swabbie.model.Tasks
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -70,7 +71,7 @@ class AmazonSnapshotHandler(
   private val usedResourceRepository: UsedResourceRepository,
   private val swabbieProperties: SwabbieProperties,
   notificationQueue: NotificationQueue
-) : AbstractResourceTypeHandler<AmazonSnapshot>(
+) : AbstractResourceTypeHandler<AmazonSnapshot, Tasks>(
   registry,
   clock,
   rulesEngine,
@@ -83,7 +84,8 @@ class AmazonSnapshotHandler(
   resourceUseTrackingRepository,
   swabbieProperties,
   dynamicConfigService,
-  notificationQueue
+  notificationQueue,
+  taskTrackingRepository
 ) {
 
   @Value("\${swabbie.clean.jitter-interval:600}")
@@ -94,7 +96,8 @@ class AmazonSnapshotHandler(
    * First, we wait for a random amount of time.
    * Then, we do the delete.
    */
-  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration): Tasks {
+    val tasks = mutableListOf<String>()
     orcaService.orchestrate(
       OrchestrationRequest(
         // resources are partitioned based on grouping, so find the app to use from first resource
@@ -124,7 +127,9 @@ class AmazonSnapshotHandler(
           submittedTimeMillis = clock.instant().toEpochMilli()
         )
       )
+      tasks.add(taskResponse.taskId())
     }
+    return Tasks(tasks)
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean =

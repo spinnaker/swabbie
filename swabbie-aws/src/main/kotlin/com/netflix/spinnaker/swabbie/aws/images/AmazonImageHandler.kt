@@ -37,6 +37,7 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.NAIVE_EXCLUSION
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.SNAPSHOT
+import com.netflix.spinnaker.swabbie.model.Tasks
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -83,7 +84,7 @@ class AmazonImageHandler(
   private val usedResourceRepository: UsedResourceRepository,
   private val swabbieProperties: SwabbieProperties,
   notificationQueue: NotificationQueue
-) : AbstractResourceTypeHandler<AmazonImage>(
+) : AbstractResourceTypeHandler<AmazonImage, Tasks>(
   registry,
   clock,
   rulesEngine,
@@ -96,13 +97,15 @@ class AmazonImageHandler(
   resourceUseTrackingRepository,
   swabbieProperties,
   dynamicConfigService,
-  notificationQueue
+  notificationQueue,
+  taskTrackingRepository
 ) {
 
   @Value("\${swabbie.clean.jitter-interval:600}")
   private var cleanInterval: Long = 600
 
-  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration): Tasks {
+    val tasks = mutableListOf<String>()
     orcaService.orchestrate(
       OrchestrationRequest(
         // resources are partitioned based on grouping, so find the app to use from first resource
@@ -132,7 +135,9 @@ class AmazonImageHandler(
           submittedTimeMillis = clock.instant().toEpochMilli()
         )
       )
+      tasks.add(taskResponse.taskId())
     }
+    return Tasks(tasks)
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean {

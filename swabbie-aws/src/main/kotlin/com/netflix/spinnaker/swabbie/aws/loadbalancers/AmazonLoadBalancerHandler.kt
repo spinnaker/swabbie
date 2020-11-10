@@ -28,6 +28,7 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LOAD_BALANCER
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Tasks
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -64,7 +65,7 @@ class AmazonLoadBalancerHandler(
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val applicationUtils: ApplicationUtils,
   notificationQueue: NotificationQueue
-) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer>(
+) : AbstractResourceTypeHandler<AmazonElasticLoadBalancer, Tasks>(
   registry,
   clock,
   rulesEngine,
@@ -77,12 +78,14 @@ class AmazonLoadBalancerHandler(
   resourceUseTrackingRepository,
   swabbieProperties,
   dynamicConfigService,
-  notificationQueue
+  notificationQueue,
+  taskTrackingRepository
 ) {
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ) {
+  ): Tasks {
+    val tasks = mutableListOf<String>()
     markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonElasticLoadBalancer && !workConfiguration.dryRun) {
@@ -113,10 +116,12 @@ class AmazonLoadBalancerHandler(
                 submittedTimeMillis = clock.instant().toEpochMilli()
               )
             )
+            tasks.add(taskResponse.taskId())
           }
         }
       }
     }
+    return Tasks(tasks)
   }
 
   override fun getCandidate(

@@ -149,7 +149,7 @@ object RedisTaskTrackingRepositoryTest {
   fun `should delete old task when asked`() {
     trackingRepository.add(taskId, oldTaskInfo)
 
-    trackingRepository.cleanUpFinishedTasks(2)
+    trackingRepository.cleanUpTasks(2)
 
     Assert.isTrue(trackingRepository.getInProgress() == emptySet<String>(), "should have no more resources")
   }

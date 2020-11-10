@@ -133,6 +133,7 @@ class ResourceTypeConfiguration {
   var entityTaggingEnabled: Boolean = false
   var maxAge: Int = 14
   var notification: NotificationConfiguration = EmptyNotificationConfiguration()
+  var maxTasksPerBatch: Int = 200
   var enabledRules: Set<RuleConfiguration> = setOf()
 
   /**

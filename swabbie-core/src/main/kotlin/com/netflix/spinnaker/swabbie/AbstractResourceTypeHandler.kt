@@ -26,6 +26,7 @@ import com.netflix.spinnaker.swabbie.events.Action
 import com.netflix.spinnaker.swabbie.events.DeleteResourceEvent
 import com.netflix.spinnaker.swabbie.events.MarkResourceEvent
 import com.netflix.spinnaker.swabbie.events.OptOutResourceEvent
+import com.netflix.spinnaker.swabbie.events.OrcaTasksStatusRefreshed
 import com.netflix.spinnaker.swabbie.events.UnMarkResourceEvent
 import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.exclusions.shouldExclude
@@ -34,9 +35,11 @@ import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.OnDemandMarkData
 import com.netflix.spinnaker.swabbie.model.Resource
 import com.netflix.spinnaker.swabbie.model.ResourceEvaluation
+import com.netflix.spinnaker.swabbie.model.ResourceResponse
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
 import com.netflix.spinnaker.swabbie.model.Summary
+import com.netflix.spinnaker.swabbie.model.Tasks
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.NotificationTask
@@ -44,20 +47,24 @@ import com.netflix.spinnaker.swabbie.notifications.Notifier
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.repository.ResourceUseTrackingRepository
+import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import com.netflix.spinnaker.swabbie.rules.RulesEngine
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.min
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEvent
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.context.event.EventListener
 
-abstract class AbstractResourceTypeHandler<T : Resource>(
+abstract class AbstractResourceTypeHandler<T : Resource, R : ResourceResponse>(
   private val registry: Registry,
   val clock: Clock,
   private val rulesEngine: RulesEngine,
@@ -70,7 +77,8 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val swabbieProperties: SwabbieProperties,
   private val dynamicConfigService: DynamicConfigService,
-  private val notificationQueue: NotificationQueue
+  private val notificationQueue: NotificationQueue,
+  private val taskTrackingRepository: TaskTrackingRepository
 ) : ResourceTypeHandler<T> {
   protected val log: Logger = LoggerFactory.getLogger(javaClass)
   private val resourceOwnerField: String = "swabbieResourceOwner"
@@ -78,12 +86,14 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
   private val resourcesExcludedId: Id = registry.createId("swabbie.resources.excluded")
   private val resourceFailureId: Id = registry.createId("swabbie.resources.failures")
 
+  private var latch: CountDownLatch = CountDownLatch(1)
+
   /**
    * deletes a marked resource. Each handler must implement this function.
    * Deleted resources are produced via [DeleteResourceEvent]
    * for additional processing
    */
-  abstract fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration)
+  abstract fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration): R
 
   /**
    * finds & tracks cleanup candidates
@@ -467,9 +477,13 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     val maxItemsToProcess = min(confirmedResourcesToDelete.size, workConfiguration.getMaxItemsProcessedPerCycle(dynamicConfigService))
     confirmedResourcesToDelete.subList(0, maxItemsToProcess).let {
       partitionList(it, workConfiguration).forEach { partition ->
+        val taskIds: MutableList<String> = mutableListOf()
         if (partition.isNotEmpty()) {
+          waitForTaskProcessing(taskIds, workConfiguration)
           try {
-            deleteResources(partition, workConfiguration)
+            val deleteResourcesResponse = deleteResources(partition, workConfiguration)
+            if (deleteResourcesResponse is Tasks) taskIds.addAll(deleteResourcesResponse.taskIds)
+
             partition.forEach { markedResource ->
               applicationEventPublisher.publishEvent(DeleteResourceEvent(markedResource, workConfiguration))
               resourceRepository.remove(markedResource)
@@ -488,6 +502,29 @@ abstract class AbstractResourceTypeHandler<T : Resource>(
     recordExcludedResources(workConfiguration, Action.DELETE, excludedCount)
 
     Action.DELETE.printResult(workConfiguration, processed = candidateCounter.get(), excluded = excludedCount, total = candidates.size)
+  }
+
+  /**
+   * Downstream services may be overloaded or rate limited from other services due to too many task submissions from Swabbie.
+   *
+   * If submitted in-progress tasks are above the configured threshold, wait until the task repository cache is refreshed.
+   */
+  private fun waitForTaskProcessing(taskIds: MutableList<String>, workConfiguration: WorkConfiguration) {
+    if (taskTrackingRepository.getInProgress().count { taskIds.contains(it) } >= workConfiguration.maxTasksPerBatch) {
+      latch = CountDownLatch(1)
+      latch.await()
+      waitForTaskProcessing(taskIds, workConfiguration)
+    }
+  }
+
+  @EventListener
+  fun handleEvents(event: ApplicationEvent) {
+    when (event) {
+      is OrcaTasksStatusRefreshed -> {
+        log.debug("Tasks status refreshed, releasing waiting thread.")
+        latch.countDown()
+      }
+    }
   }
 
   private fun recordCandidateCount(workConfiguration: WorkConfiguration, action: Action, count: Int) {

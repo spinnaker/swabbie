@@ -30,6 +30,7 @@ import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.SERVER_GROUP
+import com.netflix.spinnaker.swabbie.model.Tasks
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -67,7 +68,7 @@ class AmazonAutoScalingGroupHandler(
   private val taskTrackingRepository: TaskTrackingRepository,
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   notificationQueue: NotificationQueue
-) : AbstractResourceTypeHandler<AmazonAutoScalingGroup>(
+) : AbstractResourceTypeHandler<AmazonAutoScalingGroup, Tasks>(
   registry,
   clock,
   rulesEngine,
@@ -80,13 +81,15 @@ class AmazonAutoScalingGroupHandler(
   resourceUseTrackingRepository,
   swabbieProperties,
   dynamicConfigService,
-  notificationQueue
+  notificationQueue,
+  taskTrackingRepository
 ) {
 
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ) {
+  ): Tasks {
+    val tasks = mutableListOf<String>()
     markedResources.forEach { markedResource ->
       orcaService.orchestrate(
         OrchestrationRequest(
@@ -114,8 +117,10 @@ class AmazonAutoScalingGroupHandler(
             submittedTimeMillis = clock.instant().toEpochMilli()
           )
         )
+        tasks.add(taskResponse.taskId())
       }
     }
+    return Tasks(tasks)
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean {

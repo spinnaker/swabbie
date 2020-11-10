@@ -25,6 +25,7 @@ import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.kork.lock.LockManager
 import com.netflix.spinnaker.swabbie.LockingService
 import com.netflix.spinnaker.swabbie.events.OrcaTaskFailureEvent
+import com.netflix.spinnaker.swabbie.events.OrcaTasksStatusRefreshed
 import com.netflix.spinnaker.swabbie.repository.TaskTrackingRepository
 import java.time.Clock
 import java.time.Duration
@@ -164,6 +165,7 @@ class OrcaTaskMonitoringAgent(
       }
 
     clean()
+    applicationEventPublisher.publishEvent(OrcaTasksStatusRefreshed(this))
   }
 
   private fun getTask(taskId: String): TaskDetailResponse =
@@ -175,7 +177,7 @@ class OrcaTaskMonitoringAgent(
     )
 
   private fun clean() {
-    taskTrackingRepository.cleanUpFinishedTasks(daysToKeepTasks)
+    taskTrackingRepository.cleanUpTasks(daysToKeepTasks)
   }
 
   @Value("\${swabbie.agents.orca-task-monitor.interval-seconds:60}")

@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.events
 
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
+import org.springframework.context.ApplicationEvent
 
 abstract class Event(
   open val action: Action,
@@ -74,3 +75,5 @@ class OrcaTaskFailureEvent(
   override val markedResource: MarkedResource,
   override val workConfiguration: WorkConfiguration
 ) : Event(action, markedResource, workConfiguration)
+
+class OrcaTasksStatusRefreshed(source: Any) : ApplicationEvent(source)

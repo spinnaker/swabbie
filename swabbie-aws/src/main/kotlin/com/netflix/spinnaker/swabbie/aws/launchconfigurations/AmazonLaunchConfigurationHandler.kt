@@ -28,6 +28,7 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.LAUNCH_CONFIGURATION
 import com.netflix.spinnaker.swabbie.model.MarkedResource
+import com.netflix.spinnaker.swabbie.model.Tasks
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -65,7 +66,7 @@ class AmazonLaunchConfigurationHandler(
   private val taskTrackingRepository: TaskTrackingRepository,
   resourceUseTrackingRepository: ResourceUseTrackingRepository,
   notificationQueue: NotificationQueue
-) : AbstractResourceTypeHandler<AmazonLaunchConfiguration>(
+) : AbstractResourceTypeHandler<AmazonLaunchConfiguration, Tasks>(
   registry,
   clock,
   rulesEngine,
@@ -78,15 +79,16 @@ class AmazonLaunchConfigurationHandler(
   resourceUseTrackingRepository,
   swabbieProperties,
   dynamicConfigService,
-  notificationQueue
+  notificationQueue,
+  taskTrackingRepository
 ) {
-  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration) {
+  override fun deleteResources(markedResources: List<MarkedResource>, workConfiguration: WorkConfiguration): Tasks {
     val application = applicationUtils.determineApp(markedResources.first().resource)
     val launchConfigurationNames = markedResources
       .map {
         it.resourceId
       }.toSet()
-
+    val tasks = mutableListOf<String>()
     orcaService.orchestrate(
       OrchestrationRequest(
         application = application,
@@ -112,7 +114,9 @@ class AmazonLaunchConfigurationHandler(
       )
 
       taskTrackingRepository.add(taskResponse.taskId(), completeEvent)
+      tasks.add(taskResponse.taskId())
     }
+    return Tasks(tasks)
   }
 
   override fun handles(workConfiguration: WorkConfiguration): Boolean {

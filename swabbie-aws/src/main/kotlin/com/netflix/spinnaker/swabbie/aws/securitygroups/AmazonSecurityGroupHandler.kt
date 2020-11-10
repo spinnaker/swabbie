@@ -28,6 +28,7 @@ import com.netflix.spinnaker.swabbie.exclusions.ResourceExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.AWS
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.SECURITY_GROUP
+import com.netflix.spinnaker.swabbie.model.Tasks
 import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.notifications.NotificationQueue
 import com.netflix.spinnaker.swabbie.notifications.Notifier
@@ -64,7 +65,7 @@ class AmazonSecurityGroupHandler(
   private val resourceUseTrackingRepository: ResourceUseTrackingRepository,
   private val applicationUtils: ApplicationUtils,
   notificationQueue: NotificationQueue
-) : AbstractResourceTypeHandler<AmazonSecurityGroup>(
+) : AbstractResourceTypeHandler<AmazonSecurityGroup, Tasks>(
   registry,
   clock,
   rulesEngine,
@@ -77,12 +78,14 @@ class AmazonSecurityGroupHandler(
   resourceUseTrackingRepository,
   swabbieProperties,
   dynamicConfigService,
-  notificationQueue
+  notificationQueue,
+  taskTrackingRepository
 ) {
   override fun deleteResources(
     markedResources: List<MarkedResource>,
     workConfiguration: WorkConfiguration
-  ) {
+  ): Tasks {
+    val tasks = mutableListOf<String>()
     markedResources.forEach { markedResource ->
       markedResource.resource.let { resource ->
         if (resource is AmazonSecurityGroup && !workConfiguration.dryRun) {
@@ -114,10 +117,12 @@ class AmazonSecurityGroupHandler(
                 submittedTimeMillis = clock.instant().toEpochMilli()
               )
             )
+            tasks.add(taskResponse.taskId())
           }
         }
       }
     }
+    return Tasks(tasks)
   }
 
   override fun getCandidate(

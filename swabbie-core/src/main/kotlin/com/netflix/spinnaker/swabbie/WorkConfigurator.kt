@@ -98,6 +98,7 @@ open class WorkConfigurator(
               entityTaggingEnabled = resourceTypeConfiguration.entityTaggingEnabled,
               maxAge = resourceTypeConfiguration.maxAge,
               maxItemsProcessedPerCycle = cloudProviderConfiguration.maxItemsProcessedPerCycle,
+              maxTasksPerBatch = resourceTypeConfiguration.maxTasksPerBatch,
               itemsProcessedBatchSize = cloudProviderConfiguration.itemsProcessedBatchSize,
               enabledActions = resourceTypeConfiguration.enabledActions,
               enabledRules = resourceTypeConfiguration.enabledRules

@@ -31,7 +31,7 @@ interface TaskTrackingRepository {
   fun getFailed(): Set<String>
   fun getSucceeded(): Set<String>
   fun getTaskDetail(taskId: String): TaskCompleteEventInfo?
-  fun cleanUpFinishedTasks(daysToLeave: Int = 2)
+  fun cleanUpTasks(daysToLeave: Int = 2)
 }
 
 data class TaskCompleteEventInfo(

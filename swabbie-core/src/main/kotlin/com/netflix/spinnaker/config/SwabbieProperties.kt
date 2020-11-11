@@ -61,10 +61,12 @@ class CloudProviderConfiguration {
   var resourceTypes: List<ResourceTypeConfiguration> = mutableListOf()
   var maxItemsProcessedPerCycle: Int = 10
   var itemsProcessedBatchSize: Int = 5
+  var deleteSpreadMs: Long = 0L
   override fun toString(): String {
     return "CloudProviderConfiguration(" +
       "exclusions=$exclusions, name='$name', locations=$locations, accounts=$accounts, resourceTypes=$resourceTypes, " +
-      "maxItemsProcessedPerCycle=$maxItemsProcessedPerCycle, itemsProcessedBatchSize=$itemsProcessedBatchSize)"
+      "maxItemsProcessedPerCycle=$maxItemsProcessedPerCycle, itemsProcessedBatchSize=$itemsProcessedBatchSize, " +
+      "deleteSpreadMs=$deleteSpreadMs)"
   }
 }
 

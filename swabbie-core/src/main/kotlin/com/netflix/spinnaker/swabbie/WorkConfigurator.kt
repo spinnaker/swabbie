@@ -99,6 +99,7 @@ open class WorkConfigurator(
               maxAge = resourceTypeConfiguration.maxAge,
               maxItemsProcessedPerCycle = cloudProviderConfiguration.maxItemsProcessedPerCycle,
               itemsProcessedBatchSize = cloudProviderConfiguration.itemsProcessedBatchSize,
+              deleteSpreadMs = cloudProviderConfiguration.deleteSpreadMs,
               enabledActions = resourceTypeConfiguration.enabledActions,
               enabledRules = resourceTypeConfiguration.enabledRules
             ).let { configuration ->

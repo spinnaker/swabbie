@@ -21,18 +21,15 @@ import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.config.Schedule
 import com.netflix.spinnaker.config.SwabbieProperties
 import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
-import com.netflix.spinnaker.kork.discovery.RemoteStatusChangedEvent
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import com.netflix.spinnaker.swabbie.CacheStatus
 import java.lang.IllegalStateException
 import java.time.Clock
-import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.context.ApplicationListener
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
@@ -49,7 +46,7 @@ class WorkQueueManager(
   private val registry: Registry,
   private val cacheStatus: CacheStatus,
   private val discoveryStatusListener: DiscoveryStatusListener
-) : ApplicationListener<RemoteStatusChangedEvent> {
+) /*: ApplicationListener<RemoteStatusChangedEvent> */ {
   private val log: Logger = LoggerFactory.getLogger(javaClass)
   private val queueId = registry.createId("swabbie.work.queue")
   private val queueSizeId = registry.createId("swabbie.work.queueSize")
@@ -60,12 +57,14 @@ class WorkQueueManager(
       .monitorValue(queue.size())
   }
 
+  /*
   override fun onApplicationEvent(event: RemoteStatusChangedEvent) {
     if (event.source.isUp) {
       ensureLoadedCaches()
       queue.refillOnEmpty()
     }
   }
+  */
 
   /**
    * Monitors and refills the [WorkQueue] if empty.
@@ -75,6 +74,12 @@ class WorkQueueManager(
   fun monitor() {
     if (!discoveryStatusListener.isEnabled) {
       // do nothing, we're down in discovery and we want active instances to control the queue
+      return
+    }
+
+    if (!cacheStatus.cachesLoaded()) {
+      // caches haven't populated yet, do nothing
+      log.debug("Can't work until the caches load...")
       return
     }
 
@@ -120,7 +125,7 @@ class WorkQueueManager(
     }
   }
 
-  private fun ensureLoadedCaches() {
+/*  private fun ensureLoadedCaches() {
     try {
       while (!cacheStatus.cachesLoaded()) {
         log.debug("Can't work until the caches load...")
@@ -131,6 +136,7 @@ class WorkQueueManager(
       log.error("Failed while waiting for cache to start", e)
     }
   }
+*/
 
   companion object {
     fun timeToWork(schedule: Schedule, clock: Clock): Boolean {

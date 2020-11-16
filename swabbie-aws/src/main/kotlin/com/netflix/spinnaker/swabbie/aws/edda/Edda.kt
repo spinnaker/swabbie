@@ -176,22 +176,12 @@ class Edda(
     }
   }
 
-  // TODO: This should be updated as it would fail once edda fixes this endpoint
-  // see pattern in other functions
-  // See note in EddaService.getLaunchTemplateVersions
   override fun getLaunchTemplateVersions(params: Parameters): List<AmazonLaunchTemplateVersion> {
-    val result = call(params, SERVER_GROUP) {
+    return call(params, SERVER_GROUP) {
       eddaService: EddaService ->
       eddaService.getLaunchTemplateVersions()
     } ?: emptyList()
-
-    return result.flatMap { it.versions }
   }
-
-  data class EddaLaunchTemplaVersion(
-    val versions: List<AmazonLaunchTemplateVersion>,
-    val id: String
-  )
 
   private fun <R> call(params: Parameters, resourceType: String, fx: (EddaService) -> R): R? {
     val client = clients[Key(params.account, params.region, params.environment)]

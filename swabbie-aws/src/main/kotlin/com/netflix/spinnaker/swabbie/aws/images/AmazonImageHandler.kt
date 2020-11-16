@@ -215,9 +215,10 @@ class AmazonImageHandler(
     ) {
       throw StaleCacheException("Amazon launch configuration cache over 1 hour old, aborting.")
     }
+    val imagesUsedByLaunchTemplatesForRegion = launchTemplateVersionCache.get().getRefdAmisForRegion(params.region).keys
     val imagesUsedByLaunchConfigsForRegion = launchConfigurationCache.get().getRefdAmisForRegion(params.region).keys
     log.info("Checking the {} images used by launch configurations.", imagesUsedByLaunchConfigsForRegion.size)
-    if (imagesUsedByLaunchConfigsForRegion.size < swabbieProperties.minImagesUsedByLC) {
+    if ((imagesUsedByLaunchTemplatesForRegion.size + imagesUsedByLaunchConfigsForRegion.size) < swabbieProperties.minImagesUsedByLC) {
       throw CacheSizeException(
         "Amazon launch configuration cache contains less than " +
           "${swabbieProperties.minImagesUsedByLC} images used, aborting for safety."

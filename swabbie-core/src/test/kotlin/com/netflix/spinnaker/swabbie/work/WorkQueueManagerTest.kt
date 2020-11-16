@@ -71,28 +71,10 @@ object WorkQueueManagerTest {
   }
 
   @Test
-  fun `when down queue should not be filled`() {
-    whenever(discoveryStatusListener.isEnabled) doReturn false
-    workQueueManager.onApplicationEvent(downEvent)
-    workQueueManager.monitor()
-    expectThat(workQueue.isEmpty()).isTrue()
-  }
-
-  @Test
-  fun `when down queue should not be emptied`() {
-    whenever(discoveryStatusListener.isEnabled) doReturn false
-    workQueueManager.onApplicationEvent(downEvent)
-    workQueue.seed()
-    workQueueManager.monitor()
-    expectThat(workQueue.isEmpty()).isFalse()
-  }
-
-  @Test
   fun `when up and enabled queue should be filled`() {
     whenever(dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) doReturn false
     whenever(discoveryStatusListener.isEnabled) doReturn true
 
-    workQueueManager.onApplicationEvent(upEvent)
     workQueueManager.monitor()
 
     expectThat(workQueue.isEmpty()).isFalse()
@@ -103,7 +85,6 @@ object WorkQueueManagerTest {
     whenever(dynamicConfigService.isEnabled(SWABBIE_FLAG_PROPERY, false)) doReturn true
     whenever(discoveryStatusListener.isEnabled) doReturn true
 
-    workQueueManager.onApplicationEvent(upEvent)
     workQueueManager.monitor()
 
     expectThat(workQueue.isEmpty()).isTrue()

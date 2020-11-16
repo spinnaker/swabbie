@@ -21,6 +21,7 @@ import com.netflix.spinnaker.swabbie.aws.images.AmazonImage
 import com.netflix.spinnaker.swabbie.aws.instances.AmazonInstance
 import com.netflix.spinnaker.swabbie.aws.launchconfigurations.AmazonLaunchConfiguration
 import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplate
+import com.netflix.spinnaker.swabbie.aws.launchtemplates.AmazonLaunchTemplateVersion
 import com.netflix.spinnaker.swabbie.aws.loadbalancers.AmazonElasticLoadBalancer
 import com.netflix.spinnaker.swabbie.aws.securitygroups.AmazonSecurityGroup
 import com.netflix.spinnaker.swabbie.aws.snapshots.AmazonSnapshot
@@ -82,6 +83,6 @@ interface EddaService {
   @GET("/api/v2/aws/launchTemplates/{launchTemplateId}")
   fun getLaunchTemplate(@Path("launchTemplateId") launchTemplateId: String): AmazonLaunchTemplate
 
-  @GET("/api/v2/view/launchTemplateVersions;_expand")
-  fun getLaunchTemplateVersions(): List<Edda.EddaLaunchTemplaVersion> // TODO: switch to just launchTemplateVersion when edda is updated
+  @GET("/api/v2/aws/launchTemplateVersions;_expand")
+  fun getLaunchTemplateVersions(): List<AmazonLaunchTemplateVersion>
 }

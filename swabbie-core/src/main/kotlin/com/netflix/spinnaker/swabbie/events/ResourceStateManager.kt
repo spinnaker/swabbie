@@ -16,8 +16,10 @@
 
 package com.netflix.spinnaker.swabbie.events
 
+import com.netflix.spectator.api.Functions
 import com.netflix.spectator.api.Id
 import com.netflix.spectator.api.Registry
+import com.netflix.spectator.api.patterns.PolledMeter
 import com.netflix.spinnaker.swabbie.model.MarkedResource
 import com.netflix.spinnaker.swabbie.model.ResourceState
 import com.netflix.spinnaker.swabbie.model.Status
@@ -25,6 +27,7 @@ import com.netflix.spinnaker.swabbie.model.WorkConfiguration
 import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import java.time.Clock
+import java.util.concurrent.atomic.AtomicLong
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.event.EventListener
@@ -47,6 +50,8 @@ class ResourceStateManager(
   private val orcaTaskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
   private val lastMarkedId = registry.createId("swabbie.resources.lastMarked")
 
+  private val lastMarkedMonitors: MutableMap<String, AtomicLong> = mutableMapOf()
+
   @EventListener
   fun handleEvents(event: Event) {
     val workConfiguration = event.workConfiguration
@@ -58,7 +63,7 @@ class ResourceStateManager(
     when (event) {
       is MarkResourceEvent -> {
         registry.counter(withTags(markCountId, workConfiguration)).increment()
-        registry.gauge(withTags(lastMarkedId, workConfiguration)).set(clock.millis().toDouble())
+        recordResourceLastMarked(event)
         resourceTagger?.tag(
           markedResource,
           workConfiguration,
@@ -147,6 +152,19 @@ class ResourceStateManager(
       "account", workConfiguration.account.name,
       "configuration", workConfiguration.namespace
     )
+  }
+
+  private fun recordResourceLastMarked(event: MarkResourceEvent) {
+    lastMarkedMonitors
+      .computeIfAbsent("${event.workConfiguration.location}${event.workConfiguration.resourceType}") {
+        PolledMeter
+          .using(registry)
+          .withId(withTags(lastMarkedId, event.workConfiguration))
+          // System time is needed here because it must match the same clock (System) that Spectator uses in its AGE fn
+          // substituting for the [java.time.Clock] instance is incompatible.
+          .monitorValue(AtomicLong(System.currentTimeMillis()), Functions.AGE)
+      }
+      .set(System.currentTimeMillis())
   }
 }
 

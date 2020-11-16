@@ -45,6 +45,7 @@ class ResourceStateManager(
   private val notifyCountId: Id = registry.createId("swabbie.resources.notifyCount")
   private val optOutCountId: Id = registry.createId("swabbie.resources.optOutCount")
   private val orcaTaskFailureId: Id = registry.createId("swabbie.resources.orcaTaskFailureCount")
+  private val lastMarkedId = registry.createId("swabbie.resources.lastMarked")
 
   @EventListener
   fun handleEvents(event: Event) {
@@ -57,6 +58,7 @@ class ResourceStateManager(
     when (event) {
       is MarkResourceEvent -> {
         registry.counter(withTags(markCountId, workConfiguration)).increment()
+        registry.gauge(withTags(lastMarkedId, workConfiguration)).set(clock.millis().toDouble())
         resourceTagger?.tag(
           markedResource,
           workConfiguration,

@@ -1,0 +1,32 @@
+FROM python:3.7-alpine3.12
+LABEL maintainer="sig-platform@spinnaker.io"
+
+ENV AWS_CLI_VERSION=1.18.152
+
+ENV PATH "$PATH:/usr/local/bin/"
+
+RUN apk update \
+  && apk upgrade \
+  && apk --no-cache add --update \
+    bash \
+    ca-certificates \
+    wget \
+    openjdk11 \
+    git \
+    openssh-client
+
+# AWS CLI
+RUN pip install --upgrade awscli==${AWS_CLI_VERSION} python-magic \
+  && pip uninstall -y pip
+
+RUN rm /var/cache/apk/*
+
+RUN addgroup -S -g 10111 spinnaker
+RUN adduser -S -G spinnaker -u 10111 spinnaker
+
+COPY swabbie-web/build/install/swabbie /opt/swabbie
+RUN mkdir -p /opt/swabbie/plugins && chown -R spinnaker:nogroup /opt/swabbie/plugins
+
+USER spinnaker
+
+CMD ["/opt/swabbie/bin/swabbie"]

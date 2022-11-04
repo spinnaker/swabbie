@@ -20,18 +20,18 @@ dependencies {
   implementation project(":swabbie-retrofit")
 
   implementation "com.netflix.eureka:eureka-client"
-  implementation "com.netflix.spinnaker.kork:kork-aws:$korkVersion"
+  implementation "io.spinnaker.kork:kork-aws:$korkVersion"
   implementation "com.netflix.awsobjectmapper:awsobjectmapper"
   implementation "com.amazonaws:aws-java-sdk-ec2"
   implementation "com.amazonaws:aws-java-sdk-autoscaling"
   implementation "com.amazonaws:aws-java-sdk-sts"
   implementation "com.amazonaws:aws-java-sdk-elasticloadbalancing"
   implementation "com.netflix.frigga:frigga"
-  implementation "com.netflix.spinnaker.kork:kork-moniker"
+  implementation "io.spinnaker.kork:kork-moniker"
   implementation "net.logstash.logback:logstash-logback-encoder"
   implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
-  implementation "com.netflix.spinnaker.kork:kork-core"
-  implementation "com.netflix.spinnaker.kork:kork-web"
+  implementation "io.spinnaker.kork:kork-core"
+  implementation "io.spinnaker.kork:kork-web"
 
   implementation "com.squareup.retrofit:retrofit"
   implementation "com.squareup.okhttp:okhttp-apache"
@@ -39,6 +39,6 @@ dependencies {
   implementation "com.squareup.retrofit:converter-jackson"
 
   testImplementation project(":swabbie-test")
-  testImplementation "com.netflix.spinnaker.kork:kork-test"
+  testImplementation "io.spinnaker.kork:kork-test"
   testImplementation "io.strikt:strikt-core"
 }

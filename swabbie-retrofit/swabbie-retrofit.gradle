@@ -20,6 +20,6 @@ dependencies {
   implementation "com.squareup.okhttp:okhttp-apache"
   implementation "com.squareup.okhttp:okhttp-urlconnection"
   implementation "com.squareup.retrofit:converter-jackson"
-  implementation "com.netflix.spinnaker.kork:kork-web"
+  implementation "io.spinnaker.kork:kork-web"
   implementation "io.reactivex:rxjava"
 }

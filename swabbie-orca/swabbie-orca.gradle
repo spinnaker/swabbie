@@ -17,9 +17,9 @@
 dependencies {
   implementation project(":swabbie-core")
   implementation project(":swabbie-retrofit")
-  implementation "com.netflix.spinnaker.kork:kork-core"
-  implementation "com.netflix.spinnaker.kork:kork-web"
-  implementation "com.netflix.spinnaker.kork:kork-moniker"
+  implementation "io.spinnaker.kork:kork-core"
+  implementation "io.spinnaker.kork:kork-web"
+  implementation "io.spinnaker.kork:kork-moniker"
   implementation "net.logstash.logback:logstash-logback-encoder"
   implementation "com.jakewharton.retrofit:retrofit1-okhttp3-client"
   implementation "com.squareup.retrofit:retrofit"

@@ -16,10 +16,10 @@
 
 dependencies {
   implementation "org.slf4j:jcl-over-slf4j"
-  implementation "com.netflix.spinnaker.kork:kork-core"
-  implementation "com.netflix.spinnaker.kork:kork-web"
+  implementation "io.spinnaker.kork:kork-core"
+  implementation "io.spinnaker.kork:kork-web"
+  implementation "io.spinnaker.kork:kork-moniker"
   implementation "net.logstash.logback:logstash-logback-encoder"
-  implementation "com.netflix.spinnaker.kork:kork-moniker"
   implementation "com.squareup.retrofit:retrofit"
   implementation "com.fasterxml.jackson.core:jackson-annotations"
   implementation "com.fasterxml.jackson.core:jackson-core"
@@ -30,6 +30,6 @@ dependencies {
   implementation "com.google.guava:guava"
 
   testImplementation project(":swabbie-test")
-  testImplementation "com.netflix.spinnaker.kork:kork-test"
+  testImplementation "io.spinnaker.kork:kork-test"
   testImplementation "io.strikt:strikt-core"
 }

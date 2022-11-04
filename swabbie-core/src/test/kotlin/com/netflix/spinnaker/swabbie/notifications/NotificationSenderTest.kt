@@ -32,24 +32,24 @@ import com.netflix.spinnaker.swabbie.repository.ResourceTrackingRepository
 import com.netflix.spinnaker.swabbie.test.InMemoryNotificationQueue
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
-import com.nhaarman.mockito_kotlin.any
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.never
-import com.nhaarman.mockito_kotlin.reset
-import com.nhaarman.mockito_kotlin.times
-import com.nhaarman.mockito_kotlin.verify
-import com.nhaarman.mockito_kotlin.whenever
-import java.time.Clock
-import java.time.Instant
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.springframework.context.ApplicationEventPublisher
 import strikt.api.expectThat
 import strikt.assertions.isNotEqualTo
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
+import java.time.Clock
+import java.time.Instant
 
 object NotificationSenderTest {
   private val notifier = mock<Notifier>()
@@ -87,7 +87,7 @@ object NotificationSenderTest {
 
   @BeforeEach
   fun setup() {
-    whenever(dynamicConfigService.getConfig(any<Class<*>>(), any(), any())) doReturn 2
+    whenever(dynamicConfigService.getConfig(any<Class<Int>>(), any(), any())) doReturn 2
     whenever(discoveryStatusListener.isEnabled) doReturn true
   }
 

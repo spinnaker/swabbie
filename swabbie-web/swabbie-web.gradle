@@ -30,7 +30,7 @@ dependencies {
   implementation "org.springframework.boot:spring-boot-starter-actuator"
   implementation "org.springframework.boot:spring-boot-starter-web"
   implementation "org.springframework.boot:spring-boot-starter-data-rest"
-  implementation "com.netflix.spinnaker.kork:kork-web"
+  implementation "io.spinnaker.kork:kork-web"
   implementation project(":swabbie-aws")
   implementation project(":swabbie-clouddriver")
   implementation project(":swabbie-core")
@@ -38,5 +38,5 @@ dependencies {
   implementation project(":swabbie-front50")
   implementation project(":swabbie-redis")
   implementation project(":swabbie-test")
-  runtimeOnly "com.netflix.spinnaker.kork:kork-runtime"
+  runtimeOnly "io.spinnaker.kork:kork-runtime"
 }

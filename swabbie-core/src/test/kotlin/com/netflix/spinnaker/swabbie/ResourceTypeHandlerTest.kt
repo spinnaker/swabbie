@@ -43,27 +43,22 @@ import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_PROVIDER_TYPE
 import com.netflix.spinnaker.swabbie.test.TEST_RESOURCE_TYPE
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
-import com.nhaarman.mockito_kotlin.any
-import com.nhaarman.mockito_kotlin.argWhere
-import com.nhaarman.mockito_kotlin.check
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.eq
-import com.nhaarman.mockito_kotlin.inOrder
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.never
-import com.nhaarman.mockito_kotlin.reset
-import com.nhaarman.mockito_kotlin.times
-import com.nhaarman.mockito_kotlin.verify
-import com.nhaarman.mockito_kotlin.whenever
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
-import java.util.concurrent.TimeUnit
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argWhere
+import org.mockito.kotlin.check
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.springframework.context.ApplicationEventPublisher
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
@@ -71,6 +66,11 @@ import strikt.assertions.isFalse
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 import strikt.assertions.isTrue
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 
 object ResourceTypeHandlerTest {
   private val resourceRepository = mock<ResourceTrackingRepository>()

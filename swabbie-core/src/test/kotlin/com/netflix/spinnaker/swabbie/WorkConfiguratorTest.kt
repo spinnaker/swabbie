@@ -28,15 +28,15 @@ import com.netflix.spinnaker.swabbie.exclusions.AccountExclusionPolicy
 import com.netflix.spinnaker.swabbie.model.EmptyAccount
 import com.netflix.spinnaker.swabbie.model.Region
 import com.netflix.spinnaker.swabbie.model.SpinnakerAccount
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.whenever
-import java.util.Optional
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import strikt.api.expectThat
 import strikt.assertions.contains
 import strikt.assertions.isEqualTo
+import java.util.Optional
 
 object WorkConfiguratorTest {
   private val accountProvider: AccountProvider = mock()

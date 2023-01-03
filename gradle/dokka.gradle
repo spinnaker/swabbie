@@ -1,8 +1,11 @@
 apply plugin: "org.jetbrains.dokka"
 
-dokka {
-  outputFormat = "html"
-  outputDirectory = "$buildDir/javadoc"
-  jdkVersion = 11
+tasks.named("dokkaHtml").configure {
+  outputDirectory.set(new File("$buildDir/javadoc"))
+
+  dokkaSourceSets {
+    configureEach {
+      jdkVersion.set(11)
+    }
+  }
 }
-tasks.getByName("build").doLast { dokka }

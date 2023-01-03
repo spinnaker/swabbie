@@ -25,18 +25,18 @@ import com.netflix.spinnaker.swabbie.repository.ResourceStateRepository
 import com.netflix.spinnaker.swabbie.tagging.ResourceTagger
 import com.netflix.spinnaker.swabbie.test.TestResource
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
-import com.nhaarman.mockito_kotlin.any
-import com.nhaarman.mockito_kotlin.argWhere
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.reset
-import com.nhaarman.mockito_kotlin.verify
-import com.nhaarman.mockito_kotlin.whenever
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argWhere
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Test
 
 object ResourceStateManagerTest {
   private val resourceStateRepository = mock<ResourceStateRepository>()

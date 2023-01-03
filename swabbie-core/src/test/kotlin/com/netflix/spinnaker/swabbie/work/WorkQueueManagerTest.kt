@@ -27,20 +27,20 @@ import com.netflix.spinnaker.kork.test.time.MutableClock
 import com.netflix.spinnaker.swabbie.test.InMemoryWorkQueue
 import com.netflix.spinnaker.swabbie.test.NoopCacheStatus
 import com.netflix.spinnaker.swabbie.test.WorkConfigurationTestHelper
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.reset
-import com.nhaarman.mockito_kotlin.whenever
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.whenever
+import strikt.api.expectThat
+import strikt.assertions.isFalse
+import strikt.assertions.isTrue
 import java.time.Clock
 import java.time.LocalDateTime
 import java.time.Month
 import java.time.ZoneId
 import java.time.ZoneOffset
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.assertions.isFalse
-import strikt.assertions.isTrue
 
 object WorkQueueManagerTest {
 

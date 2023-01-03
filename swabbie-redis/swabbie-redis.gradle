@@ -18,11 +18,11 @@ dependencies {
   implementation project(":swabbie-core")
 
   implementation "redis.clients:jedis"
-  implementation "com.netflix.spinnaker.kork:kork-jedis"
-  implementation "com.netflix.spinnaker.kork:kork-test"
+  implementation "io.spinnaker.kork:kork-jedis"
+  implementation "io.spinnaker.kork:kork-test"
   implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
 
-  testImplementation "com.netflix.spinnaker.kork:kork-jedis-test"
+  testImplementation "io.spinnaker.kork:kork-jedis-test"
   testImplementation project(":swabbie-test")
   testImplementation("io.strikt:strikt-core")
 }

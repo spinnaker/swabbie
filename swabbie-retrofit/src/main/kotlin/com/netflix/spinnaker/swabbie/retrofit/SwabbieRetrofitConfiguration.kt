@@ -16,9 +16,11 @@
 
 package com.netflix.spinnaker.swabbie.retrofit
 
-import com.netflix.spinnaker.config.OkHttpClientConfiguration
-import com.squareup.okhttp.ConnectionPool
-import com.squareup.okhttp.Interceptor
+import com.jakewharton.retrofit.Ok3Client
+import com.netflix.spinnaker.config.OkHttp3ClientConfiguration
+import okhttp3.ConnectionPool
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -30,9 +32,10 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Scope
 import retrofit.RestAdapter
 import retrofit.client.OkClient
+import java.util.concurrent.TimeUnit
 
 @Configuration
-@Import(OkHttpClientConfiguration::class)
+@Import(OkHttp3ClientConfiguration::class)
 @EnableConfigurationProperties
 open class SwabbieRetrofitConfiguration {
 
@@ -53,12 +56,12 @@ open class SwabbieRetrofitConfiguration {
   @Bean(name = arrayOf("retrofitClient", "okClient"))
   @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
   open fun retrofitClient(
-    @Qualifier("okHttpClientConfiguration") okHttpClientConfig: OkHttpClientConfiguration
-  ): OkClient {
+    @Qualifier("okHttp3ClientConfiguration") okHttpClientConfig: OkHttp3ClientConfiguration
+  ): Ok3Client {
     val userAgent = "Spinnaker-${System.getProperty("spring.application.name", "unknown")}/" +
       (javaClass.`package`.implementationVersion ?: "1.0")
-    val cfg = okHttpClientConfig.create().apply {
-      networkInterceptors().add(
+    val okHttpClient = OkHttpClient.Builder()
+      .addNetworkInterceptor(
         Interceptor { chain ->
           chain.proceed(
             chain.request().newBuilder()
@@ -66,13 +69,11 @@ open class SwabbieRetrofitConfiguration {
               .header("X-SPINNAKER-USER", spinnakerUser)
               .build()
           )
-        }
-      )
-
-      connectionPool = ConnectionPool(maxIdleConnections, keepAliveDurationMs)
-      retryOnConnectionFailure = this@SwabbieRetrofitConfiguration.retryOnConnectionFailure
-    }
-    return OkClient(cfg)
+        })
+      .connectionPool(ConnectionPool(maxIdleConnections, keepAliveDurationMs, TimeUnit.MILLISECONDS))
+      .retryOnConnectionFailure(retryOnConnectionFailure)
+      .build()
+    return Ok3Client(okHttpClient)
   }
 
   @Bean

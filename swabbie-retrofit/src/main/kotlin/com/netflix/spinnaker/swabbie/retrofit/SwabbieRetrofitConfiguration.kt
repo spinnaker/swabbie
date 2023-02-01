@@ -18,6 +18,7 @@ package com.netflix.spinnaker.swabbie.retrofit
 
 import com.jakewharton.retrofit.Ok3Client
 import com.netflix.spinnaker.config.OkHttp3ClientConfiguration
+import com.netflix.spinnaker.config.SwabbieProperties
 import okhttp3.ConnectionPool
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -56,10 +57,12 @@ open class SwabbieRetrofitConfiguration {
   @Bean(name = arrayOf("retrofitClient", "okClient"))
   @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
   open fun retrofitClient(
-    @Qualifier("okHttp3ClientConfiguration") okHttpClientConfig: OkHttp3ClientConfiguration
+    @Qualifier("okHttp3ClientConfiguration") okHttpClientConfig: OkHttp3ClientConfiguration,
+    swabbieProperties: SwabbieProperties
   ): Ok3Client {
     val userAgent = "Spinnaker-${System.getProperty("spring.application.name", "unknown")}/" +
       (javaClass.`package`.implementationVersion ?: "1.0")
+    val allowedAccounts = swabbieProperties.providers.flatMap { it.accounts }.distinct().joinToString(",")
     val okHttpClient = OkHttpClient.Builder()
       .addNetworkInterceptor(
         Interceptor { chain ->
@@ -67,6 +70,7 @@ open class SwabbieRetrofitConfiguration {
             chain.request().newBuilder()
               .header("User-Agent", userAgent)
               .header("X-SPINNAKER-USER", spinnakerUser)
+              .header("X-SPINNAKER-ACCOUNTS", allowedAccounts)
               .build()
           )
         })

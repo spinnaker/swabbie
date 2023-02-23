@@ -17,10 +17,9 @@
 package com.netflix.spinnaker.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.jakewharton.retrofit.Ok3Client
-import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
 import com.netflix.spinnaker.swabbie.orca.OrcaService
 import com.netflix.spinnaker.swabbie.orca.tagging.OrcaTaggingService
+import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import com.netflix.spinnaker.swabbie.tagging.TaggingService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -31,10 +30,11 @@ import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RequestInterceptor
 import retrofit.RestAdapter
+import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
-@Import(RetrofitConfiguration::class)
+@Import(SwabbieRetrofitConfiguration::class)
 @ComponentScan("com.netflix.spinnaker.swabbie.orca")
 open class OrcaConfiguration {
   @Bean
@@ -45,14 +45,14 @@ open class OrcaConfiguration {
   open fun orcaService(
     orcaEndpoint: Endpoint,
     objectMapper: ObjectMapper,
-    clientProvider: OkHttpClientProvider,
+    retrofitClient: Client,
     spinnakerRequestInterceptor: RequestInterceptor,
     retrofitLogLevel: RestAdapter.LogLevel
   ): OrcaService =
     RestAdapter.Builder()
       .setRequestInterceptor(spinnakerRequestInterceptor)
       .setEndpoint(orcaEndpoint)
-      .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("orca", orcaEndpoint.url))))
+      .setClient(retrofitClient)
       .setLogLevel(retrofitLogLevel)
       .setConverter(JacksonConverter(objectMapper))
       .build()

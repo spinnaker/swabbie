@@ -21,6 +21,7 @@ import com.jakewharton.retrofit.Ok3Client
 import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
 import com.netflix.spinnaker.okhttp.SpinnakerRequestInterceptor
 import com.netflix.spinnaker.swabbie.clouddriver.CloudDriverService
+import com.netflix.spinnaker.swabbie.retrofit.SwabbieRetrofitConfiguration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -28,10 +29,11 @@ import org.springframework.context.annotation.Import
 import retrofit.Endpoint
 import retrofit.Endpoints
 import retrofit.RestAdapter
+import retrofit.client.Client
 import retrofit.converter.JacksonConverter
 
 @Configuration
-@Import(RetrofitConfiguration::class)
+@Import(SwabbieRetrofitConfiguration::class)
 open class ClouddriverConfiguration {
   @Bean
   open fun clouddriverEndpoint(@Value("\${clouddriver.base-url}") clouddriverBaseUrl: String) = Endpoints.newFixedEndpoint(clouddriverBaseUrl)
@@ -40,13 +42,13 @@ open class ClouddriverConfiguration {
   open fun clouddriverService(
     clouddriverEndpoint: Endpoint,
     objectMapper: ObjectMapper,
-    clientProvider: OkHttpClientProvider,
+    retrofitClient: Client,
     spinnakerRequestInterceptor: SpinnakerRequestInterceptor,
     retrofitLogLevel: RestAdapter.LogLevel
   ) = RestAdapter.Builder()
     .setRequestInterceptor(spinnakerRequestInterceptor)
     .setEndpoint(clouddriverEndpoint)
-    .setClient(Ok3Client(clientProvider.getClient(DefaultServiceEndpoint("clouddriver", clouddriverEndpoint.url))))
+    .setClient(retrofitClient)
     .setLogLevel(retrofitLogLevel)
     .setConverter(JacksonConverter(objectMapper))
     .build()

@@ -19,11 +19,7 @@ jobs:
       - uses: actions/setup-java@v3
         with:
           java-version: 11
-      - uses: actions/cache@v3
-        with:
-          path: ~/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          distribution: 'zulu'
+          cache: 'gradle'
       - name: Build
         run: ./gradlew build --stacktrace

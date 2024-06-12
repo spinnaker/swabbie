@@ -47,7 +47,7 @@ import org.springframework.context.annotation.Import
 @ComponentScan(basePackages = ["com.netflix.spinnaker.swabbie.aws"])
 @Import(BastionConfig::class)
 open class AwsConfiguration {
-  private val defaultRegion = "us-west-2" // TODO: (Jeyrs) Make configurable
+  private val defaultRegion = "us-east-1" // TODO: (Jeyrs) Make configurable
 
   // AWS object mapper ensures edda and vanilla aws responses are the same
   @Bean

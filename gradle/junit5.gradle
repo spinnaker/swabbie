@@ -21,8 +21,8 @@ dependencies {
   testImplementation "org.junit.jupiter:junit-jupiter-api"
   testImplementation "org.junit.jupiter:junit-jupiter-params"
 
-  testRuntime "org.junit.platform:junit-platform-launcher"
-  testRuntime "org.junit.jupiter:junit-jupiter-engine"
+  testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+  testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine"
 }
 
 test {

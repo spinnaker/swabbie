@@ -73,7 +73,7 @@ class StandaloneContainerTest {
     swabbieContainer =
         new GenericContainer(dockerImageName)
             .withNetwork(network)
-            .withExposedPorts(8088)
+            .withExposedPorts(8092)
             .dependsOn(redis)
             .waitingFor(Wait.forHealthcheck())
             .withEnv("SPRING_APPLICATION_JSON", getSpringApplicationJson());

@@ -17,37 +17,39 @@
 plugins {
   id "io.spinnaker.project" version "$spinnakerGradleVersion" apply false
   id "org.jetbrains.kotlin.jvm" version "$kotlinVersion" apply false
-  id "org.jetbrains.dokka" version "1.7.20" apply false
+  id "io.gitlab.arturbosch.detekt" version "1.17.1" apply false
+  id "org.jetbrains.dokka" version "1.9.20" apply false
 }
 
 allprojects {
   apply plugin: "io.spinnaker.project"
 
+  group = "io.spinnaker.swabbie"
+}
+
+subprojects {
   if (korkVersion.endsWith("-SNAPSHOT")) {
     repositories {
       mavenLocal()
     }
   }
 
-  group = "io.spinnaker.swabbie"
-
-  configurations.all {
-    exclude group: "javax.servlet", module: "servlet-api"
-    exclude group: "org.slf4j", module: "slf4j-log4j12"
-    exclude group: "org.slf4j", module: "slf4j-simple"
-  }
-
   if (name != "swabbie-bom") {
-    apply plugin: "java"
+    apply plugin: "java-library"
     apply from: "$rootDir/gradle/kotlin.gradle"
     apply from: "$rootDir/gradle/junit5.gradle"
     apply from: "$rootDir/gradle/license.gradle"
     apply from: "$rootDir/gradle/dokka.gradle"
 
     dependencies {
-      api(platform("io.spinnaker.kork:kork-bom:$korkVersion"))
+      implementation(enforcedPlatform("io.spinnaker.kork:kork-bom:$korkVersion"))
       annotationProcessor(platform("io.spinnaker.kork:kork-bom:$korkVersion"))
-      annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+      testAnnotationProcessor(platform("io.spinnaker.kork:kork-bom:$korkVersion"))
+      implementation("org.slf4j:slf4j-api")
+    }
+
+    configurations.all {
+      exclude group: "javax.servlet", module: "servlet-api"
     }
 
     test {
@@ -67,3 +69,5 @@ allprojects {
     }
   }
 }
+
+defaultTasks ":swabbie-web:run"

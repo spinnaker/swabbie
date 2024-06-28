@@ -1,0 +1,14 @@
+server:
+  port: 8092
+
+front50:
+  baseUrl: ${services.front50.baseUrl:http://localhost:8080}
+
+orca:
+  baseUrl: ${services.orca.baseUrl:http://localhost:8083}
+
+clouddriver:
+  baseUrl: ${services.clouddriver.baseUrl:http://localhost:7002}
+
+echo:
+  baseUrl: ${services.echo.baseUrl:http://localhost:8089}

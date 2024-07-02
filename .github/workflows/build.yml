@@ -112,3 +112,8 @@ jobs:
           tags: |
             "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ github.ref_name }}-latest-java11-unvalidated-ubuntu"
             "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-java11-unvalidated-ubuntu"
+
+      - name: Test local slim container image
+        env:
+          FULL_DOCKER_IMAGE_NAME: "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}"
+        run: ./gradlew ${{ steps.build_variables.outputs.REPO }}-integration:test

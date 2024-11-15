@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter
 class Dates {
   companion object {
     private val formats: List<DateTimeFormatter> = listOf(
+      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'"), // HIgher precision with Java 17
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSS'Z'"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"),

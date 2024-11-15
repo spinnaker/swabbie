@@ -26,7 +26,6 @@ rootProject.name = 'swabbie'
 
 include 'swabbie-test',
   'swabbie-core',
-  'swabbie-integration',
   'swabbie-retrofit',
   'swabbie-redis',
   'swabbie-aws',

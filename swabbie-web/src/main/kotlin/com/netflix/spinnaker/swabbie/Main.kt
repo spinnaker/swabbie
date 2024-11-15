@@ -25,7 +25,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.scheduling.annotation.EnableAsync
 import org.springframework.scheduling.annotation.EnableScheduling
-import com.netflix.spinnaker.kork.boot.DefaultPropertiesBuilder
 
 object MainDefaults {
   val PROPS = mapOf(

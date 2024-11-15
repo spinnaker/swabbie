@@ -28,9 +28,15 @@ import org.springframework.scheduling.annotation.EnableScheduling
 import com.netflix.spinnaker.kork.boot.DefaultPropertiesBuilder
 
 object MainDefaults {
-  val PROPS = DefaultPropertiesBuilder().property("spring.application.name", "swabbie")
-    .property("spring.mvc.pathmatch.matching-strategy","ANT_PATH_MATCHER")
-    .build()
+  val PROPS = mapOf(
+    "netflix.environment" to "test",
+    "netflix.account" to "\${netflix.environment}",
+    "netflix.stack" to "test",
+    "spring.config.location" to "\${user.home}/.spinnaker/",
+    "spring.application.name" to "swabbie",
+    "spring.config.name" to "spinnaker,\${spring.application.name}",
+    "spring.profiles.active" to "\${netflix.environment},local"
+  )
 }
 
 @Configuration

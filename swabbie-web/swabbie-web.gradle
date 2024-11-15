@@ -31,7 +31,6 @@ dependencies {
   implementation "org.springframework.boot:spring-boot-starter-web"
   implementation "org.springframework.boot:spring-boot-starter-data-rest"
   implementation "io.spinnaker.kork:kork-web"
-  implementation "io.spinnaker.kork:kork-config"
 
   implementation project(":swabbie-aws")
   implementation project(":swabbie-clouddriver")

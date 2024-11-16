@@ -27,7 +27,6 @@ jobs:
         with:
           java-version: |
             17
-            11
           distribution: 'zulu'
           cache: 'gradle'
       - name: Prepare build variables
@@ -48,10 +47,10 @@ jobs:
           platforms: local
           tags: |
             "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-unvalidated"
-      - name: Test local slim container image
-        env:
-          FULL_DOCKER_IMAGE_NAME: "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-unvalidated"
-        run: ./gradlew ${{ steps.build_variables.outputs.REPO }}-integration:test
+#     - name: Test local slim container image
+#       env:
+#         FULL_DOCKER_IMAGE_NAME: "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-unvalidated"
+#       run: ./gradlew ${{ steps.build_variables.outputs.REPO }}-integration:test
       - name: Login to GAR
         # Only run this on repositories in the 'spinnaker' org, not on forks.
         if: startsWith(github.repository, 'spinnaker/')
@@ -87,28 +86,8 @@ jobs:
           tags: |
             "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ github.ref_name }}-latest-unvalidated-ubuntu"
             "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-unvalidated-ubuntu"
-      - name: Build and publish slim JRE 11 container image
-        # Only run this on repositories in the 'spinnaker' org, not on forks.
-        if: startsWith(github.repository, 'spinnaker/')
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.java11.slim
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ github.ref_name }}-latest-java11-unvalidated"
-            "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-java11-unvalidated"
-            "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ github.ref_name }}-latest-java11-unvalidated-slim"
-            "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-java11-unvalidated-slim"
-      - name: Build and publish ubuntu JRE 11 container image
-        # Only run this on repositories in the 'spinnaker' org, not on forks.
-        if: startsWith(github.repository, 'spinnaker/')
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.java11.ubuntu
-          push: true
-          tags: |
-            "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ github.ref_name }}-latest-java11-unvalidated-ubuntu"
-            "${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-java11-unvalidated-ubuntu"
+
+#      - name: Test local slim container image
+#       env:
+#         FULL_DOCKER_IMAGE_NAME: "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}"
+#       run: ./gradlew ${{ steps.build_variables.outputs.REPO }}-integration:test

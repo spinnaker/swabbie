@@ -127,6 +127,7 @@ object AmazonTagExclusionPolicyTest {
       filteredResources.first().resourceId shouldMatch equalTo("2")
     }
   }
+  //TODO: This is a duplicate of the above but with a VERY specific very precise time zone
   @Test
   fun `should handle high precision date times`() {
     val now = LocalDateTime.ofInstant(Instant.from(DateTimeFormatter.ISO_INSTANT.parse("2024-11-15T23:42:18.592945345Z")), ZoneId.of("America/Chicago"))

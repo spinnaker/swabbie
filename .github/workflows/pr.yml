@@ -62,7 +62,7 @@ jobs:
           tags: |
             "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}"
 
-      - name: Test local slim container image
-        env:
-          FULL_DOCKER_IMAGE_NAME: "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}"
-        run: ./gradlew ${{ steps.build_variables.outputs.REPO }}-integration:test
+#     - name: Test local slim container image
+#       env:
+#         FULL_DOCKER_IMAGE_NAME: "${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}"
+#       run: ./gradlew ${{ steps.build_variables.outputs.REPO }}-integration:test

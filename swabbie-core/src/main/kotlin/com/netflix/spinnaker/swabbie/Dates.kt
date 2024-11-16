@@ -20,17 +20,19 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+
+
 
 class Dates {
   companion object {
     private val formats: List<DateTimeFormatter> = listOf(
-      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'"), // HIgher precision with Java 17
-      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSS'Z'"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS"),
+      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"),
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ"),
@@ -40,7 +42,8 @@ class Dates {
       DateTimeFormatter.ofPattern("MM/dd/yyyy"),
       DateTimeFormatter.ofPattern("MMMM d, yyyy h:mm a"),
       DateTimeFormatter.ofPattern("MMMM d, yyyy"),
-      DateTimeFormatter.ofPattern("MMMM d, yyyy")
+      DateTimeFormatter.ofPattern("MMMM d, yyyy"),
+        DateTimeFormatter.ISO_INSTANT,
     )
 
     fun toLocalDateTime(date: String): LocalDateTime {
@@ -49,9 +52,11 @@ class Dates {
         try {
           return LocalDateTime.parse(date, format)
         } catch (e: Exception) {
+          System.err.println("Failed to process with format $format")
           exception = e
         }
       }
+      System.err.println("Failed to process date $date")
 
       throw exception!!
     }

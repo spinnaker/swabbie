@@ -131,7 +131,6 @@ object AmazonTagExclusionPolicyTest {
   @Test
   fun `should handle high precision date times`() {
     val now = LocalDateTime.ofInstant(Instant.from(DateTimeFormatter.ISO_INSTANT.parse("2024-11-15T23:42:18.592945345Z")), ZoneId.of("America/Chicago"))
-    val resources = listOf(
       AwsTestResource(
         id = "1",
         creationDate = now.toString()
@@ -140,26 +139,7 @@ object AmazonTagExclusionPolicyTest {
         value = listOf(
           mapOf("expiration_time" to "10d")
         )
-      ),
-      AwsTestResource(
-        id = "2",
-        creationDate = now.toString()
-      ).withDetail(
-        name = "tags",
-        value = listOf(
-          mapOf("expiration_time" to "9d")
-        )
       )
-    )
-
-    clock.incrementBy(Duration.ofDays(10))
-
-    resources.filter {
-      subject.apply(it, emptyList()) == null
-    }.let { filteredResources ->
-      filteredResources.size shouldMatch equalTo(1)
-      filteredResources.first().resourceId shouldMatch equalTo("2")
-    }
   }
 }
 

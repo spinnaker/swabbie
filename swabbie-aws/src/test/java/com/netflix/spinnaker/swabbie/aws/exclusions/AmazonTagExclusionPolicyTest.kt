@@ -131,7 +131,7 @@ object AmazonTagExclusionPolicyTest {
   @Test
   fun `should handle high precision date times`() {
     val now = LocalDateTime.ofInstant(Instant.from(DateTimeFormatter.ISO_INSTANT.parse("2024-11-15T23:42:18.592945345Z")), ZoneId.of("America/Chicago"))
-      AwsTestResource(
+    val resource =  AwsTestResource(
         id = "1",
         creationDate = now.toString()
       ).withDetail(
@@ -140,6 +140,7 @@ object AmazonTagExclusionPolicyTest {
           mapOf("expiration_time" to "10d")
         )
       )
+    resource.createTs shouldMatch equalTo(now.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
   }
 }
 
